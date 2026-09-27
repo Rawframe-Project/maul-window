@@ -27,6 +27,7 @@
 #include <viewporter-protocol.h>
 #include <xdg-decoration-unstable-v1-protocol.h>
 #include <xdg-shell-protocol.h>
+#include <xdg-toplevel-icon-v1-protocol.h>
 // clang-format on
 
 #include "maul-window/base.h"

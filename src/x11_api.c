@@ -41,6 +41,7 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, configureWindow, xcb_configure_window) &&
            FIND(library, changeProperty, xcb_change_property) &&
            FIND(library, deleteProperty, xcb_delete_property) &&
+           FIND(library, maximumRequestLength, xcb_get_maximum_request_length) &&
            FIND(library, internAtom, xcb_intern_atom) &&
            FIND(library, internAtomReply, xcb_intern_atom_reply) &&
            FIND(library, getProperty, xcb_get_property) &&

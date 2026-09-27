@@ -240,8 +240,7 @@ static void DestroyContext(mwinContext* context)
     {
         for (uint32_t i = 0; i < context->limits.requestsPerWindow; i++)
         {
-            mwinReleaseRequestText(context, &context->windows[slot].requests[i]);
-            mwinReleaseDialogCopy(context, &context->windows[slot].requests[i]);
+            mwinReleaseRequestData(context, &context->windows[slot].requests[i]);
         }
     }
     mwinAllocator allocator = context->allocator;

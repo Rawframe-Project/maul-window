@@ -8,6 +8,7 @@
 #include "allocator.h"
 #include "x11_clipboard.h"
 #include "x11_cursor.h"
+#include "x11_icon.h"
 #include "x11_input.h"
 #include "x11_output.h"
 
@@ -441,6 +442,8 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwinLinuxCanKeepAwake(&platform->services);
+    case mwin_requestIcon:
+        return mwinX11SetIcon(platform, window->window, request);
     case mwin_requestFileDialog:
     {
         char parent[24];

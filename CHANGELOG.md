@@ -150,5 +150,9 @@ format.
   Linux dialogs through the desktop portal's FileChooser, else zenity;
   Win32 dialogs through the common item dialog, frames going on while
   it shows.
+- Window icons (mwin-0014): `mwinRequestIcon` with up to four RGBA
+  images; Win32 big and small icons, X11 `_NET_WM_ICON`, Wayland
+  xdg-toplevel-icon-v1 (vendored); the test backend's icons and the
+  tests.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

@@ -40,6 +40,7 @@ typedef struct mwinX11Api
     typeof(xcb_configure_window)* configureWindow;
     typeof(xcb_change_property)* changeProperty;
     typeof(xcb_delete_property)* deleteProperty;
+    typeof(xcb_get_maximum_request_length)* maximumRequestLength;
     typeof(xcb_intern_atom)* internAtom;
     typeof(xcb_intern_atom_reply)* internAtomReply;
     typeof(xcb_get_property)* getProperty;

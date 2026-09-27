@@ -344,6 +344,45 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinRequestOpacity(mwinContext* context, mwinWindowId window,
                                                           float opacity, mwinRequestId* requestOut);
 
+// The most images of a window's icon, and the most pixels on a side.
+#define MWIN_ICON_IMAGES 4
+#define MWIN_ICON_SIZE   256
+
+    // An image of an icon: RGBA with straight alpha, 8 bits a channel,
+    // rows from the top.
+    typedef struct mwinIconImage
+    {
+        uint32_t width;
+        uint32_t height;
+        // Bytes from a row's start to the next's: at least width * 4.
+        size_t stride;
+        const uint8_t* pixels;
+    } mwinIconImage;
+
+    /// Asks for the window's icon, as its title bar, the taskbar and the
+    /// window switcher show it; each platform takes the images nearest
+    /// the sizes it shows. The images are copied at the call. The web,
+    /// whose page has one icon for every canvas, and Wayland compositors
+    /// without toplevel icons answer mwin_outcomeUnsupported.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param images      The images, in any order. May be NULL when count
+    ///                    is 0.
+    /// @param count       How many, at most MWIN_ICON_IMAGES; 0 for the
+    ///                    platform's own icon.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorCapacity` when the
+    ///         context cannot hold the copy, and `mwin_errorInvalid` for
+    ///         more images than MWIN_ICON_IMAGES, an image without pixels,
+    ///         with no width or height or more than MWIN_ICON_SIZE, or a
+    ///         stride shorter than its row.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window,
+                                                       const mwinIconImage* images, uint32_t count,
+                                                       mwinRequestId* requestOut);
+
     /// Asks for keyboard focus. Platforms may refuse to take focus from
     /// another program, and answer mwin_outcomeDenied.
     ///

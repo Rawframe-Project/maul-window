@@ -79,6 +79,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/dialog.c
     src/drop.c
     src/file_list.c
+    src/icon.c
     src/input.c
     src/message_box.c
     src/monitor.c
@@ -149,6 +150,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(drop)
         maul_add_test(services)
         maul_add_test(dialog)
+        maul_add_test(icon WHITEBOX)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
         endif()
@@ -162,6 +164,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_wayland_server_test(wayland_clipboard)
         mwin_add_wayland_server_test(wayland_drop)
         mwin_add_wayland_server_test(wayland_services)
+        mwin_add_wayland_server_test(wayland_icon)
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.
@@ -179,6 +182,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_clipboard PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_clipboard PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_clipboard PROPERTIES SKIP_RETURN_CODE 77)
+        # Window icons read back by the test's own connection.
+        maul_add_test(x11_icon POSIX)
+        target_compile_definitions(test_x11_icon PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_icon PRIVATE PkgConfig::MWIN_TEST_XCB)
+        set_tests_properties(x11_icon PROPERTIES SKIP_RETURN_CODE 77)
         # A drag source of the test's own connection, by XDND.
         maul_add_test(x11_drop POSIX)
         target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
@@ -284,6 +292,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Keeps the display awake, and points http at itself for a moment.
         maul_add_test(win32_services)
         target_link_libraries(test_win32_services PRIVATE user32 advapi32 shell32)
+        # Window icons read back from Windows.
+        maul_add_test(win32_icon)
+        target_link_libraries(test_win32_icon PRIVATE user32 gdi32)
         # The common item dialog, driven from the program's frames.
         maul_add_test(win32_dialog)
         target_link_libraries(test_win32_dialog PRIVATE user32)

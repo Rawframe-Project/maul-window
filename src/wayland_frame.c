@@ -214,8 +214,7 @@ static void MakeParts(mwinWaylandPlatform* platform, mwinWaylandWindow* window)
     }
 }
 
-// Shared memory for a drawing: its descriptor, mapped, or -1.
-static int MapMemory(size_t bytes, void** memory)
+int mwinWaylandMapMemory(size_t bytes, void** memory)
 {
     int fd = memfd_create("maul-window-frame", MFD_CLOEXEC);
     if (fd < 0 || ftruncate(fd, (off_t)bytes) != 0)
@@ -256,7 +255,7 @@ static void Draw(mwinWaylandPlatform* platform, mwinWaylandWindow* window)
         bytes += (size_t)rect.width * (size_t)rect.height * (size_t)(scale * scale) * 4u;
     }
     void* memory = nullptr;
-    int fd = MapMemory(bytes, &memory);
+    int fd = mwinWaylandMapMemory(bytes, &memory);
     if (fd < 0)
     {
         return;

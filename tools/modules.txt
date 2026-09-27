@@ -3,7 +3,7 @@
 allocator:
 backend:
 backend_test: allocator backend core
-backend_test_services: allocator backend backend_test core dialog
+backend_test_services: allocator backend backend_test core dialog icon
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_drop web_input web_page web_pad web_services web_text web_window
 backend_win32: allocator backend core win32 win32_dialog win32_drop win32_input win32_output win32_pad win32_services win32_system win32_window
@@ -19,6 +19,7 @@ drop: allocator core utf8
 evdev:
 file_list: allocator
 gamepad: core
+icon: allocator core
 input: core
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db
@@ -47,12 +48,13 @@ wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
 wayland_pipe: allocator core
 wayland_cursor: core wayland wayland_api
 wayland_frame: core wayland wayland_api wayland_cursor
+wayland_icon: core icon wayland wayland_api
 wayland_keyboard: core evdev wayland wayland_api xkb_api xkb_keyboard
 wayland_output: core wayland wayland_api
 wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard wayland_pointer wayland_text
 wayland_text: core wayland wayland_api
-wayland_window: core wayland wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
+wayland_window: core wayland wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_text
 web: clicks core web_pad
 web_clipboard: allocator core web
 web_drop: allocator core web
@@ -67,6 +69,7 @@ win32: clicks core win32_pad
 win32_clipboard: core win32
 win32_dialog: allocator core dialog win32
 win32_drop: allocator core win32
+win32_icon: core icon win32
 win32_ime: core win32
 win32_input: core win32
 win32_message_box: message_box
@@ -75,15 +78,16 @@ win32_pad: core
 win32_pointer: core win32
 win32_services: core win32
 win32_system: core win32
-win32_window: core win32 win32_clipboard win32_dialog win32_drop win32_ime win32_input win32_output win32_pointer win32_services win32_system
+win32_window: core win32 win32_clipboard win32_dialog win32_drop win32_icon win32_ime win32_input win32_output win32_pointer win32_services win32_system
 window: core
 x11: clicks core linux_pad linux_services monotonic x11_api xkb_api xkb_keyboard
 x11_api:
 x11_clipboard: allocator core monotonic x11 x11_api
 x11_cursor: allocator core x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
+x11_icon: allocator core icon x11 x11_api
 x11_input: allocator core evdev x11 x11_api xkb_api xkb_keyboard
 x11_output: allocator core x11 x11_api
-x11_window: allocator core x11 x11_api x11_clipboard x11_cursor x11_input x11_output
+x11_window: allocator core x11 x11_api x11_clipboard x11_cursor x11_icon x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api

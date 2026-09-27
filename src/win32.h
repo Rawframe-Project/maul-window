@@ -92,6 +92,8 @@ struct mwinWin32Window
     mwinWin32DropTarget drop;
     // A file dialog waits for the pump to show it (win32_dialog.c).
     bool dialogWaiting;
+    // The big and small icons made for the window, if any.
+    HICON icons[2];
 };
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.

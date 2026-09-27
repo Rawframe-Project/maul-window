@@ -18,3 +18,4 @@ are listed in [README.md](README.md).
 | [mwin-0011](mwin-0011-drag-and-drop.md) | Drag and drop | Accepted |
 | [mwin-0012](mwin-0012-services.md) | Platform services | Accepted |
 | [mwin-0013](mwin-0013-file-dialogs.md) | File dialogs | Accepted |
+| [mwin-0014](mwin-0014-window-icons.md) | Window icons | Accepted |

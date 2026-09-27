@@ -198,6 +198,7 @@ extern "C"
         mwin_requestRevealFile = 18,
         mwin_requestKeepAwake = 19,
         mwin_requestFileDialog = 20,
+        mwin_requestIcon = 21,
     };
 
     // How a request ended.

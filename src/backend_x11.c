@@ -41,6 +41,7 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "_NET_WM_STATE_ABOVE",
     "_NET_WM_STATE_HIDDEN",
     "_NET_WM_WINDOW_OPACITY",
+    "_NET_WM_ICON",
     "_NET_ACTIVE_WINDOW",
     "_NET_SUPPORTING_WM_CHECK",
     "_MOTIF_WM_HINTS",

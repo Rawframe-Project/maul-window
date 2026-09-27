@@ -8,6 +8,7 @@
 #include "wayland_clipboard.h"
 #include "wayland_cursor.h"
 #include "wayland_frame.h"
+#include "wayland_icon.h"
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_pointer.h"
@@ -582,6 +583,8 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinLinuxRevealFile(&window->platform->services, window->slot, index);
     case mwin_requestKeepAwake:
         return KeepAwake(window, request->value.awake);
+    case mwin_requestIcon:
+        return mwinWaylandSetIcon(window, request);
     case mwin_requestFileDialog:
         // The portal places dialogs over a Wayland window only through an
         // exported handle (xdg-foreign), which the backend does not make.

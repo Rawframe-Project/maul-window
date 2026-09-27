@@ -35,6 +35,7 @@ enum
     mwin_atomNetWmStateAbove,
     mwin_atomNetWmStateHidden,
     mwin_atomNetWmWindowOpacity,
+    mwin_atomNetWmIcon,
     mwin_atomNetActiveWindow,
     mwin_atomNetSupportingWmCheck,
     mwin_atomMotifWmHints,

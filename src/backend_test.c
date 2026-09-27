@@ -257,6 +257,9 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     case mwin_requestRevealFile:
         mwinTestOpen(context, request);
         break;
+    case mwin_requestIcon:
+        mwinTestSetIcon(context, request);
+        break;
     default:
         break; // the cursor changes on screen, with nothing to report
     }

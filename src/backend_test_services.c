@@ -7,6 +7,7 @@
 #include "allocator.h"
 #include "backend_test.h"
 #include "dialog.h"
+#include "icon.h"
 
 #include "maul-window/test.h"
 
@@ -255,4 +256,50 @@ mwinResult mwinTestGetDialog(const mwinContext* context, char* buffer, size_t ca
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;
+}
+
+static uint64_t Hash(uint64_t hash, const uint8_t* bytes, size_t length)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        hash = (hash ^ bytes[i]) * 0x100000001B3u;
+    }
+    return hash;
+}
+
+void mwinTestSetIcon(mwinContext* context, const mwinRequest* request)
+{
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    const mwinIconCopy* icon = request->value.icon;
+    uint64_t hash = 0xCBF29CE484222325u;
+    for (uint32_t i = 0; i < icon->count; i++)
+    {
+        const mwinIconCopyImage* image = &icon->images[i];
+        uint8_t size[8];
+        for (int b = 0; b < 4; b++)
+        {
+            size[b] = (uint8_t)(image->width >> (8 * b));
+            size[4 + b] = (uint8_t)(image->height >> (8 * b));
+        }
+        hash = Hash(hash, size, sizeof(size));
+        hash = Hash(hash, image->pixels, (size_t)image->width * image->height * 4);
+    }
+    platform->iconCount = icon->count;
+    platform->iconChecksum = hash;
+}
+
+mwinResult mwinTestGetIcon(const mwinContext* context, uint32_t* countOut, uint64_t* checksumOut)
+{
+    if (context == nullptr || countOut == nullptr || checksumOut == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    *countOut = platform->iconCount;
+    *checksumOut = platform->iconChecksum;
+    return mwin_success;
 }

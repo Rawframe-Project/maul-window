@@ -12,7 +12,7 @@
 
 #include "maul-window/services.h"
 
-#define MWIN_TEST_KINDS (mwin_requestFileDialog + 1)
+#define MWIN_TEST_KINDS (mwin_requestIcon + 1)
 
 // The bytes of the paths a dialog chooses, and of the last dialog's
 // description.
@@ -70,6 +70,8 @@ typedef struct mwinTestPlatform
     uint32_t dialogFilesLength;
     char dialog[MWIN_TEST_DIALOG_BYTES];
     uint32_t dialogLength;
+    uint32_t iconCount;
+    uint64_t iconChecksum;
     bool hold;
     uint64_t timeNs;
     float scale;
@@ -92,6 +94,9 @@ mwinOutcome mwinTestUseClipboard(mwinContext* context, mwinRequestKind kind);
 
 // Opens an address or reveals a path as a platform would: it keeps it.
 void mwinTestOpen(mwinContext* context, const mwinRequest* request);
+
+// Writes the icon down.
+void mwinTestSetIcon(mwinContext* context, const mwinRequest* request);
 
 // Writes the dialog down, and answers it with the paths set: the
 // outcome, given how it ended.

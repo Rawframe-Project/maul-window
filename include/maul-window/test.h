@@ -386,6 +386,21 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinTestGetDialog(const mwinContext* context, char* buffer,
                                                          size_t capacity, size_t* lengthOut);
 
+    /// Reads the icon the backend was last given: how many images, and a
+    /// checksum of them in order, 64-bit FNV-1a over each image's width
+    /// and height (4 bytes each, least significant first) and its
+    /// pixels, packed.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param countOut    Receives the images, 0 before any icon.
+    /// @param checksumOut Receives the checksum.
+    /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetIcon(const mwinContext* context,
+                                                       uint32_t* countOut, uint64_t* checksumOut);
+
 #ifdef __cplusplus
 }
 #endif

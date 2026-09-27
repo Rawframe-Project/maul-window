@@ -109,6 +109,9 @@ typedef struct mwinRequest
         // A file dialog's def, given back when the request is answered
         // (dialog.h).
         struct mwinDialogCopy* dialog;
+        // An icon's images, given back when the request is answered
+        // (icon.h).
+        struct mwinIconCopy* icon;
     } value;
 } mwinRequest;
 
@@ -334,6 +337,12 @@ void mwinReleaseRequestText(const mwinContext* context, mwinRequest* request);
 
 // Gives back the def a file dialog's request holds, if it does.
 void mwinReleaseDialogCopy(const mwinContext* context, mwinRequest* request);
+
+// Gives back the images an icon's request holds, if it does.
+void mwinReleaseIconCopy(const mwinContext* context, mwinRequest* request);
+
+// Gives back whatever a request holds: its text, def or images.
+void mwinReleaseRequestData(const mwinContext* context, mwinRequest* request);
 
 // The id of the request in a window slot's request slot.
 mwinRequestId mwinRequestIdOf(const mwinContext* context, uint32_t slot, uint32_t request);

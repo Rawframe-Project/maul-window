@@ -90,6 +90,13 @@ static void Carried(mwinWindow* window, const mwinRequest* request)
     }
 }
 
+void mwinReleaseRequestData(const mwinContext* context, mwinRequest* request)
+{
+    mwinReleaseRequestText(context, request);
+    mwinReleaseDialogCopy(context, request);
+    mwinReleaseIconCopy(context, request);
+}
+
 void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOutcome outcome)
 {
     mwinRequest* entry = &context->windows[slot].requests[request];
@@ -102,8 +109,7 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
     {
         Carried(&context->windows[slot], entry);
     }
-    mwinReleaseRequestText(context, entry);
-    mwinReleaseDialogCopy(context, entry);
+    mwinReleaseRequestData(context, entry);
     mwinEvent event = {0};
     event.type = mwin_eventRequestCompleted;
     event.timeNs = context->backend->now(context);

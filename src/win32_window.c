@@ -8,6 +8,7 @@
 #include "win32_clipboard.h"
 #include "win32_dialog.h"
 #include "win32_drop.h"
+#include "win32_icon.h"
 #include "win32_ime.h"
 #include "win32_input.h"
 #include "win32_output.h"
@@ -414,12 +415,15 @@ void mwinWin32DestroyWindow(mwinContext* context, uint32_t slot)
     {
         mwinWin32DetachDrop(window);
     }
-    // The window's last messages find no window of the program's.
+    // The window's last messages find no window of the program's; its
+    // icons go after it, which shows them until then.
+    mwinWin32Window icons = {.icons = {window->icons[0], window->icons[1]}};
     *window = (mwinWin32Window){.monitor = -1};
     if (hwnd != nullptr)
     {
         DestroyWindow(hwnd);
     }
+    mwinWin32ReleaseIcons(&icons);
 }
 
 // A popup covering the window's monitor, its placement kept.
@@ -604,6 +608,8 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         return mwin_outcomeDone;
     case mwin_requestFileDialog:
         return mwinWin32AskDialog(window);
+    case mwin_requestIcon:
+        return mwinWin32SetIcon(window, request);
     default:
         return mwin_outcomeUnsupported;
     }

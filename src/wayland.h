@@ -279,6 +279,8 @@ struct mwinWaylandPlatform
     struct wp_viewporter* viewporter;
     // Without it, keeping awake goes over the session bus.
     struct zwp_idle_inhibit_manager_v1* idleInhibits;
+    // Without it, windows have the compositor's icons.
+    struct xdg_toplevel_icon_manager_v1* toplevelIcons;
     struct wp_cursor_shape_manager_v1* cursorShapes;
     struct zwp_pointer_constraints_v1* constraints;
     struct zwp_relative_pointer_manager_v1* relativePointers;
@@ -313,6 +315,10 @@ struct mwinWaylandPlatform
 
 // The integer scale an image needs over a window: its scale, rounded
 // up. Cursor images and the frame are drawn at it.
+// Shared memory of a size, mapped for writing: its descriptor, or -1
+// (wayland_frame.c).
+int mwinWaylandMapMemory(size_t bytes, void** memory);
+
 static inline int32_t mwinWaylandImageScale(const mwinWaylandWindow* window)
 {
     return window->scale120 != 0 ? (int32_t)((window->scale120 + 119u) / 120u)

@@ -37,6 +37,7 @@
 #define FRACTIONAL_SCALE_VERSION 1
 #define VIEWPORTER_VERSION       1
 #define IDLE_INHIBIT_VERSION     1
+#define TOPLEVEL_ICON_VERSION    1
 #define CURSOR_SHAPE_VERSION     1
 #define CONSTRAINTS_VERSION      1
 #define RELATIVE_VERSION         1
@@ -133,6 +134,11 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
         platform->idleInhibits = Bind(platform, name, &zwp_idle_inhibit_manager_v1_interface,
                                       version, IDLE_INHIBIT_VERSION);
     }
+    else if (strcmp(interface, xdg_toplevel_icon_manager_v1_interface.name) == 0)
+    {
+        platform->toplevelIcons = Bind(platform, name, &xdg_toplevel_icon_manager_v1_interface,
+                                       version, TOPLEVEL_ICON_VERSION);
+    }
     else if (strcmp(interface, wl_subcompositor_interface.name) == 0)
     {
         platform->subcompositor =
@@ -197,6 +203,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
         DestroyGlobal(api, platform->shm, -1);
         DestroyGlobal(api, platform->subcompositor, WL_SUBCOMPOSITOR_DESTROY);
         DestroyGlobal(api, platform->idleInhibits, ZWP_IDLE_INHIBIT_MANAGER_V1_DESTROY);
+        DestroyGlobal(api, platform->toplevelIcons, XDG_TOPLEVEL_ICON_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->textInputs, ZWP_TEXT_INPUT_MANAGER_V3_DESTROY);
         DestroyGlobal(api, platform->relativePointers, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->constraints, ZWP_POINTER_CONSTRAINTS_V1_DESTROY);

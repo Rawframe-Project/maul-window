@@ -309,10 +309,11 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         CHECK(a != nullptr && a->data.key.code == mwin_codeKeyA && a->data.key.key == 'a' &&
                   (a->data.key.modifiers & mwin_modShift) != 0 && TextIs(program, "A"),
               "Shift changes the text, not the meaning");
-        // A second press without a release is a repeat.
-        Key(KEY_A, true);
-        Key(KEY_A, true);
-        Key(KEY_A, false);
+        // Windows drops a second injected press of a held key, so the
+        // keyboard's repeat is posted as it would come: bit 30 set.
+        PostMessageW(program->hwnd, WM_KEYDOWN, 'A', 0x1E0001);
+        PostMessageW(program->hwnd, WM_KEYDOWN, 'A', 0x401E0001);
+        PostMessageW(program->hwnd, WM_KEYUP, 'A', (LPARAM)0xC01E0001u);
         break;
     }
     case phaseRepeat:

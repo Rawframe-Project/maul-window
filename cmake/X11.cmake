@@ -1,17 +1,20 @@
-# The X11 backend (W7 in the design notes). libxcb and libxcb-randr are
-# opened at run time; building needs only their headers.
+# The X11 backend (W7 in the design notes). libxcb and its extension
+# libraries are opened at run time; building needs only their headers.
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(MWIN_XCB QUIET xcb>=1.11 xcb-randr)
+pkg_check_modules(MWIN_XCB QUIET xcb>=1.11 xcb-randr xcb-xkb xcb-cursor xkbcommon-x11)
 if(NOT MWIN_XCB_FOUND)
-    message(FATAL_ERROR "The X11 backend needs the development files of xcb (1.11 or later) "
-        "and xcb-randr: install them (libxcb1-dev and libxcb-randr0-dev on Debian and "
-        "Ubuntu) or configure with -DMAUL_WINDOW_X11=OFF.")
+    message(FATAL_ERROR "The X11 backend needs the development files of xcb (1.11 or later), "
+        "xcb-randr, xcb-xkb, xcb-cursor and xkbcommon-x11: install them (libxcb1-dev, "
+        "libxcb-randr0-dev, libxcb-xkb-dev, libxcb-cursor-dev and libxkbcommon-x11-dev on "
+        "Debian and Ubuntu) or configure with -DMAUL_WINDOW_X11=OFF.")
 endif()
 
 set(MWIN_X11_SOURCES
     src/backend_x11.c
     src/x11_api.c
+    src/x11_cursor.c
+    src/x11_input.c
     src/x11_output.c
     src/x11_window.c)
 target_sources(maul-window PRIVATE ${MWIN_X11_SOURCES})

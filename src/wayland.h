@@ -9,12 +9,12 @@
 #ifndef MAUL_WINDOW_SRC_WAYLAND_H
 #define MAUL_WINDOW_SRC_WAYLAND_H
 
+#include "clicks.h"
 #include "core.h"
+#include "monotonic.h"
 #include "wayland_api.h"
 #include "xkb_api.h"
 #include "xkb_keyboard.h"
-
-#include <time.h>
 
 typedef struct mwinWaylandPlatform mwinWaylandPlatform;
 
@@ -151,11 +151,8 @@ typedef struct mwinWaylandPointer
     int32_t steps[2];
     double distance[2];
     uint8_t axisKinds[2];
-    // The last press: its button, time and place, and the clicks it made.
-    mwinMouseButton clickButton;
-    uint64_t clickNs;
-    mwinPosition clickPosition;
-    uint8_t clicks;
+    // The last press, for counting quick clicks.
+    mwinClickCounter clicks;
     // The pointer's cursor shape device and relative motion, where the
     // compositor has them.
     struct wp_cursor_shape_device_v1* shapeDevice;
@@ -246,25 +243,6 @@ struct mwinWaylandPlatform
     // A NUL-terminated copy of a title, titleBytes + 1 bytes.
     char* title;
 };
-
-// Nanoseconds on the monotonic clock, which Wayland's input timestamps
-// also count.
-static inline uint64_t mwinWaylandNow(void)
-{
-    struct timespec now;
-    (void)clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
-}
-
-// A Wayland event time, milliseconds on the monotonic clock in 32 bits,
-// in nanoseconds: the time of the latest wrap of the millisecond count
-// before now. A time that seems far off is taken as now.
-static inline uint64_t mwinWaylandTime(uint32_t milliseconds)
-{
-    uint64_t now = mwinWaylandNow();
-    uint32_t age = (uint32_t)(now / 1000000u) - milliseconds;
-    return age < 60000u && (uint64_t)age * 1000000u <= now ? now - (uint64_t)age * 1000000u : now;
-}
 
 // The integer scale an image needs over a window: its scale, rounded
 // up. Cursor images and the frame are drawn at it.

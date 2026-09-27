@@ -83,11 +83,11 @@ static void OnDone(void* data, struct wl_output* output)
     info.scale = (float)found->scale;
     if (found->monitor < 0)
     {
-        found->monitor = mwinAddMonitor(context, &info, mwinWaylandNow());
+        found->monitor = mwinAddMonitor(context, &info, mwinMonotonicNow());
     }
     else
     {
-        mwinChangeMonitor(context, (uint32_t)found->monitor, &info, mwinWaylandNow());
+        mwinChangeMonitor(context, (uint32_t)found->monitor, &info, mwinMonotonicNow());
     }
 }
 
@@ -138,7 +138,7 @@ void mwinWaylandRemoveOutput(mwinWaylandPlatform* platform, uint32_t name)
         {
             if (slot->monitor >= 0)
             {
-                mwinRemoveMonitor(platform->context, (uint32_t)slot->monitor, mwinWaylandNow());
+                mwinRemoveMonitor(platform->context, (uint32_t)slot->monitor, mwinMonotonicNow());
             }
             Release(platform, slot);
             return;

@@ -70,4 +70,6 @@ format.
   native backend where `DISPLAY` is set and Wayland is not reachable:
   XCB opened at run time, windows with their ICCCM and EWMH
   properties, the scale from `Xft.dpi`, modes through the window
-  manager, and monitors from RandR (mwin-0006). Input follows.
+  manager, and monitors from RandR (mwin-0006); the keyboard through
+  XKB and xkbcommon-x11, the core pointer and wheel, cursor shapes
+  through libxcb-cursor, and hidden and confined cursors.

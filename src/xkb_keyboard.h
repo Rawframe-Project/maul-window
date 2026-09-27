@@ -36,7 +36,8 @@ bool mwinXkbStart(mwinXkbKeyboard* keyboard, const mwinXkbApi* api);
 // Frees everything.
 void mwinXkbStop(mwinXkbKeyboard* keyboard);
 
-// Takes a new keymap and its state, freeing the ones before.
+// Takes a new keymap and its state, with the layout group and modifiers
+// the state has, freeing the ones before.
 void mwinXkbSetKeymap(mwinXkbKeyboard* keyboard, struct xkb_keymap* keymap,
                       struct xkb_state* state);
 

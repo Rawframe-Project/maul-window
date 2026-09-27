@@ -15,6 +15,9 @@ binary must run there as on Wayland (W7 in the design notes).
   does its libraries (mwin-0005). XCB hands its replies over from the
   C library's `malloc`; they go back through the allocator module,
   the one place the library reaches the C library's memory.
+  `libxkbcommon-x11` with `libxcb-xkb`, and `libxcb-cursor`, are
+  opened the same way where they are there; without them the backend
+  has no keyboard, or no cursor shapes.
 - **Selection:** the native backend tries Wayland where
   `WAYLAND_DISPLAY` names a display, then X11 where `DISPLAY` names
   one. A backend that cannot reach its window system (its library
@@ -44,13 +47,34 @@ binary must run there as on Wayland (W7 in the design notes).
 - **Monitors:** RandR 1.5's monitor list, each monitor by the atom of
   its name, with the primary RandR names or else the first, and its
   change events; without RandR 1.5 the screen is the one monitor.
+- **Keyboard:** the core keyboard through XKB. `libxkbcommon-x11`
+  reads its keymap, XKB's state events keep modifiers and group
+  current, and the keymap is read again when the keyboard or its map
+  changes; the xkbcommon keyboard it shares with the Wayland backend
+  gives meanings and text through compose sequences. With detectable
+  autorepeat the X server's repeats are presses of a key already held,
+  posted as repeats. There is no input method: XIM needs Xlib, so text
+  comes from the keymap alone and a text input request is answered
+  done with nothing to enable.
+- **Pointer:** the core pointer, in the window's logical units; the
+  X11 buttons 4 to 7 turn the wheel a detent each, 8 and 9 are back
+  and forward. Crossings a grab makes are not reported. Quick clicks
+  are counted by the backend, as on Wayland.
+- **Cursors:** each window keeps its cursor, as X11 does: a shape
+  from the cursor theme through `libxcb-cursor` (whose X11 names the
+  core cursor font also has), or an empty cursor that hides the
+  pointer. A confined cursor is a pointer grab confined to the window
+  while it has focus. A captured cursor needs XInput 2's raw motion,
+  which this backend does not use yet, and is answered unsupported.
 - **The pump** never waits: it flushes and handles every event that
   has arrived. A failed connection stops the loop.
 
 ## Consequences
 
-Building needs the `xcb` and `xcb-randr` headers; running needs only
-`libxcb`, and `libxcb-randr` for more than one monitor. The
-integration test runs against Xvfb, which has no window manager, and
-is skipped without `DISPLAY`. Keyboard, pointer and text input through
-XInput 2 and xkbcommon-x11, and cursors, follow in their own changes.
+Building needs the `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor` and
+`xkbcommon-x11` headers; running needs only `libxcb`, and the others
+for more than one monitor, the keyboard and cursor shapes. The
+integration tests run against Xvfb, which has no window manager, the
+input test driving it through XTEST; both are skipped without
+`DISPLAY`. Raw motion, a captured cursor and smooth scrolling through
+XInput 2 follow in their own change.

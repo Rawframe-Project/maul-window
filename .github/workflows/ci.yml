@@ -22,7 +22,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 clang-tidy-20 ninja-build libwayland-dev wayland-protocols \
-            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev
+            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
+            libxkbcommon-x11-dev libxcb-xtest0-dev
           pip install clang-format==22.1.5 >/dev/null
       - name: clang-format
         run: |
@@ -66,7 +67,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-14 g++-14 clang-20 ninja-build libwayland-dev \
             wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
-            libxcb-randr0-dev xvfb
+            libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev libxkbcommon-x11-dev \
+            libxcb-xtest0-dev xvfb
       - name: Configure
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -D${PREFIX}_WERROR=ON \

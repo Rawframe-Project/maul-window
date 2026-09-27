@@ -11,9 +11,6 @@
 #include <linux/input-event-codes.h>
 #include <math.h>
 
-#define DOUBLE_CLICK_NS       500000000u
-#define DOUBLE_CLICK_DISTANCE 4.0f
-
 // Continuous wheel distance per detent.
 #define UNITS_PER_DETENT 10.0
 
@@ -54,7 +51,7 @@ static void PostPointer(mwinWaylandPlatform* platform, mwinEventType type, mwinM
     event.type = type;
     event.timeNs = timeNs;
     event.data.pointer = (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers,
-                                            pointer->buttons, button, pointer->clicks};
+                                            pointer->buttons, button, pointer->clicks.clicks};
     mwinPost(platform->context, (uint32_t)pointer->focus, &event);
 }
 
@@ -137,7 +134,7 @@ static void OnEnter(void* data, struct wl_pointer* object, uint32_t serial,
     }
     if (pointer->focus >= 0)
     {
-        PostPointer(platform, mwin_eventCursorEntered, 0, mwinWaylandNow());
+        PostPointer(platform, mwin_eventCursorEntered, 0, mwinMonotonicNow());
         mwinWaylandShowCursor(platform);
     }
 }
@@ -158,13 +155,13 @@ static void OnLeave(void* data, struct wl_pointer* object, uint32_t serial,
     Flush(platform);
     if (pointer->focus >= 0)
     {
-        PostPointer(platform, mwin_eventCursorLeft, 0, mwinWaylandNow());
+        PostPointer(platform, mwin_eventCursorLeft, 0, mwinMonotonicNow());
         if (pointer->buttons != 0)
         {
             // Their releases will not come.
             mwinEvent reset = {0};
             reset.type = mwin_eventInputStateReset;
-            reset.timeNs = mwinWaylandNow();
+            reset.timeNs = mwinMonotonicNow();
             mwinPost(platform->context, (uint32_t)pointer->focus, &reset);
         }
     }
@@ -184,22 +181,8 @@ static void OnMotion(void* data, struct wl_pointer* object, uint32_t time, wl_fi
     }
     platform->pointer.position = PositionOf(x, y);
     platform->pointer.moved = true;
-    platform->pointer.timeNs = mwinWaylandTime(time);
+    platform->pointer.timeNs = mwinMonotonicFromMilliseconds(time);
     FlushWithoutFrames(platform);
-}
-
-// Counts the quick clicks a press completes.
-static void CountClick(mwinWaylandPointer* pointer, mwinMouseButton button, uint64_t timeNs)
-{
-    float dx = pointer->position.x - pointer->clickPosition.x;
-    float dy = pointer->position.y - pointer->clickPosition.y;
-    bool quick = button == pointer->clickButton && timeNs >= pointer->clickNs &&
-                 timeNs - pointer->clickNs <= DOUBLE_CLICK_NS &&
-                 fabsf(dx) <= DOUBLE_CLICK_DISTANCE && fabsf(dy) <= DOUBLE_CLICK_DISTANCE;
-    pointer->clicks = quick && pointer->clicks < UINT8_MAX ? pointer->clicks + 1 : 1;
-    pointer->clickButton = button;
-    pointer->clickNs = timeNs;
-    pointer->clickPosition = pointer->position;
 }
 
 static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uint32_t time,
@@ -211,7 +194,7 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     if (pointer->framePart != nullptr)
     {
         mwinWaylandFrameButton(platform, serial, evdev, state == WL_POINTER_BUTTON_STATE_PRESSED,
-                               mwinWaylandTime(time));
+                               mwinMonotonicFromMilliseconds(time));
         return;
     }
     mwinMouseButton button = ButtonOf(evdev);
@@ -221,11 +204,11 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     }
     // Motion of the same frame comes first.
     Flush(platform);
-    uint64_t timeNs = mwinWaylandTime(time);
+    uint64_t timeNs = mwinMonotonicFromMilliseconds(time);
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (state == WL_POINTER_BUTTON_STATE_PRESSED)
     {
-        CountClick(pointer, button, timeNs);
+        (void)mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
         pointer->buttons |= bit;
         PostPointer(platform, mwin_eventButtonDown, button, timeNs);
     }
@@ -248,7 +231,7 @@ static void OnAxis(void* data, struct wl_pointer* object, uint32_t time, uint32_
     }
     pointer->distance[axis] += wl_fixed_to_double(value);
     pointer->axisKinds[axis] |= axisContinuous;
-    pointer->timeNs = mwinWaylandTime(time);
+    pointer->timeNs = mwinMonotonicFromMilliseconds(time);
     FlushWithoutFrames(platform);
 }
 
@@ -399,7 +382,7 @@ static void OnTouchDown(void* data, struct wl_touch* object, uint32_t serial, ui
     touch->points[index].slot = slot;
     touch->points[index].position = PositionOf(x, y);
     touch->points[index].active = true;
-    PostTouch(platform, mwin_eventTouchDown, index, mwinWaylandTime(time));
+    PostTouch(platform, mwin_eventTouchDown, index, mwinMonotonicFromMilliseconds(time));
 }
 
 static void OnTouchUp(void* data, struct wl_touch* object, uint32_t serial, uint32_t time,
@@ -411,7 +394,7 @@ static void OnTouchUp(void* data, struct wl_touch* object, uint32_t serial, uint
     int index = FindPoint(&platform->touch, id);
     if (index >= 0)
     {
-        PostTouch(platform, mwin_eventTouchUp, index, mwinWaylandTime(time));
+        PostTouch(platform, mwin_eventTouchUp, index, mwinMonotonicFromMilliseconds(time));
         platform->touch.points[index].active = false;
     }
 }
@@ -425,7 +408,7 @@ static void OnTouchMotion(void* data, struct wl_touch* object, uint32_t time, in
     if (index >= 0)
     {
         platform->touch.points[index].position = PositionOf(x, y);
-        PostTouch(platform, mwin_eventTouchMoved, index, mwinWaylandTime(time));
+        PostTouch(platform, mwin_eventTouchMoved, index, mwinMonotonicFromMilliseconds(time));
     }
 }
 
@@ -443,7 +426,7 @@ static void OnTouchCancel(void* data, struct wl_touch* object)
     {
         if (platform->touch.points[i].active)
         {
-            PostTouch(platform, mwin_eventTouchCancelled, i, mwinWaylandNow());
+            PostTouch(platform, mwin_eventTouchCancelled, i, mwinMonotonicNow());
             platform->touch.points[i].active = false;
         }
     }

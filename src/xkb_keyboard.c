@@ -73,23 +73,6 @@ void mwinXkbStop(mwinXkbKeyboard* keyboard)
     *keyboard = (mwinXkbKeyboard){0};
 }
 
-void mwinXkbSetKeymap(mwinXkbKeyboard* keyboard, struct xkb_keymap* keymap, struct xkb_state* state)
-{
-    const mwinXkbApi* api = keyboard->api;
-    if (keyboard->state != nullptr)
-    {
-        api->stateUnref(keyboard->state);
-    }
-    if (keyboard->keymap != nullptr)
-    {
-        api->keymapUnref(keyboard->keymap);
-    }
-    keyboard->keymap = keymap;
-    keyboard->state = state;
-    keyboard->layout = 0;
-    keyboard->modifiers = 0;
-}
-
 // The modifiers an xkb state has in effect.
 static mwinModifiers ModifiersOf(const mwinXkbApi* api, struct xkb_state* state)
 {
@@ -111,6 +94,24 @@ static mwinModifiers ModifiersOf(const mwinXkbApi* api, struct xkb_state* state)
         }
     }
     return modifiers;
+}
+
+void mwinXkbSetKeymap(mwinXkbKeyboard* keyboard, struct xkb_keymap* keymap, struct xkb_state* state)
+{
+    const mwinXkbApi* api = keyboard->api;
+    if (keyboard->state != nullptr)
+    {
+        api->stateUnref(keyboard->state);
+    }
+    if (keyboard->keymap != nullptr)
+    {
+        api->keymapUnref(keyboard->keymap);
+    }
+    keyboard->keymap = keymap;
+    keyboard->state = state;
+    keyboard->layout =
+        state != nullptr ? api->stateSerializeLayout(state, XKB_STATE_LAYOUT_EFFECTIVE) : 0;
+    keyboard->modifiers = state != nullptr ? ModifiersOf(api, state) : 0;
 }
 
 bool mwinXkbUpdateState(mwinXkbKeyboard* keyboard, uint32_t depressed, uint32_t latched,

@@ -68,7 +68,7 @@ static void Report(mwinX11Platform* platform, mwinX11Output* output, mwinMonitor
     if (output->monitor < 0)
     {
         ReadName(platform, output->name, info);
-        output->monitor = mwinAddMonitor(context, info, mwinX11Now());
+        output->monitor = mwinAddMonitor(context, info, mwinMonotonicNow());
         return;
     }
     const mwinMonitorInfo* known = &context->monitors[output->monitor].info;
@@ -76,7 +76,7 @@ static void Report(mwinX11Platform* platform, mwinX11Output* output, mwinMonitor
     info->nameLength = known->nameLength;
     if (!SameFacts(known, info))
     {
-        mwinChangeMonitor(context, (uint32_t)output->monitor, info, mwinX11Now());
+        mwinChangeMonitor(context, (uint32_t)output->monitor, info, mwinMonotonicNow());
     }
 }
 
@@ -161,7 +161,7 @@ void mwinX11RefreshMonitors(mwinX11Platform* platform)
         {
             if (output->monitor >= 0)
             {
-                mwinRemoveMonitor(platform->context, (uint32_t)output->monitor, mwinX11Now());
+                mwinRemoveMonitor(platform->context, (uint32_t)output->monitor, mwinMonotonicNow());
             }
             *output = (mwinX11Output){.monitor = -1};
         }

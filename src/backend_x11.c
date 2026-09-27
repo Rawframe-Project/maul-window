@@ -13,6 +13,8 @@
 #include "core.h"
 #include "x11.h"
 #include "x11_api.h"
+#include "x11_cursor.h"
+#include "x11_input.h"
 #include "x11_output.h"
 #include "x11_window.h"
 
@@ -208,6 +210,8 @@ static mwinResult Connect(mwinX11Platform* platform)
     platform->scale = ReadScale(platform);
     StartRandr(platform);
     mwinX11RefreshMonitors(platform);
+    mwinX11StartKeyboard(platform);
+    mwinX11StartCursors(platform);
     return mwin_success;
 }
 
@@ -224,10 +228,12 @@ static void Stop(mwinContext* context)
                 api->destroyWindow(platform->connection, platform->windows[i].window);
             }
         }
+        mwinX11StopCursors(platform);
         (void)api->flush(platform->connection);
         // A failed connection is freed the same way.
         api->disconnect(platform->connection);
     }
+    mwinX11StopKeyboard(platform);
     mwinUnloadX11(&platform->api);
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
@@ -252,6 +258,7 @@ static mwinResult Start(mwinContext* context)
     }
     platform->context = context;
     platform->scale = 1.0f;
+    platform->pointer.focus = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
     if (status != mwin_success)
@@ -263,7 +270,7 @@ static mwinResult Start(mwinContext* context)
 
 static void Dispatch(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
-    if (mwinX11HandleWindowEvent(platform, event))
+    if (mwinX11HandleWindowEvent(platform, event) || mwinX11HandleInputEvent(platform, event))
     {
         return;
     }
@@ -305,24 +312,18 @@ static mwinResult Run(mwinContext* context)
 static uint64_t Now(const mwinContext* context)
 {
     (void)context;
-    return mwinX11Now();
+    return mwinMonotonicNow();
 }
 
-// Without a keyboard yet, every key is its code's name.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    return MWIN_KEY_NAMED | code;
+    return mwinX11MapKeyCode(PlatformOf(context), code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {
-    (void)context;
-    (void)buffer;
-    (void)capacity;
-    *lengthOut = 0;
-    return mwin_success;
+    return mwinX11KeyboardLayout(PlatformOf(context), buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)

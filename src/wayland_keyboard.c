@@ -19,7 +19,7 @@ static void PostLayoutChange(mwinWaylandPlatform* platform)
 {
     mwinEvent event = {0};
     event.type = mwin_eventKeyboardLayoutChanged;
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     mwinPostGlobal(platform->context, &event);
 }
 
@@ -86,7 +86,7 @@ static void OnLeave(void* data, struct wl_keyboard* object, uint32_t serial,
         // Their releases will not come.
         mwinEvent reset = {0};
         reset.type = mwin_eventInputStateReset;
-        reset.timeNs = mwinWaylandNow();
+        reset.timeNs = mwinMonotonicNow();
         mwinPost(platform->context, (uint32_t)keyboard->focus, &reset);
     }
     keyboard->focus = -1;
@@ -131,7 +131,7 @@ static void OnKey(void* data, struct wl_keyboard* object, uint32_t serial, uint3
     {
         return;
     }
-    uint64_t timeNs = mwinWaylandTime(time);
+    uint64_t timeNs = mwinMonotonicFromMilliseconds(time);
     if (state != WL_KEYBOARD_KEY_STATE_PRESSED)
     {
         keyboard->held -= keyboard->held > 0 ? 1 : 0;
@@ -212,7 +212,7 @@ void mwinWaylandRepeatKeys(mwinWaylandPlatform* platform)
     {
         return;
     }
-    uint64_t now = mwinWaylandNow();
+    uint64_t now = mwinMonotonicNow();
     uint64_t interval = 1000000000u / (uint64_t)keyboard->repeatRate;
     for (int i = 0; i < MAX_REPEATS_PER_PUMP && keyboard->repeatNextNs <= now; i++)
     {

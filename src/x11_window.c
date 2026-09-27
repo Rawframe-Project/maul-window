@@ -6,6 +6,8 @@
 #include "x11_window.h"
 
 #include "allocator.h"
+#include "x11_cursor.h"
+#include "x11_input.h"
 #include "x11_output.h"
 
 #include <math.h>
@@ -42,7 +44,7 @@ static uint32_t ToPixels(const mwinX11Platform* platform, float logical)
 
 static void Post(mwinX11Platform* platform, uint32_t slot, mwinEvent event)
 {
-    event.timeNs = mwinX11Now();
+    event.timeNs = mwinMonotonicNow();
     mwinPost(platform->context, slot, &event);
 }
 
@@ -266,6 +268,8 @@ void mwinX11DestroyWindow(mwinContext* context, uint32_t slot)
 {
     mwinX11Platform* platform = PlatformOf(context);
     mwinX11Window* window = &platform->windows[slot];
+    mwinX11CursorFocus(platform, slot, false);
+    mwinX11ForgetPointer(platform, slot);
     if (window->window != 0)
     {
         platform->api.destroyWindow(platform->connection, window->window);
@@ -299,7 +303,7 @@ static int RequestMode(mwinX11Platform* platform, mwinX11Window* window, uint32_
                     atoms[mwin_atomNetWmStateMaximizedHorz]);
     }
     window->modeRequest = (int32_t)index;
-    window->modeDeadlineNs = mwinX11Now() + MODE_DEADLINE_NS;
+    window->modeDeadlineNs = mwinMonotonicNow() + MODE_DEADLINE_NS;
     return -1;
 }
 
@@ -413,6 +417,13 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         return mwin_outcomeDone;
     case mwin_requestOpacity:
         SetOpacity(platform, window, request->value.opacity);
+        return mwin_outcomeDone;
+    case mwin_requestCursorMode:
+        return mwinX11SetCursorMode(platform, window->slot, request->value.code);
+    case mwin_requestCursorShape:
+        return mwinX11SetCursorShape(platform, window->slot, request->value.code);
+    case mwin_requestTextInput:
+        // Keys type text whether asked or not; there is no input method.
         return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
@@ -566,7 +577,12 @@ static void OnFocus(mwinX11Platform* platform, const xcb_focus_in_event_t* event
     {
         return;
     }
+    if (!gained)
+    {
+        mwinX11ForgetKeys(platform);
+    }
     PostType(platform, (uint32_t)slot, gained ? mwin_eventFocusGained : mwin_eventFocusLost);
+    mwinX11CursorFocus(platform, (uint32_t)slot, gained);
 }
 
 bool mwinX11HandleWindowEvent(mwinX11Platform* platform, const xcb_generic_event_t* event)
@@ -613,7 +629,7 @@ bool mwinX11HandleWindowEvent(mwinX11Platform* platform, const xcb_generic_event
 
 void mwinX11CheckDeadlines(mwinX11Platform* platform)
 {
-    uint64_t now = mwinX11Now();
+    uint64_t now = mwinMonotonicNow();
     for (uint32_t i = 0; i < platform->context->limits.windows; i++)
     {
         mwinX11Window* window = &platform->windows[i];

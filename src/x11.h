@@ -8,10 +8,11 @@
 #ifndef MAUL_WINDOW_SRC_X11_H
 #define MAUL_WINDOW_SRC_X11_H
 
+#include "clicks.h"
 #include "core.h"
+#include "monotonic.h"
 #include "x11_api.h"
-
-#include <time.h>
+#include "xkb_keyboard.h"
 
 // The atoms the backend interns at start, in the order of s_atomNames
 // in backend_x11.c.
@@ -64,7 +65,41 @@ typedef struct mwinX11Window
     // -1, until its deadline.
     int32_t modeRequest;
     uint64_t modeDeadlineNs;
+    // The cursor the program asked for over the window, and whether the
+    // pointer is grabbed to keep it inside.
+    mwinCursorMode cursorMode;
+    mwinCursorShape cursorShape;
+    bool confined;
 } mwinX11Window;
+
+// The core keyboard through XKB: the device, XKB's event code, and the
+// keys held, which tell the X server's repeats from new presses.
+typedef struct mwinX11Keyboard
+{
+    mwinXkbKeyboard xkb;
+    int32_t device;
+    uint8_t event;
+    uint8_t held[32];
+} mwinX11Keyboard;
+
+// The core pointer: the window it is over, or -1, where, the buttons
+// held and the last press.
+typedef struct mwinX11Pointer
+{
+    int32_t focus;
+    mwinPosition position;
+    uint8_t buttons;
+    mwinClickCounter clicks;
+} mwinX11Pointer;
+
+// The cursors the backend made: an empty one that hides the pointer,
+// and each shape loaded from the cursor theme, 0 before it is.
+typedef struct mwinX11Cursors
+{
+    xcb_cursor_context_t* context;
+    xcb_cursor_t blank;
+    xcb_cursor_t shapes[16];
+} mwinX11Cursors;
 
 // A monitor from RandR, by the atom of its name.
 typedef struct mwinX11Output
@@ -87,20 +122,17 @@ struct mwinX11Platform
     float scale;
     // RandR's first event code, 0 without RandR 1.5.
     uint8_t randrEvent;
+    // libxkbcommon, and the keyboard, where both load.
+    mwinXkbApi xkbApi;
+    mwinX11Keyboard keyboard;
+    mwinX11Pointer pointer;
+    mwinX11Cursors cursors;
     // The connection failed; the loop stops.
     bool failed;
     // One per window slot, and one per monitor slot.
     mwinX11Window* windows;
     mwinX11Output* outputs;
 };
-
-// Nanoseconds on the monotonic clock.
-static inline uint64_t mwinX11Now(void)
-{
-    struct timespec now;
-    (void)clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
-}
 
 // The slot of the window with an X id, or -1.
 static inline int32_t mwinX11SlotOf(const mwinX11Platform* platform, xcb_window_t window)

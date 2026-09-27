@@ -275,7 +275,7 @@ static void OnRelativeMotion(void* data, struct zwp_relative_pointer_v1* relativ
     {
         return;
     }
-    uint64_t now = mwinWaylandNow();
+    uint64_t now = mwinMonotonicNow();
     uint64_t timeNs = (((uint64_t)microsecondsHigh << 32) | microsecondsLow) * 1000u;
     mwinEvent event = {0};
     event.type = mwin_eventRawPointerDelta;

@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // XCB, opened at run time (W7) into a table each context loads for
-// itself: libxcb, and libxcb-randr for monitors where it is there. The
-// X server's replies come from the C library's malloc and go back
-// through mwinReleaseSystemMemory.
+// itself: libxcb, and where they are there libxcb-randr for monitors,
+// libxkbcommon-x11 and libxcb-xkb for the keyboard, and libxcb-cursor
+// for cursor themes. The X server's replies come from the C library's
+// malloc and go back through mwinReleaseSystemMemory.
 
 #ifndef MAUL_WINDOW_SRC_X11_API_H
 #define MAUL_WINDOW_SRC_X11_API_H
@@ -13,6 +14,9 @@
 
 #include <xcb/randr.h>
 #include <xcb/xcb.h>
+#include <xcb/xcb_cursor.h>
+#include <xcb/xkb.h>
+#include <xkbcommon/xkbcommon-x11.h>
 
 typedef struct mwinX11Api
 {
@@ -50,6 +54,13 @@ typedef struct mwinX11Api
     typeof(xcb_translate_coordinates)* translateCoordinates;
     typeof(xcb_translate_coordinates_reply)* translateCoordinatesReply;
     typeof(xcb_change_window_attributes)* changeWindowAttributes;
+    typeof(xcb_create_pixmap)* createPixmap;
+    typeof(xcb_free_pixmap)* freePixmap;
+    typeof(xcb_create_cursor)* createCursor;
+    typeof(xcb_free_cursor)* freeCursor;
+    typeof(xcb_grab_pointer)* grabPointer;
+    typeof(xcb_grab_pointer_reply)* grabPointerReply;
+    typeof(xcb_ungrab_pointer)* ungrabPointer;
     // libxcb-randr, NULL where it is missing.
     void* randrLibrary;
     xcb_extension_t* randrId;
@@ -60,10 +71,26 @@ typedef struct mwinX11Api
     typeof(xcb_randr_get_monitors_reply)* randrGetMonitorsReply;
     typeof(xcb_randr_get_monitors_monitors_iterator)* randrMonitorsIterator;
     typeof(xcb_randr_monitor_info_next)* randrMonitorInfoNext;
+    // libxkbcommon-x11 and libxcb-xkb, NULL where either is missing.
+    void* xkbX11Library;
+    void* xcbXkbLibrary;
+    typeof(xkb_x11_setup_xkb_extension)* xkbSetupExtension;
+    typeof(xkb_x11_get_core_keyboard_device_id)* xkbCoreDevice;
+    typeof(xkb_x11_keymap_new_from_device)* xkbKeymapFromDevice;
+    typeof(xkb_x11_state_new_from_device)* xkbStateFromDevice;
+    typeof(xcb_xkb_select_events_aux)* xkbSelectEvents;
+    typeof(xcb_xkb_per_client_flags)* xkbPerClientFlags;
+    typeof(xcb_xkb_per_client_flags_reply)* xkbPerClientFlagsReply;
+    // libxcb-cursor, NULL where it is missing.
+    void* cursorLibrary;
+    typeof(xcb_cursor_context_new)* cursorContextNew;
+    typeof(xcb_cursor_load_cursor)* cursorLoad;
+    typeof(xcb_cursor_context_free)* cursorContextFree;
 } mwinX11Api;
 
 // Opens libxcb and fills the table: mwin_errorUnsupported when it or a
-// function is missing. libxcb-randr is opened too when it is there.
+// function is missing. The other libraries are opened too when they
+// are there.
 mwinResult mwinLoadX11(mwinX11Api* api);
 
 // Closes what mwinLoadX11 opened.

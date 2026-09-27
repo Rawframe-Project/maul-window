@@ -55,7 +55,14 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, setInputFocus, xcb_set_input_focus) &&
            FIND(library, translateCoordinates, xcb_translate_coordinates) &&
            FIND(library, translateCoordinatesReply, xcb_translate_coordinates_reply) &&
-           FIND(library, changeWindowAttributes, xcb_change_window_attributes);
+           FIND(library, changeWindowAttributes, xcb_change_window_attributes) &&
+           FIND(library, createPixmap, xcb_create_pixmap) &&
+           FIND(library, freePixmap, xcb_free_pixmap) &&
+           FIND(library, createCursor, xcb_create_cursor) &&
+           FIND(library, freeCursor, xcb_free_cursor) &&
+           FIND(library, grabPointer, xcb_grab_pointer) &&
+           FIND(library, grabPointerReply, xcb_grab_pointer_reply) &&
+           FIND(library, ungrabPointer, xcb_ungrab_pointer);
 }
 
 static bool FindRandr(mwinX11Api* api)
@@ -72,6 +79,37 @@ static bool FindRandr(mwinX11Api* api)
            FIND(randrLibrary, randrMonitorInfoNext, xcb_randr_monitor_info_next);
 }
 
+static bool FindKeyboard(mwinX11Api* api)
+{
+    return FIND(xkbX11Library, xkbSetupExtension, xkb_x11_setup_xkb_extension) &&
+           FIND(xkbX11Library, xkbCoreDevice, xkb_x11_get_core_keyboard_device_id) &&
+           FIND(xkbX11Library, xkbKeymapFromDevice, xkb_x11_keymap_new_from_device) &&
+           FIND(xkbX11Library, xkbStateFromDevice, xkb_x11_state_new_from_device) &&
+           FIND(xcbXkbLibrary, xkbSelectEvents, xcb_xkb_select_events_aux) &&
+           FIND(xcbXkbLibrary, xkbPerClientFlags, xcb_xkb_per_client_flags) &&
+           FIND(xcbXkbLibrary, xkbPerClientFlagsReply, xcb_xkb_per_client_flags_reply);
+}
+
+static bool FindCursors(mwinX11Api* api)
+{
+    return FIND(cursorLibrary, cursorContextNew, xcb_cursor_context_new) &&
+           FIND(cursorLibrary, cursorLoad, xcb_cursor_load_cursor) &&
+           FIND(cursorLibrary, cursorContextFree, xcb_cursor_context_free);
+}
+
+// Opens an optional library, or leaves it NULL when it or one of its
+// functions is missing.
+static void OpenOptional(mwinX11Api* api, void** library, const char* name,
+                         bool (*find)(mwinX11Api* api))
+{
+    *library = dlopen(name, RTLD_NOW | RTLD_LOCAL);
+    if (*library != nullptr && !find(api))
+    {
+        dlclose(*library);
+        *library = nullptr;
+    }
+}
+
 mwinResult mwinLoadX11(mwinX11Api* api)
 {
     memset(api, 0, sizeof(*api));
@@ -81,22 +119,32 @@ mwinResult mwinLoadX11(mwinX11Api* api)
         mwinUnloadX11(api);
         return mwin_errorUnsupported;
     }
-    // libxcb-randr needs libxcb's symbols, which RTLD_LOCAL keeps from
-    // it unless it links libxcb itself, as every distribution's does.
-    api->randrLibrary = dlopen("libxcb-randr.so.0", RTLD_NOW | RTLD_LOCAL);
-    if (api->randrLibrary != nullptr && !FindRandr(api))
+    // Each links libxcb itself, and shares the one libxcb.so.1 loaded.
+    OpenOptional(api, &api->randrLibrary, "libxcb-randr.so.0", FindRandr);
+    OpenOptional(api, &api->cursorLibrary, "libxcb-cursor.so.0", FindCursors);
+    api->xcbXkbLibrary = dlopen("libxcb-xkb.so.1", RTLD_NOW | RTLD_LOCAL);
+    if (api->xcbXkbLibrary != nullptr)
     {
-        dlclose(api->randrLibrary);
-        api->randrLibrary = nullptr;
+        OpenOptional(api, &api->xkbX11Library, "libxkbcommon-x11.so.0", FindKeyboard);
+    }
+    if (api->xkbX11Library == nullptr && api->xcbXkbLibrary != nullptr)
+    {
+        dlclose(api->xcbXkbLibrary);
+        api->xcbXkbLibrary = nullptr;
     }
     return mwin_success;
 }
 
 void mwinUnloadX11(mwinX11Api* api)
 {
-    if (api->randrLibrary != nullptr)
+    void* optional[] = {api->randrLibrary, api->cursorLibrary, api->xkbX11Library,
+                        api->xcbXkbLibrary};
+    for (size_t i = 0; i < sizeof(optional) / sizeof(optional[0]); i++)
     {
-        dlclose(api->randrLibrary);
+        if (optional[i] != nullptr)
+        {
+            dlclose(optional[i]);
+        }
     }
     if (api->library != nullptr)
     {

@@ -36,7 +36,7 @@ static void PostType(mwinWaylandWindow* window, mwinEventType type)
 {
     mwinEvent event = {0};
     event.type = type;
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     mwinPost(window->platform->context, window->slot, &event);
 }
 
@@ -64,7 +64,7 @@ static void ApplySurfaceSize(mwinWaylandWindow* window)
 static void PostSize(mwinWaylandWindow* window)
 {
     mwinEvent event = {0};
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     event.type = mwin_eventResized;
     event.data.size = window->size;
     mwinPost(window->platform->context, window->slot, &event);
@@ -77,7 +77,7 @@ static void PostScale(mwinWaylandWindow* window)
 {
     mwinEvent event = {0};
     event.type = mwin_eventScaleChanged;
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     event.data.scale = (mwinScaleChange){ScaleOf(window), window->size};
     mwinPost(window->platform->context, window->slot, &event);
 }
@@ -86,7 +86,7 @@ static void PostMode(mwinWaylandWindow* window, mwinWindowMode mode)
 {
     mwinEvent event = {0};
     event.type = mwin_eventModeChanged;
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     event.data.mode = mode;
     mwinPost(window->platform->context, window->slot, &event);
 }
@@ -118,7 +118,7 @@ static void OnEnter(void* data, struct wl_surface* surface, struct wl_output* ou
     {
         mwinEvent event = {0};
         event.type = mwin_eventDisplayChanged;
-        event.timeNs = mwinWaylandNow();
+        event.timeNs = mwinMonotonicNow();
         event.data.monitor = mwinMonitorIdOf(context, (uint32_t)monitor);
         mwinPost(context, window->slot, &event);
     }

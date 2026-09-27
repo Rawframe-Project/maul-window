@@ -19,8 +19,6 @@
 #define CORNER 16
 #define GLYPH  10
 
-#define DOUBLE_CLICK_NS 500000000u
-
 // The caption buttons, from the right.
 enum
 {
@@ -553,7 +551,7 @@ static void ToggleMaximized(mwinWaylandPlatform* platform, const mwinWaylandWind
 static void Click(mwinWaylandPlatform* platform, mwinWaylandWindow* window, int button)
 {
     mwinEvent event = {0};
-    event.timeNs = mwinWaylandNow();
+    event.timeNs = mwinMonotonicNow();
     switch (button)
     {
     case buttonClose:
@@ -590,7 +588,7 @@ static void PressCaption(mwinWaylandPlatform* platform, mwinWaylandWindow* windo
                                (int32_t)lroundf(target.at.y));
         return;
     }
-    if (timeNs - window->frame.captionPressNs <= DOUBLE_CLICK_NS)
+    if (timeNs - window->frame.captionPressNs <= MWIN_DOUBLE_CLICK_NS)
     {
         window->frame.captionPressNs = 0;
         ToggleMaximized(platform, window);

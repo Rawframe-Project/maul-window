@@ -22,7 +22,7 @@ static void EndComposition(mwinWaylandPlatform* platform, uint32_t slot)
     }
     mwinEvent end = {0};
     end.type = mwin_eventImePreedit;
-    end.timeNs = mwinWaylandNow();
+    end.timeNs = mwinMonotonicNow();
     end.data.preedit.caret = -1;
     mwinPost(platform->context, slot, &end);
 }
@@ -152,7 +152,7 @@ static void OnDone(void* data, struct zwp_text_input_v3* object, uint32_t serial
     (void)serial;
     mwinWaylandPlatform* platform = data;
     mwinWaylandText* text = &platform->text;
-    uint64_t timeNs = mwinWaylandNow();
+    uint64_t timeNs = mwinMonotonicNow();
     if (text->focus >= 0)
     {
         if (text->commit.lost || text->preedit.lost)

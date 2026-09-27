@@ -4,18 +4,20 @@ base:
 allocator:
 backend:
 backend_test: allocator backend core
-backend_x11: allocator backend core x11 x11_api x11_output x11_window
+backend_x11: allocator backend core x11 x11_api x11_cursor x11_input x11_output x11_window
 backend_wayland: allocator backend core wayland wayland_api wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 context: allocator backend core
+clicks:
 core: backend
 evdev:
 input: core
+monotonic:
 monitor: core
 native: core
 queue: core text
 system: core
 text: core
-wayland: core wayland_api xkb_api xkb_keyboard
+wayland: clicks core monotonic wayland_api xkb_api xkb_keyboard
 wayland_api:
 wayland_cursor: core wayland wayland_api
 wayland_frame: core wayland wayland_api wayland_cursor
@@ -26,9 +28,11 @@ wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
 window: core
-x11: core x11_api
+x11: clicks core monotonic x11_api xkb_api xkb_keyboard
 x11_api:
+x11_cursor: allocator core x11 x11_api
+x11_input: allocator core evdev x11 x11_api xkb_api xkb_keyboard
 x11_output: allocator core x11 x11_api
-x11_window: allocator core x11 x11_api x11_output
+x11_window: allocator core x11 x11_api x11_cursor x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api

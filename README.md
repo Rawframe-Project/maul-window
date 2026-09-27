@@ -35,9 +35,11 @@ On Linux the Wayland backend also needs `wayland-scanner` and the
 development files of `wayland-client` 1.22, `wayland-protocols` 1.32
 and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and
 `libxkbcommon-dev` on Debian and Ubuntu), or
-`-DMAUL_WINDOW_WAYLAND=OFF`; the X11 backend needs the `xcb` and
-`xcb-randr` development files (`libxcb1-dev` and `libxcb-randr0-dev`),
-or `-DMAUL_WINDOW_X11=OFF`.
+`-DMAUL_WINDOW_WAYLAND=OFF`; the X11 backend needs the development
+files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor` and
+`xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`, `libxcb-xkb-dev`,
+`libxcb-cursor-dev` and `libxkbcommon-x11-dev`), or
+`-DMAUL_WINDOW_X11=OFF`.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release

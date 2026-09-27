@@ -322,7 +322,7 @@ static mwinResult Run(mwinContext* context)
 static uint64_t Now(const mwinContext* context)
 {
     (void)context;
-    return mwinWaylandNow();
+    return mwinMonotonicNow();
 }
 
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)

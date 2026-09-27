@@ -7,6 +7,7 @@
 
 #include "web_input.h"
 #include "web_page.h"
+#include "web_text.h"
 
 #include <emscripten/emscripten.h>
 #include <string.h>
@@ -156,8 +157,13 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestCursorShape:
         return mwinWebSetCursorShape(PlatformOf(context), slot, request->value.code);
     case mwin_requestTextInput:
-        // Keys type text whether asked or not; input methods come later.
-        return mwin_outcomeDone;
+        return mwinWebSetTextInput(PlatformOf(context), slot, request->value.textInput.enabled,
+                                   request->value.textInput.caret);
+    case mwin_requestVirtualKeyboard:
+        // The purpose in the low bits, the high bit set to show.
+        return mwinWebSetVirtualKeyboard(PlatformOf(context), slot,
+                                         (request->value.code & 0x80u) != 0,
+                                         (mwinInputPurpose)(request->value.code & 0x7Fu));
     default:
         return mwin_outcomeUnsupported;
     }

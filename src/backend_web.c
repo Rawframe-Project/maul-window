@@ -13,6 +13,7 @@
 #include "web.h"
 #include "web_input.h"
 #include "web_page.h"
+#include "web_text.h"
 #include "web_window.h"
 
 #include <emscripten/emscripten.h>
@@ -26,7 +27,8 @@ static mwinWebPlatform* PlatformOf(const mwinContext* context)
 
 static size_t PlatformBytes(const mwinContext* context)
 {
-    return sizeof(mwinWebPlatform) + context->limits.windows * sizeof(mwinWebWindow);
+    return sizeof(mwinWebPlatform) + context->limits.windows * sizeof(mwinWebWindow) +
+           context->limits.textBytesPerWindow + 1u;
 }
 
 static uint64_t NowNs(void)
@@ -96,6 +98,7 @@ static mwinResult Start(mwinContext* context)
     memset(block, 0, PlatformBytes(context));
     mwinWebPlatform* platform = (mwinWebPlatform*)block;
     platform->windows = (mwinWebWindow*)(block + sizeof(mwinWebPlatform));
+    platform->text = (char*)(platform->windows + context->limits.windows);
     platform->context = context;
     platform->monitor = -1;
     platform->scale = mwinWebScale();
@@ -171,7 +174,11 @@ static void Pump(mwinContext* context)
             {
                 break;
             }
-            if (record.kind >= mwin_webKey)
+            if (record.kind >= mwin_webCommit)
+            {
+                mwinWebHandleTextRecord(platform, &record);
+            }
+            else if (record.kind >= mwin_webKey)
             {
                 mwinWebHandleInputRecord(platform, &record);
             }

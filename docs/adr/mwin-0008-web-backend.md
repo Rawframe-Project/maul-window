@@ -80,6 +80,21 @@ gesture; and every browser API is JavaScript.
   records. The user can end a lock with Escape; the window's mode is
   then what the program asked for until it asks again. A page cannot
   confine the pointer: confined modes are unsupported.
+- **Input methods:** a window that accepts text gets a text field of
+  its own, invisible, placed at the caret, and the focus moves into it,
+  so the browser's input methods, its on-screen keyboards and its
+  accessibility work as in any page; a canvas can take neither. The
+  canvas and its field have the focus as one, so the move posts no
+  focus record. The preedit comes from the field's input events during
+  a composition, when its value and caret are current (composition
+  update events come before them), as one underlined segment: a page
+  is told nothing of clauses. Text comes from its input events, keys
+  in it typing through the page instead of from key events, so nothing
+  types twice. Stopping ends a composition and gives the canvas the
+  focus back. An on-screen keyboard request sets the field's
+  `inputmode` for the purpose and moves the focus into it or out; the
+  keyboard's size is not reported. The EditContext API, which would
+  give clauses without a field, is Chrome's only.
 - **Facts:** the color scheme and reduced motion from media queries,
   the preferred languages from `navigator.languages`, each read again
   when the page says it changed. The accent, the text scale and power
@@ -91,6 +106,6 @@ The web tests run in headless Chrome through puppeteer
 (`test/web_runner.cjs`), which serves the build, gives the page a
 canvas of its own, and carries out what the test asks: a new device
 pixel ratio or color scheme, keys, the mouse and the wheel through
-puppeteer, and touches and a pen through the DevTools protocol. Input
-methods, the lifecycle, the clipboard and gamepads follow in their own
-changes.
+puppeteer, and touches, a pen and compositions through the DevTools
+protocol. The lifecycle, the clipboard and gamepads follow in their
+own changes.

@@ -96,4 +96,5 @@ format.
   window def names a page's canvas by its selector. The keyboard by
   KeyboardEvent.code with meanings from the layout map, text, the
   mouse, the wheel, touch and pen from pointer events, CSS cursors,
-  and a captured cursor through pointer lock with raw motion.
+  and a captured cursor through pointer lock with raw motion; input
+  methods and on-screen keyboards through a text field at the caret.

@@ -28,7 +28,7 @@ EM_JS(bool, HasDocument, (void), {
 
 EM_JS(void, mwinWebAttach, (const mwinContext* context), {
     const map = Module.mwinWeb || (Module.mwinWeb = new Map());
-    const state = {queue: [], canvases: [], listeners: []};
+    const state = {queue: [], strings: [], canvases: [], listeners: []};
     map.set(context, state);
     const push = (kind, slot, code = 0, x = 0, y = 0, z = 0, w = 0, v = 0, u = 0, extra = 0) =>
         state.queue.push([kind, slot, code, extra, x, y, z, w, v, u, performance.now()]);
@@ -156,11 +156,16 @@ EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const 
     if (!visible) {
         canvas.style.display = 'none';
     }
-    for (const [type, code] of [['focus', 1], ['blur', 0]]) {
-        const handler = () => state.push(3, slot, code);
-        canvas.addEventListener(type, handler);
-        entry.listeners.push(() => canvas.removeEventListener(type, handler));
-    }
+    // The canvas and its text field (web_text.c) have the focus as one.
+    const mine = target => target !== null && (target === canvas || target === entry.textarea);
+    entry.focusIn = e => mine(e.relatedTarget) || state.push(3, slot, 1);
+    entry.focusOut = e => mine(e.relatedTarget) || state.push(3, slot, 0);
+    canvas.addEventListener('focusin', entry.focusIn);
+    canvas.addEventListener('focusout', entry.focusOut);
+    entry.listeners.push(() => {
+        canvas.removeEventListener('focusin', entry.focusIn);
+        canvas.removeEventListener('focusout', entry.focusOut);
+    });
     entry.width = canvas.clientWidth || width;
     entry.height = canvas.clientHeight || height;
     canvas.width = Math.max(1, Math.round(entry.width * devicePixelRatio));

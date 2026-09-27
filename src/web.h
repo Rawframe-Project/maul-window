@@ -45,6 +45,9 @@ typedef struct mwinWebPlatform
     int32_t monitor;
     // The page's devicePixelRatio.
     float scale;
+    // A string of the page's as UTF-8: textBytesPerWindow and its
+    // terminator.
+    char* text;
 } mwinWebPlatform;
 
 // What the page reports, one record at a time.
@@ -89,6 +92,10 @@ typedef enum mwinWebRecordKind
     mwin_webLockFailed = 18,
     // The keyboard layout changed.
     mwin_webLayout = 19,
+    // Text an input method or an on-screen keyboard typed: its string.
+    mwin_webCommit = 20,
+    // A composition: its string, empty when it ends, and code its caret.
+    mwin_webPreedit = 21,
 } mwinWebRecordKind;
 
 typedef enum mwinWebMouse

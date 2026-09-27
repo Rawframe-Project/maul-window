@@ -96,6 +96,15 @@ async function carryOut(tab, command, args) {
     } else if (command === 'touch') {
         const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
         await touch(tab, x, y);
+    } else if (command === 'compose' || command === 'commit') {
+        // An input method's composition, and its result.
+        const session = await tab.createCDPSession();
+        if (command === 'compose') {
+            await session.send('Input.imeSetComposition', {text: args[0],
+                selectionStart: Number(args[1]), selectionEnd: Number(args[2])});
+        } else {
+            await session.send('Input.insertText', {text: args[0]});
+        }
     } else if (command === 'pen') {
         const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
         await pen(tab, x, y);

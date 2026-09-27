@@ -86,7 +86,11 @@ EM_JS(void, WatchKeys, (const mwinContext* context, uint32_t slot), {
         const code = input.codes[e.code] || 0;
         const shortcut = ((e.ctrlKey || e.metaKey) && !e.altKey) ||
                          ['F5', 'F11', 'F12'].includes(e.code);
-        if (!shortcut) {
+        // In the text field (web_text.c) keys type through the page, its
+        // input events bringing the text; only Tab is kept from moving
+        // the focus.
+        const texting = e.target === entry.textarea;
+        if (texting ? e.code === 'Tab' : !shortcut) {
             e.preventDefault();
         }
         if (code === 0 || e.isComposing || e.key === 'Process') {
@@ -96,12 +100,14 @@ EM_JS(void, WatchKeys, (const mwinContext* context, uint32_t slot), {
                    input.meaning(e.code, e.key, e.shiftKey), 0, 0, 0, modifiers(e));
         // A character, typed alone or with AltGr (Control and Alt).
         const typed = !e.metaKey && (!e.ctrlKey || e.altKey) && [...e.key].length === 1;
-        if (down && typed) {
+        if (down && typed && !texting) {
             state.push(11, slot, e.key.codePointAt(0));
         }
     };
     const onDown = e => key(e, true);
     const onUp = e => key(e, false);
+    entry.keyDown = onDown;
+    entry.keyUp = onUp;
     entry.canvas.addEventListener('keydown', onDown);
     entry.canvas.addEventListener('keyup', onUp);
     entry.listeners.push(() => {

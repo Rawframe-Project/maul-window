@@ -125,6 +125,7 @@ format.
   under the drop's number (`mwinGetDroppedFiles`,
   `mwinGetDroppedText`), the `droppedFiles` and `dropBytes` limits; the
   test backend's drops and the contract tests. Web drag and drop on
-  each canvas.
+  each canvas; Win32 drag and drop through an OLE drop target, and
+  WM_DROPFILES where OLE cannot start.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

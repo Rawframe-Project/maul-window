@@ -222,11 +222,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_win32_system PRIVATE user32 advapi32 dwmapi)
         # One desktop: the focus, the pointer and the settings are not
         # shared.
+        # The drop target driven as OLE would, and WM_DROPFILES.
+        maul_add_test(win32_drop WHITEBOX)
+        target_link_libraries(test_win32_drop PRIVATE user32 ole32 shell32)
         # The system clipboard, shared by the whole desktop.
         maul_add_test(win32_clipboard)
         target_link_libraries(test_win32_clipboard PRIVATE user32)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
-                             win32_clipboard PROPERTIES RESOURCE_LOCK desktop)
+                             win32_clipboard win32_drop PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
 endif()

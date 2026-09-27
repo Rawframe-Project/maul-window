@@ -10,6 +10,7 @@
 #include "backend.h"
 #include "core.h"
 #include "win32.h"
+#include "win32_drop.h"
 #include "win32_input.h"
 #include "win32_output.h"
 #include "win32_system.h"
@@ -74,6 +75,7 @@ static void Stop(mwinContext* context)
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinWin32PadsStop(&platform->pads);
 #endif
+    mwinWin32StopOle(platform);
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
 }
@@ -114,6 +116,7 @@ static mwinResult Start(mwinContext* context)
     platform->instance = GetModuleHandleW(nullptr);
     context->backendData = platform;
     BecomeDpiAware();
+    mwinWin32StartOle(platform);
     if (!RegisterWindowClass(platform))
     {
         Stop(context);

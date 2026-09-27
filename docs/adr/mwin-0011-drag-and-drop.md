@@ -39,6 +39,18 @@ from the platform once, sometimes asynchronously (Wayland, X11).
   left out, so a program can tell the user.
 - **Access:** a path names a file; nothing is granted with it. On the
   web, where a page never sees paths, files come as their names.
+- **Win32:** the backend starts OLE for its thread and registers an
+  `IDropTarget` per window, written in C: its function table first in
+  a struct kept in the window's own state, so it needs no allocation,
+  and its references count nothing, since it lives as long as the
+  window. It takes drags whose data object holds `CF_HDROP` or
+  `CF_UNICODETEXT` with the copy effect, refuses the rest, and reports
+  a drag over only when it has moved, as OLE calls it again and again
+  while the drag rests. A drop gathers the paths through
+  `DragQueryFileW` and the text as UTF-16 bounded by its memory's
+  size. Where OLE cannot start, because the program made the thread
+  multithreaded first, the windows accept files instead and a
+  `WM_DROPFILES` delivers them, with no drag records.
 - **Web:** each canvas listens for `dragenter`, `dragover`,
   `dragleave` and `drop`, and takes only drags whose `DataTransfer`
   holds `Files` or `text/plain`, keeping the page's default (opening

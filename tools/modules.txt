@@ -5,7 +5,7 @@ backend:
 backend_test: allocator backend core
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_drop web_input web_page web_pad web_text web_window
-backend_win32: allocator backend core win32 win32_input win32_output win32_pad win32_system win32_window
+backend_win32: allocator backend core win32 win32_drop win32_input win32_output win32_pad win32_system win32_window
 backend_x11: allocator backend core monotonic x11 x11_api x11_clipboard x11_cursor x11_input x11_output x11_window
 base:
 clicks:
@@ -47,13 +47,14 @@ web_text: core web
 web_window: core web web_clipboard web_drop web_input web_page web_text
 win32: clicks core win32_pad
 win32_clipboard: core win32
+win32_drop: allocator core win32
 win32_ime: core win32
 win32_input: core win32
 win32_output: core win32
 win32_pad: core
 win32_pointer: core win32
 win32_system: core win32
-win32_window: core win32 win32_clipboard win32_ime win32_input win32_output win32_pointer win32_system
+win32_window: core win32 win32_clipboard win32_drop win32_ime win32_input win32_output win32_pointer win32_system
 window: core
 x11: clicks core linux_pad monotonic x11_api xkb_api xkb_keyboard
 x11_api:

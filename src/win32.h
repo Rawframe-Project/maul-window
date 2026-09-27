@@ -9,6 +9,11 @@
 #ifndef MAUL_WINDOW_SRC_WIN32_H
 #define MAUL_WINDOW_SRC_WIN32_H
 
+// COM interfaces with const function tables, as the backend's are.
+#ifndef CONST_VTABLE
+#define CONST_VTABLE
+#endif
+
 #include "clicks.h"
 #include "core.h"
 #include "win32_pad.h"
@@ -21,14 +26,31 @@
 #endif
 #include <string.h>
 #include <windows.h>
+// After windows.h, whose types it uses.
+#include <oleidl.h>
 
 typedef struct mwinWin32Platform mwinWin32Platform;
+typedef struct mwinWin32Window mwinWin32Window;
 
 // The touches followed at once on a window; more are left out.
 #define MWIN_WIN32_TOUCHES 10
 
 // A window, and what the program asked of it that Win32 keeps nowhere.
-typedef struct mwinWin32Window
+// A window's OLE drop target: the interface first, so a pointer to the
+// interface OLE hands back is one to the target (win32_drop.c).
+typedef struct mwinWin32DropTarget
+{
+    IDropTarget target;
+    mwinWin32Window* window;
+    // Registered with OLE, what the drag over the window carries, and
+    // where it was last reported, in pixels of the client area.
+    bool registered;
+    mwinDragContents contents;
+    int32_t x;
+    int32_t y;
+} mwinWin32DropTarget;
+
+struct mwinWin32Window
 {
     mwinWin32Platform* platform;
     uint32_t slot;
@@ -67,7 +89,8 @@ typedef struct mwinWin32Window
     mwinRect caret;
     // The touches down on the window, by pointer id; 0 for none.
     UINT32 touches[MWIN_WIN32_TOUCHES];
-} mwinWin32Window;
+    mwinWin32DropTarget drop;
+};
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.
 typedef struct mwinWin32Output
@@ -101,6 +124,9 @@ struct mwinWin32Platform
     bool inSizeMove;
     // The mouse's raw input goes to the window with focus.
     bool rawInput;
+    // OLE started on the thread: drags reach windows through their drop
+    // targets. Without it, only dropped files come, as WM_DROPFILES.
+    bool ole;
     // The gamepads, with the gamepad component.
     mwinWin32Pads pads;
 };

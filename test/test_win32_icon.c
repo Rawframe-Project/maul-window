@@ -131,24 +131,24 @@ static void Check(mwinContext* context, Program* program)
 {
     HWND hwnd = Handle(context, program->window);
     UINT dpi = GetDpiForWindow(hwnd);
-    HICON big = (HICON)SendMessageW(hwnd, WM_GETICON, ICON_BIG, 0);
-    HICON small = (HICON)SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0);
+    HICON bigIcon = (HICON)SendMessageW(hwnd, WM_GETICON, ICON_BIG, 0);
+    HICON smallIcon = (HICON)SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0);
     switch (program->step)
     {
     case 1:
-        CHECK(Shows(big, GetSystemMetricsForDpi(SM_CXICON, dpi)) &&
-                  Shows(small, GetSystemMetricsForDpi(SM_CXSMICON, dpi)),
+        CHECK(Shows(bigIcon, GetSystemMetricsForDpi(SM_CXICON, dpi)) &&
+                  Shows(smallIcon, GetSystemMetricsForDpi(SM_CXSMICON, dpi)),
               "the big and small icons from the nearest images, colours and alpha kept");
-        program->first = big;
+        program->first = bigIcon;
         Ask(context, program, 0);
         break;
     case 2:
-        CHECK(big == nullptr && small == nullptr && Destroyed(program->first),
+        CHECK(bigIcon == nullptr && smallIcon == nullptr && Destroyed(program->first),
               "the icons made destroyed when replaced, none left for the class's own");
         Ask(context, program, 3);
         break;
     default:
-        program->first = big;
+        program->first = bigIcon;
         CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroy");
         CHECK(Destroyed(program->first), "the last icons destroyed with the window");
         program->done = true;

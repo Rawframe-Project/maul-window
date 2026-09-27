@@ -6,7 +6,10 @@
 // its source offers and the serial it quotes; text another client
 // would offer, which the compositor writes into the client's pipe from
 // a thread of its own; and the client's selection read as another
-// client would, through a pipe the test reads without waiting.
+// client would, through a pipe the test reads without waiting; and a
+// drag another client makes over the last surface, with its files and
+// text, the type the client accepts, the actions it sets and whether
+// it finished the drop.
 
 #ifndef MAUL_WINDOW_TEST_WAYLAND_DATA_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_DATA_SERVER_H
@@ -14,11 +17,22 @@
 #include "wayland_server.h"
 
 #include <fcntl.h>
+#include <stdio.h>
 
 #define DATA_TYPES      4
 #define DATA_TYPE_BYTES 40
 
 typedef struct DataServer DataServer;
+
+// What the client answered a drag: the type it accepts ("" for none),
+// the actions it set, and whether it finished the drop.
+typedef struct DataDrag
+{
+    char accepted[DATA_TYPE_BYTES];
+    int accepts;
+    uint32_t actions;
+    bool finished;
+} DataDrag;
 
 // The text types a source offers.
 typedef struct DataTypes
@@ -42,6 +56,12 @@ struct DataServer
     size_t offeredLength;
     // The type the client last asked the offer for.
     char received[DATA_TYPE_BYTES];
+    // A drag's offer, its files as a uri-list and its text, and what the
+    // client answered.
+    struct wl_resource* dragOffer;
+    char* dragFiles;
+    char* dragText;
+    DataDrag drag;
 };
 
 // A copy of text and the pipe to write it into.
@@ -205,6 +225,52 @@ static const struct wl_data_offer_interface s_dataOffer = {
     DataAccept, DataReceive, ServerDestroyResource, ServerNoRequest, DataOfferActions,
 };
 
+static inline void DataDragAccept(struct wl_client* client, struct wl_resource* resource,
+                                  uint32_t serial, const char* type)
+{
+    (void)client;
+    (void)serial;
+    DataServer* data = wl_resource_get_user_data(resource);
+    (void)snprintf(data->drag.accepted, sizeof(data->drag.accepted), "%s",
+                   type != nullptr ? type : "");
+    data->drag.accepts += 1;
+}
+
+// The client reads the drag's files or text: a thread writes them.
+static inline void DataDragReceive(struct wl_client* client, struct wl_resource* resource,
+                                   const char* type, int32_t fd)
+{
+    (void)client;
+    DataServer* data = wl_resource_get_user_data(resource);
+    const char* text = strcmp(type, "text/uri-list") == 0 ? data->dragFiles : data->dragText;
+    text = text != nullptr ? text : "";
+    DataWrite* job = malloc(sizeof(DataWrite));
+    *job = (DataWrite){fd, strdup(text), strlen(text)};
+    pthread_t thread;
+    pthread_create(&thread, nullptr, DataWriteRun, job);
+    pthread_detach(thread);
+}
+
+static inline void DataDragFinish(struct wl_client* client, struct wl_resource* resource)
+{
+    (void)client;
+    DataServer* data = wl_resource_get_user_data(resource);
+    data->drag.finished = true;
+}
+
+static inline void DataDragActions(struct wl_client* client, struct wl_resource* resource,
+                                   uint32_t actions, uint32_t preferred)
+{
+    (void)client;
+    (void)preferred;
+    DataServer* data = wl_resource_get_user_data(resource);
+    data->drag.actions = actions;
+}
+
+static const struct wl_data_offer_interface s_dragOffer = {
+    DataDragAccept, DataDragReceive, ServerDestroyResource, DataDragFinish, DataDragActions,
+};
+
 static inline void DataStart(DataServer* data, Server* server)
 {
     *data = (DataServer){.server = server};
@@ -216,6 +282,74 @@ static inline void DataStart(DataServer* data, Server* server)
 static inline void DataStop(DataServer* data)
 {
     free(data->offered);
+    free(data->dragFiles);
+    free(data->dragText);
+}
+
+// Another client drags files (a uri-list) and text (either NULL), or
+// only HTML when both are, over the last surface.
+static inline void DataDragEnter(DataServer* data, double x, double y, const char* files,
+                                 const char* text)
+{
+    Server* server = data->server;
+    pthread_mutex_lock(&server->lock);
+    free(data->dragFiles);
+    free(data->dragText);
+    data->dragFiles = files != nullptr ? strdup(files) : nullptr;
+    data->dragText = text != nullptr ? strdup(text) : nullptr;
+    data->drag = (DataDrag){0};
+    struct wl_resource* offer =
+        wl_resource_create(wl_resource_get_client(data->device), &wl_data_offer_interface,
+                           wl_resource_get_version(data->device), 0);
+    wl_resource_set_implementation(offer, &s_dragOffer, data, nullptr);
+    data->dragOffer = offer;
+    wl_data_device_send_data_offer(data->device, offer);
+    wl_data_offer_send_offer(offer, "text/html");
+    if (files != nullptr)
+    {
+        wl_data_offer_send_offer(offer, "text/uri-list");
+    }
+    if (text != nullptr)
+    {
+        wl_data_offer_send_offer(offer, "text/plain;charset=utf-8");
+    }
+    wl_data_device_send_enter(data->device, ++server->serial, server->surface,
+                              wl_fixed_from_double(x), wl_fixed_from_double(y), offer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+static inline void DataDragMotion(DataServer* data, double x, double y)
+{
+    pthread_mutex_lock(&data->server->lock);
+    wl_data_device_send_motion(data->device, 1000, wl_fixed_from_double(x),
+                               wl_fixed_from_double(y));
+    wl_display_flush_clients(data->server->display);
+    pthread_mutex_unlock(&data->server->lock);
+}
+
+// The drag leaves, or drops.
+static inline void DataDragEnd(DataServer* data, bool drop)
+{
+    pthread_mutex_lock(&data->server->lock);
+    if (drop)
+    {
+        wl_data_device_send_drop(data->device);
+    }
+    else
+    {
+        wl_data_device_send_leave(data->device);
+    }
+    wl_display_flush_clients(data->server->display);
+    pthread_mutex_unlock(&data->server->lock);
+}
+
+static inline DataDrag DataDragState(DataServer* data)
+{
+    pthread_mutex_lock(&data->server->lock);
+    DataDrag drag = data->drag;
+    pthread_mutex_unlock(&data->server->lock);
+    return drag;
 }
 
 // Another client takes the selection with this text, the client's

@@ -19,6 +19,7 @@
 #include "wayland_api.h"
 #include "wayland_clipboard.h"
 #include "wayland_cursor.h"
+#include "wayland_drop.h"
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_seat.h"
@@ -283,6 +284,7 @@ static mwinResult Start(mwinContext* context)
     platform->pointer.focus = -1;
     platform->text.focus = -1;
     mwinWaylandInitClipboard(&platform->clipboard);
+    mwinWaylandInitDrag(&platform->drag);
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
@@ -325,6 +327,7 @@ static void Pump(mwinContext* context)
     (void)api->displayDispatchPending(display);
     mwinWaylandRepeatKeys(platform);
     mwinWaylandPumpClipboard(platform, mwinMonotonicNow());
+    mwinWaylandPumpDrag(platform, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

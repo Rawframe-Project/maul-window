@@ -84,6 +84,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/queue.c
     src/system.c
     src/text.c
+    src/uri_list.c
     src/utf8.c
     src/window.c)
 if(MAUL_WINDOW_TEST_BACKEND)
@@ -143,6 +144,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         set_tests_properties(wayland PROPERTIES SKIP_RETURN_CODE 77)
         mwin_add_wayland_server_test(wayland_input)
         mwin_add_wayland_server_test(wayland_clipboard)
+        mwin_add_wayland_server_test(wayland_drop)
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.

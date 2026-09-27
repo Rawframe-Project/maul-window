@@ -51,6 +51,21 @@ from the platform once, sometimes asynchronously (Wayland, X11).
   size. Where OLE cannot start, because the program made the thread
   multithreaded first, the windows accept files instead and a
   `WM_DROPFILES` delivers them, with no drag records.
+- **Wayland:** the seat's data device. A drag over one of the
+  program's windows whose offer has `text/uri-list` or a text type is
+  accepted, files first, with the copy action (data device version 3),
+  and reported; a drag of neither, or one over the frame the backend
+  draws, is refused with no records. A drop takes the offer on and
+  reads each type it has through a pipe of its own a piece at each
+  pump, as the clipboard does (the pipe reading is one module for
+  both), delivers when both end or after five seconds, marking the drop
+  truncated for a read that did not end well, and then finishes the
+  offer, so the source knows the copy is done.
+- **File URIs:** Wayland and X11 carry files as `text/uri-list`. A
+  line that is a `file:` URI with no host or `localhost` gives its
+  path, percent-decoded; comment lines are skipped; a URI of another
+  scheme or host names no file the program can open, so it is left out
+  and the drop marked truncated.
 - **Web:** each canvas listens for `dragenter`, `dragover`,
   `dragleave` and `drop`, and takes only drags whose `DataTransfer`
   holds `Files` or `text/plain`, keeping the page's default (opening

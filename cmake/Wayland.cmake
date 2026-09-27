@@ -89,9 +89,11 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_api.c
     src/wayland_clipboard.c
     src/wayland_cursor.c
+    src/wayland_drop.c
     src/wayland_frame.c
     src/wayland_keyboard.c
     src/wayland_output.c
+    src/wayland_pipe.c
     src/wayland_pointer.c
     src/wayland_seat.c
     src/wayland_text.c
@@ -102,7 +104,7 @@ target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WAYLAND)
 set_source_files_properties(${MWIN_WAYLAND_SOURCES} PROPERTIES
     COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 # memfd_create and pipe2 are GNU extensions, in glibc and musl.
-set_property(SOURCE src/wayland_frame.c src/wayland_clipboard.c APPEND PROPERTY
+set_property(SOURCE src/wayland_frame.c src/wayland_pipe.c APPEND PROPERTY
     COMPILE_DEFINITIONS _GNU_SOURCE)
 target_link_libraries(maul-window PRIVATE ${CMAKE_DL_LIBS})
 if(CMAKE_DL_LIBS)

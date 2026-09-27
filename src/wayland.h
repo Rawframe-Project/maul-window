@@ -14,6 +14,7 @@
 #include "linux_pad.h"
 #include "monotonic.h"
 #include "wayland_api.h"
+#include "wayland_pipe.h"
 #include "xkb_api.h"
 #include "xkb_keyboard.h"
 
@@ -223,6 +224,8 @@ typedef struct mwinWaylandClipboard
     // backend knows or -1, until the selection names it.
     struct wl_data_offer* incoming;
     int8_t incomingType;
+    // The newest offer has files (text/uri-list).
+    bool incomingFiles;
     struct wl_data_offer* selection;
     int8_t selectionType;
     struct wl_data_source* source;
@@ -231,14 +234,32 @@ typedef struct mwinWaylandClipboard
         int fd;
         uint32_t offset;
     } sends[MWIN_WAYLAND_SENDS];
-    // The read's pipe, or -1, and the text so far in a block of capacity
-    // bytes from the allocator; past the limit, the read is too large.
-    int readFd;
-    char* buffer;
-    uint32_t used;
-    uint32_t capacity;
+    // The read's pipe, and when it fails.
+    mwinWaylandPipe reading;
     uint64_t deadlineNs;
 } mwinWaylandClipboard;
+
+// A drag over one of the program's windows: its offer, the window, the
+// enter's serial, what it carries and the type its text comes in, and
+// where it is. A drop takes the offer on to be read, its files and text
+// through pipes of their own, until a deadline.
+typedef struct mwinWaylandDrag
+{
+    struct wl_data_offer* offer;
+    int32_t slot;
+    uint32_t serial;
+    mwinDragContents contents;
+    const char* textType;
+    mwinPosition position;
+    struct wl_data_offer* dropped;
+    int32_t dropSlot;
+    mwinPosition dropPosition;
+    mwinWaylandPipe files;
+    mwinWaylandPipe text;
+    uint64_t deadlineNs;
+    // A pipe for the drop could not be made.
+    bool lost;
+} mwinWaylandDrag;
 
 struct mwinWaylandPlatform
 {
@@ -270,6 +291,7 @@ struct mwinWaylandPlatform
     mwinWaylandTouch touch;
     mwinWaylandText text;
     mwinWaylandClipboard clipboard;
+    mwinWaylandDrag drag;
     // The serial of the latest input event, which setting the selection
     // quotes.
     uint32_t inputSerial;

@@ -3,7 +3,7 @@
 allocator:
 backend:
 backend_test: allocator backend core
-backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
+backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_drop web_input web_page web_pad web_text web_window
 backend_win32: allocator backend core win32 win32_drop win32_input win32_output win32_pad win32_system win32_window
 backend_x11: allocator backend core monotonic x11 x11_api x11_clipboard x11_cursor x11_input x11_output x11_window
@@ -25,10 +25,13 @@ pad_db:
 queue: core text
 system: core
 text: core
+uri_list: core
 utf8:
-wayland: clicks core linux_pad monotonic wayland_api xkb_api xkb_keyboard
+wayland: clicks core linux_pad monotonic wayland_api wayland_pipe xkb_api xkb_keyboard
 wayland_api:
-wayland_clipboard: allocator core monotonic wayland wayland_api
+wayland_clipboard: core monotonic wayland wayland_api wayland_drop wayland_pipe
+wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
+wayland_pipe: allocator core
 wayland_cursor: core wayland wayland_api
 wayland_frame: core wayland wayland_api wayland_cursor
 wayland_keyboard: core evdev wayland wayland_api xkb_api xkb_keyboard

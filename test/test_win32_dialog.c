@@ -61,9 +61,11 @@ typedef struct Program
     bool stopped;
     // The dialog a later one replaced, which must close.
     HWND replaced;
-    // When OK was last pressed on a folder dialog: Windows opens a
-    // folder typed in, and chooses the one it shows at the next OK.
+    // When OK was last pressed on a folder dialog, and how often:
+    // Windows chooses the folder it shows at OK with nothing typed, and
+    // opens a folder typed in; wine chooses one typed in.
     ULONGLONG pressedMs;
+    int presses;
     // The temporary folder, as UTF-8 and UTF-16.
     char folder[MAX_PATH * 3];
     WCHAR wideFolder[MAX_PATH];
@@ -141,18 +143,15 @@ static bool Act(mwinContext* context, Program* program)
         (void)swprintf(folder, MAX_PATH, L"%ls", program->wideFolder);
         folder[wcslen(folder) - 1] = L'\0';
         bool file = s_actions[program->phase] == actionType;
-        if (!file && program->pressedMs != 0)
+        if (!file && program->presses > 0 && GetTickCount64() - program->pressedMs < 1000)
         {
-            if (GetTickCount64() - program->pressedMs > 500)
-            {
-                program->pressedMs = GetTickCount64();
-                PostMessageW(found.dialog, WM_COMMAND, IDOK, 0);
-            }
             return false;
         }
-        SetWindowTextW(found.edit, file ? L"mwin-open.txt" : folder);
+        bool typed = file || program->presses % 2 == 1;
+        SetWindowTextW(found.edit, file ? L"mwin-open.txt" : typed ? folder : L"");
         PostMessageW(found.dialog, WM_COMMAND, IDOK, 0);
-        program->pressedMs = file ? 0 : GetTickCount64();
+        program->pressedMs = GetTickCount64();
+        program->presses += 1;
         return file;
     }
     case actionCancel:

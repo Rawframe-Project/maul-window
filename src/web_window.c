@@ -5,6 +5,7 @@
 
 #include "web_window.h"
 
+#include "web_clipboard.h"
 #include "web_input.h"
 #include "web_page.h"
 #include "web_text.h"
@@ -159,6 +160,10 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestTextInput:
         return mwinWebSetTextInput(PlatformOf(context), slot, request->value.textInput.enabled,
                                    request->value.textInput.caret);
+    case mwin_requestClipboardWrite:
+        return mwinWebWriteClipboard(context, slot);
+    case mwin_requestClipboardRead:
+        return mwinWebReadClipboard(context, slot);
     case mwin_requestVirtualKeyboard:
         // The purpose in the low bits, the high bit set to show.
         return mwinWebSetVirtualKeyboard(PlatformOf(context), slot,

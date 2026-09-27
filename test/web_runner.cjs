@@ -141,7 +141,11 @@ async function main() {
                 }
             });
         });
-        await tab.goto(`http://127.0.0.1:${server.address().port}/`);
+        const origin = `http://127.0.0.1:${server.address().port}`;
+        // The clipboard asks the user first; the test is the user.
+        await browser.defaultBrowserContext().overridePermissions(
+            origin, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+        await tab.goto(`${origin}/`);
         const timeout = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('timed out')), 20000));
         status = await Promise.race([done, timeout]);

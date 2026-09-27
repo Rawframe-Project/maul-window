@@ -4,7 +4,7 @@ allocator:
 backend:
 backend_test: allocator backend core
 backend_wayland: allocator backend core wayland wayland_api wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
-backend_web: allocator backend core web web_input web_page web_pad web_text web_window
+backend_web: allocator backend core web web_clipboard web_input web_page web_pad web_text web_window
 backend_win32: allocator backend core win32 win32_input win32_output win32_pad win32_system win32_window
 backend_x11: allocator backend core x11 x11_api x11_cursor x11_input x11_output x11_window
 base:
@@ -35,11 +35,12 @@ wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
 web: clicks core web_pad
+web_clipboard: allocator core web
 web_input: clicks core web
 web_page: core web
 web_pad: core
 web_text: core web
-web_window: core web web_input web_page web_text
+web_window: core web web_clipboard web_input web_page web_text
 win32: clicks core win32_pad
 win32_clipboard: core win32
 win32_ime: core win32

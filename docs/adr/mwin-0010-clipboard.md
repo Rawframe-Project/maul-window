@@ -52,6 +52,15 @@ named limit (section 11).
   for a moment, so opening it is tried five times a millisecond apart
   before the request fails. Text read is bounded by its memory's size,
   since another program's text need not end with a terminator.
+- **Web:** `navigator.clipboard.writeText` and `readText`, the request
+  answered when the promise settles: `NotAllowedError` (no focus, or
+  the user said no) is `mwin_outcomeDenied`, any other rejection
+  `mwin_outcomeFailed`, and a page without the API (outside a secure
+  context) `mwin_outcomeUnsupported` at once. The text read is encoded
+  with `TextEncoder`, which writes a lone surrogate as U+FFFD, and
+  waits in the page until its record is handled; a record carries the
+  window's generation, so a read whose window went still takes its
+  text and answers no later window in the same slot.
 
 ## Consequences
 

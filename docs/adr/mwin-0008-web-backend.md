@@ -120,5 +120,5 @@ canvas of its own, and carries out what the test asks: a new device
 pixel ratio or color scheme, keys, the mouse and the wheel through
 puppeteer, and touches, a pen and compositions through the DevTools
 protocol. The lifecycle test plays a hidden page and the back-forward
-cache itself, between frames. Gamepads came later (mwin-0009), and the
-clipboard follows in its own change.
+cache itself, between frames. Gamepads and the clipboard came later
+(mwin-0009, mwin-0010); the runner grants the page the clipboard.

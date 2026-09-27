@@ -4,6 +4,7 @@
 
 set(MWIN_WEB_SOURCES
     src/backend_web.c
+    src/web_clipboard.c
     src/web_input.c
     src/web_page.c
     src/web_text.c

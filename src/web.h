@@ -104,6 +104,10 @@ typedef enum mwinWebRecordKind
     // A canvas left the document, or came back.
     mwin_webSurfaceLost = 22,
     mwin_webSurfaceRestored = 23,
+    // A clipboard write or read ended: code its mwinOutcome; a read that
+    // is done has its text waiting as bytes.
+    mwin_webClipboardWritten = 24,
+    mwin_webClipboardRead = 25,
 } mwinWebRecordKind;
 
 typedef enum mwinWebMouse

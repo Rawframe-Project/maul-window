@@ -219,6 +219,7 @@ static mwinResult Start(mwinContext* context)
     platform->title = (char*)storage;
     platform->context = context;
     platform->keyboard.focus = -1;
+    platform->pointer.focus = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
     if (status != mwin_success)

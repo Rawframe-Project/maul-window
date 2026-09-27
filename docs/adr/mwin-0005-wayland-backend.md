@@ -57,6 +57,16 @@ generated the same protocol code would define its interfaces twice.
   eight per pump after a stall. Keys held when focus comes are not
   reported; focus that goes while keys are held posts a reset. A new
   keymap or layout group posts `mwin_eventKeyboardLayoutChanged`.
+- **Pointer and touch:** the seat's pointer events are gathered into
+  its frames, so a frame posts at most one motion, before its buttons,
+  and one wheel record. A wheel turn counts the high-resolution steps
+  (120ths of a detent) where the seat sends them, else the discrete
+  steps, else the continuous distance at ten units to a detent; the
+  kinds are never added together. Wayland has no double-click setting,
+  so a press of the same button within 500 ms and 4 units of the last
+  counts as one more click. Touch points are followed by id, sixteen
+  at once, each on the window it began on; the seat's cancel cancels
+  them all.
 - **The pump** never waits: it flushes, reads what has arrived and
   dispatches it. A failed connection stops the loop, and `mwinRun`
   returns `mwin_errorPlatform`.
@@ -70,6 +80,6 @@ and `libxkbcommon`, and only in a Wayland session. The
 integration test runs against a headless weston and is skipped without
 `WAYLAND_DISPLAY`; the input tests run against a small compositor of
 their own on `libwayland-server` (`test/wayland_server.h`), since a
-headless weston has no seat. The pointer, touch, text input and a
-client-side frame for compositors without server-side decorations
-follow in their own changes.
+headless weston has no seat. Cursor shapes and modes, text input
+and a client-side frame for compositors without server-side
+decorations follow in their own changes.

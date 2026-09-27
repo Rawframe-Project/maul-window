@@ -36,6 +36,8 @@ typedef struct Server
     struct wl_resource* toplevel;
     struct wl_resource* xdgSurface;
     struct wl_resource* keyboard;
+    struct wl_resource* pointer;
+    struct wl_resource* touch;
     int32_t repeatRate;
     int32_t repeatDelay;
     uint32_t serial;
@@ -252,17 +254,46 @@ static void ServerGetKeyboard(struct wl_client* client, struct wl_resource* reso
     wl_keyboard_send_repeat_info(server->keyboard, server->repeatRate, server->repeatDelay);
 }
 
-static void ServerGetNothing(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static void ServerSetCursor(struct wl_client* client, struct wl_resource* resource, uint32_t serial,
+                            struct wl_resource* surface, int32_t x, int32_t y)
 {
     (void)client;
     (void)resource;
-    (void)id;
+    (void)serial;
+    (void)surface;
+    (void)x;
+    (void)y;
+}
+
+static const struct wl_pointer_interface s_serverPointer = {
+    .set_cursor = ServerSetCursor,
+    .release = ServerDestroyResource,
+};
+
+static void ServerGetPointer(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->pointer =
+        wl_resource_create(client, &wl_pointer_interface, wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(server->pointer, &s_serverPointer, server, nullptr);
+}
+
+static const struct wl_touch_interface s_serverTouch = {
+    .release = ServerDestroyResource,
+};
+
+static void ServerGetTouch(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->touch =
+        wl_resource_create(client, &wl_touch_interface, wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(server->touch, &s_serverTouch, server, nullptr);
 }
 
 static const struct wl_seat_interface s_serverSeat = {
-    .get_pointer = ServerGetNothing,
+    .get_pointer = ServerGetPointer,
     .get_keyboard = ServerGetKeyboard,
-    .get_touch = ServerGetNothing,
+    .get_touch = ServerGetTouch,
     .release = ServerDestroyResource,
 };
 
@@ -270,7 +301,8 @@ static void ServerBindSeat(struct wl_client* client, void* data, uint32_t versio
 {
     struct wl_resource* resource = wl_resource_create(client, &wl_seat_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverSeat, data, nullptr);
-    wl_seat_send_capabilities(resource, WL_SEAT_CAPABILITY_KEYBOARD);
+    wl_seat_send_capabilities(resource, WL_SEAT_CAPABILITY_KEYBOARD | WL_SEAT_CAPABILITY_POINTER |
+                                            WL_SEAT_CAPABILITY_TOUCH);
 }
 
 static void* ServerRun(void* data)
@@ -333,7 +365,7 @@ static bool ServerStart(Server* server, const char* layout, const char* variant)
     server->loop = wl_display_get_event_loop(server->display);
     wl_global_create(server->display, &wl_compositor_interface, 4, server, ServerBindCompositor);
     wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
-    wl_global_create(server->display, &wl_seat_interface, 7, server, ServerBindSeat);
+    wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
     setenv("WAYLAND_DISPLAY", server->socket, 1);
     pthread_mutex_init(&server->lock, nullptr);
     return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
@@ -386,6 +418,79 @@ static void ServerModifiers(Server* server, uint32_t depressed, uint32_t group)
 {
     pthread_mutex_lock(&server->lock);
     wl_keyboard_send_modifiers(server->keyboard, ++server->serial, depressed, 0, 0, group);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// Pointer events, each in a frame of its own unless noted.
+static void ServerPointerEnter(Server* server, double x, double y)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_enter(server->pointer, ++server->serial, server->surface,
+                          wl_fixed_from_double(x), wl_fixed_from_double(y));
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+static void ServerPointerLeave(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_leave(server->pointer, ++server->serial, server->surface);
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// Two motions in one frame, of which the program sees the last.
+static void ServerPointerMotion(Server* server, double x, double y)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_motion(server->pointer, 1000, wl_fixed_from_double(x - 5.0),
+                           wl_fixed_from_double(y - 5.0));
+    wl_pointer_send_motion(server->pointer, 1000, wl_fixed_from_double(x), wl_fixed_from_double(y));
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+static void ServerButton(Server* server, uint32_t button, bool pressed)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_button(server->pointer, ++server->serial, 1000, button,
+                           pressed ? WL_POINTER_BUTTON_STATE_PRESSED
+                                   : WL_POINTER_BUTTON_STATE_RELEASED);
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// A wheel turn toward the user by steps120 120ths of a detent, with a
+// continuous distance of as many units, which the program must not
+// count as well.
+static void ServerWheel(Server* server, int32_t steps120)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_axis_source(server->pointer, WL_POINTER_AXIS_SOURCE_WHEEL);
+    wl_pointer_send_axis_value120(server->pointer, WL_POINTER_AXIS_VERTICAL_SCROLL, steps120);
+    wl_pointer_send_axis(server->pointer, 1000, WL_POINTER_AXIS_VERTICAL_SCROLL,
+                         wl_fixed_from_int(steps120));
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// A touch goes down, moves and lifts.
+static void ServerTouchStroke(Server* server, int32_t id)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_touch_send_down(server->touch, ++server->serial, 1000, server->surface, id,
+                       wl_fixed_from_int(1), wl_fixed_from_int(2));
+    wl_touch_send_frame(server->touch);
+    wl_touch_send_motion(server->touch, 1000, id, wl_fixed_from_int(3), wl_fixed_from_int(4));
+    wl_touch_send_frame(server->touch);
+    wl_touch_send_up(server->touch, ++server->serial, 1000, id);
+    wl_touch_send_frame(server->touch);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
 }

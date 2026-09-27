@@ -58,4 +58,6 @@ format.
   the title, size, size limit and mode requests (mwin-0005); the
   keyboard through `libxkbcommon`, opened at run time: key codes from
   evdev, their meaning in the current layout, text with compose
-  sequences, modifiers, key repeat, and layout changes.
+  sequences, modifiers, key repeat, and layout changes; the pointer
+  (motion by pointer frame, buttons with quick clicks counted, the
+  wheel in high-resolution steps) and touch.

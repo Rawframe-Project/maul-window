@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The Wayland backend's keyboard against the test compositor of
-// wayland_server.h: keys with their codes, meanings and text, the
-// modifiers, repeat, a compose sequence (a dead key), a change of
-// layout group with its record and new meanings, and the reset when
-// focus goes while a key is held. Skipped (exit status 77) without
-// XDG_RUNTIME_DIR or xkb data.
+// The Wayland backend's input against the test compositor of
+// wayland_server.h. The keyboard: keys with their codes, meanings and
+// text, the modifiers, repeat, a compose sequence (a dead key), a change
+// of layout group with its record and new meanings, and the reset when
+// focus goes while a key is held. The pointer: entering, the last motion
+// of a frame, quick clicks counted, high-resolution wheel steps counted
+// once, and leaving; and a touch stroke. Skipped (exit status 77)
+// without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_server.h"
@@ -29,6 +31,12 @@ typedef enum Phase
     phaseCompose,
     phaseLayout,
     phaseLeave,
+    phasePointerEnter,
+    phaseMotion,
+    phaseClicks,
+    phaseWheel,
+    phaseTouch,
+    phasePointerLeave,
     phaseDone,
 } Phase;
 
@@ -93,6 +101,18 @@ static const mwinEvent* First(const Program* program, mwinEventType type)
     return nullptr;
 }
 
+// The wheel's vertical detents in the records.
+static float Turned(const Program* program)
+{
+    float turned = 0.0f;
+    for (int i = 0; i < program->count; i++)
+    {
+        turned +=
+            program->records[i].type == mwin_eventWheel ? program->records[i].data.wheel.y : 0.0f;
+    }
+    return turned;
+}
+
 static bool TextIs(const Program* program, const char* text)
 {
     return program->textLength == strlen(text) && memcmp(program->text, text, strlen(text)) == 0;
@@ -115,6 +135,18 @@ static bool Ready(const Program* program)
         return First(program, mwin_eventKeyboardLayoutChanged) != nullptr;
     case phaseLeave:
         return First(program, mwin_eventInputStateReset) != nullptr;
+    case phasePointerEnter:
+        return First(program, mwin_eventCursorEntered) != nullptr;
+    case phaseMotion:
+        return First(program, mwin_eventCursorMoved) != nullptr;
+    case phaseClicks:
+        return CountOf(program, mwin_eventButtonUp, false) >= 2;
+    case phaseWheel:
+        return Turned(program) <= -1.0f;
+    case phaseTouch:
+        return First(program, mwin_eventTouchUp) != nullptr;
+    case phasePointerLeave:
+        return First(program, mwin_eventCursorLeft) != nullptr;
     default:
         return true;
     }
@@ -124,6 +156,70 @@ static void Press(Server* server, uint32_t evdev)
 {
     ServerKey(server, evdev, true);
     ServerKey(server, evdev, false);
+}
+
+// The pointer's and the touch screen's phases.
+static void AdvancePointer(Program* program)
+{
+    Server* server = program->server;
+    const mwinEvent* entered = First(program, mwin_eventCursorEntered);
+    const mwinEvent* moved = First(program, mwin_eventCursorMoved);
+    switch (program->phase)
+    {
+    case phasePointerEnter:
+        CHECK(entered->data.pointer.position.x == 10.0f &&
+                  entered->data.pointer.position.y == 20.0f,
+              "the pointer enters where it is");
+        ServerPointerMotion(server, 30.5, 40.25);
+        break;
+    case phaseMotion:
+        CHECK(CountOf(program, mwin_eventCursorMoved, false) == 1 &&
+                  moved->data.pointer.position.x == 30.5f &&
+                  moved->data.pointer.position.y == 40.25f,
+              "one motion per frame, the last");
+        for (int i = 0; i < 2; i++)
+        {
+            ServerButton(server, BTN_LEFT, true);
+            ServerButton(server, BTN_LEFT, false);
+        }
+        break;
+    case phaseClicks:
+    {
+        const mwinEvent* second = nullptr;
+        for (int i = 0; i < program->count; i++)
+        {
+            second =
+                program->records[i].type == mwin_eventButtonDown ? &program->records[i] : second;
+        }
+        const mwinEvent* first = First(program, mwin_eventButtonDown);
+        CHECK(first != nullptr && first->data.pointer.button == mwin_buttonLeft &&
+                  first->data.pointer.clicks == 1 && first->data.pointer.buttons == 1 &&
+                  second != first && second->data.pointer.clicks == 2,
+              "a quick second click is a double click");
+        ServerWheel(server, 60);
+        ServerWheel(server, 60);
+        break;
+    }
+    case phaseWheel:
+        CHECK(Turned(program) == -1.0f,
+              "two half steps toward the user make one detent, counted once");
+        ServerTouchStroke(server, 7);
+        break;
+    case phaseTouch:
+    {
+        const mwinEvent* down = First(program, mwin_eventTouchDown);
+        const mwinEvent* motion = First(program, mwin_eventTouchMoved);
+        const mwinEvent* up = First(program, mwin_eventTouchUp);
+        CHECK(down != nullptr && motion != nullptr && down->data.touch.id == 7 &&
+                  down->data.touch.position.y == 2.0f && motion->data.touch.position.x == 3.0f &&
+                  up->data.touch.id == 7 && down->data.touch.pressure == -1.0f,
+              "a touch goes down, moves and lifts");
+        ServerPointerLeave(server);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 // Checks what the phase brought, and starts the next.
@@ -183,8 +279,12 @@ static void Advance(Program* program, mwinContext* context)
         ServerLeave(server);
         break;
     }
-    default:
+    case phaseLeave:
         CHECK(CountOf(program, mwin_eventKeyUp, false) == 0, "no release comes alone");
+        ServerPointerEnter(server, 10.0, 20.0);
+        break;
+    default:
+        AdvancePointer(program);
         break;
     }
     program->phase += 1;

@@ -6,6 +6,7 @@
 #include "wayland_seat.h"
 
 #include "wayland_keyboard.h"
+#include "wayland_pointer.h"
 
 // wl_seat 9, with its devices: the version the backend implements.
 #define SEAT_VERSION 9
@@ -22,6 +23,24 @@ static void OnCapabilities(void* data, struct wl_seat* seat, uint32_t capabiliti
     else if (!keyboard && platform->keyboard.keyboard != nullptr)
     {
         mwinWaylandRemoveKeyboard(platform);
+    }
+    bool pointer = (capabilities & WL_SEAT_CAPABILITY_POINTER) != 0;
+    if (pointer && platform->pointer.pointer == nullptr)
+    {
+        mwinWaylandAddPointer(platform);
+    }
+    else if (!pointer && platform->pointer.pointer != nullptr)
+    {
+        mwinWaylandRemovePointer(platform);
+    }
+    bool touch = (capabilities & WL_SEAT_CAPABILITY_TOUCH) != 0;
+    if (touch && platform->touch.touch == nullptr)
+    {
+        mwinWaylandAddTouch(platform);
+    }
+    else if (!touch && platform->touch.touch != nullptr)
+    {
+        mwinWaylandRemoveTouch(platform);
     }
 }
 
@@ -60,6 +79,14 @@ void mwinWaylandReleaseSeat(mwinWaylandPlatform* platform)
     if (platform->keyboard.keyboard != nullptr)
     {
         mwinWaylandRemoveKeyboard(platform);
+    }
+    if (platform->pointer.pointer != nullptr)
+    {
+        mwinWaylandRemovePointer(platform);
+    }
+    if (platform->touch.touch != nullptr)
+    {
+        mwinWaylandRemoveTouch(platform);
     }
     const mwinWaylandApi* api = &platform->api;
     if (mwinWlVersion(api, platform->seat) >= WL_SEAT_RELEASE_SINCE_VERSION)

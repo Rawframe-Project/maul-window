@@ -91,6 +91,50 @@ typedef struct mwinWaylandKeyboard
     uint64_t repeatNextNs;
 } mwinWaylandKeyboard;
 
+// The seat's pointer: the window it is over, what a pointer frame has
+// gathered so far, and the last press for counting quick clicks.
+typedef struct mwinWaylandPointer
+{
+    struct wl_pointer* pointer;
+    // The window slot under the pointer, or -1, and the serial of the
+    // enter event, which cursor requests quote.
+    int32_t focus;
+    uint32_t enterSerial;
+    mwinPosition position;
+    uint8_t buttons;
+    // Gathered until the frame event: motion, and per axis (0 vertical,
+    // 1 horizontal) high-resolution steps (120ths of a detent), discrete
+    // steps and continuous distance, of which the first present counts.
+    bool moved;
+    uint64_t timeNs;
+    int32_t steps120[2];
+    int32_t steps[2];
+    double distance[2];
+    uint8_t axisKinds[2];
+    // The last press: its button, time and place, and the clicks it made.
+    mwinMouseButton clickButton;
+    uint64_t clickNs;
+    mwinPosition clickPosition;
+    uint8_t clicks;
+} mwinWaylandPointer;
+
+// The most touches followed at once.
+#define MWIN_WAYLAND_TOUCHES 16
+
+// The seat's touch screen: each touch point by its id, with the window
+// it began on.
+typedef struct mwinWaylandTouch
+{
+    struct wl_touch* touch;
+    struct
+    {
+        int32_t id;
+        int32_t slot;
+        mwinPosition position;
+        bool active;
+    } points[MWIN_WAYLAND_TOUCHES];
+} mwinWaylandTouch;
+
 struct mwinWaylandPlatform
 {
     mwinWaylandApi api;
@@ -108,6 +152,8 @@ struct mwinWaylandPlatform
     uint32_t seatName;
     mwinXkbApi xkb;
     mwinWaylandKeyboard keyboard;
+    mwinWaylandPointer pointer;
+    mwinWaylandTouch touch;
     // The connection failed; the loop stops.
     bool failed;
     // One per window slot, and one per monitor slot.

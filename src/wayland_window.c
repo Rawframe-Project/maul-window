@@ -7,6 +7,7 @@
 
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
+#include "wayland_pointer.h"
 
 #include <math.h>
 #include <string.h>
@@ -439,6 +440,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     const mwinWaylandApi* api = &platform->api;
     mwinWaylandWindow* window = &platform->windows[slot];
     mwinWaylandForgetKeyboardFocus(platform, slot);
+    mwinWaylandForgetPointerFocus(platform, slot);
     if (window->viewport != nullptr)
     {
         (void)mwinWlRequest(api, window->viewport, WP_VIEWPORT_DESTROY, nullptr,

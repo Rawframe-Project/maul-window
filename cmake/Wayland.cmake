@@ -83,6 +83,7 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_api.c
     src/wayland_keyboard.c
     src/wayland_output.c
+    src/wayland_pointer.c
     src/wayland_seat.c
     src/wayland_window.c
     src/xkb_api.c)

@@ -108,6 +108,11 @@ typedef enum mwinWebRecordKind
     // is done has its text waiting as bytes.
     mwin_webClipboardWritten = 24,
     mwin_webClipboardRead = 25,
+    // A drag over a canvas: code 0 entered, 1 moved, 2 left; x, y where,
+    // z its mwinDragContents.
+    mwin_webDrag = 26,
+    // A drop: x, y where; its names and text wait in the page.
+    mwin_webDropped = 27,
 } mwinWebRecordKind;
 
 typedef enum mwinWebMouse

@@ -12,6 +12,7 @@
 #include "backend.h"
 #include "web.h"
 #include "web_clipboard.h"
+#include "web_drop.h"
 #include "web_input.h"
 #include "web_pad.h"
 #include "web_page.h"
@@ -209,6 +210,10 @@ static void Pump(mwinContext* context)
         case mwin_webClipboardWritten:
         case mwin_webClipboardRead:
             mwinWebHandleClipboardRecord(platform, &record);
+            break;
+        case mwin_webDrag:
+        case mwin_webDropped:
+            mwinWebHandleDropRecord(platform, &record);
             break;
         case mwin_webLayout:
         {

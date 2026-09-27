@@ -6,6 +6,7 @@
 #include "web_window.h"
 
 #include "web_clipboard.h"
+#include "web_drop.h"
 #include "web_input.h"
 #include "web_page.h"
 #include "web_text.h"
@@ -85,6 +86,7 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
     }
     window->selectorLength = (uint32_t)length;
     mwinWebWatchCanvas(context, slot);
+    mwinWebWatchDrops(context, slot);
     uint64_t now = mwinWebNanoseconds(emscripten_get_now());
     PostType(platform, slot, mwin_eventWindowCreated, now);
     if (platform->monitor >= 0)

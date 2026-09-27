@@ -124,6 +124,7 @@ format.
   over a window, drops of files and text with their payload copied out
   under the drop's number (`mwinGetDroppedFiles`,
   `mwinGetDroppedText`), the `droppedFiles` and `dropBytes` limits; the
-  test backend's drops and the contract tests.
+  test backend's drops and the contract tests. Web drag and drop on
+  each canvas.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

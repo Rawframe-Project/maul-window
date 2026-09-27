@@ -39,6 +39,15 @@ from the platform once, sometimes asynchronously (Wayland, X11).
   left out, so a program can tell the user.
 - **Access:** a path names a file; nothing is granted with it. On the
   web, where a page never sees paths, files come as their names.
+- **Web:** each canvas listens for `dragenter`, `dragover`,
+  `dragleave` and `drop`, and takes only drags whose `DataTransfer`
+  holds `Files` or `text/plain`, keeping the page's default (opening
+  what was dropped) from those alone; other drags pass to the page.
+  `dragover` repeats while the pointer rests, so a drag over that has
+  not moved is not reported again. A drop's file names and its text,
+  encoded with `TextEncoder`, wait in the page until the backend
+  gathers them; a name longer than a window's text storage is left
+  out, and a drop whose window went is gathered and let go.
 - **Memory:** the drop being gathered and the last one delivered each
   hold blocks of their own size from the context's allocator, released
   at the next drop and at the context's end.

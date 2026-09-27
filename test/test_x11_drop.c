@@ -322,7 +322,9 @@ static bool Ready(Program* program)
     switch (program->phase)
     {
     case phaseCreate:
-        return Find(program, mwin_eventWindowCreated, 0) != nullptr;
+        // The backend's requests reach the server at its next flush,
+        // before any source could ask.
+        return source->target != 0 && Aware(source);
     case phaseEnter:
         return source->statuses >= 1 && Find(program, mwin_eventDragEntered, 0) != nullptr;
     case phaseDrop:
@@ -343,11 +345,6 @@ static void Advance(Program* program, mwinContext* context)
     {
     case phaseCreate:
     {
-        mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
-              "the handles");
-        source->target = handles.handles.x11.window;
-        CHECK(Aware(source), "the window is XdndAware, version 5");
         static const int types[] = {atomUriList, atomUtf8, atomHtml};
         Enter(source, types, 3);
         Position(source, 10, 20);
@@ -405,6 +402,13 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
+    }
+    mwinNativeHandles handles;
+    if (program->source->target == 0 && Find(program, mwin_eventWindowCreated, 0) != nullptr)
+    {
+        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+              "the handles");
+        program->source->target = handles.handles.x11.window;
     }
     if (Ready(program))
     {

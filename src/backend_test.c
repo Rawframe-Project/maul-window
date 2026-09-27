@@ -339,6 +339,10 @@ static void Pump(mwinContext* context)
         {
             outcome = CarryOut(context, pending.slot, request);
         }
+        if (request->kind == mwin_requestFileDialog)
+        {
+            outcome = mwinTestAnswerDialog(context, pending.slot, pending.request, outcome);
+        }
         mwinComplete(context, pending.slot, pending.request, outcome);
     }
 }
@@ -411,8 +415,9 @@ const mwinBackendOps mwinTestBackend = {
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
 {
+    bool cancelled = outcome == mwin_outcomeCancelled && kind != mwin_requestFileDialog;
     if (context == nullptr || kind >= MWIN_TEST_KINDS || outcome == mwin_outcomeSuperseded ||
-        outcome == mwin_outcomeCancelled || outcome > mwin_outcomeFailed)
+        cancelled || outcome > mwin_outcomeFailed)
     {
         return mwin_errorInvalid;
     }

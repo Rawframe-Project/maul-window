@@ -27,7 +27,8 @@ extern "C"
     /// @param context  A context of the test backend.
     /// @param kind     The kind of request.
     /// @param outcome  The answer: any mwin_outcome value but superseded
-    ///                 and cancelled, which only the core gives.
+    ///                 and cancelled, which only the core gives; cancelled
+    ///                 too for file dialogs, as a user closing one.
     /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL context, an
     ///         unknown kind or an answer the platform cannot give.
@@ -355,6 +356,34 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestGetOpened(const mwinContext* context,
                                                          mwinRequestKind kind, char* buffer,
+                                                         size_t capacity, size_t* lengthOut);
+
+    /// Sets the paths the next file dialogs choose when they are done:
+    /// each ended by a NUL. None makes a done dialog fail.
+    ///
+    /// @param context A context of the test backend.
+    /// @param files   The paths. May be NULL when length is 0.
+    /// @param length  Their bytes, at most 1024.
+    /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL context, or
+    ///         paths too long or not ended by a NUL.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetDialogFiles(mwinContext* context,
+                                                              const char* files, size_t length);
+
+    /// Copies out the last file dialog the backend was asked for, as
+    /// lines: its kind as a digit, title, folder and name, then each
+    /// filter as its name, ':' and its extensions.
+    ///
+    /// @param context   A context of the test backend.
+    /// @param buffer    Receives it. May be NULL when capacity is 0.
+    /// @param capacity  The bytes buffer holds.
+    /// @param lengthOut Receives its length in bytes, 0 before any.
+    /// @return As mwinTestGetOpened.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetDialog(const mwinContext* context, char* buffer,
                                                          size_t capacity, size_t* lengthOut);
 
 #ifdef __cplusplus

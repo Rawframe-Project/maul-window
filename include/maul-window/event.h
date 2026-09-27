@@ -197,6 +197,7 @@ extern "C"
         mwin_requestOpenUrl = 17,
         mwin_requestRevealFile = 18,
         mwin_requestKeepAwake = 19,
+        mwin_requestFileDialog = 20,
     };
 
     // How a request ended.
@@ -213,12 +214,14 @@ extern "C"
         mwin_outcomeDenied = 2,
         // A later request of the same kind on the same window replaced it.
         mwin_outcomeSuperseded = 3,
-        // Its window was destroyed first.
+        // Its window was destroyed first, or the user closed a dialog
+        // without choosing.
         mwin_outcomeCancelled = 4,
         // The platform failed.
         mwin_outcomeFailed = 5,
         // What the platform gave did not fit its limit: a clipboard read
-        // past clipboardBytes.
+        // past clipboardBytes, a dialog's choice past dialogFiles or
+        // dialogBytes.
         mwin_outcomeTooLarge = 6,
     };
 

@@ -6,9 +6,11 @@
 
 #include "allocator.h"
 #include "backend_test.h"
+#include "dialog.h"
 
 #include "maul-window/test.h"
 
+#include <stdio.h>
 #include <string.h>
 
 void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* platform)
@@ -174,6 +176,82 @@ mwinResult mwinTestGetOpened(const mwinContext* context, mwinRequestKind kind, c
     if (length > 0 && capacity > 0)
     {
         memcpy(buffer, platform->opened[which], length < capacity ? length : capacity);
+    }
+    *lengthOut = length;
+    return length > capacity ? mwin_errorCapacity : mwin_success;
+}
+
+mwinResult mwinTestSetDialogFiles(mwinContext* context, const char* files, size_t length)
+{
+    if (context == nullptr || (files == nullptr && length > 0) || length > MWIN_TEST_DIALOG_BYTES ||
+        (length > 0 && files[length - 1] != '\0'))
+    {
+        return mwin_errorInvalid;
+    }
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    if (length > 0)
+    {
+        memcpy(platform->dialogFiles, files, length);
+    }
+    platform->dialogFilesLength = (uint32_t)length;
+    return mwin_success;
+}
+
+// Adds a line to the dialog's description, cut at its end.
+static void Line(mwinTestPlatform* platform, const char* first, const char* second)
+{
+    int written = snprintf(platform->dialog + platform->dialogLength,
+                           MWIN_TEST_DIALOG_BYTES - platform->dialogLength, "%s%s%s\n", first,
+                           second != nullptr ? ":" : "", second != nullptr ? second : "");
+    size_t room = MWIN_TEST_DIALOG_BYTES - platform->dialogLength - 1;
+    size_t added = written < 0 ? 0 : (size_t)written;
+    platform->dialogLength += (uint32_t)(added < room ? added : room);
+}
+
+mwinOutcome mwinTestAnswerDialog(mwinContext* context, uint32_t slot, uint32_t request,
+                                 mwinOutcome outcome)
+{
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    const mwinDialogCopy* copy = context->windows[slot].requests[request].value.dialog;
+    char kind[2] = {(char)('0' + copy->kind), '\0'};
+    platform->dialogLength = 0;
+    Line(platform, kind, nullptr);
+    Line(platform, copy->title, nullptr);
+    Line(platform, copy->folder, nullptr);
+    Line(platform, copy->name, nullptr);
+    for (uint32_t i = 0; i < copy->filterCount; i++)
+    {
+        Line(platform, copy->filters[i].name, copy->filters[i].extensions);
+    }
+    mwinBeginDialog(context);
+    for (size_t at = 0; outcome == mwin_outcomeDone && at < platform->dialogFilesLength;
+         at += strlen(platform->dialogFiles + at) + 1)
+    {
+        mwinAddDialogFile(context, platform->dialogFiles + at, strlen(platform->dialogFiles + at));
+    }
+    return mwinSettleDialog(context, slot, request, outcome);
+}
+
+mwinResult mwinTestGetDialog(const mwinContext* context, char* buffer, size_t capacity,
+                             size_t* lengthOut)
+{
+    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
+    {
+        return mwin_errorInvalid;
+    }
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    size_t length = platform->dialogLength;
+    if (length > 0 && capacity > 0)
+    {
+        memcpy(buffer, platform->dialog, length < capacity ? length : capacity);
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;

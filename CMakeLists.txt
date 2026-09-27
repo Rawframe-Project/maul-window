@@ -76,7 +76,9 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/base.c
     src/clipboard.c
     src/context.c
+    src/dialog.c
     src/drop.c
+    src/file_list.c
     src/input.c
     src/message_box.c
     src/monitor.c
@@ -146,6 +148,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(clipboard)
         maul_add_test(drop)
         maul_add_test(services)
+        maul_add_test(dialog)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
         endif()

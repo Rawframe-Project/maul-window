@@ -17,3 +17,4 @@ are listed in [README.md](README.md).
 | [mwin-0010](mwin-0010-clipboard.md) | The clipboard | Accepted |
 | [mwin-0011](mwin-0011-drag-and-drop.md) | Drag and drop | Accepted |
 | [mwin-0012](mwin-0012-services.md) | Platform services | Accepted |
+| [mwin-0013](mwin-0013-file-dialogs.md) | File dialogs | Accepted |

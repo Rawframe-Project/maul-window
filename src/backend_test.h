@@ -12,7 +12,11 @@
 
 #include "maul-window/services.h"
 
-#define MWIN_TEST_KINDS (mwin_requestKeepAwake + 1)
+#define MWIN_TEST_KINDS (mwin_requestFileDialog + 1)
+
+// The bytes of the paths a dialog chooses, and of the last dialog's
+// description.
+#define MWIN_TEST_DIALOG_BYTES 1024
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -62,6 +66,10 @@ typedef struct mwinTestPlatform
     // The last address opened and path revealed.
     char opened[2][MWIN_ADDRESS_BYTES];
     uint32_t openedLength[2];
+    char dialogFiles[MWIN_TEST_DIALOG_BYTES];
+    uint32_t dialogFilesLength;
+    char dialog[MWIN_TEST_DIALOG_BYTES];
+    uint32_t dialogLength;
     bool hold;
     uint64_t timeNs;
     float scale;
@@ -84,6 +92,11 @@ mwinOutcome mwinTestUseClipboard(mwinContext* context, mwinRequestKind kind);
 
 // Opens an address or reveals a path as a platform would: it keeps it.
 void mwinTestOpen(mwinContext* context, const mwinRequest* request);
+
+// Writes the dialog down, and answers it with the paths set: the
+// outcome, given how it ended.
+mwinOutcome mwinTestAnswerDialog(mwinContext* context, uint32_t slot, uint32_t request,
+                                 mwinOutcome outcome);
 
 // Gives the platform's clipboard back; the backend's stop calls it.
 void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* platform);

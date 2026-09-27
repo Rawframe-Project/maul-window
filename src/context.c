@@ -47,6 +47,8 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.clipboardBytes = 1u << 20;
     def.limits.dropBytes = 1u << 20;
     def.limits.droppedFiles = 256;
+    def.limits.dialogFiles = 256;
+    def.limits.dialogBytes = 1u << 20;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -232,12 +234,14 @@ static void DestroyContext(mwinContext* context)
 {
     mwinReleaseClipboard(context);
     mwinReleaseDrops(context);
+    mwinReleaseDialogs(context);
     // Requests a platform never answered still hold their text.
     for (uint32_t slot = 0; slot < context->limits.windows; slot++)
     {
         for (uint32_t i = 0; i < context->limits.requestsPerWindow; i++)
         {
             mwinReleaseRequestText(context, &context->windows[slot].requests[i]);
+            mwinReleaseDialogCopy(context, &context->windows[slot].requests[i]);
         }
     }
     mwinAllocator allocator = context->allocator;

@@ -15,6 +15,7 @@
 #define MAUL_WINDOW_SRC_CORE_H
 
 #include "backend.h"
+#include "file_list.h"
 
 #include "maul-window/event.h"
 #include "maul-window/monitor.h"
@@ -105,6 +106,9 @@ typedef struct mwinRequest
             uint32_t length;
         } text;
         bool awake;
+        // A file dialog's def, given back when the request is answered
+        // (dialog.h).
+        struct mwinDialogCopy* dialog;
     } value;
 } mwinRequest;
 
@@ -164,10 +168,7 @@ enum
 // block of its capacity from the allocator.
 typedef struct mwinDropPayload
 {
-    char* files;
-    uint32_t filesLength;
-    uint32_t filesCapacity;
-    uint32_t fileCount;
+    mwinFileList files;
     char* text;
     uint32_t textLength;
     bool truncated;
@@ -205,6 +206,12 @@ struct mwinContext
     mwinDropPayload dropping;
     mwinDropPayload dropped;
     uint32_t dropNumber;
+    // The paths of the dialog being answered and how it goes, and those
+    // of the last dialog done, with its request.
+    mwinFileList dialogGathering;
+    mwinOutcome dialogAnswer;
+    mwinFileList dialogFiles;
+    mwinRequestId dialogRequest;
     // Lifecycle and surface notifications, which come before all others,
     // and the context's own notifications.
     mwinRing critical;
@@ -325,6 +332,12 @@ void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, 
 // answering a request, and the context's end, call it.
 void mwinReleaseRequestText(const mwinContext* context, mwinRequest* request);
 
+// Gives back the def a file dialog's request holds, if it does.
+void mwinReleaseDialogCopy(const mwinContext* context, mwinRequest* request);
+
+// The id of the request in a window slot's request slot.
+mwinRequestId mwinRequestIdOf(const mwinContext* context, uint32_t slot, uint32_t request);
+
 // Whether some window asked to keep the display awake and shows: live,
 // visible and not minimized. Backends keep the display awake while it
 // holds.
@@ -332,6 +345,9 @@ bool mwinWantsAwake(const mwinContext* context);
 
 // Frees the drops' files and text; the context's end calls it.
 void mwinReleaseDrops(mwinContext* context);
+
+// Gives back the paths dialogs hold, at the context's end.
+void mwinReleaseDialogs(mwinContext* context);
 
 // Frees the slot of an answered request whose completion was drained.
 void mwinReleaseRequest(mwinContext* context, mwinRequestId request);

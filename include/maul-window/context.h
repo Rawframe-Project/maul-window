@@ -70,6 +70,9 @@ extern "C"
         uint32_t dropBytes;
         // Files a drop delivers.
         uint16_t droppedFiles;
+        // Files a dialog chooses, and the bytes of their paths.
+        uint16_t dialogFiles;
+        uint32_t dialogBytes;
     } mwinLimits;
 
     // How a context is made. Build it with mwinDefaultContextDef.

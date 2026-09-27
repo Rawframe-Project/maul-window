@@ -142,5 +142,10 @@ format.
   for addresses, the file manager over the session bus (libdbus-1,
   opened at run time) for files; keeping awake by Wayland idle
   inhibitors, else over the bus through the screensaver or the portal.
+- File dialogs (mwin-0013): `mwinRequestFileDialog` to open one file or
+  many, save one or choose a folder, with extension filters; the paths
+  copied out under the request (`mwinGetDialogFiles`); the
+  `dialogFiles` and `dialogBytes` limits; cancelled for a dialog the
+  user closes; the test backend's dialogs and the contract tests.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

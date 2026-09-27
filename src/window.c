@@ -56,7 +56,7 @@ static bool IsPositive(mwinSize size)
     return isfinite(size.width) && isfinite(size.height) && size.width > 0.0f && size.height > 0.0f;
 }
 
-static mwinRequestId RequestIdOf(const mwinContext* context, uint32_t slot, uint32_t request)
+mwinRequestId mwinRequestIdOf(const mwinContext* context, uint32_t slot, uint32_t request)
 {
     const mwinWindow* window = &context->windows[slot];
     return (mwinRequestId){slot * context->limits.requestsPerWindow + request + 1,
@@ -103,10 +103,11 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
         Carried(&context->windows[slot], entry);
     }
     mwinReleaseRequestText(context, entry);
+    mwinReleaseDialogCopy(context, entry);
     mwinEvent event = {0};
     event.type = mwin_eventRequestCompleted;
     event.timeNs = context->backend->now(context);
-    event.data.completion.request = RequestIdOf(context, slot, request);
+    event.data.completion.request = mwinRequestIdOf(context, slot, request);
     event.data.completion.kind = entry->kind;
     event.data.completion.outcome = outcome;
     mwinPost(context, slot, &event);
@@ -166,7 +167,7 @@ void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
 {
     if (requestOut != nullptr)
     {
-        *requestOut = RequestIdOf(context, slot, (uint32_t)request);
+        *requestOut = mwinRequestIdOf(context, slot, (uint32_t)request);
     }
     context->backend->submit(context, slot, (uint32_t)request);
 }
@@ -210,7 +211,7 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
     *windowOut = mwinWindowIdOf(context, slot);
     if (requestOut != nullptr)
     {
-        *requestOut = RequestIdOf(context, slot, (uint32_t)request);
+        *requestOut = mwinRequestIdOf(context, slot, (uint32_t)request);
     }
     context->backend->createWindow(context, slot);
     // The program's selector is its own once the call returns.

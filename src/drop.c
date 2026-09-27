@@ -16,10 +16,7 @@
 
 static void ReleasePayload(const mwinContext* context, mwinDropPayload* payload)
 {
-    if (payload->files != nullptr)
-    {
-        mwinRelease(&context->allocator, payload->files, payload->filesCapacity, 1);
-    }
+    mwinListRelease(&payload->files, &context->allocator);
     if (payload->text != nullptr)
     {
         mwinRelease(&context->allocator, payload->text, payload->textLength, 1);
@@ -32,86 +29,27 @@ void mwinBeginDrop(mwinContext* context)
     ReleasePayload(context, &context->dropping);
 }
 
-// Room for a path of a length and its NUL: where it goes, or NULL, the
-// drop marked truncated, past the limits or the allocator's room.
-static char* PathRoom(mwinContext* context, size_t length)
+static mwinListBounds Bounds(const mwinContext* context)
 {
-    mwinDropPayload* drop = &context->dropping;
-    const mwinLimits* limits = &context->limits;
-    size_t needed = (size_t)drop->filesLength + length + 1;
-    if (drop->fileCount >= limits->droppedFiles || needed > limits->dropBytes)
-    {
-        drop->truncated = true;
-        return nullptr;
-    }
-    if (needed > drop->filesCapacity)
-    {
-        size_t capacity = (size_t)drop->filesCapacity * 2;
-        capacity = capacity < needed ? needed : capacity;
-        capacity = capacity < limits->dropBytes ? capacity : limits->dropBytes;
-        char* grown = mwinAllocate(&context->allocator, capacity, 1);
-        if (grown == nullptr)
-        {
-            drop->truncated = true;
-            return nullptr;
-        }
-        if (drop->files != nullptr)
-        {
-            memcpy(grown, drop->files, drop->filesLength);
-            mwinRelease(&context->allocator, drop->files, drop->filesCapacity, 1);
-        }
-        drop->files = grown;
-        drop->filesCapacity = (uint32_t)capacity;
-    }
-    return drop->files + drop->filesLength;
+    return (mwinListBounds){&context->allocator, context->limits.droppedFiles,
+                            context->limits.dropBytes};
 }
 
-// Counts a path written where PathRoom said, and ends it.
-static void CountPath(mwinDropPayload* drop, size_t length)
-{
-    drop->files[drop->filesLength + length] = '\0';
-    drop->filesLength += (uint32_t)length + 1;
-    drop->fileCount += 1;
-}
-
+// A path that names no file the program could open, or past the limits,
+// is left out and the drop marked truncated.
 void mwinAddDroppedFile(mwinContext* context, const char* path, size_t length)
 {
-    // A path with a NUL or that is not UTF-8 names no file for the
-    // program.
-    if (length == 0 || memchr(path, '\0', length) != nullptr ||
-        muniValidateUtf8(path, length).status != muni_success)
+    if (mwinListAdd(&context->dropping.files, Bounds(context), path, length) != mwin_listAdded)
     {
         context->dropping.truncated = true;
-        return;
-    }
-    char* room = PathRoom(context, length);
-    if (room != nullptr)
-    {
-        memcpy(room, path, length);
-        CountPath(&context->dropping, length);
     }
 }
 
 void mwinAddDroppedFileUtf16(mwinContext* context, const uint16_t* path, size_t length)
 {
-    size_t needed = 0;
-    muniTextResult converted =
-        muniConvertUtf16ToUtf8(path, length, nullptr, 0, muni_convertStrict, &needed);
-    bool nul = false;
-    for (size_t i = 0; i < length && !nul; i++)
-    {
-        nul = path[i] == 0;
-    }
-    if (length == 0 || nul || converted.status == muni_errorUtf16Surrogate)
+    if (mwinListAddUtf16(&context->dropping.files, Bounds(context), path, length) != mwin_listAdded)
     {
         context->dropping.truncated = true;
-        return;
-    }
-    char* room = PathRoom(context, needed);
-    if (room != nullptr)
-    {
-        (void)muniConvertUtf16ToUtf8(path, length, room, needed, muni_convertStrict, &needed);
-        CountPath(&context->dropping, needed);
     }
 }
 
@@ -173,7 +111,7 @@ void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, 
     context->dropNumber += 1;
     const mwinDropPayload* drop = &context->dropped;
     mwinEvent event = {.type = mwin_eventDropped, .timeNs = timeNs};
-    event.data.drop = (mwinDropEvent){position, context->dropNumber, drop->fileCount,
+    event.data.drop = (mwinDropEvent){position, context->dropNumber, drop->files.count,
                                       drop->textLength, drop->truncated};
     mwinPost(context, slot, &event);
 }
@@ -207,8 +145,8 @@ static mwinResult CopyOut(const mwinContext* context, uint32_t drop, const char*
 mwinResult mwinGetDroppedFiles(const mwinContext* context, uint32_t drop, char* buffer,
                                size_t capacity, size_t* lengthOut)
 {
-    return CopyOut(context, drop, context != nullptr ? context->dropped.files : nullptr,
-                   context != nullptr ? context->dropped.filesLength : 0, buffer, capacity,
+    return CopyOut(context, drop, context != nullptr ? context->dropped.files.bytes : nullptr,
+                   context != nullptr ? context->dropped.files.length : 0, buffer, capacity,
                    lengthOut);
 }
 

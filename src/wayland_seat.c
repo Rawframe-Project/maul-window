@@ -7,6 +7,7 @@
 
 #include "wayland_keyboard.h"
 #include "wayland_pointer.h"
+#include "wayland_text.h"
 
 // wl_seat 9, with its devices: the version the backend implements.
 #define SEAT_VERSION 9
@@ -76,6 +77,7 @@ void mwinWaylandReleaseSeat(mwinWaylandPlatform* platform)
     {
         return;
     }
+    mwinWaylandDetachText(platform);
     if (platform->keyboard.keyboard != nullptr)
     {
         mwinWaylandRemoveKeyboard(platform);

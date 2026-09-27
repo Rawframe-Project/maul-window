@@ -21,6 +21,7 @@
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_seat.h"
+#include "wayland_text.h"
 #include "wayland_window.h"
 #include "xkb_api.h"
 
@@ -37,6 +38,7 @@
 #define CONSTRAINTS_VERSION      1
 #define RELATIVE_VERSION         1
 #define SHM_VERSION              1
+#define TEXT_INPUT_VERSION       1
 
 static mwinWaylandPlatform* PlatformOf(const mwinContext* context)
 {
@@ -47,7 +49,8 @@ static size_t PlatformBytes(const mwinContext* context)
 {
     const mwinLimits* limits = &context->limits;
     return sizeof(mwinWaylandPlatform) + limits->windows * sizeof(mwinWaylandWindow) +
-           limits->monitors * sizeof(mwinWaylandOutput) + limits->titleBytes + 1;
+           limits->monitors * sizeof(mwinWaylandOutput) + limits->titleBytes + 1 +
+           2 * (size_t)limits->textBytesPerWindow;
 }
 
 static void OnPing(void* data, struct xdg_wm_base* wmBase, uint32_t serial)
@@ -116,6 +119,11 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
         platform->relativePointers = Bind(
             platform, name, &zwp_relative_pointer_manager_v1_interface, version, RELATIVE_VERSION);
     }
+    else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0)
+    {
+        platform->textInputs =
+            Bind(platform, name, &zwp_text_input_manager_v3_interface, version, TEXT_INPUT_VERSION);
+    }
     else if (strcmp(interface, wl_shm_interface.name) == 0 && platform->shm == nullptr)
     {
         platform->shm = Bind(platform, name, &wl_shm_interface, version, SHM_VERSION);
@@ -167,6 +175,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
         mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
         DestroyGlobal(api, platform->shm, -1);
+        DestroyGlobal(api, platform->textInputs, ZWP_TEXT_INPUT_MANAGER_V3_DESTROY);
         DestroyGlobal(api, platform->relativePointers, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->constraints, ZWP_POINTER_CONSTRAINTS_V1_DESTROY);
         DestroyGlobal(api, platform->cursorShapes, WP_CURSOR_SHAPE_MANAGER_V1_DESTROY);
@@ -211,6 +220,7 @@ static mwinResult Connect(mwinWaylandPlatform* platform)
             return mwin_errorPlatform;
         }
     }
+    mwinWaylandAttachText(platform);
     return platform->compositor != nullptr && platform->wmBase != nullptr ? mwin_success
                                                                           : mwin_errorUnsupported;
 }
@@ -246,9 +256,14 @@ static mwinResult Start(mwinContext* context)
     platform->outputs = (mwinWaylandOutput*)storage;
     storage += context->limits.monitors * sizeof(mwinWaylandOutput);
     platform->title = (char*)storage;
+    storage += context->limits.titleBytes + 1;
+    platform->text.preedit.bytes = (char*)storage;
+    storage += context->limits.textBytesPerWindow;
+    platform->text.commit.bytes = (char*)storage;
     platform->context = context;
     platform->keyboard.focus = -1;
     platform->pointer.focus = -1;
+    platform->text.focus = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
     if (status != mwin_success)

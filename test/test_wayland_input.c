@@ -9,8 +9,9 @@
 // of a frame, quick clicks counted, high-resolution wheel steps counted
 // once, and leaving; and a touch stroke. The cursor: a shape through
 // the cursor shape protocol, hiding, capture as a locked pointer with
-// raw relative motion, and release. Skipped (exit status 77) without
-// XDG_RUNTIME_DIR or xkb data.
+// raw relative motion, and release. The input method: enabling with
+// the caret, a composition, its commit, and disabling. Skipped (exit
+// status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_server.h"
@@ -44,6 +45,10 @@ typedef enum Phase
     phaseRaw,
     phaseVisible,
     phasePointerLeave,
+    phaseTextEnable,
+    phasePreedit,
+    phaseTextCommit,
+    phaseTextDisable,
     phaseDone,
 } Phase;
 
@@ -178,6 +183,17 @@ static bool Ready(const Program* program)
         return First(program, mwin_eventRawPointerDelta) != nullptr;
     case phasePointerLeave:
         return First(program, mwin_eventCursorLeft) != nullptr;
+    case phaseTextEnable:
+    case phaseTextDisable:
+    {
+        TextState text = ServerText(program->server);
+        return First(program, mwin_eventRequestCompleted) != nullptr &&
+               text.enabled == (program->phase == phaseTextEnable);
+    }
+    case phasePreedit:
+        return First(program, mwin_eventImePreedit) != nullptr;
+    case phaseTextCommit:
+        return First(program, mwin_eventTextInput) != nullptr;
     default:
         return true;
     }
@@ -187,6 +203,49 @@ static void Press(Server* server, uint32_t evdev)
 {
     ServerKey(server, evdev, true);
     ServerKey(server, evdev, false);
+}
+
+// The input method's phases.
+static void AdvanceText(Program* program, mwinContext* context)
+{
+    const mwinEvent* preedit = First(program, mwin_eventImePreedit);
+    switch (program->phase)
+    {
+    case phasePointerLeave:
+        ServerTextEnter(program->server);
+        CHECK(mwinRequestTextInput(context, program->window, true,
+                                   (mwinRect){10.0f, 20.0f, 1.0f, 16.0f}, nullptr) == mwin_success,
+              "accept text");
+        break;
+    case phaseTextEnable:
+    {
+        TextState text = ServerText(program->server);
+        CHECK(text.x == 10 && text.y == 20 && text.width == 1 && text.height == 16,
+              "the input method knows where the caret is");
+        // "kan", with the caret after it.
+        ServerCompose(program->server, "\xE3\x81\x8B\xE3\x82\x93", 6, 6, nullptr);
+        break;
+    }
+    case phasePreedit:
+        CHECK(preedit->data.preedit.length == 6 && preedit->data.preedit.caret == 6 &&
+                  preedit->data.preedit.segmentCount == 1 &&
+                  preedit->data.preedit.segments[0].length == 6 &&
+                  memcmp(preedit->data.preedit.text, "\xE3\x81\x8B\xE3\x82\x93", 6) == 0,
+              "a composition, underlined, with its caret");
+        ServerCompose(program->server, nullptr, 0, 0, "\xE6\xBC\xA2");
+        break;
+    case phaseTextCommit:
+        CHECK(TextIs(program, "\xE6\xBC\xA2") && preedit != nullptr &&
+                  preedit->data.preedit.length == 0 &&
+                  First(program, mwin_eventTextInput) < preedit,
+              "the commit, then the composition's end");
+        CHECK(mwinRequestTextInput(context, program->window, false, (mwinRect){0}, nullptr) ==
+                  mwin_success,
+              "stop accepting text");
+        break;
+    default:
+        break;
+    }
 }
 
 // The cursor's phases.
@@ -227,6 +286,7 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         ServerPointerLeave(program->server);
         break;
     default:
+        AdvanceText(program, context);
         break;
     }
 }

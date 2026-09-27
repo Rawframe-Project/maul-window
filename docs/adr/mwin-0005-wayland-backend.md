@@ -10,8 +10,9 @@ notes). The protocol headers that `wayland-scanner` writes call
 `libwayland-client` by name from inline functions, and the usual way
 around that (GLFW, SDL) redirects those names to a process-wide table
 of function pointers. The family allows no global mutable state
-(`conventions.md`, section 6), and a static link with another library that
-generated the same protocol code would define its interfaces twice.
+(`conventions.md`, section 6), and a static link with another library
+that generated the same protocol code would define its interfaces
+twice.
 
 ## Decision
 
@@ -78,6 +79,17 @@ generated the same protocol code would define its interfaces twice.
   a confined pointer. Constraints are persistent, so the compositor
   applies them again whenever the pointer returns. A mode or shape the
   compositor's protocols cannot give is answered unsupported.
+- **Input methods:** text-input-v3. A window that asks for text input
+  is enabled, with its caret rectangle, whenever the seat's text input
+  focuses on it. The input method's strings wait for its done event,
+  which applies them in the protocol's order: the committed text, then
+  the new composition as one underlined segment, its cursor as the
+  caret and selection; a done without a composition ends it. The
+  program's text is not shared with the input method, so it has none
+  to delete around the caret. The on-screen keyboard has no request of
+  its own in the protocol: `mwinRequestVirtualKeyboard` is answered
+  unsupported, and a compositor shows its keyboard when text input is
+  enabled.
 - **The pump** never waits: it flushes, reads what has arrived and
   dispatches it. A failed connection stops the loop, and `mwinRun`
   returns `mwin_errorPlatform`.
@@ -87,9 +99,9 @@ generated the same protocol code would define its interfaces twice.
 Building needs `wayland-scanner`, the `wayland-client` headers (1.22 or
 later), `wayland-protocols` (1.32 or later) and the `xkbcommon` headers
 (1.0 or later); running needs only `libwayland-client` 1.20 or later
-and `libxkbcommon`, and only in a Wayland session. The
-integration test runs against a headless weston and is skipped without
+and `libxkbcommon`, and only in a Wayland session. The integration
+test runs against a headless weston and is skipped without
 `WAYLAND_DISPLAY`; the input tests run against a small compositor of
 their own on `libwayland-server` (`test/wayland_server.h`), since a
-headless weston has no seat. Text input and a client-side frame for compositors without server-side
-decorations follow in their own changes.
+headless weston has no seat. A client-side frame for compositors
+without server-side decorations follows in its own change.

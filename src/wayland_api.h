@@ -22,6 +22,7 @@
 #include <pointer-constraints-unstable-v1-protocol.h>
 #include <relative-pointer-unstable-v1-protocol.h>
 #include <tablet-unstable-v2-protocol.h>
+#include <text-input-unstable-v3-protocol.h>
 #include <viewporter-protocol.h>
 #include <xdg-decoration-unstable-v1-protocol.h>
 #include <xdg-shell-protocol.h>

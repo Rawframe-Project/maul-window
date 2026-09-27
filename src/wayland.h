@@ -54,6 +54,9 @@ typedef struct mwinWaylandWindow
     mwinCursorShape cursorShape;
     struct zwp_locked_pointer_v1* locked;
     struct zwp_confined_pointer_v1* confined;
+    // The window accepts text, and where its caret is.
+    bool textInput;
+    mwinRect caret;
 } mwinWaylandWindow;
 
 // An output the compositor announced, and the monitor slot it fills, or
@@ -155,6 +158,28 @@ typedef struct mwinWaylandTouch
     } points[MWIN_WAYLAND_TOUCHES];
 } mwinWaylandTouch;
 
+// A string of the input method's, copied until the done event applies
+// it; lost when it did not fit.
+typedef struct mwinWaylandString
+{
+    char* bytes;
+    uint32_t length;
+    bool set;
+    bool lost;
+} mwinWaylandString;
+
+// The seat's text input: the window it is focused on, and what the
+// input method sent since its last done event.
+typedef struct mwinWaylandText
+{
+    struct zwp_text_input_v3* textInput;
+    int32_t focus;
+    mwinWaylandString preedit;
+    int32_t cursorBegin;
+    int32_t cursorEnd;
+    mwinWaylandString commit;
+} mwinWaylandText;
+
 struct mwinWaylandPlatform
 {
     mwinWaylandApi api;
@@ -170,6 +195,7 @@ struct mwinWaylandPlatform
     struct zwp_pointer_constraints_v1* constraints;
     struct zwp_relative_pointer_manager_v1* relativePointers;
     struct wl_shm* shm;
+    struct zwp_text_input_manager_v3* textInputs;
     mwinWaylandCursorTheme cursorTheme;
     // The first seat, its registry name, and its keyboard. libxkbcommon
     // loads with the context; without it there is no keyboard.
@@ -179,6 +205,7 @@ struct mwinWaylandPlatform
     mwinWaylandKeyboard keyboard;
     mwinWaylandPointer pointer;
     mwinWaylandTouch touch;
+    mwinWaylandText text;
     // The connection failed; the loop stops.
     bool failed;
     // One per window slot, and one per monitor slot.

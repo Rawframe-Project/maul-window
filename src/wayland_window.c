@@ -9,6 +9,7 @@
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_pointer.h"
+#include "wayland_text.h"
 
 #include <math.h>
 #include <string.h>
@@ -443,6 +444,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     mwinWaylandForgetKeyboardFocus(platform, slot);
     mwinWaylandForgetPointerFocus(platform, slot);
     mwinWaylandDropCursor(platform, slot);
+    mwinWaylandForgetTextFocus(platform, slot);
     if (window->viewport != nullptr)
     {
         (void)mwinWlRequest(api, window->viewport, WP_VIEWPORT_DESTROY, nullptr,
@@ -517,6 +519,10 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinWaylandSetCursorMode(window->platform, window->slot, request->value.code);
     case mwin_requestCursorShape:
         return mwinWaylandSetCursorShape(window->platform, window->slot, request->value.code);
+    case mwin_requestTextInput:
+        return mwinWaylandSetTextInput(window->platform, window->slot,
+                                       request->value.textInput.enabled,
+                                       request->value.textInput.caret);
     default:
         // Positions, visibility, focus without an activation token, and
         // the rest have no request in the protocols bound.

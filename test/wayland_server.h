@@ -6,7 +6,8 @@
 // are configured activated at their first commit; a seat with a
 // keyboard whose keymap is compiled from RMLVO names, a pointer and a
 // touch screen; cursor shapes, pointer constraints and relative motion,
-// with what the client asked for kept in the Cursor state. The
+// with what the client asked for kept in the Cursor state; and a text
+// input whose committed state is kept in TextState. The
 // test drives the seat through the Server functions, which take the
 // server's lock; the thread dispatches the clients' requests between
 // them.
@@ -21,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <text-input-unstable-v3-server-protocol.h>
 #include <unistd.h>
 #include <wayland-server.h>
 #include <xdg-shell-server-protocol.h>
@@ -36,6 +38,17 @@ typedef struct Cursor
     bool locked;
     bool confined;
 } Cursor;
+
+// The text input state the client last committed.
+typedef struct TextState
+{
+    bool enabled;
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    uint32_t commits;
+} TextState;
 
 typedef struct Server
 {
@@ -56,6 +69,10 @@ typedef struct Server
     struct wl_resource* touch;
     struct wl_resource* relative;
     Cursor cursor;
+    struct wl_resource* textInput;
+    // What the client asked for since its last commit, and what holds.
+    TextState pendingText;
+    TextState text;
     int32_t repeatRate;
     int32_t repeatDelay;
     uint32_t serial;
@@ -452,6 +469,80 @@ static void ServerBindRelatives(struct wl_client* client, void* data, uint32_t v
     wl_resource_set_implementation(resource, &s_serverRelatives, data, nullptr);
 }
 
+static void ServerEnableText(struct wl_client* client, struct wl_resource* resource)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->pendingText.enabled = true;
+}
+
+static void ServerDisableText(struct wl_client* client, struct wl_resource* resource)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->pendingText.enabled = false;
+}
+
+static void ServerContentType(struct wl_client* client, struct wl_resource* resource, uint32_t hint,
+                              uint32_t purpose)
+{
+    (void)client;
+    (void)resource;
+    (void)hint;
+    (void)purpose;
+}
+
+static void ServerCaret(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                        int32_t y, int32_t width, int32_t height)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->pendingText.x = x;
+    server->pendingText.y = y;
+    server->pendingText.width = width;
+    server->pendingText.height = height;
+}
+
+static void ServerCommitText(struct wl_client* client, struct wl_resource* resource)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->pendingText.commits = server->text.commits + 1;
+    server->text = server->pendingText;
+}
+
+static const struct zwp_text_input_v3_interface s_serverTextInput = {
+    .destroy = ServerDestroyResource,
+    .enable = ServerEnableText,
+    .disable = ServerDisableText,
+    .set_content_type = ServerContentType,
+    .set_cursor_rectangle = ServerCaret,
+    .commit = ServerCommitText,
+};
+
+static void ServerGetTextInput(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                               struct wl_resource* seat)
+{
+    (void)seat;
+    Server* server = wl_resource_get_user_data(resource);
+    server->textInput = wl_resource_create(client, &zwp_text_input_v3_interface,
+                                           wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(server->textInput, &s_serverTextInput, server, nullptr);
+}
+
+static const struct zwp_text_input_manager_v3_interface s_serverTextInputs = {
+    .destroy = ServerDestroyResource,
+    .get_text_input = ServerGetTextInput,
+};
+
+static void ServerBindTextInputs(struct wl_client* client, void* data, uint32_t version,
+                                 uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &zwp_text_input_manager_v3_interface, version, id);
+    wl_resource_set_implementation(resource, &s_serverTextInputs, data, nullptr);
+}
+
 static void* ServerRun(void* data)
 {
     Server* server = data;
@@ -519,6 +610,8 @@ static bool ServerStart(Server* server, const char* layout, const char* variant)
                      ServerBindConstraints);
     wl_global_create(server->display, &zwp_relative_pointer_manager_v1_interface, 1, server,
                      ServerBindRelatives);
+    wl_global_create(server->display, &zwp_text_input_manager_v3_interface, 1, server,
+                     ServerBindTextInputs);
     setenv("WAYLAND_DISPLAY", server->socket, 1);
     pthread_mutex_init(&server->lock, nullptr);
     return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
@@ -667,6 +760,42 @@ static Cursor ServerCursor(Server* server)
     Cursor cursor = server->cursor;
     pthread_mutex_unlock(&server->lock);
     return cursor;
+}
+
+// The seat's text input focuses on the last surface made.
+static void ServerTextEnter(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    zwp_text_input_v3_send_enter(server->textInput, server->surface);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// The input method's next state: a composition with its cursor (NULL
+// for none) and committed text (NULL for none), applied by done.
+static void ServerCompose(Server* server, const char* preedit, int32_t begin, int32_t end,
+                          const char* commit)
+{
+    pthread_mutex_lock(&server->lock);
+    if (commit != nullptr)
+    {
+        zwp_text_input_v3_send_commit_string(server->textInput, commit);
+    }
+    if (preedit != nullptr)
+    {
+        zwp_text_input_v3_send_preedit_string(server->textInput, preedit, begin, end);
+    }
+    zwp_text_input_v3_send_done(server->textInput, server->text.commits);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+static TextState ServerText(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    TextState text = server->text;
+    pthread_mutex_unlock(&server->lock);
+    return text;
 }
 
 #endif // MAUL_WINDOW_TEST_WAYLAND_SERVER_H

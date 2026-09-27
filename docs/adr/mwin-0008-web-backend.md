@@ -46,7 +46,9 @@ gesture; and every browser API is JavaScript.
   a ratio, reports the CSS size there, and a new box can come before
   the new ratio; so the ratio is looked at on a resolution media query,
   on a page resize and on every new box, again a frame later, and a
-  new ratio sizes every drawing buffer again.
+  new ratio sizes every drawing buffer again. It is read at each pump
+  as well: once, on a slow runner, none of those events came after a
+  change.
 - **Requests:** a title sets the page's title and the canvas's
   `aria-label`; a size sets the canvas's CSS size; visibility, focus
   and opacity are the canvas's. Fullscreen is the Fullscreen API's:

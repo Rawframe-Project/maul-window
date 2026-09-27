@@ -46,6 +46,10 @@ int mwinWebSetFullscreen(const mwinContext* context, uint32_t slot, bool fullscr
 // devicePixelRatio, and the screen's CSS size and available size.
 float mwinWebScale(void);
 void mwinWebScreen(float* out);
+
+// Looks at devicePixelRatio, reporting a change the browser did not.
+void mwinWebCheckScale(const mwinContext* context);
+
 // The preferred color scheme (an mwinTheme) and reduced motion.
 int mwinWebTheme(void);
 bool mwinWebReducedMotion(void);

@@ -190,6 +190,7 @@ static void Rescale(mwinWebPlatform* platform, float scale, uint64_t timeNs)
 static void Pump(mwinContext* context)
 {
     mwinWebPlatform* platform = PlatformOf(context);
+    mwinWebCheckScale(context);
     mwinWebRecord record;
     while (mwinWebNext(context, &record))
     {

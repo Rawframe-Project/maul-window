@@ -60,8 +60,9 @@ EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
         listen(matchMedia(query), 'change', () => push(7, -1, 0));
     }
     // devicePixelRatio, looked at whenever it may have changed: a media
-    // query for the current ratio, a resize of the page (zooming), and a
-    // canvas's new pixels, whichever the browser reports first.
+    // query for the current ratio, a resize of the page (zooming), a
+    // canvas's new pixels, whichever the browser reports first, and at
+    // each pump for a browser that reports none.
     state.ratio = devicePixelRatio;
     // A canvas's drawing buffer in the pixels of its CSS box; the
     // browser's count of them where it agrees with the ratio (headless
@@ -259,6 +260,10 @@ EM_JS(int, mwinWebSetFullscreen, (const mwinContext* context, uint32_t slot, boo
 
 EM_JS(float, mwinWebScale, (void), {
     return devicePixelRatio;
+});
+
+EM_JS(void, mwinWebCheckScale, (const mwinContext* context), {
+    Module.mwinWeb.get(context).checkScale();
 });
 
 EM_JS(void, mwinWebScreen, (float* out), {

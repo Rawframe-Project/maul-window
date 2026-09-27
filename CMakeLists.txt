@@ -22,6 +22,27 @@ option(MAUL_WINDOW_WERROR "Treat compiler warnings as errors" OFF)
 option(MAUL_WINDOW_SANITIZE "Instrument with AddressSanitizer and UBSan" OFF)
 option(MAUL_WINDOW_TSAN "Instrument with ThreadSanitizer" OFF)
 option(MAUL_WINDOW_COVERAGE "Instrument for gcov coverage" OFF)
+option(MAUL_WINDOW_TEST_BACKEND "Build the headless test backend (mwin_backendTest)" ${MAUL_WINDOW_BUILD_TESTS})
+
+# Maul Unicode validates every string that crosses the library: the
+# installed package when there is one, otherwise the pinned release,
+# built and installed along. It comes before the family modules below,
+# whose copies then serve this project.
+set(MAUL_WINDOW_UNICODE_VERSION 0.2.0)
+find_package(maul-unicode ${MAUL_WINDOW_UNICODE_VERSION} CONFIG QUIET)
+if(NOT maul-unicode_FOUND)
+    include(FetchContent)
+    set(MAUL_UNICODE_INSTALL ${MAUL_WINDOW_INSTALL})
+    if(MAUL_WINDOW_BUILD_SHARED)
+        # Its static library goes into ours.
+        set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    endif()
+    FetchContent_Declare(maul-unicode
+        GIT_REPOSITORY https://github.com/Rawframe-Project/maul-unicode.git
+        GIT_TAG v${MAUL_WINDOW_UNICODE_VERSION}
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(maul-unicode)
+endif()
 
 # Every executable (tests, benchmarks, tools) lands in the top of the
 # build tree, so scripts and CI find them in one place.
@@ -40,12 +61,30 @@ else()
     set(MAUL_LIBRARY_KIND STATIC)
 endif()
 add_library(maul-window ${MAUL_LIBRARY_KIND}
-    src/base.c)
+    src/allocator.c
+    src/base.c
+    src/context.c
+    src/queue.c
+    src/window.c)
+if(MAUL_WINDOW_TEST_BACKEND)
+    target_sources(maul-window PRIVATE src/backend_test.c)
+    target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
+endif()
 maul_configure_library(maul-window)
+target_link_libraries(maul-window PRIVATE maul-unicode::maul-unicode)
+if(NOT WIN32)
+    target_link_libraries(maul-window PRIVATE m)
+    set(MAUL_PKG_LIBS_PRIVATE "-lm")
+endif()
+set(MAUL_PACKAGE_DEPENDENCIES "find_dependency(maul-unicode ${MAUL_WINDOW_UNICODE_VERSION})")
+set(MAUL_PKG_REQUIRES_PRIVATE "maul-unicode >= ${MAUL_WINDOW_UNICODE_VERSION}")
 
 if(MAUL_WINDOW_BUILD_TESTS)
     enable_testing()
     maul_add_test(base)
+    if(MAUL_WINDOW_TEST_BACKEND)
+        maul_add_test(window)
+    endif()
     maul_add_header_tests()
 endif()
 

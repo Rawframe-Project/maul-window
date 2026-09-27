@@ -16,10 +16,20 @@ const char* mwinResultName(mwinResult result)
     {
     case mwin_success:
         return "mwin_success";
+    case mwin_empty:
+        return "mwin_empty";
     case mwin_errorInvalid:
         return "mwin_errorInvalid";
     case mwin_errorCapacity:
         return "mwin_errorCapacity";
+    case mwin_errorStale:
+        return "mwin_errorStale";
+    case mwin_errorUnsupported:
+        return "mwin_errorUnsupported";
+    case mwin_errorPlatform:
+        return "mwin_errorPlatform";
+    case mwin_errorState:
+        return "mwin_errorState";
     default:
         return "unknown result";
     }

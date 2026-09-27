@@ -1,0 +1,240 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Windows. A window is created at once as an id; the platform makes it
+// real later and says so with mwin_eventWindowCreated. Every change to a
+// window is a request (family record 0018): the call returns a request
+// id, and exactly one mwin_eventRequestCompleted answers it, after the
+// notifications the change caused. A later request of the same kind on
+// the same window supersedes an earlier one still in flight.
+//
+// Nothing closes a window by itself. The platform's close button sends
+// mwin_eventCloseRequested; the program destroys the window, or does not.
+//
+// Sizes come in three kinds: the logical size (the unit the program lays
+// out in), the size in pixels, and the scale between them. Each has its
+// own notification.
+
+#ifndef MAUL_WINDOW_WINDOW_H
+#define MAUL_WINDOW_WINDOW_H
+
+#include "maul-window/context.h"
+
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    // A size in logical units.
+    typedef struct mwinSize
+    {
+        float width;
+        float height;
+    } mwinSize;
+
+    // A size in pixels.
+    typedef struct mwinPixelSize
+    {
+        uint32_t width;
+        uint32_t height;
+    } mwinPixelSize;
+
+    // A position in logical units on the desktop.
+    typedef struct mwinPosition
+    {
+        float x;
+        float y;
+    } mwinPosition;
+
+    // How a window occupies the screen. There is no exclusive fullscreen.
+    typedef uint8_t mwinWindowMode;
+
+    enum
+    {
+        mwin_modeWindowed = 0,
+        // The whole monitor, without decorations, as a normal window.
+        mwin_modeBorderlessFullscreen = 1,
+        mwin_modeMinimized = 2,
+        mwin_modeMaximized = 3,
+    };
+
+    // How a window is made. Build it with mwinDefaultWindowDef.
+    typedef struct mwinWindowDef
+    {
+        uint32_t cookie;
+        // UTF-8, at most the context's titleBytes. May be NULL when
+        // titleLength is 0.
+        const char* title;
+        size_t titleLength;
+        // Logical size of the area the program draws in.
+        mwinSize size;
+        mwinWindowMode mode;
+        bool visible;
+        bool resizable;
+        bool decorated;
+    } mwinWindowDef;
+
+    // What a window is, as far as the program has been told: the values
+    // of the notifications delivered so far.
+    typedef struct mwinWindowState
+    {
+        mwinSize size;
+        mwinPixelSize pixelSize;
+        float scale;
+        mwinPosition position;
+        mwinWindowMode mode;
+        // The platform has made the window (mwin_eventWindowCreated).
+        bool created;
+        bool visible;
+        bool focused;
+        bool occluded;
+    } mwinWindowState;
+
+    /// Returns the default window def: 1,280 by 720 logical units,
+    /// windowed, visible, resizable and decorated, with no title.
+    ///
+    /// @return The def, with a valid cookie.
+    /// @par Thread safety
+    /// Safe from any thread.
+    MWIN_API mwinWindowDef mwinDefaultWindowDef(void);
+
+    /// Creates a window. Its id is valid at once; mwin_eventWindowCreated
+    /// follows when the platform has made it, then the completion of the
+    /// request.
+    ///
+    /// @param context    The context.
+    /// @param def        The window: a valid cookie, a positive size, a
+    ///                   UTF-8 title within the titleBytes limit.
+    /// @param windowOut  Receives the window's id.
+    /// @param requestOut Receives the id of the creation request. May be
+    ///                   NULL.
+    /// @return `mwin_success`; `mwin_errorCapacity` when the context has
+    ///         its limit of windows; `mwin_errorInvalid` for a NULL
+    ///         argument or an invalid def.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinCreateWindow(mwinContext* context,
+                                                        const mwinWindowDef* def,
+                                                        mwinWindowId* windowOut,
+                                                        mwinRequestId* requestOut);
+
+    /// Destroys a window at once: its id becomes stale, its requests in
+    /// flight complete as cancelled, and mwin_eventWindowDestroyed follows.
+    /// Notifications of the window not yet drained are dropped.
+    ///
+    /// @param context  The context.
+    /// @param window   The window.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorInvalid` for a NULL context.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinDestroyWindow(mwinContext* context, mwinWindowId window);
+
+    /// Reads what the program has been told about a window.
+    ///
+    /// @param context   The context.
+    /// @param window    The window.
+    /// @param stateOut  Receives the state.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinGetWindowState(const mwinContext* context,
+                                                          mwinWindowId window,
+                                                          mwinWindowState* stateOut);
+
+    /// Asks for a new title.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param title       UTF-8. May be NULL when length is 0.
+    /// @param length      The number of bytes, at most the titleBytes limit.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorCapacity` when the window has its
+    ///         limit of requests in flight or the title is too long;
+    ///         `mwin_errorInvalid` for a NULL context or a title that is
+    ///         not UTF-8.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window,
+                                                        const char* title, size_t length,
+                                                        mwinRequestId* requestOut);
+
+    /// Asks for a new logical size of the area the program draws in.
+    /// mwin_eventResized and mwin_eventPixelSizeChanged report what the
+    /// platform chose, which may differ.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param size        A positive, finite size.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a size
+    ///         that is not positive and finite.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestSize(mwinContext* context, mwinWindowId window,
+                                                       mwinSize size, mwinRequestId* requestOut);
+
+    /// Asks to move a window. Wayland does not let programs place windows,
+    /// and answers mwin_outcomeUnsupported.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param position    A finite position.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a
+    ///         position that is not finite.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestPosition(mwinContext* context,
+                                                           mwinWindowId window,
+                                                           mwinPosition position,
+                                                           mwinRequestId* requestOut);
+
+    /// Asks for a mode: windowed, borderless fullscreen, minimized or
+    /// maximized.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param mode        One of the mwin_mode values.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    ///         unknown mode.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestMode(mwinContext* context, mwinWindowId window,
+                                                       mwinWindowMode mode,
+                                                       mwinRequestId* requestOut);
+
+    /// Asks to show or hide a window.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param visible     true to show it, false to hide it.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window,
+                                                          bool visible, mwinRequestId* requestOut);
+
+    /// Asks for keyboard focus. Platforms may refuse to take focus from
+    /// another program, and answer mwin_outcomeDenied.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window,
+                                                        mwinRequestId* requestOut);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // MAUL_WINDOW_WINDOW_H

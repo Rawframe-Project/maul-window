@@ -13,3 +13,14 @@ format.
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.
+- The context and the run function (`mwinRun` with init, frame and
+  quit), windows as ids with requests answered by exactly one
+  completion (`mwinCreateWindow`, `mwinDestroyWindow`,
+  `mwinGetWindowState`, `mwinRequestTitle`, `mwinRequestSize`,
+  `mwinRequestPosition`, `mwinRequestMode`, `mwinRequestVisible`,
+  `mwinRequestFocus`), and the ordered event stream (`mwinNextEvent`),
+  with the named limits (mwin-0002).
+- The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
+  the contract tests against it.
+- Maul Unicode 0.2.0 as a dependency, found installed or fetched
+  (mwin-0003).

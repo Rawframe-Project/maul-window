@@ -37,6 +37,8 @@ else()
     set(MAUL_PKG_CFLAGS "")
 endif()
 # A library that links system libraries sets MAUL_PKG_LIBS_PRIVATE
-# (for example "-lm") before including this file.
+# (for example "-lm"), and one that uses another package sets
+# MAUL_PKG_REQUIRES_PRIVATE (for example "maul-unicode >= 0.2"), before
+# including this file.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/pkg-config.pc.in ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.pc @ONLY)
 install(FILES ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

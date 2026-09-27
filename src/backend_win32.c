@@ -10,6 +10,7 @@
 #include "backend.h"
 #include "core.h"
 #include "win32.h"
+#include "win32_input.h"
 #include "win32_output.h"
 #include "win32_window.h"
 
@@ -127,21 +128,17 @@ static uint64_t Now(const mwinContext* context)
     return mwinWin32Now();
 }
 
-// Without a keyboard yet, every key is its code's name.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
     (void)context;
-    return MWIN_KEY_NAMED | code;
+    return mwinWin32MapKeyCode(code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {
     (void)context;
-    (void)buffer;
-    (void)capacity;
-    *lengthOut = 0;
-    return mwin_success;
+    return mwinWin32KeyboardLayout(buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)

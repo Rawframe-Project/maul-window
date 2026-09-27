@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Quick clicks, counted by the backends whose platforms have no
-// double-click setting (Wayland, X11): a press of the same button
-// within 500 ms and 4 logical units of the last counts one more.
+// Quick clicks, counted by the backends: a press of the same button
+// soon after the last and near it counts one more. Platforms with no
+// double-click setting (Wayland, X11) use 500 ms and 4 logical units;
+// Windows has its own.
 
 #ifndef MAUL_WINDOW_SRC_CLICKS_H
 #define MAUL_WINDOW_SRC_CLICKS_H
@@ -25,19 +26,29 @@ typedef struct mwinClickCounter
     uint8_t clicks;
 } mwinClickCounter;
 
-// Counts a press: the clicks it completes.
-static inline uint8_t mwinCountClick(mwinClickCounter* counter, mwinMouseButton button,
-                                     mwinPosition position, uint64_t timeNs)
+// Counts a press within a time and a distance of the last: the clicks
+// it completes.
+static inline uint8_t mwinCountClickWithin(mwinClickCounter* counter, mwinMouseButton button,
+                                           mwinPosition position, uint64_t timeNs,
+                                           uint64_t intervalNs, float distance)
 {
     bool quick = button == counter->button && timeNs >= counter->timeNs &&
-                 timeNs - counter->timeNs <= MWIN_DOUBLE_CLICK_NS &&
-                 fabsf(position.x - counter->position.x) <= MWIN_DOUBLE_CLICK_DISTANCE &&
-                 fabsf(position.y - counter->position.y) <= MWIN_DOUBLE_CLICK_DISTANCE;
+                 timeNs - counter->timeNs <= intervalNs &&
+                 fabsf(position.x - counter->position.x) <= distance &&
+                 fabsf(position.y - counter->position.y) <= distance;
     counter->clicks = quick && counter->clicks < UINT8_MAX ? (uint8_t)(counter->clicks + 1) : 1;
     counter->button = button;
     counter->timeNs = timeNs;
     counter->position = position;
     return counter->clicks;
+}
+
+// Counts a press by the defaults.
+static inline uint8_t mwinCountClick(mwinClickCounter* counter, mwinMouseButton button,
+                                     mwinPosition position, uint64_t timeNs)
+{
+    return mwinCountClickWithin(counter, button, position, timeNs, MWIN_DOUBLE_CLICK_NS,
+                                MWIN_DOUBLE_CLICK_DISTANCE);
 }
 
 #endif // MAUL_WINDOW_SRC_CLICKS_H

@@ -41,11 +41,30 @@ runs a loop of Windows' own inside the message dispatch.
   program's frames, so rendering goes on.
 - **The pump** never waits: it dispatches every message the thread
   has.
+- **Keys** are known by scan code, extended keys apart, so a code
+  names the same key on every layout; a key sent without one gets it
+  from its virtual key. Its meaning is what `ToUnicodeEx` makes of it
+  with no modifier, leaving a waiting dead key alone. Text comes from
+  `WM_CHAR`, a character outside the BMP in two messages. Print
+  Screen, which Windows sends only released, is pressed and released
+  together. F10 and Alt alone would enter the menu mode of a window
+  with no menu, and Alt with a key would beep; all three are kept from
+  Windows, while Alt+F4 and Alt+Space stay its own. The layout's name
+  is its language's BCP 47 tag.
+- **The mouse:** a window asks for `WM_MOUSELEAVE` when the pointer
+  enters and keeps the mouse while a button is held. Quick clicks
+  follow Windows' double-click time and distance rather than the
+  class's `CS_DBLCLKS`, so every button counts them alike.
+- **Cursors** are set in `WM_SETCURSOR` over the client area, from the
+  system's shapes or none. A confined cursor is clipped to the client
+  area while the window has focus, again after it moves or resizes; a
+  captured one is hidden and clipped to a point in the middle, and the
+  mouse's raw input, registered on the first capture, brings its
+  motion before acceleration.
 
 ## Consequences
 
 The backend builds with clang-cl in CI and with clang for mingw, and
-its test runs on the Windows runner's desktop and under wine. Input
-(keyboard by scan code, text, the mouse, raw input, touch and pen,
-cursors, input methods), system facts and the dark title bar follow
-in their own changes.
+its tests run on the Windows runner's desktop and under wine, input
+driven through `SendInput`. Touch and pen, input methods, system facts
+and the dark title bar follow in their own changes.

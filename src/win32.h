@@ -9,6 +9,7 @@
 #ifndef MAUL_WINDOW_SRC_WIN32_H
 #define MAUL_WINDOW_SRC_WIN32_H
 
+#include "clicks.h"
 #include "core.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -46,6 +47,16 @@ typedef struct mwinWin32Window
     // Borderless full screen, and the placement to come back to.
     bool fullscreen;
     WINDOWPLACEMENT restore;
+    // The cursor the program asked for over the window.
+    mwinCursorMode cursorMode;
+    mwinCursorShape cursorShape;
+    // The pointer is over the window (a leave is asked for), the
+    // buttons held, and the last press.
+    bool tracking;
+    uint8_t buttons;
+    mwinClickCounter clicks;
+    // The first half of a character outside the BMP, 0 for none.
+    WCHAR highSurrogate;
 } mwinWin32Window;
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.
@@ -69,6 +80,8 @@ struct mwinWin32Platform
     // A window is being moved or sized: Windows runs its own loop, and
     // frames run from its timer.
     bool inSizeMove;
+    // The mouse's raw input goes to the window with focus.
+    bool rawInput;
 };
 
 // The pointer a message parameter or window long carries. Win32 passes

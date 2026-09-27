@@ -138,6 +138,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)
         target_link_libraries(test_win32 PRIVATE user32)
+        # Drives the desktop through SendInput.
+        maul_add_test(win32_input)
+        target_link_libraries(test_win32_input PRIVATE user32)
+        # One desktop: the focus and the pointer are not shared.
+        set_tests_properties(win32 win32_input PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
 endif()

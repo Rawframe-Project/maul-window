@@ -5,6 +5,7 @@
 
 #include "win32_window.h"
 
+#include "win32_input.h"
 #include "win32_output.h"
 
 #include "maul-unicode/encoding.h"
@@ -216,12 +217,15 @@ static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wP
         return true;
     case WM_SIZE:
         OnSize(window, wParam, lParam);
+        mwinWin32ClipCursor(window, GetFocus() == window->hwnd);
         return true;
     case WM_MOVE:
         OnMove(window, lParam);
+        mwinWin32ClipCursor(window, GetFocus() == window->hwnd);
         return true;
     case WM_SETFOCUS:
     case WM_KILLFOCUS:
+        mwinWin32ClipCursor(window, message == WM_SETFOCUS);
         PostType(window, message == WM_SETFOCUS ? mwin_eventFocusGained : mwin_eventFocusLost);
         return true;
     case WM_SHOWWINDOW:
@@ -291,7 +295,8 @@ LRESULT CALLBACK mwinWin32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
         mwinWin32RefreshMonitors(window->platform);
     }
     if (HandleSizeMove(window, message, wParam) ||
-        HandleWindowMessage(window, message, wParam, lParam, &result))
+        HandleWindowMessage(window, message, wParam, lParam, &result) ||
+        mwinWin32HandleInput(window, message, wParam, lParam, &result))
     {
         return result;
     }
@@ -380,6 +385,10 @@ void mwinWin32DestroyWindow(mwinContext* context, uint32_t slot)
 {
     mwinWin32Window* window = &PlatformOf(context)->windows[slot];
     HWND hwnd = window->hwnd;
+    if (hwnd != nullptr && GetFocus() == hwnd && window->cursorMode != mwin_cursorVisible)
+    {
+        mwinWin32ClipCursor(window, false);
+    }
     // The window's last messages find no window of the program's.
     *window = (mwinWin32Window){.monitor = -1};
     if (hwnd != nullptr)
@@ -548,6 +557,14 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
         return SetStyle(window, request->value.code);
     case mwin_requestOpacity:
         return SetOpacity(window, request->value.opacity);
+    case mwin_requestCursorMode:
+        return mwinWin32SetCursorMode(window, request->value.code);
+    case mwin_requestCursorShape:
+        return mwinWin32SetCursorShape(window, request->value.code);
+    case mwin_requestTextInput:
+        // Keys type text whether asked or not; the input method is not
+        // steered yet.
+        return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
     }

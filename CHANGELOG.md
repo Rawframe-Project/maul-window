@@ -79,4 +79,7 @@ format.
   sizes, places, focus and modes from the window procedure, borderless
   full screen, size limits and aspect ratio, frames during Windows'
   size-move loop, and monitors with their DPI and refresh rate
-  (mwin-0007). Input follows.
+  (mwin-0007); the keyboard by scan code with meanings from the
+  layout and text from `WM_CHAR`, the mouse with Windows' double-click
+  time and distance, the wheels, cursor shapes, hidden and confined
+  cursors, and captured cursors with raw input.

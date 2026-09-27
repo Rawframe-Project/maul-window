@@ -316,14 +316,16 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         break;
     }
     case phaseRepeat:
-        CHECK(Find(program, mwin_eventKeyDown, 1) != nullptr &&
-                  !Find(program, mwin_eventKeyDown, 0)->data.key.repeat &&
-                  Find(program, mwin_eventKeyDown, 1)->data.key.repeat && TextIs(program, "aa"),
-              "a repeat, typing again");
+    {
+        const mwinEvent* second = Find(program, mwin_eventKeyDown, 1);
+        CHECK(second != nullptr && !down->data.key.repeat, "two presses, the first no repeat");
+        CHECK(second != nullptr && second->data.key.repeat, "the second press a repeat");
+        CHECK(TextIs(program, "aa"), "a repeat types again");
         // U+1F600 in two UTF-16 units.
         Unit(0xD83D);
         Unit(0xDE00);
         break;
+    }
     case phaseText:
     {
         RECT client = ClientOnScreen(program->hwnd);

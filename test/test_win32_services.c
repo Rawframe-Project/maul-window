@@ -15,7 +15,6 @@
 #include "maul-window/event.h"
 #include "maul-window/services.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -148,13 +147,16 @@ static void Unhandle(const Program* program)
 static bool Opened(const Program* program)
 {
     char text[128];
-    FILE* file = _wfopen(program->opened, L"rb");
-    size_t length = file != nullptr ? fread(text, 1, sizeof(text), file) : 0;
-    if (file != nullptr)
+    DWORD length = 0;
+    HANDLE file = CreateFileW(program->opened, GENERIC_READ, FILE_SHARE_READ, nullptr,
+                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE)
     {
-        fclose(file);
+        return false;
     }
-    return length == sizeof(s_address) - 1 && memcmp(text, s_address, length) == 0;
+    bool read = ReadFile(file, text, sizeof(text), &length, nullptr);
+    CloseHandle(file);
+    return read && length == sizeof(s_address) - 1 && memcmp(text, s_address, length) == 0;
 }
 
 // Keeping awake, followed through the window's minimizing.
@@ -276,14 +278,20 @@ static int Browse(const WCHAR* address, const WCHAR* into)
 {
     char text[128];
     int length = WideCharToMultiByte(CP_UTF8, 0, address, -1, text, sizeof(text), nullptr, nullptr);
-    FILE* file = _wfopen(into, L"wb");
-    if (file == nullptr || length <= 0)
+    // Written whole under another name, then renamed, so the test never
+    // reads it half written.
+    WCHAR part[MAX_PATH + 8];
+    (void)swprintf(part, MAX_PATH + 8, L"%ls.part", into);
+    HANDLE file =
+        CreateFileW(part, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE || length <= 0)
     {
         return 1;
     }
-    fwrite(text, 1, (size_t)length - 1, file);
-    fclose(file);
-    return 0;
+    DWORD written = 0;
+    bool wrote = WriteFile(file, text, (DWORD)length - 1, &written, nullptr);
+    CloseHandle(file);
+    return wrote && MoveFileExW(part, into, MOVEFILE_REPLACE_EXISTING) ? 0 : 1;
 }
 
 int main(void)

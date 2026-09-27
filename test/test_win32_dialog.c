@@ -61,6 +61,9 @@ typedef struct Program
     bool stopped;
     // The dialog a later one replaced, which must close.
     HWND replaced;
+    // When OK was last pressed on a folder dialog: Windows opens a
+    // folder typed in, and chooses the one it shows at the next OK.
+    ULONGLONG pressedMs;
     // The temporary folder, as UTF-8 and UTF-16.
     char folder[MAX_PATH * 3];
     WCHAR wideFolder[MAX_PATH];
@@ -138,9 +141,19 @@ static bool Act(mwinContext* context, Program* program)
         (void)swprintf(folder, MAX_PATH, L"%ls", program->wideFolder);
         folder[wcslen(folder) - 1] = L'\0';
         bool file = s_actions[program->phase] == actionType;
+        if (!file && program->pressedMs != 0)
+        {
+            if (GetTickCount64() - program->pressedMs > 500)
+            {
+                program->pressedMs = GetTickCount64();
+                PostMessageW(found.dialog, WM_COMMAND, IDOK, 0);
+            }
+            return false;
+        }
         SetWindowTextW(found.edit, file ? L"mwin-open.txt" : folder);
         PostMessageW(found.dialog, WM_COMMAND, IDOK, 0);
-        break;
+        program->pressedMs = file ? 0 : GetTickCount64();
+        return file;
     }
     case actionCancel:
         PostMessageW(found.dialog, WM_COMMAND, IDCANCEL, 0);
@@ -200,14 +213,21 @@ static bool Chose(mwinContext* context, const Program* program, const char* name
     size_t length = 0;
     uint32_t count = 0;
     int written = snprintf(expected, sizeof(expected), "%s%s", program->folder, name);
-    return mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length, &count) ==
-               mwin_success &&
-           count == 1 && length == (size_t)written + 1 &&
-           _strnicmp(paths, expected, (size_t)written) == 0;
+    bool got = mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                  &count) == mwin_success;
+    bool same = got && count == 1 && length == (size_t)written + 1 &&
+                _strnicmp(paths, expected, (size_t)written) == 0;
+    if (!same)
+    {
+        (void)printf("expected %s, got %s (%u paths)\n", expected, got ? paths : "none",
+                     (unsigned)count);
+    }
+    return same;
 }
 
 static void Check(mwinContext* context, Program* program)
 {
+    (void)printf("phase %d: outcome %d\n", (int)program->phase, program->outcome);
     switch (program->phase)
     {
     case phaseSave:
@@ -336,7 +356,10 @@ static void Touch(const WCHAR* folder, const WCHAR* name, bool make)
 int main(void)
 {
     static Program program;
-    DWORD units = GetTempPathW(MAX_PATH, program.wideFolder);
+    // The long form: the one a dialog answers with.
+    WCHAR temporary[MAX_PATH];
+    (void)GetTempPathW(MAX_PATH, temporary);
+    DWORD units = GetLongPathNameW(temporary, program.wideFolder, MAX_PATH);
     int bytes = WideCharToMultiByte(CP_UTF8, 0, program.wideFolder, (int)units, program.folder,
                                     sizeof(program.folder) - 1, nullptr, nullptr);
     program.folder[bytes] = '\0';
@@ -347,6 +370,7 @@ int main(void)
     def.frame = Frame;
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs");
+    (void)printf("ended in phase %d\n", (int)program.phase);
     CHECK(program.phase == phaseStop && program.stopped,
           "every phase ran, and a dialog closed when the program stops");
     Touch(program.wideFolder, L"mwin-open.txt", false);

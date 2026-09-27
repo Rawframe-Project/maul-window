@@ -105,7 +105,9 @@ format.
   mwin-0009): mapped gamepads by the standard location model and raw
   ones by number, hotplug and battery records, button and axis records
   in the stream, the state as last reported, and rumble; the test
-  backend's gamepads and the contract tests. The platforms' gamepads
-  follow.
+  backend's gamepads and the contract tests. Linux gamepads through
+  evdev for the Wayland and X11 backends, mapped by SDL_GameControllerDB
+  (compiled into tables) or the kernel's gamepad layout, with rumble
+  through force feedback.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

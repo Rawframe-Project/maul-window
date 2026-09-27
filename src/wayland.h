@@ -11,6 +11,7 @@
 
 #include "clicks.h"
 #include "core.h"
+#include "linux_pad.h"
 #include "monotonic.h"
 #include "wayland_api.h"
 #include "xkb_api.h"
@@ -212,6 +213,8 @@ struct mwinWaylandPlatform
 {
     mwinWaylandApi api;
     mwinContext* context;
+    // The gamepads, with the gamepad component.
+    mwinLinuxPads pads;
     struct wl_display* display;
     struct wl_registry* registry;
     struct wl_compositor* compositor;

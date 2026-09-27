@@ -1,5 +1,6 @@
-# The keyboard the Linux backends share: evdev key codes, and
-# libxkbcommon, opened at run time; building needs only its headers.
+# What the Linux backends share: the keyboard (evdev key codes, and
+# libxkbcommon, opened at run time; building needs only its headers)
+# and the gamepads.
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MWIN_XKBCOMMON QUIET xkbcommon>=1.0)
@@ -21,4 +22,16 @@ set_source_files_properties(${MWIN_XKB_SOURCES} PROPERTIES
 target_link_libraries(maul-window PRIVATE ${CMAKE_DL_LIBS})
 if(CMAKE_DL_LIBS AND NOT MAUL_PKG_LIBS_PRIVATE MATCHES "-l${CMAKE_DL_LIBS}")
     string(APPEND MAUL_PKG_LIBS_PRIVATE " -l${CMAKE_DL_LIBS}")
+endif()
+
+# The gamepads the Linux backends share: evdev devices, with the
+# mappings compiled from SDL_GameControllerDB.
+if(MAUL_WINDOW_GAMEPAD)
+    set(MWIN_LINUX_PAD_SOURCES
+        src/linux_pad.c
+        src/pad_db.c
+        src/generated/pad_linux.c)
+    target_sources(maul-window PRIVATE ${MWIN_LINUX_PAD_SOURCES})
+    # inotify and the event clock are Linux's, outside strict C.
+    set_source_files_properties(src/linux_pad.c PROPERTIES COMPILE_DEFINITIONS _GNU_SOURCE)
 endif()

@@ -35,13 +35,18 @@ jobs:
           python3 tools/check_modules.py
           python3 tools/check_docs.py
           python3 tools/check_lengths.py
+      - name: Generated tables
+        # The gamepad mappings are what the generator makes from the data.
+        run: |
+          python3 tools/gen_gamepad_db.py Linux /tmp/pad_linux.c
+          diff -u src/generated/pad_linux.c /tmp/pad_linux.c
       - name: clang-tidy
         run: |
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           cmake --build build  # the generated protocol headers
           # The sources of the Linux build; Windows code is checked by its cell.
-          for f in $(python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('build/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file']})))"); do
+          for f in $(python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('build/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file'] and '/generated/' not in e['file']})))"); do
             clang-tidy-20 -p build --quiet --warnings-as-errors='*' "$f" || exit 1
           done
 
@@ -89,6 +94,16 @@ jobs:
             --idle-time=0 >/tmp/weston.log 2>&1 &
           for i in $(seq 50); do [ -S /tmp/xdg-runtime/wayland-ci ] && exit 0; sleep 0.1; done
           cat /tmp/weston.log; exit 1
+      - name: Let the tests make virtual gamepads
+        if: runner.os == 'Linux'
+        run: |
+          sudo modprobe uinput || true
+          printf '%s\n' 'KERNEL=="uinput", MODE="0666"' \
+            'SUBSYSTEM=="input", KERNEL=="event*", MODE="0666"' |
+            sudo tee /etc/udev/rules.d/99-mwin-test.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger
+          sudo chmod 666 /dev/uinput || true
       - name: Test
         run: ctest --test-dir build --output-on-failure
 

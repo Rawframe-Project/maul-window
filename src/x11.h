@@ -10,6 +10,7 @@
 
 #include "clicks.h"
 #include "core.h"
+#include "linux_pad.h"
 #include "monotonic.h"
 #include "x11_api.h"
 #include "xkb_keyboard.h"
@@ -113,6 +114,8 @@ struct mwinX11Platform
 {
     mwinX11Api api;
     mwinContext* context;
+    // The gamepads, with the gamepad component.
+    mwinLinuxPads pads;
     xcb_connection_t* connection;
     xcb_screen_t* screen;
     xcb_atom_t atoms[MWIN_X11_ATOMS];

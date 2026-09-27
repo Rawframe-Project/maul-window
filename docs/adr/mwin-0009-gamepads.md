@@ -53,10 +53,37 @@ in their own changes.
   motors in its capabilities; one without answers
   `mwin_errorUnsupported`.
 
+- **The mapping data:** SDL_GameControllerDB is kept as published in
+  `tools/gamepaddb/` (F15), and `tools/gen_gamepad_db.py` compiles one
+  platform's entries into `src/generated/`: each device by bus, vendor,
+  product and version, and the distinct mappings they share, where each
+  of the 21 controls comes from among the device's numbered buttons,
+  axes, axis halves and hat directions, with the rare stick halves
+  driven by buttons in a table apart. Entries for SDL's own drivers are
+  left out, and a later entry for a device replaces an earlier one, as
+  in SDL. A device matches its exact version, else another version of
+  itself. The Linux tables hold 731 devices and 268 mappings in about
+  19 KB.
+- **Linux:** gamepads are evdev devices, for the Wayland and X11
+  backends alike. A context finds those in `/dev/input` when it starts
+  and watches the directory with inotify for more, retrying a node when
+  its permissions change; a device that is gone reads as gone. A
+  gamepad or joystick is a device with joystick or gamepad buttons and
+  none of a keyboard's, mouse's, tablet's or motion sensor's. Its
+  buttons, axes and hats are numbered as SDL numbers them (buttons from
+  `BTN_JOYSTICK` up, then those below; axes in code order, the hats
+  apart), so the database's mappings apply; one the database lacks is
+  mapped by the kernel's gamepad layout when it has `BTN_SOUTH`, and is
+  raw otherwise. Devices are read without blocking at each pump, their
+  events stamped on the monotonic clock (`EVIOCSCLOCKID`), a report's
+  worth at a time; dropped events are answered by reading the whole
+  state again. Rumble is `FF_RUMBLE` force feedback, where the device
+  has it and its node opens for writing.
+
 ## Consequences
 
 The test backend connects gamepads, presses their buttons, moves their
 axes and records their rumble, and the contract tests run against it.
-Linux (evdev), Win32 and the web follow, each with its own change; a
-gamepad driver belongs to a platform rather than a window system, so
-Wayland and X11 share Linux's.
+A gamepad driver belongs to a platform rather than a window system, so
+Wayland and X11 share Linux's, tested with virtual devices made through
+uinput (CI lets its test user make them). Win32 and the web follow.

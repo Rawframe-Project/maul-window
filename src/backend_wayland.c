@@ -243,6 +243,9 @@ static void Stop(mwinContext* context)
         }
     }
     Disconnect(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinLinuxPadsStop(&platform->pads);
+#endif
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
 }
@@ -273,6 +276,12 @@ static mwinResult Start(mwinContext* context)
     platform->text.focus = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    if (status == mwin_success && !mwinLinuxPadsStart(&platform->pads, context))
+    {
+        status = mwin_errorCapacity;
+    }
+#endif
     if (status != mwin_success)
     {
         Stop(context);
@@ -306,6 +315,9 @@ static void Pump(mwinContext* context)
     }
     (void)api->displayDispatchPending(display);
     mwinWaylandRepeatKeys(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinLinuxPadsPump(&platform->pads);
+#endif
     if (api->displayGetError(display) != 0)
     {
         platform->failed = true;
@@ -344,16 +356,19 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.wayland.surface = platform->windows[slot].surface;
 }
 
-// No gamepad of this backend's has motors yet.
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    return mwinLinuxPadsRumble(&PlatformOf(context)->pads, slot, low, high, durationMs);
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinWaylandBackend = {

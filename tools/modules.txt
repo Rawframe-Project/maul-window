@@ -1,27 +1,29 @@
 # The internal module graph (docs/conventions.md, section 6): each module
 # and the modules it may use. tools/check_modules.py enforces it.
-base:
 allocator:
 backend:
 backend_test: allocator backend core
+backend_wayland: allocator backend core wayland wayland_api wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
+backend_web: allocator backend core web web_input web_page web_text web_window
 backend_win32: allocator backend core win32 win32_input win32_output win32_system win32_window
 backend_x11: allocator backend core x11 x11_api x11_cursor x11_input x11_output x11_window
-backend_web: allocator backend core web web_input web_page web_text web_window
-backend_wayland: allocator backend core wayland wayland_api wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
-context: allocator backend core
+base:
 clicks:
+context: allocator backend core
 core: backend
 evdev:
-input: core
-monotonic:
 gamepad: core
+input: core
+linux_pad: allocator core monotonic pad_db
 monitor: core
-pad: core
+monotonic:
 native: core
+pad: core
+pad_db:
 queue: core text
 system: core
 text: core
-wayland: clicks core monotonic wayland_api xkb_api xkb_keyboard
+wayland: clicks core linux_pad monotonic wayland_api xkb_api xkb_keyboard
 wayland_api:
 wayland_cursor: core wayland wayland_api
 wayland_frame: core wayland wayland_api wayland_cursor
@@ -31,6 +33,11 @@ wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_text
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
+web: clicks core
+web_input: clicks core web
+web_page: core web
+web_text: core web
+web_window: core web web_input web_page web_text
 win32: clicks core
 win32_ime: core win32
 win32_input: core win32
@@ -39,7 +46,7 @@ win32_pointer: core win32
 win32_system: core win32
 win32_window: core win32 win32_ime win32_input win32_output win32_pointer win32_system
 window: core
-x11: clicks core monotonic x11_api xkb_api xkb_keyboard
+x11: clicks core linux_pad monotonic x11_api xkb_api xkb_keyboard
 x11_api:
 x11_cursor: allocator core x11 x11_api
 x11_input: allocator core evdev x11 x11_api xkb_api xkb_keyboard
@@ -47,8 +54,3 @@ x11_output: allocator core x11 x11_api
 x11_window: allocator core x11 x11_api x11_cursor x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api
-web: clicks core
-web_input: clicks core web
-web_page: core web
-web_text: core web
-web_window: core web web_input web_page web_text

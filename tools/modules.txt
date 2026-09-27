@@ -20,7 +20,8 @@ gamepad: core
 input: core
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db
-linux_services: core linux_bus monotonic
+linux_inhibit: linux_bus monotonic
+linux_services: core linux_bus linux_inhibit monotonic
 message_box:
 monitor: core
 monotonic:

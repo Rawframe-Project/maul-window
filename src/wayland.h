@@ -64,6 +64,8 @@ typedef struct mwinWaylandWindow
     struct zxdg_toplevel_decoration_v1* decoration;
     struct wp_fractional_scale_v1* fractionalScale;
     struct wp_viewport* viewport;
+    // Keeps the display awake while the surface shows, while asked.
+    struct zwp_idle_inhibitor_v1* inhibitor;
     // The proposal of the open configure sequence: a size of 0 leaves the
     // size to the window.
     int32_t proposedWidth;
@@ -275,6 +277,8 @@ struct mwinWaylandPlatform
     struct zxdg_decoration_manager_v1* decorations;
     struct wp_fractional_scale_manager_v1* fractionalScale;
     struct wp_viewporter* viewporter;
+    // Without it, keeping awake goes over the session bus.
+    struct zwp_idle_inhibit_manager_v1* idleInhibits;
     struct wp_cursor_shape_manager_v1* cursorShapes;
     struct zwp_pointer_constraints_v1* constraints;
     struct zwp_relative_pointer_manager_v1* relativePointers;

@@ -140,6 +140,7 @@ format.
   SHOpenFolderAndSelectItems and the thread's execution state. Web
   services through window.open and a wake lock. Linux services: xdg-open
   for addresses, the file manager over the session bus (libdbus-1,
-  opened at run time) for files.
+  opened at run time) for files; keeping awake by Wayland idle
+  inhibitors, else over the bus through the screensaver or the portal.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

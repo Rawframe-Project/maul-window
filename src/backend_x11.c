@@ -332,7 +332,7 @@ static void Pump(mwinContext* context)
     mwinX11CheckDeadlines(platform);
     mwinX11CheckClipboard(platform, mwinMonotonicNow());
     mwinX11CheckDrop(platform, mwinMonotonicNow());
-    mwinLinuxServicesPump(&platform->services, mwinMonotonicNow());
+    mwinLinuxServicesPump(&platform->services, mwinMonotonicNow(), mwinWantsAwake(context));
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

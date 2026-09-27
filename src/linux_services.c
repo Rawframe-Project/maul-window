@@ -231,11 +231,21 @@ static void PumpReveals(mwinLinuxServices* services, uint64_t nowNs)
     }
 }
 
-void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs)
+mwinOutcome mwinLinuxCanKeepAwake(mwinLinuxServices* services)
 {
-    mwinBusPump(&services->bus);
+    return mwinBusConnect(&services->bus) ? mwin_outcomeDone : mwin_outcomeUnsupported;
+}
+
+void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awake)
+{
+    mwinBusPump(&services->bus, 0);
     PumpReveals(services, nowNs);
     PumpOpeners(services, nowNs);
+    // Only a program that asked has a bus to keep the display awake on.
+    if (services->bus.connection != nullptr)
+    {
+        mwinInhibitPump(&services->bus, &services->inhibit, awake, nowNs);
+    }
 }
 
 void mwinLinuxServicesStop(mwinLinuxServices* services)
@@ -243,6 +253,10 @@ void mwinLinuxServicesStop(mwinLinuxServices* services)
     for (size_t i = 0; i < MWIN_LINUX_REVEALS; i++)
     {
         mwinBusDrop(&services->bus, &services->reveals[i].call);
+    }
+    if (services->bus.connection != nullptr)
+    {
+        mwinInhibitStop(&services->bus, &services->inhibit);
     }
     mwinBusClose(&services->bus);
     // One last look, so runs that ended are not left unreaped.

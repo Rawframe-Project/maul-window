@@ -438,6 +438,9 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         return mwinLinuxOpenUrl(&platform->services, window->slot, index);
     case mwin_requestRevealFile:
         return mwinLinuxRevealFile(&platform->services, window->slot, index);
+    case mwin_requestKeepAwake:
+        // The pump keeps the display awake from the windows' state.
+        return mwinLinuxCanKeepAwake(&platform->services);
     default:
         return mwin_outcomeUnsupported;
     }

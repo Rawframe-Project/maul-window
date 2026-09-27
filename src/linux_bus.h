@@ -47,8 +47,9 @@ bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uin
 // Sends a method call whose answer does not matter, and lets it go.
 void mwinBusTell(mwinLinuxBus* bus, DBusMessage* message);
 
-// Reads and writes what the connection can without blocking.
-void mwinBusPump(mwinLinuxBus* bus);
+// Reads and writes what the connection can, waiting up to waitMs for
+// something to come, and completes the calls answered.
+void mwinBusPump(mwinLinuxBus* bus, int waitMs);
 
 // The answer to a call: NULL while it waits, else the reply, which the
 // caller lets go; with *failed set for an error, a call that passed its

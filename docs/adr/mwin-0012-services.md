@@ -77,6 +77,18 @@ at all (a page reveals no files).
   (`org.freedesktop.FileManager1.ShowItems` with its file URI, which
   opens the folder with the file selected); with no bus, or a file
   manager that refuses, `xdg-open` opens the folder that holds it.
+- **Keeping awake on Linux:** on Wayland, an idle inhibitor on the
+  window's surface while it asks (`zwp_idle_inhibit_manager_v1`), which
+  the compositor heeds only while the surface shows, so the window's
+  own wish is the whole rule. Where the compositor has no idle
+  inhibiting, and on X11, the program's wish goes over the session bus:
+  `org.freedesktop.ScreenSaver.Inhibit` with the program's name and a
+  reason, which KDE, Xfce, Cinnamon, MATE and xscreensaver answer, else
+  the portal's `Inhibit` with the idle flag, which GNOME and sandboxes
+  answer; the cookie or the portal's handle lets it go. A request is
+  done when there is a bus, unsupported without one. At the end, an
+  answer still on its way is waited for a quarter of a second so what
+  it holds can be let go.
 - **The session bus** is reached through libdbus-1, opened at run time
   the first time a service needs it and never unloaded, since it keeps
   process-wide caches other libraries may share; its headers are not

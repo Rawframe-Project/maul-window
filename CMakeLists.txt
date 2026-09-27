@@ -93,8 +93,8 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
 # and the session bus (libdbus-1, opened at run time); posix_spawn is
 # POSIX.
 if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
-    set(MWIN_POSIX_SOURCES src/dbus_api.c src/linux_bus.c src/linux_services.c
-        src/posix_message_box.c)
+    set(MWIN_POSIX_SOURCES src/dbus_api.c src/linux_bus.c src/linux_inhibit.c
+        src/linux_services.c src/posix_message_box.c)
     target_sources(maul-window PRIVATE ${MWIN_POSIX_SOURCES})
     set_source_files_properties(${MWIN_POSIX_SOURCES} PROPERTIES
         COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
@@ -158,6 +158,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_wayland_server_test(wayland_input)
         mwin_add_wayland_server_test(wayland_clipboard)
         mwin_add_wayland_server_test(wayland_drop)
+        mwin_add_wayland_server_test(wayland_services)
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.
@@ -192,7 +193,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(linux_services POSIX)
         target_compile_definitions(test_linux_services PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_linux_services PRIVATE ${CMAKE_DL_LIBS})
-        set_tests_properties(linux_services PROPERTIES SKIP_RETURN_CODE 77)
+        # Keeping awake over a session bus of the test's own.
+        maul_add_test(linux_awake POSIX)
+        target_compile_definitions(test_linux_awake PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_linux_awake PRIVATE ${CMAKE_DL_LIBS})
+        set_tests_properties(linux_services linux_awake PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Makes virtual gamepads through uinput: skipped without it or a

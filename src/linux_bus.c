@@ -75,7 +75,7 @@ bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uin
     call->deadlineNs = nowNs + MWIN_BUS_DEADLINE_NS;
     if (sent)
     {
-        mwinBusPump(bus);
+        mwinBusPump(bus, 0);
     }
     return sent;
 }
@@ -84,17 +84,18 @@ void mwinBusTell(mwinLinuxBus* bus, DBusMessage* message)
 {
     (void)bus->api.send(bus->connection, message, nullptr);
     bus->api.unrefMessage(message);
-    mwinBusPump(bus);
+    mwinBusPump(bus, 0);
 }
 
-void mwinBusPump(mwinLinuxBus* bus)
+void mwinBusPump(mwinLinuxBus* bus, int waitMs)
 {
     if (bus->connection == nullptr)
     {
         return;
     }
-    (void)bus->api.readWrite(bus->connection, 0);
-    // Nothing handles what comes unasked; dispatching lets it go.
+    (void)bus->api.readWrite(bus->connection, waitMs);
+    // Answers complete their calls as they are dispatched; nothing
+    // handles what comes unasked, and dispatching lets it go.
     while (bus->api.dispatch(bus->connection) == mwin_dbusDataRemains)
     {
     }

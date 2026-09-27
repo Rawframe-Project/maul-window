@@ -38,7 +38,8 @@ mwinResult mwinLoadDBus(mwinDBusApi* api)
         FIND(openPrivate, dbus_connection_open_private) && FIND(busRegister, dbus_bus_register) &&
         FIND(setExitOnDisconnect, dbus_connection_set_exit_on_disconnect) &&
         FIND(close, dbus_connection_close) && FIND(unrefConnection, dbus_connection_unref) &&
-        FIND(readWrite, dbus_connection_read_write) && FIND(dispatch, dbus_connection_dispatch) &&
+        FIND(readWrite, dbus_connection_read_write) && FIND(flush, dbus_connection_flush) &&
+        FIND(dispatch, dbus_connection_dispatch) &&
         FIND(newMethodCall, dbus_message_new_method_call) &&
         FIND(unrefMessage, dbus_message_unref) &&
         FIND(iterInitAppend, dbus_message_iter_init_append) &&

@@ -11,57 +11,22 @@
 // file manager refuses; and a reveal superseded while the file manager
 // answers, whose answer goes to no one.
 
+#include "linux_bus_fake.h"
 #include "test_harness.h"
 
 #include "maul-window/event.h"
 #include "maul-window/services.h"
 
-#include <dlfcn.h>
-#include <signal.h>
-#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
-extern char** environ;
 
 #define DEADLINE_NS 20000000000u
 
 static char s_directory[] = "/tmp/mwin-services-XXXXXX";
-
-// The test's file manager, on its own connection through libdbus.
-typedef struct Fake
-{
-    void* library;
-    void* connection;
-    void* (*busGet)(int type, void* error);
-    int (*requestName)(void* connection, const char* name, unsigned flags, void* error);
-    unsigned (*readWrite)(void* connection, int timeout);
-    void* (*pop)(void* connection);
-    unsigned (*isCall)(void* message, const char* interface, const char* method);
-    unsigned (*iterInit)(void* message, void* iter);
-    void (*recurse)(void* iter, void* sub);
-    int (*argType)(void* iter);
-    void (*getBasic)(void* iter, void* value);
-    unsigned (*next)(void* iter);
-    void* (*newReturn)(void* message);
-    void* (*newError)(void* message, const char* name, const char* text);
-    unsigned (*send)(void* connection, void* message, unsigned* serial);
-    void (*flush)(void* connection);
-    void (*unref)(void* message);
-    void (*close)(void* connection);
-    void (*unrefConnection)(void* connection);
-    void (*setExit)(void* connection, unsigned exit);
-    // What it was asked last, how often, and whether it refuses.
-    char item[256];
-    char startup[64];
-    int calls;
-    bool refuse;
-} Fake;
 
 typedef struct Step
 {
@@ -91,7 +56,7 @@ typedef struct Program
     mwinRequestId superseded;
     int supersededOutcome;
     uint64_t startNs;
-    Fake* fake;
+    FakeBus* fake;
     bool done;
 } Program;
 
@@ -135,99 +100,6 @@ static bool Ran(const char* expected)
                                      strlen(expected) == length - 1;
 }
 
-#define FIND(field, name)                                                                          \
-    (symbol = dlsym(fake->library, #name),                                                         \
-     symbol != nullptr &&                                                                          \
-         (memcpy((void*)&fake->field, (const void*)&symbol, sizeof(symbol)), true))
-
-static bool OpenFake(Fake* fake)
-{
-    fake->library = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
-    void* symbol = nullptr;
-    bool found =
-        fake->library != nullptr && FIND(busGet, dbus_bus_get_private) &&
-        FIND(requestName, dbus_bus_request_name) && FIND(readWrite, dbus_connection_read_write) &&
-        FIND(pop, dbus_connection_pop_message) && FIND(isCall, dbus_message_is_method_call) &&
-        FIND(iterInit, dbus_message_iter_init) && FIND(recurse, dbus_message_iter_recurse) &&
-        FIND(argType, dbus_message_iter_get_arg_type) &&
-        FIND(getBasic, dbus_message_iter_get_basic) && FIND(next, dbus_message_iter_next) &&
-        FIND(newReturn, dbus_message_new_method_return) && FIND(newError, dbus_message_new_error) &&
-        FIND(send, dbus_connection_send) && FIND(flush, dbus_connection_flush) &&
-        FIND(unref, dbus_message_unref) && FIND(close, dbus_connection_close) &&
-        FIND(unrefConnection, dbus_connection_unref) &&
-        FIND(setExit, dbus_connection_set_exit_on_disconnect);
-    fake->connection = found ? fake->busGet(0, nullptr) : nullptr;
-    if (fake->connection == nullptr)
-    {
-        return false;
-    }
-    fake->setExit(fake->connection, 0);
-    // 1: the primary owner.
-    return fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) == 1;
-}
-
-// Reads ShowItems' URIs and startup id.
-static void ReadShowItems(Fake* fake, void* message)
-{
-    void* iter[16];
-    void* items[16];
-    const char* text = "";
-    fake->item[0] = '\0';
-    if (fake->iterInit(message, iter) && fake->argType(iter) == 'a')
-    {
-        fake->recurse(iter, items);
-        if (fake->argType(items) == 's')
-        {
-            fake->getBasic(items, (void*)&text);
-            (void)snprintf(fake->item, sizeof(fake->item), "%s", text);
-        }
-        if (fake->next(iter) && fake->argType(iter) == 's')
-        {
-            fake->getBasic(iter, (void*)&text);
-            (void)snprintf(fake->startup, sizeof(fake->startup), "%s", text);
-        }
-    }
-}
-
-// Answers what the file manager was asked.
-static void PumpFake(Fake* fake)
-{
-    if (fake == nullptr)
-    {
-        return;
-    }
-    (void)fake->readWrite(fake->connection, 0);
-    for (void* message = fake->pop(fake->connection); message != nullptr;
-         message = fake->pop(fake->connection))
-    {
-        if (fake->isCall(message, "org.freedesktop.FileManager1", "ShowItems"))
-        {
-            ReadShowItems(fake, message);
-            fake->calls++;
-            void* reply = fake->refuse
-                              ? fake->newError(message, "org.freedesktop.DBus.Error.Failed", "no")
-                              : fake->newReturn(message);
-            (void)fake->send(fake->connection, reply, nullptr);
-            fake->unref(reply);
-        }
-        fake->unref(message);
-    }
-    fake->flush(fake->connection);
-}
-
-static void CloseFake(Fake* fake)
-{
-    if (fake->connection != nullptr)
-    {
-        fake->close(fake->connection);
-        fake->unrefConnection(fake->connection);
-    }
-    if (fake->library != nullptr)
-    {
-        (void)dlclose(fake->library);
-    }
-}
-
 static mwinResult Ask(mwinContext* context, Program* program, const Step* step,
                       mwinRequestId* request)
 {
@@ -250,7 +122,7 @@ static void Begin(mwinContext* context, Program* program)
     }
     if (program->fake != nullptr)
     {
-        program->fake->refuse = step->refuse;
+        program->fake->refuseShow = step->refuse;
         program->fake->item[0] = '\0';
     }
     program->superseding = step->kind == mwin_requestRevealFile && program->fake != nullptr &&
@@ -316,7 +188,7 @@ static mwinResult Init(mwinContext* context, void* user)
 static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
-    PumpFake(program->fake);
+    FakePump(program->fake);
     Drain(context, program);
     if (program->create.index1 == 0 && !program->asked && program->at < program->count)
     {
@@ -329,7 +201,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                                                                      : mwin_frameContinue;
 }
 
-static void Run(const Step* steps, int count, Fake* fake, const char* what)
+static void Run(const Step* steps, int count, FakeBus* fake, const char* what)
 {
     static Program program;
     program = (Program){.steps = steps, .count = count, .fake = fake, .supersededOutcome = -1};
@@ -340,7 +212,7 @@ static void Run(const Step* steps, int count, Fake* fake, const char* what)
     CHECK(mwinRun(&def) == mwin_success && program.done, what);
     if (program.superseded.index1 != 0)
     {
-        CHECK(program.supersededOutcome == mwin_outcomeSuperseded && fake->calls >= 2,
+        CHECK(program.supersededOutcome == mwin_outcomeSuperseded && fake->shown >= 2,
               "a reveal superseded while the file manager answers");
     }
 }
@@ -371,45 +243,10 @@ static const Step s_noOpener[] = {
      mwin_outcomeUnsupported, nullptr, nullptr},
 };
 
-// A bus of the test's own, with nothing to start on demand.
-static pid_t StartBus(void)
-{
-    char config[512];
-    char path[128];
-    (void)snprintf(config, sizeof(config),
-                   "<busconfig><type>session</type><listen>unix:path=%s/bus</listen>"
-                   "<policy context=\"default\"><allow send_destination=\"*\"/>"
-                   "<allow receive_sender=\"*\"/><allow own=\"*\"/></policy></busconfig>",
-                   s_directory);
-    Write("bus.conf", config, 0600);
-    char argument[160];
-    Path(path, sizeof(path), "bus.conf");
-    (void)snprintf(argument, sizeof(argument), "--config-file=%s", path);
-    char* arguments[] = {(char*)"/usr/bin/dbus-daemon", argument, (char*)"--nofork",
-                         (char*)"--nopidfile", nullptr};
-    pid_t daemon = 0;
-    if (posix_spawn(&daemon, arguments[0], nullptr, nullptr, arguments, environ) != 0)
-    {
-        return 0;
-    }
-    Path(path, sizeof(path), "bus");
-    struct stat status;
-    for (int i = 0; i < 500 && stat(path, &status) != 0; i++)
-    {
-        struct timespec pause = {0, 10000000};
-        (void)nanosleep(&pause, nullptr);
-    }
-    char address[160];
-    (void)snprintf(address, sizeof(address), "unix:path=%s", path);
-    (void)setenv("DBUS_SESSION_BUS_ADDRESS", address, 1);
-    return daemon;
-}
-
 static void RunWithBus(const char* wayland)
 {
-    pid_t daemon = StartBus();
-    static Fake fake;
-    if (daemon == 0 || !OpenFake(&fake))
+    static FakeBus fake;
+    if (!FakeStart(&fake, s_directory))
     {
         (void)printf("no dbus-daemon or libdbus-1: the bus is not tested\n");
     }
@@ -421,12 +258,7 @@ static void RunWithBus(const char* wayland)
         }
         Run(s_withBus, 2, &fake, "the services with a bus");
     }
-    CloseFake(&fake);
-    if (daemon != 0)
-    {
-        (void)kill(daemon, SIGTERM);
-        (void)waitpid(daemon, nullptr, 0);
-    }
+    FakeStop(&fake);
 }
 
 int main(void)

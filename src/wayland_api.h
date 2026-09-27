@@ -19,6 +19,7 @@
 #include <wayland-cursor.h>
 #include <cursor-shape-v1-protocol.h>
 #include <fractional-scale-v1-protocol.h>
+#include <idle-inhibit-unstable-v1-protocol.h>
 #include <pointer-constraints-unstable-v1-protocol.h>
 #include <relative-pointer-unstable-v1-protocol.h>
 #include <tablet-unstable-v2-protocol.h>

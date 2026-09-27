@@ -462,6 +462,11 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
         (void)mwinWlRequest(api, window->viewport, WP_VIEWPORT_DESTROY, nullptr,
                             WL_MARSHAL_FLAG_DESTROY);
     }
+    if (window->inhibitor != nullptr)
+    {
+        (void)mwinWlRequest(api, window->inhibitor, ZWP_IDLE_INHIBITOR_V1_DESTROY, nullptr,
+                            WL_MARSHAL_FLAG_DESTROY);
+    }
     if (window->fractionalScale != nullptr)
     {
         (void)mwinWlRequest(api, window->fractionalScale, WP_FRACTIONAL_SCALE_V1_DESTROY, nullptr,
@@ -500,6 +505,31 @@ static void SetLimits(mwinWaylandWindow* window, mwinSize minimum, mwinSize maxi
 
 // Carries out a request the protocol can; the outcome, or -1 for one the
 // next configure answers.
+// An inhibitor on the surface while the window asks, which the
+// compositor heeds while the surface shows; the session bus without.
+static int KeepAwake(mwinWaylandWindow* window, bool awake)
+{
+    mwinWaylandPlatform* platform = window->platform;
+    const mwinWaylandApi* api = &platform->api;
+    if (platform->idleInhibits == nullptr)
+    {
+        return mwinLinuxCanKeepAwake(&platform->services);
+    }
+    if (awake && window->inhibitor == nullptr)
+    {
+        window->inhibitor = mwinWlCreateFor(api, platform->idleInhibits,
+                                            ZWP_IDLE_INHIBIT_MANAGER_V1_CREATE_INHIBITOR,
+                                            &zwp_idle_inhibitor_v1_interface, window->surface);
+    }
+    else if (!awake && window->inhibitor != nullptr)
+    {
+        (void)mwinWlRequest(api, window->inhibitor, ZWP_IDLE_INHIBITOR_V1_DESTROY, nullptr,
+                            WL_MARSHAL_FLAG_DESTROY);
+        window->inhibitor = nullptr;
+    }
+    return mwin_outcomeDone;
+}
+
 static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
 {
     const mwinRequest* request = &core->requests[index];
@@ -550,6 +580,8 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinLinuxOpenUrl(&window->platform->services, window->slot, index);
     case mwin_requestRevealFile:
         return mwinLinuxRevealFile(&window->platform->services, window->slot, index);
+    case mwin_requestKeepAwake:
+        return KeepAwake(window, request->value.awake);
     default:
         // Positions, visibility, focus without an activation token, and
         // the rest have no request in the protocols bound.

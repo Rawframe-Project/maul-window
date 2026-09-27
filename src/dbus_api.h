@@ -50,6 +50,7 @@ typedef struct mwinDBusApi
     void (*close)(DBusConnection* connection);
     void (*unrefConnection)(DBusConnection* connection);
     mwinDBusBool (*readWrite)(DBusConnection* connection, int timeoutMs);
+    void (*flush)(DBusConnection* connection);
     int (*dispatch)(DBusConnection* connection);
     DBusMessage* (*newMethodCall)(const char* destination, const char* path, const char* interface,
                                   const char* method);

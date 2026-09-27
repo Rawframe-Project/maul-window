@@ -10,13 +10,15 @@
 // or done when it still runs after a few seconds, showing what it
 // opened. A file is shown by the file manager over the session bus
 // (org.freedesktop.FileManager1's ShowItems, which selects it), else
-// its folder is opened by xdg-open.
+// its folder is opened by xdg-open. The display is kept awake over the
+// bus too, where the backend has no way of its own (linux_inhibit.h).
 
 #ifndef MAUL_WINDOW_SRC_LINUX_SERVICES_H
 #define MAUL_WINDOW_SRC_LINUX_SERVICES_H
 
 #include "core.h"
 #include "linux_bus.h"
+#include "linux_inhibit.h"
 
 #include <sys/types.h>
 
@@ -54,6 +56,7 @@ typedef struct mwinLinuxServices
     mwinLinuxBus bus;
     mwinLinuxOpener openers[MWIN_LINUX_OPENERS];
     mwinLinuxReveal reveals[MWIN_LINUX_REVEALS];
+    mwinLinuxInhibit inhibit;
 } mwinLinuxServices;
 
 void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context);
@@ -63,8 +66,13 @@ void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context);
 int mwinLinuxOpenUrl(mwinLinuxServices* services, uint32_t slot, uint32_t request);
 int mwinLinuxRevealFile(mwinLinuxServices* services, uint32_t slot, uint32_t request);
 
-// Answers what has ended; each pump calls it.
-void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs);
+// Whether the display can be kept awake over the bus: done, or
+// unsupported without a bus.
+mwinOutcome mwinLinuxCanKeepAwake(mwinLinuxServices* services);
+
+// Answers what has ended, and keeps the display awake over the bus
+// while awake says; each pump calls it.
+void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awake);
 
 // Lets everything go; xdg-open runs still going are left to end alone.
 void mwinLinuxServicesStop(mwinLinuxServices* services);

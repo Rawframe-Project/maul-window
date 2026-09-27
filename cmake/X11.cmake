@@ -17,6 +17,7 @@ set(MWIN_X11_SOURCES
     src/x11_api.c
     src/x11_clipboard.c
     src/x11_cursor.c
+    src/x11_drop.c
     src/x11_input.c
     src/x11_output.c
     src/x11_window.c)

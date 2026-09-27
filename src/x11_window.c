@@ -191,6 +191,10 @@ static void SetInitialProperties(const mwinX11Platform* platform, const mwinWind
                                platform->atoms[mwin_atomNetWmPing]};
     SetProperty(platform, window->window, platform->atoms[mwin_atomWmProtocols], XCB_ATOM_ATOM, 32,
                 2, protocols);
+    // Drags come by XDND 5 (x11_drop.c).
+    uint32_t xdnd = 5;
+    SetProperty(platform, window->window, platform->atoms[mwin_atomXdndAware], XCB_ATOM_ATOM, 32, 1,
+                &xdnd);
     SetTitle(platform, window->window, core->title, core->titleLength);
     SetNormalHints(platform, window, core->def.style);
     if ((core->def.style & mwin_styleDecorated) == 0)

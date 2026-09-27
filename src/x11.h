@@ -43,6 +43,17 @@ enum
     mwin_atomIncr,
     mwin_atomTextPlainUtf8,
     mwin_atomSelection,
+    mwin_atomXdndAware,
+    mwin_atomXdndEnter,
+    mwin_atomXdndPosition,
+    mwin_atomXdndStatus,
+    mwin_atomXdndLeave,
+    mwin_atomXdndDrop,
+    mwin_atomXdndFinished,
+    mwin_atomXdndSelection,
+    mwin_atomXdndTypeList,
+    mwin_atomXdndActionCopy,
+    mwin_atomUriList,
     MWIN_X11_ATOMS,
 };
 
@@ -145,6 +156,25 @@ typedef struct mwinX11Clipboard
     uint32_t capacity;
 } mwinX11Clipboard;
 
+// A drag another client makes over one of the program's windows
+// (XDND): its source and version, the window, what it carries and the
+// type its text comes in, where it is and whether it was reported; and
+// a drop being converted, one type after the other, until a deadline.
+typedef struct mwinX11Drag
+{
+    xcb_window_t source;
+    uint32_t version;
+    int32_t slot;
+    mwinDragContents contents;
+    xcb_atom_t textType;
+    mwinPosition position;
+    bool entered;
+    bool dropping;
+    xcb_atom_t converting;
+    xcb_timestamp_t time;
+    uint64_t deadlineNs;
+} mwinX11Drag;
+
 struct mwinX11Platform
 {
     mwinX11Api api;
@@ -168,6 +198,7 @@ struct mwinX11Platform
     mwinX11Pointer pointer;
     mwinX11Cursors cursors;
     mwinX11Clipboard clipboard;
+    mwinX11Drag drag;
     // The time of the latest key or button event, which taking the
     // selection quotes.
     xcb_timestamp_t inputTime;

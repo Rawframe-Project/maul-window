@@ -66,6 +66,19 @@ static const mwinEvent* Find(const Program* program, mwinEventType type)
     return nullptr;
 }
 
+// The drag records among the drained ones: other records (focus moving
+// between the tests' windows) may come too.
+static int DragRecords(const Program* program)
+{
+    int count = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        mwinEventType type = program->records[i].type;
+        count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
+    }
+    return count;
+}
+
 static bool DragAt(const mwinEvent* event, float x, float y, mwinDragContents contents)
 {
     return event != nullptr && event->data.drag.position.x == x &&
@@ -109,7 +122,8 @@ static bool Ready(Program* program)
     case phaseDrop:
         return Find(program, mwin_eventDropped) != nullptr && DataDragState(program->data).finished;
     case phaseNeither:
-        return NowNs() - program->startNs >= SETTLE_NS;
+        // The client's refusal has reached the compositor.
+        return NowNs() - program->startNs >= SETTLE_NS && DataDragState(program->data).accepts >= 1;
     default:
         // The client's accept reaches the compositor at its next pump.
         return Find(program, mwin_eventDragLeft) != nullptr &&
@@ -133,7 +147,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseNeither:
     {
         DataDrag drag = DataDragState(data);
-        CHECK(drag.accepts >= 1 && drag.accepted[0] == '\0' && program->count == 0,
+        CHECK(drag.accepts >= 1 && drag.accepted[0] == '\0' && DragRecords(program) == 0,
               "a drag of neither refused and not reported");
         DataDragEnd(data, false);
         DataDragEnter(data, 5.0, 5.0, nullptr, "x");

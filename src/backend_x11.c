@@ -15,6 +15,7 @@
 #include "x11_api.h"
 #include "x11_clipboard.h"
 #include "x11_cursor.h"
+#include "x11_drop.h"
 #include "x11_input.h"
 #include "x11_output.h"
 #include "x11_window.h"
@@ -49,6 +50,17 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "INCR",
     "text/plain;charset=utf-8",
     "_MAUL_SELECTION",
+    "XdndAware",
+    "XdndEnter",
+    "XdndPosition",
+    "XdndStatus",
+    "XdndLeave",
+    "XdndDrop",
+    "XdndFinished",
+    "XdndSelection",
+    "XdndTypeList",
+    "XdndActionCopy",
+    "text/uri-list",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)
@@ -271,6 +283,7 @@ static mwinResult Start(mwinContext* context)
     platform->context = context;
     platform->scale = 1.0f;
     platform->pointer.focus = -1;
+    platform->drag.slot = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
@@ -288,8 +301,8 @@ static mwinResult Start(mwinContext* context)
 
 static void Dispatch(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
-    if (mwinX11HandleClipboardEvent(platform, event) || mwinX11HandleWindowEvent(platform, event) ||
-        mwinX11HandleInputEvent(platform, event))
+    if (mwinX11HandleClipboardEvent(platform, event) || mwinX11HandleDropEvent(platform, event) ||
+        mwinX11HandleWindowEvent(platform, event) || mwinX11HandleInputEvent(platform, event))
     {
         return;
     }
@@ -316,6 +329,7 @@ static void Pump(mwinContext* context)
     }
     mwinX11CheckDeadlines(platform);
     mwinX11CheckClipboard(platform, mwinMonotonicNow());
+    mwinX11CheckDrop(platform, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

@@ -162,6 +162,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_clipboard PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_clipboard PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_clipboard PROPERTIES SKIP_RETURN_CODE 77)
+        # A drag source of the test's own connection, by XDND.
+        maul_add_test(x11_drop POSIX)
+        target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_drop PRIVATE PkgConfig::MWIN_TEST_XCB)
+        set_tests_properties(x11_drop PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Makes virtual gamepads through uinput: skipped without it or a

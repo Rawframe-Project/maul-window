@@ -61,6 +61,21 @@ from the platform once, sometimes asynchronously (Wayland, X11).
   both), delivers when both end or after five seconds, marking the drop
   truncated for a read that did not end well, and then finishes the
   offer, so the source knows the copy is done.
+- **X11:** XDND 5. Each window says so in `XdndAware`. A drag's types
+  come in its enter message, the rest from the source's
+  `XdndTypeList`; one with `text/uri-list` or UTF-8 text
+  (`text/plain;charset=utf-8` before `UTF8_STRING`) is accepted with
+  `XdndActionCopy` and asks for every position, and a drag of neither
+  is refused. XDND's enter carries no position, so the drag is
+  reported entered at its first position, and a position that has not
+  moved is not reported again. A drop converts `XdndSelection` to the
+  files, then the text, into a property of the window, and sends
+  `XdndFinished` with the copy, or a refusal for a drop on a window
+  that went; text sent in pieces (INCR) is left out and the drop marked
+  truncated, and five seconds without an answer end the drop. A drag
+  that begins while a drop is being converted waits for it. The
+  clipboard now takes only its own hidden window's selection events,
+  so both share the connection.
 - **File URIs:** Wayland and X11 carry files as `text/uri-list`. A
   line that is a `file:` URI with no host or `localhost` gives its
   path, percent-decoded; comment lines are skipped; a URI of another

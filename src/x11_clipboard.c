@@ -194,7 +194,8 @@ static void TakePiece(mwinX11Platform* platform, bool answer)
         Finish(platform, mwin_outcomeFailed);
         return;
     }
-    uint32_t length = (uint32_t)api->getPropertyValueLength(reply) * (reply->format / 8u);
+    // The length is in bytes, whatever the format.
+    uint32_t length = (uint32_t)api->getPropertyValueLength(reply);
     const char* bytes = api->getPropertyValue(reply);
     mwinOutcome outcome = mwin_outcomeDone;
     if (answer && reply->type == platform->atoms[mwin_atomIncr])
@@ -351,40 +352,51 @@ static bool OnProperty(mwinX11Platform* platform, const xcb_property_notify_even
     return SendPiece(platform, event);
 }
 
+// The owner's answer to a read.
+static void OnNotify(mwinX11Platform* platform, const xcb_selection_notify_event_t* notify)
+{
+    const mwinX11Clipboard* clipboard = &platform->clipboard;
+    if (!clipboard->reading || clipboard->incremental)
+    {
+        return;
+    }
+    // No owner, or one without UTF-8 text: empty text.
+    if (notify->property == XCB_ATOM_NONE)
+    {
+        Finish(platform, mwinTakeClipboardText(platform->context, nullptr, 0));
+    }
+    else
+    {
+        TakePiece(platform, true);
+    }
+}
+
 bool mwinX11HandleClipboardEvent(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
     mwinX11Clipboard* clipboard = &platform->clipboard;
     uint8_t type = event->response_type & 0x7F;
-    if (clipboard->window == 0)
+    xcb_window_t window = clipboard->window;
+    // Only the hidden window's selection events are the clipboard's.
+    if (window == 0)
     {
         return false;
     }
-    if (type == XCB_SELECTION_REQUEST)
+    if (type == XCB_SELECTION_REQUEST &&
+        ((const xcb_selection_request_event_t*)event)->owner == window)
     {
         const xcb_selection_request_event_t* request = (const xcb_selection_request_event_t*)event;
         Notify(platform, request, Serve(platform, request));
         return true;
     }
-    if (type == XCB_SELECTION_CLEAR)
+    if (type == XCB_SELECTION_CLEAR && ((const xcb_selection_clear_event_t*)event)->owner == window)
     {
         clipboard->owned = false;
         return true;
     }
-    if (type == XCB_SELECTION_NOTIFY)
+    if (type == XCB_SELECTION_NOTIFY &&
+        ((const xcb_selection_notify_event_t*)event)->requestor == window)
     {
-        const xcb_selection_notify_event_t* notify = (const xcb_selection_notify_event_t*)event;
-        if (clipboard->reading && !clipboard->incremental)
-        {
-            // No owner, or one without UTF-8 text: empty text.
-            if (notify->property == XCB_ATOM_NONE)
-            {
-                Finish(platform, mwinTakeClipboardText(platform->context, nullptr, 0));
-            }
-            else
-            {
-                TakePiece(platform, true);
-            }
-        }
+        OnNotify(platform, (const xcb_selection_notify_event_t*)event);
         return true;
     }
     return type == XCB_PROPERTY_NOTIFY &&

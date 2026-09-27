@@ -27,13 +27,15 @@ typedef struct mwinClickCounter
 } mwinClickCounter;
 
 // Counts a press within a time and a distance of the last: the clicks
-// it completes.
+// it completes. Times from a display server's millisecond stamps can
+// come a little out of order, so the time apart counts either way.
 static inline uint8_t mwinCountClickWithin(mwinClickCounter* counter, mwinMouseButton button,
                                            mwinPosition position, uint64_t timeNs,
                                            uint64_t intervalNs, float distance)
 {
-    bool quick = button == counter->button && timeNs >= counter->timeNs &&
-                 timeNs - counter->timeNs <= intervalNs &&
+    uint64_t apart =
+        timeNs >= counter->timeNs ? timeNs - counter->timeNs : counter->timeNs - timeNs;
+    bool quick = button == counter->button && apart <= intervalNs &&
                  fabsf(position.x - counter->position.x) <= distance &&
                  fabsf(position.y - counter->position.y) <= distance;
     counter->clicks = quick && counter->clicks < UINT8_MAX ? (uint8_t)(counter->clicks + 1) : 1;

@@ -140,9 +140,9 @@ static bool IsSet(const char* name)
 }
 #endif
 
-// The backends to try for a kind, in order: for the native one, Wayland
-// where a Wayland session names its display, then X11 where DISPLAY
-// names one (W7). Returns their count.
+// The backends to try for a kind, in order: for the native one, Win32
+// on Windows; on Linux Wayland where a Wayland session names its
+// display, then X11 where DISPLAY names one (W7). Returns their count.
 static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
 {
     int count = 0;
@@ -162,6 +162,12 @@ static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
     if (kind == mwin_backendNative && IsSet("DISPLAY"))
     {
         backends[count++] = &mwinX11Backend;
+    }
+#endif
+#ifdef MAUL_WINDOW_WIN32
+    if (kind == mwin_backendNative)
+    {
+        backends[count++] = &mwinWin32Backend;
     }
 #endif
     (void)kind;

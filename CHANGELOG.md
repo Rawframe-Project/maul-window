@@ -74,3 +74,9 @@ format.
   XKB and xkbcommon-x11, the core pointer and wheel, cursor shapes
   through libxcb-cursor, hidden and confined cursors, and captured
   cursors with XInput 2 raw motion.
+- The Win32 backend (`MAUL_WINDOW_WIN32`, on by default on Windows):
+  per-monitor DPI awareness version 2, windows at their logical size,
+  sizes, places, focus and modes from the window procedure, borderless
+  full screen, size limits and aspect ratio, frames during Windows'
+  size-move loop, and monitors with their DPI and refresh rate
+  (mwin-0007). Input follows.

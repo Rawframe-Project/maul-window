@@ -22,9 +22,9 @@ drains; no library thread runs, and no callback delivers an event.
 
 ## Status
 
-Not released. The contract and a headless test backend are in place,
-and the Wayland backend makes windows; its input and the other
-backends follow. Backends are planned for Win32, Wayland, X11 and the
+Not released. The contract and a headless test backend are in place;
+the Wayland and X11 backends are complete for it, and the Win32
+backend makes windows, its input following. Backends are planned for Win32, Wayland, X11 and the
 web first, then Android, macOS and iOS.
 
 ## Building

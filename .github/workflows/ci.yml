@@ -40,7 +40,8 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           cmake --build build  # the generated protocol headers
-          for f in src/*.c; do
+          # The sources of the Linux build; Windows code is checked by its cell.
+          for f in $(python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('build/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file']})))"); do
             clang-tidy-20 -p build --quiet --warnings-as-errors='*' "$f" || exit 1
           done
 

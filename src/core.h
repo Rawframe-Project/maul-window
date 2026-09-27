@@ -17,6 +17,7 @@
 #include "backend.h"
 
 #include "maul-window/event.h"
+#include "maul-window/monitor.h"
 
 // The classes of records, each with its own storage per window.
 enum
@@ -106,6 +107,13 @@ typedef struct mwinWindow
     void* platform;
 } mwinWindow;
 
+typedef struct mwinMonitor
+{
+    uint32_t generation;
+    uint8_t status;
+    mwinMonitorInfo info;
+} mwinMonitor;
+
 struct mwinContext
 {
     mwinAllocator allocator;
@@ -116,6 +124,9 @@ struct mwinContext
     const mwinAppDef* app;
     uint64_t sequence;
     mwinWindow* windows;
+    // Slots like the windows': free, live, or removed with its record
+    // still waiting.
+    mwinMonitor* monitors;
     // Lifecycle and surface notifications, which come before all others,
     // and the context's own notifications.
     mwinRing critical;
@@ -143,6 +154,25 @@ void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event);
 // Reports a notification about the application rather than a window:
 // the lifecycle, and later monitors and system facts.
 void mwinPostGlobal(mwinContext* context, const mwinEvent* event);
+
+// A monitor was connected: its slot, or -1 when the context has its
+// limit of monitors and leaves it out.
+int32_t mwinAddMonitor(mwinContext* context, const mwinMonitorInfo* info, uint64_t timeNs);
+
+// A connected monitor's facts changed.
+void mwinChangeMonitor(mwinContext* context, uint32_t slot, const mwinMonitorInfo* info,
+                       uint64_t timeNs);
+
+// A monitor was disconnected; its slot is free once the record is
+// drained.
+void mwinRemoveMonitor(mwinContext* context, uint32_t slot, uint64_t timeNs);
+
+// The id of the monitor in a slot, and the slot of a live id or -1.
+mwinMonitorId mwinMonitorIdOf(const mwinContext* context, uint32_t slot);
+int32_t mwinFindMonitor(const mwinContext* context, mwinMonitorId monitor);
+
+// Frees a removed monitor's slot once its record is drained.
+void mwinReleaseMonitor(mwinContext* context, mwinMonitorId monitor);
 
 // Runs a frame now, from inside a platform callback that waits for the
 // program to handle a critical notification; does nothing while the

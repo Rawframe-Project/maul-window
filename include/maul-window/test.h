@@ -12,6 +12,7 @@
 #define MAUL_WINDOW_TEST_H
 
 #include "maul-window/event.h"
+#include "maul-window/monitor.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -109,6 +110,48 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinTestGetTitle(const mwinContext* context,
                                                         mwinWindowId window, char* buffer,
                                                         size_t capacity, size_t* lengthOut);
+
+    /// Connects a monitor to the test platform, at once: its
+    /// mwin_eventMonitorAdded waits in the stream when this returns.
+    /// Windows the platform makes from now on show on the primary monitor.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param info        The monitor's facts.
+    /// @param monitorOut  Receives its id.
+    /// @return `mwin_success`; `mwin_errorCapacity` when the context has
+    ///         its limit of monitors; `mwin_errorUnsupported` for a context
+    ///         of another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestAddMonitor(mwinContext* context,
+                                                          const mwinMonitorInfo* info,
+                                                          mwinMonitorId* monitorOut);
+
+    /// Changes a connected monitor's facts, at once.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param monitor  The monitor.
+    /// @param info     Its new facts.
+    /// @return `mwin_success`; `mwin_errorStale` for a monitor no longer
+    ///         connected; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestChangeMonitor(mwinContext* context,
+                                                             mwinMonitorId monitor,
+                                                             const mwinMonitorInfo* info);
+
+    /// Disconnects a monitor, at once.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param monitor  The monitor.
+    /// @return `mwin_success`; `mwin_errorStale` for a monitor no longer
+    ///         connected; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL context.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestRemoveMonitor(mwinContext* context,
+                                                             mwinMonitorId monitor);
 
 #ifdef __cplusplus
 }

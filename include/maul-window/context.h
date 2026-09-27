@@ -58,6 +58,8 @@ extern "C"
         uint16_t inputPerWindow;
         // Bytes of text waiting per window.
         uint16_t textBytesPerWindow;
+        // Monitors connected at once.
+        uint16_t monitors;
     } mwinLimits;
 
     // How a context is made. Build it with mwinDefaultContextDef.
@@ -96,8 +98,8 @@ extern "C"
 
     /// Returns the default context def: the default limits (8 windows; per
     /// window 32 requests, 256 notifications, 256 input records per class
-    /// and 4,096 bytes of text; 1,024 title bytes), the C library's
-    /// allocator and the native backend.
+    /// and 4,096 bytes of text; 1,024 title bytes; 16 monitors), the C
+    /// library's allocator and the native backend.
     ///
     /// @return The def, with a valid cookie.
     /// @par Thread safety

@@ -112,6 +112,13 @@ extern "C"
         mwin_eventSurfaceLost = 40,
         // The window has a surface again.
         mwin_eventSurfaceRestored = 41,
+        // A monitor was connected, disconnected, or its facts changed
+        // (data.monitor).
+        mwin_eventMonitorAdded = 42,
+        mwin_eventMonitorRemoved = 43,
+        mwin_eventMonitorChanged = 44,
+        // The window moved to another monitor (data.monitor).
+        mwin_eventDisplayChanged = 45,
     };
 
     // The kind of a request.
@@ -274,6 +281,7 @@ extern "C"
             mwinDeltaEvent delta;
             mwinTouchEvent touch;
             mwinPenEvent pen;
+            mwinMonitorId monitor;
         } data;
     } mwinEvent;
 

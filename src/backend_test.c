@@ -174,10 +174,28 @@ static void PostMode(mwinContext* context, uint32_t slot, mwinWindowMode mode)
     mwinPost(context, slot, &event);
 }
 
+// The primary monitor's slot, or -1 when none is connected.
+static int32_t PrimaryMonitor(const mwinContext* context)
+{
+    mwinMonitorId primary = {0};
+    size_t count = 0;
+    (void)mwinGetMonitors(context, &primary, 1, &count);
+    return count > 0 ? (int32_t)(primary.index1 - 1) : -1;
+}
+
 static void Create(mwinContext* context, uint32_t slot)
 {
     mwinWindow* window = &context->windows[slot];
     PostType(context, slot, mwin_eventWindowCreated);
+    int32_t monitor = PrimaryMonitor(context);
+    if (monitor >= 0)
+    {
+        mwinEvent display = {0};
+        display.type = mwin_eventDisplayChanged;
+        display.timeNs = Now(context);
+        display.data.monitor = mwinMonitorIdOf(context, (uint32_t)monitor);
+        mwinPost(context, slot, &display);
+    }
     mwinEvent event = {0};
     event.type = mwin_eventScaleChanged;
     event.timeNs = Now(context);
@@ -383,7 +401,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     if (context == nullptr || event == nullptr || event->type == mwin_eventNone ||
         event->type == mwin_eventWindowCreated || event->type == mwin_eventWindowDestroyed ||
         event->type == mwin_eventRequestCompleted || event->type == mwin_eventInputStateReset ||
-        event->type > mwin_eventSurfaceRestored)
+        event->type > mwin_eventDisplayChanged)
     {
         return mwin_errorInvalid;
     }
@@ -392,7 +410,16 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorUnsupported;
     }
+    if (event->type >= mwin_eventMonitorAdded && event->type <= mwin_eventMonitorChanged)
+    {
+        return mwin_errorInvalid; // hotplug goes through mwinTestAddMonitor and the others
+    }
     if (!IsLifecycle(event->type) && mwinFindWindow(context, event->window) == nullptr)
+    {
+        return mwin_errorStale;
+    }
+    if (event->type == mwin_eventDisplayChanged &&
+        mwinFindMonitor(context, event->data.monitor) < 0)
     {
         return mwin_errorStale;
     }
@@ -476,4 +503,63 @@ mwinResult mwinTestGetTitle(const mwinContext* context, mwinWindowId window, cha
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;
+}
+
+mwinResult mwinTestAddMonitor(mwinContext* context, const mwinMonitorInfo* info,
+                              mwinMonitorId* monitorOut)
+{
+    if (context == nullptr || info == nullptr || monitorOut == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    int32_t slot = mwinAddMonitor(context, info, Now(context));
+    if (slot < 0)
+    {
+        return mwin_errorCapacity;
+    }
+    *monitorOut = mwinMonitorIdOf(context, (uint32_t)slot);
+    return mwin_success;
+}
+
+mwinResult mwinTestChangeMonitor(mwinContext* context, mwinMonitorId monitor,
+                                 const mwinMonitorInfo* info)
+{
+    if (context == nullptr || info == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    int32_t slot = mwinFindMonitor(context, monitor);
+    if (slot < 0)
+    {
+        return mwin_errorStale;
+    }
+    mwinChangeMonitor(context, (uint32_t)slot, info, Now(context));
+    return mwin_success;
+}
+
+mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
+{
+    if (context == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    int32_t slot = mwinFindMonitor(context, monitor);
+    if (slot < 0)
+    {
+        return mwin_errorStale;
+    }
+    mwinRemoveMonitor(context, (uint32_t)slot, Now(context));
+    return mwin_success;
 }

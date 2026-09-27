@@ -92,6 +92,9 @@ extern "C"
         bool occluded;
         // Between mwin_eventSurfaceLost and mwin_eventSurfaceRestored.
         bool surfaceLost;
+        // The monitor that shows most of the window, null before the
+        // platform says.
+        mwinMonitorId monitor;
     } mwinWindowState;
 
     /// Returns the default window def: 1,280 by 720 logical units,

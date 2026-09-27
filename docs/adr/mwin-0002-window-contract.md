@@ -45,6 +45,12 @@ they leave open for windows.
   call, so the program handles the record in time; a frame that stops
   there ends the loop. Suspending resets every window's input.
 
+- **Monitors** are ids in slots like windows': a disconnected
+  monitor's slot waits until its removal is drained, so a monitor
+  connected again gets a new id. Changes of one monitor's facts merge.
+  Each monitor can have at most its addition, one change and its
+  removal waiting, and the context requires room for three per monitor.
+
 ## Consequences
 
 Every request is answered exactly once, including those of a window

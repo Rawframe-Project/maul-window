@@ -57,6 +57,10 @@ static int CoalesceClass(mwinEventType type)
     case mwin_eventSurfaceLost:
     case mwin_eventSurfaceRestored:
         return 12;
+    case mwin_eventMonitorChanged:
+        return 13;
+    case mwin_eventDisplayChanged:
+        return 14;
     default:
         return 0;
     }
@@ -115,6 +119,16 @@ static bool SameWindow(mwinWindowId a, mwinWindowId b)
     return a.index1 == b.index1 && a.generation == b.generation;
 }
 
+// Whether a waiting notification is about the same thing as a new one of
+// its class: the same window, and for a monitor's change the same monitor.
+static bool SameSubject(const mwinEvent* a, const mwinEvent* b)
+{
+    return SameWindow(a->window, b->window) &&
+           (a->type != mwin_eventMonitorChanged ||
+            (a->data.monitor.index1 == b->data.monitor.index1 &&
+             a->data.monitor.generation == b->data.monitor.generation));
+}
+
 // Appends a record; false when the ring is full.
 static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
 {
@@ -122,7 +136,7 @@ static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
     for (uint16_t i = 0; coalesce != 0 && i < ring->count; i++)
     {
         const mwinEvent* waiting = &ring->events[At(ring, i)];
-        if (CoalesceClass(waiting->type) == coalesce && SameWindow(waiting->window, event->window))
+        if (CoalesceClass(waiting->type) == coalesce && SameSubject(waiting, event))
         {
             RemoveAt(ring, i);
             break;
@@ -178,6 +192,9 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
     case mwin_eventSurfaceLost:
     case mwin_eventSurfaceRestored:
         state->surfaceLost = event->type == mwin_eventSurfaceLost;
+        break;
+    case mwin_eventDisplayChanged:
+        state->monitor = event->data.monitor;
         break;
     default:
         break;
@@ -449,6 +466,10 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
     if (eventOut->type == mwin_eventRequestCompleted)
     {
         mwinReleaseRequest(context, eventOut->data.completion.request);
+    }
+    if (eventOut->type == mwin_eventMonitorRemoved)
+    {
+        mwinReleaseMonitor(context, eventOut->data.monitor);
     }
     return mwin_success;
 }

@@ -96,6 +96,14 @@ extern "C"
         uint32_t generation;
     } mwinWindowId;
 
+    // A monitor, stable while it stays connected; a monitor connected again
+    // gets a new id.
+    typedef struct mwinMonitorId
+    {
+        uint32_t index1;
+        uint32_t generation;
+    } mwinMonitorId;
+
     // A request in flight (family record 0018).
     typedef struct mwinRequestId
     {

@@ -62,10 +62,10 @@ mwinOutcome mwinWin32SetIcon(mwinWin32Window* window, const mwinRequest* request
     HICON icons[2] = {nullptr, nullptr};
     if (copy->count > 0)
     {
-        int bigIcon = GetSystemMetricsForDpi(SM_CXICON, window->dpi);
-        int smallIcon = GetSystemMetricsForDpi(SM_CXSMICON, window->dpi);
-        icons[0] = Make(mwinIconFor(copy, (uint32_t)bigIcon));
-        icons[1] = Make(mwinIconFor(copy, (uint32_t)smallIcon));
+        int bigSide = GetSystemMetricsForDpi(SM_CXICON, window->dpi);
+        int smallSide = GetSystemMetricsForDpi(SM_CXSMICON, window->dpi);
+        icons[0] = Make(mwinIconFor(copy, (uint32_t)bigSide));
+        icons[1] = Make(mwinIconFor(copy, (uint32_t)smallSide));
         if (icons[0] == nullptr || icons[1] == nullptr)
         {
             for (int i = 0; i < 2; i++)

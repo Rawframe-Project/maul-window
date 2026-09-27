@@ -12,3 +12,4 @@ are listed in [README.md](README.md).
 | [mwin-0005](mwin-0005-wayland-backend.md) | The Wayland backend | Accepted |
 | [mwin-0006](mwin-0006-x11-backend.md) | The X11 backend | Accepted |
 | [mwin-0007](mwin-0007-win32-backend.md) | The Win32 backend | Accepted |
+| [mwin-0008](mwin-0008-web-backend.md) | The web backend | Accepted |

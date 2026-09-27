@@ -87,3 +87,10 @@ format.
   methods through imm32, compositions with their clauses and caret;
   system facts (theme, accent, text scale, reduced motion, power) and
   preferred languages, and title bars that follow the dark theme.
+- The web backend (`MAUL_WINDOW_WEB`, on by default with Emscripten):
+  canvases as windows, the page's own or made by the library, their
+  CSS sizes and device pixels, the drawing buffer following the box,
+  devicePixelRatio as the scale, fullscreen through the Fullscreen API,
+  the screen as the monitor, the color scheme, reduced motion and
+  navigator.languages, and a loop the browser drives (mwin-0008). A
+  window def names a page's canvas by its selector. Input follows.

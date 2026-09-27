@@ -31,6 +31,7 @@ endif()
 option(MAUL_WINDOW_WAYLAND "Build the Wayland backend" ${MAUL_WINDOW_LINUX})
 option(MAUL_WINDOW_X11 "Build the X11 backend" ${MAUL_WINDOW_LINUX})
 option(MAUL_WINDOW_WIN32 "Build the Win32 backend" ${WIN32})
+option(MAUL_WINDOW_WEB "Build the web backend" ${EMSCRIPTEN})
 
 # Maul Unicode validates every string that crosses the library: the
 # installed package when there is one, otherwise the pinned release,
@@ -101,6 +102,9 @@ endif()
 if(MAUL_WINDOW_WIN32)
     include(cmake/Win32.cmake)
 endif()
+if(MAUL_WINDOW_WEB)
+    include(cmake/Web.cmake)
+endif()
 set(MAUL_PACKAGE_DEPENDENCIES "find_dependency(maul-unicode ${MAUL_WINDOW_UNICODE_VERSION})")
 set(MAUL_PKG_REQUIRES_PRIVATE "maul-unicode >= ${MAUL_WINDOW_UNICODE_VERSION}")
 
@@ -134,6 +138,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_input PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_input PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_input PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
+    if(MAUL_WINDOW_WEB)
+        # Runs in headless Chrome through puppeteer, which the runner
+        # finds through MWIN_NODE_MODULES: skipped without it.
+        maul_add_test(web MANUAL)
+        add_test(NAME web COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
+                 $<TARGET_FILE:test_web>)
+        set_tests_properties(web PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

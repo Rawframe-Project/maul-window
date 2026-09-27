@@ -331,6 +331,16 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     def.titleLength = 2;
     CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorInvalid,
           "an overlong title is not UTF-8");
+    def = mwinDefaultWindowDef();
+    def.canvasLength = 1;
+    CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorInvalid,
+          "a canvas selector with no text");
+    static char longSelector[MWIN_CANVAS_SELECTOR_BYTES + 1];
+    memset(longSelector, 'a', sizeof(longSelector));
+    def.canvas = longSelector;
+    def.canvasLength = sizeof(longSelector);
+    CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorInvalid,
+          "a canvas selector past its limit");
     window = Create(context, nullptr);
     static char longTitle[1025];
     memset(longTitle, 'a', sizeof(longTitle));

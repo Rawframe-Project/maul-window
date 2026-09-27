@@ -171,7 +171,8 @@ static bool IsDefValid(const mwinContext* context, const mwinWindowDef* def)
 {
     return def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
            def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
-           IsText(def->title, def->titleLength, context->limits.titleBytes);
+           IsText(def->title, def->titleLength, context->limits.titleBytes) &&
+           IsText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES);
 }
 
 mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwinWindowId* windowOut,
@@ -208,6 +209,9 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
         *requestOut = RequestIdOf(context, slot, (uint32_t)request);
     }
     context->backend->createWindow(context, slot);
+    // The program's selector is its own once the call returns.
+    window->def.canvas = nullptr;
+    window->def.canvasLength = 0;
     return mwin_success;
 }
 

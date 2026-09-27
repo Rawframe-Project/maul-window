@@ -88,6 +88,8 @@ extern "C"
         mwin_styleAlwaysOnTop = 4,
     };
 
+#define MWIN_CANVAS_SELECTOR_BYTES 256
+
     // How a window is made. Build it with mwinDefaultWindowDef.
     typedef struct mwinWindowDef
     {
@@ -101,6 +103,12 @@ extern "C"
         mwinWindowMode mode;
         bool visible;
         mwinWindowStyle style;
+        // The web: the CSS selector of a canvas on the page to use, UTF-8,
+        // at most MWIN_CANVAS_SELECTOR_BYTES; empty for a canvas the
+        // library makes. Only read while the window is created; other
+        // platforms ignore it.
+        const char* canvas;
+        size_t canvasLength;
     } mwinWindowDef;
 
     // What a window is, as far as the program has been told: the values
@@ -154,7 +162,9 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param def        The window: a valid cookie, a positive size, a
-    ///                   UTF-8 title within the titleBytes limit.
+    ///                   UTF-8 title within the titleBytes limit, a UTF-8
+    ///                   canvas selector within
+    ///                   MWIN_CANVAS_SELECTOR_BYTES.
     /// @param windowOut  Receives the window's id.
     /// @param requestOut Receives the id of the creation request. May be
     ///                   NULL.

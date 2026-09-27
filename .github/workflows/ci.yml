@@ -116,8 +116,9 @@ jobs:
         run: emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
       - name: Build
         run: cmake --build build -j 4
+      - name: Browser
+        run: npm install --prefix /tmp/browser puppeteer
       - name: Test
-        run: |
-          for t in build/test_*.js; do node "$t" || exit 1; done
+        run: MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure
       - name: Size
         run: ls -l build/libmaul-window.a

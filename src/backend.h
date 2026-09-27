@@ -41,6 +41,18 @@ typedef struct mwinBackendOps
 // frame stops or init fails, then quit. Returns init's status.
 mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context));
 
+// The same loop in steps, for a platform that owns the loop and calls
+// the backend once a frame. Start calls init: true when frames follow.
+// Step pumps and runs a frame: false once the program stops. End calls
+// quit and returns init's status.
+bool mwinStartProgram(mwinContext* context);
+bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context));
+mwinResult mwinEndProgram(mwinContext* context);
+
+// Stops the backend and frees the context, after mwinEndProgram, where
+// mwinRun could not wait for the program to end.
+void mwinFinishRun(mwinContext* context);
+
 // The test backend, in builds with MAUL_WINDOW_TEST_BACKEND.
 extern const mwinBackendOps mwinTestBackend;
 
@@ -49,5 +61,8 @@ extern const mwinBackendOps mwinTestBackend;
 extern const mwinBackendOps mwinWaylandBackend;
 extern const mwinBackendOps mwinX11Backend;
 extern const mwinBackendOps mwinWin32Backend;
+
+// The web backend, in builds with MAUL_WINDOW_WEB.
+extern const mwinBackendOps mwinWebBackend;
 
 #endif // MAUL_WINDOW_SRC_BACKEND_H

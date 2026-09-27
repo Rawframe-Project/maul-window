@@ -170,6 +170,12 @@ static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
         backends[count++] = &mwinWin32Backend;
     }
 #endif
+#ifdef MAUL_WINDOW_WEB
+    if (kind == mwin_backendNative)
+    {
+        backends[count++] = &mwinWebBackend;
+    }
+#endif
     (void)kind;
     (void)backends;
     return count;
@@ -251,34 +257,64 @@ mwinResult mwinRun(const mwinAppDef* def)
     return status;
 }
 
-mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
+bool mwinStartProgram(mwinContext* context)
 {
     const mwinAppDef* app = context->app;
     context->inProgram = true;
-    mwinResult status = app->init(context, app->user);
+    context->status = app->init(context, app->user);
     context->inProgram = false;
-    context->running = status == mwin_success;
-    while (context->running && !context->stopping)
+    context->running = context->status == mwin_success;
+    return context->running;
+}
+
+bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
+{
+    if (!context->running || context->stopping)
     {
-        mwinBeginPump(context);
-        pump(context);
-        if (context->stopping)
-        {
-            break; // a critical frame asked to stop
-        }
-        context->inProgram = true;
-        mwinFrameResult result = app->frame(context, app->user);
-        context->inProgram = false;
-        context->stopping = result != mwin_frameContinue;
+        return false;
     }
+    mwinBeginPump(context);
+    pump(context);
+    if (context->stopping)
+    {
+        return false; // a critical frame asked to stop
+    }
+    const mwinAppDef* app = context->app;
+    context->inProgram = true;
+    mwinFrameResult result = app->frame(context, app->user);
+    context->inProgram = false;
+    context->stopping = result != mwin_frameContinue;
+    return !context->stopping;
+}
+
+mwinResult mwinEndProgram(mwinContext* context)
+{
+    const mwinAppDef* app = context->app;
     context->running = false;
     if (app->quit != nullptr)
     {
         context->inProgram = true;
-        app->quit(context, status, app->user);
+        app->quit(context, context->status, app->user);
         context->inProgram = false;
     }
-    return status;
+    return context->status;
+}
+
+mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
+{
+    if (mwinStartProgram(context))
+    {
+        while (mwinStepProgram(context, pump))
+        {
+        }
+    }
+    return mwinEndProgram(context);
+}
+
+void mwinFinishRun(mwinContext* context)
+{
+    context->backend->stop(context);
+    DestroyContext(context);
 }
 
 void mwinRunCriticalFrame(mwinContext* context)

@@ -11,8 +11,9 @@ runs a loop of Windows' own inside the message dispatch.
 
 ## Decision
 
-- **Linking:** the backend links `user32` and `shcore`, which every
-  Windows has; nothing is loaded at run time. It needs Windows 10
+- **Linking:** the backend links `user32`, `shcore`, `imm32`,
+  `advapi32` and `dwmapi`, which every Windows has; nothing is loaded
+  at run time. It needs Windows 10
   version 1703 or later, for per-monitor DPI awareness version 2.
 - **DPI:** a context makes the process per-monitor DPI aware (version
   2) when it starts, unless the process chose an awareness itself, in

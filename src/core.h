@@ -160,6 +160,8 @@ struct mwinContext
     bool stopping;
     // The program's functions are running; a critical frame waits.
     bool inProgram;
+    // What init returned.
+    mwinResult status;
 };
 
 // The window a live id names, or NULL.

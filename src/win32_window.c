@@ -11,6 +11,7 @@
 #include "win32_input.h"
 #include "win32_output.h"
 #include "win32_pointer.h"
+#include "win32_services.h"
 #include "win32_system.h"
 
 #include "maul-unicode/encoding.h"
@@ -587,6 +588,13 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
         return mwinWin32WriteClipboard(window);
     case mwin_requestClipboardRead:
         return mwinWin32ReadClipboard(window);
+    case mwin_requestOpenUrl:
+        return mwinWin32OpenUrl(window, request);
+    case mwin_requestRevealFile:
+        return mwinWin32RevealFile(request);
+    case mwin_requestKeepAwake:
+        // The pump keeps the display awake from the windows' state.
+        return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
     }

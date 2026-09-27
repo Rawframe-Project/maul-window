@@ -12,6 +12,7 @@ set(MWIN_WIN32_SOURCES
     src/win32_input.c
     src/win32_output.c
     src/win32_pointer.c
+    src/win32_services.c
     src/win32_system.c
     src/win32_window.c)
 # XInput is loaded at run time: the gamepads need no library to link.

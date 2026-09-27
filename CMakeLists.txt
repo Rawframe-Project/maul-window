@@ -249,8 +249,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # The system clipboard, shared by the whole desktop.
         maul_add_test(win32_clipboard)
         target_link_libraries(test_win32_clipboard PRIVATE user32)
+        # Keeps the display awake, and points http at itself for a moment.
+        maul_add_test(win32_services)
+        target_link_libraries(test_win32_services PRIVATE user32 advapi32 shell32)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
-                             win32_clipboard win32_drop PROPERTIES RESOURCE_LOCK desktop)
+                             win32_clipboard win32_drop win32_services
+                             PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
 endif()

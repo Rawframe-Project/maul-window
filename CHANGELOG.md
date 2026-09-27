@@ -136,6 +136,7 @@ format.
   that needs no context (`mwinShowMessageBox`), through `MessageBoxW`
   on Win32, `alert` and `confirm` on the web, and zenity or kdialog run
   without a shell on Linux; the test backend's services and the
-  contract tests.
+  contract tests. Win32 services through ShellExecuteExW,
+  SHOpenFolderAndSelectItems and the thread's execution state.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

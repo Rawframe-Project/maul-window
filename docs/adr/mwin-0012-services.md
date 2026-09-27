@@ -42,8 +42,20 @@ at all (a page reveals no files).
   context's end for one still held.
 - **Keeping awake** is the window's state (`awake` in
   mwinWindowState), set when the request completes with success, as a
-  mode or a visibility is. The platform keeps the display on only
-  while the window shows, and lets it go when the window ends.
+  mode or a visibility is. On every platform it makes one wish of the
+  whole program: a backend holds the display while some live window
+  asks for it and shows (visible, not minimized), which the core
+  answers from the windows' state at each pump, and lets it go at its
+  end.
+- **Win32:** an address goes to `ShellExecuteExW` with the window as
+  the owner and without the shell's own error box, so a scheme with no
+  handler fails through the completion alone. A path takes Windows'
+  separators, since the shell's parsing refuses `/`, and Explorer opens
+  its folder with it selected (`SHParseDisplayName`,
+  `SHOpenFolderAndSelectItems`); a file that does not exist fails. The
+  display is held by the thread's execution state
+  (`ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED`), set
+  only when the wish changes.
 - **Message boxes** need no context: `mwinShowMessageBox` shows a
   modal box with a title, a message, a kind (information, warning,
   error) and buttons (OK, OK and Cancel, Yes and No), waits for the

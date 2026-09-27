@@ -325,6 +325,11 @@ void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, 
 // answering a request, and the context's end, call it.
 void mwinReleaseRequestText(const mwinContext* context, mwinRequest* request);
 
+// Whether some window asked to keep the display awake and shows: live,
+// visible and not minimized. Backends keep the display awake while it
+// holds.
+bool mwinWantsAwake(const mwinContext* context);
+
 // Frees the drops' files and text; the context's end calls it.
 void mwinReleaseDrops(mwinContext* context);
 

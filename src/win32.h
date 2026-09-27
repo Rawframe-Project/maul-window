@@ -127,6 +127,8 @@ struct mwinWin32Platform
     // OLE started on the thread: drags reach windows through their drop
     // targets. Without it, only dropped files come, as WM_DROPFILES.
     bool ole;
+    // The thread keeps the display awake (win32_services.c).
+    bool awake;
     // The gamepads, with the gamepad component.
     mwinWin32Pads pads;
 };

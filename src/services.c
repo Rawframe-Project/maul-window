@@ -116,6 +116,20 @@ void mwinReleaseRequestText(const mwinContext* context, mwinRequest* request)
     }
 }
 
+bool mwinWantsAwake(const mwinContext* context)
+{
+    for (uint32_t i = 0; i < context->limits.windows; i++)
+    {
+        const mwinWindow* window = &context->windows[i];
+        if (window->status == mwin_slotLive && window->state.awake && window->state.visible &&
+            window->state.mode != mwin_modeMinimized)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 mwinResult mwinRequestOpenUrl(mwinContext* context, mwinWindowId window, const char* url,
                               size_t length, mwinRequestId* requestOut)
 {

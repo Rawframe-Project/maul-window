@@ -13,6 +13,7 @@
 #include "win32_drop.h"
 #include "win32_input.h"
 #include "win32_output.h"
+#include "win32_services.h"
 #include "win32_system.h"
 #include "win32_window.h"
 
@@ -75,6 +76,7 @@ static void Stop(mwinContext* context)
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinWin32PadsStop(&platform->pads);
 #endif
+    mwinWin32KeepAwake(platform, false);
     mwinWin32StopOle(platform);
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
@@ -138,10 +140,9 @@ static void Pump(mwinContext* context)
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
+    mwinWin32KeepAwake(PlatformOf(context), mwinWantsAwake(context));
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinWin32PadsPump(&PlatformOf(context)->pads, mwinWin32Now());
-#else
-    (void)context;
 #endif
 }
 

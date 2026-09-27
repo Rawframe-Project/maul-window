@@ -88,6 +88,21 @@ extern "C"
         mwin_styleAlwaysOnTop = 4,
     };
 
+    // What a window is to the others.
+    typedef uint8_t mwinWindowKind;
+
+    enum
+    {
+        // A window of its own; with an owner, a dialog of it, kept above
+        // it and gone with it.
+        mwin_windowNormal = 0,
+        // A popup menu torn out of its owner: undecorated, placed against
+        // its owner, taking the keyboard.
+        mwin_windowMenu = 1,
+        // A tooltip: as a menu, but never taking the keyboard.
+        mwin_windowTooltip = 2,
+    };
+
 #define MWIN_CANVAS_SELECTOR_BYTES 256
 
     // How a window is made. Build it with mwinDefaultWindowDef.
@@ -109,6 +124,15 @@ extern "C"
         // platforms ignore it.
         const char* canvas;
         size_t canvasLength;
+        // The window this one belongs to, or the null id for none. An
+        // owned window stays above its owner and is destroyed with it; a
+        // popup needs one.
+        mwinWindowId owner;
+        mwinWindowKind kind;
+        // Where a popup's top left goes, in logical units from the top
+        // left of its owner's client area; its state's position is the
+        // same. Other windows ignore it.
+        mwinPosition position;
     } mwinWindowDef;
 
     // What a window is, as far as the program has been told: the values
@@ -167,13 +191,15 @@ extern "C"
     /// @param def        The window: a valid cookie, a positive size, a
     ///                   UTF-8 title within the titleBytes limit, a UTF-8
     ///                   canvas selector within
-    ///                   MWIN_CANVAS_SELECTOR_BYTES.
+    ///                   MWIN_CANVAS_SELECTOR_BYTES; a popup windowed, with
+    ///                   an owner and a finite position.
     /// @param windowOut  Receives the window's id.
     /// @param requestOut Receives the id of the creation request. May be
     ///                   NULL.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
-    ///         its limit of windows; `mwin_errorInvalid` for a NULL
-    ///         argument or an invalid def.
+    ///         its limit of windows; `mwin_errorStale` for an owner that no
+    ///         longer exists; `mwin_errorInvalid` for a NULL argument or an
+    ///         invalid def.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinCreateWindow(mwinContext* context,
@@ -183,7 +209,8 @@ extern "C"
 
     /// Destroys a window at once: its id becomes stale, its requests in
     /// flight complete as cancelled, and mwin_eventWindowDestroyed follows.
-    /// Notifications of the window not yet drained are dropped.
+    /// Notifications of the window not yet drained are dropped. The
+    /// windows it owns are destroyed first, theirs before them.
     ///
     /// @param context  The context.
     /// @param window   The window.
@@ -240,7 +267,8 @@ extern "C"
                                                        mwinSize size, mwinRequestId* requestOut);
 
     /// Asks to move a window. Wayland does not let programs place windows,
-    /// and answers mwin_outcomeUnsupported.
+    /// and answers mwin_outcomeUnsupported, except popups. A popup's
+    /// position is from the top left of its owner's client area.
     ///
     /// @param context     The context.
     /// @param window      The window.
@@ -256,7 +284,8 @@ extern "C"
                                                            mwinRequestId* requestOut);
 
     /// Asks for a mode: windowed, borderless fullscreen, minimized or
-    /// maximized.
+    /// maximized. A popup, always windowed, answers
+    /// mwin_outcomeUnsupported.
     ///
     /// @param context     The context.
     /// @param window      The window.
@@ -316,7 +345,8 @@ extern "C"
                                                               uint32_t height,
                                                               mwinRequestId* requestOut);
 
-    /// Asks for a style: resizable, decorated, always on top.
+    /// Asks for a style: resizable, decorated, always on top. A popup,
+    /// undecorated and above its owner, answers mwin_outcomeUnsupported.
     ///
     /// @param context     The context.
     /// @param window      The window.

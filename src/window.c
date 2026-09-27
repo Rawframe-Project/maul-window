@@ -180,10 +180,14 @@ void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
 
 static bool IsDefValid(const mwinContext* context, const mwinWindowDef* def)
 {
+    bool popup = def->kind != mwin_windowNormal;
     return def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
            def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
            IsText(def->title, def->titleLength, context->limits.titleBytes) &&
-           IsText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES);
+           IsText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES) &&
+           def->kind <= mwin_windowTooltip &&
+           (!popup || (def->owner.index1 != 0 && def->mode == mwin_modeWindowed &&
+                       isfinite(def->position.x) && isfinite(def->position.y)));
 }
 
 mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwinWindowId* windowOut,
@@ -192,6 +196,10 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
     if (context == nullptr || def == nullptr || windowOut == nullptr || !IsDefValid(context, def))
     {
         return mwin_errorInvalid;
+    }
+    if (def->owner.index1 != 0 && mwinFindWindow(context, def->owner) == nullptr)
+    {
+        return mwin_errorStale;
     }
     uint32_t slot = 0;
     while (slot < context->limits.windows && context->windows[slot].status != mwin_slotFree)
@@ -238,6 +246,17 @@ mwinResult mwinDestroyWindow(mwinContext* context, mwinWindowId window)
         return mwin_errorStale;
     }
     uint32_t slot = window.index1 - 1;
+    // What it owns goes first; the owner's slot is live meanwhile, so no
+    // new window can take it.
+    for (uint32_t i = 0; i < context->limits.windows; i++)
+    {
+        const mwinWindow* owned = &context->windows[i];
+        if (owned->status == mwin_slotLive && owned->def.owner.index1 == window.index1 &&
+            owned->def.owner.generation == window.generation)
+        {
+            (void)mwinDestroyWindow(context, mwinWindowIdOf(context, i));
+        }
+    }
     for (uint32_t i = 0; i < context->limits.requestsPerWindow; i++)
     {
         mwinComplete(context, slot, i, mwin_outcomeCancelled);

@@ -18,6 +18,7 @@
 
 #include "maul-unicode/encoding.h"
 
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 
@@ -135,6 +136,62 @@ static void OnSize(mwinWin32Window* window, WPARAM kind, LPARAM size)
     }
 }
 
+static bool IsPopup(const mwinWin32Window* window)
+{
+    return CoreOf(window)->def.kind != mwin_windowNormal;
+}
+
+// The window's owner, or nullptr: live while the window is.
+static const mwinWin32Window* OwnerOf(const mwinWin32Window* window)
+{
+    mwinWindowId owner = CoreOf(window)->def.owner;
+    return owner.index1 != 0 ? &window->platform->windows[owner.index1 - 1] : nullptr;
+}
+
+// Where a popup's corner goes on the desktop: at an offset in logical
+// units of its owner from the corner of its owner's client area.
+static POINT PopupOrigin(const mwinWin32Window* window, mwinPosition offset)
+{
+    const mwinWin32Window* owner = OwnerOf(window);
+    float scale = ScaleOf(owner);
+    return (POINT){owner->x + lroundf(offset.x * scale), owner->y + lroundf(offset.y * scale)};
+}
+
+// A popup's place reported against its owner, when it changed.
+static void PostOffset(mwinWin32Window* window)
+{
+    const mwinWin32Window* owner = OwnerOf(window);
+    POINT offset = {window->x - owner->x, window->y - owner->y};
+    if (offset.x == window->offset.x && offset.y == window->offset.y)
+    {
+        return;
+    }
+    window->offset = offset;
+    float scale = ScaleOf(owner);
+    mwinEvent event = {.type = mwin_eventMoved};
+    event.data.position = (mwinPosition){(float)offset.x / scale, (float)offset.y / scale};
+    Post(window, event);
+}
+
+// The popups of a window that moved keep their places against it.
+static void MovePopups(const mwinWin32Window* window)
+{
+    const mwinContext* context = window->platform->context;
+    mwinWindowId id = mwinWindowIdOf(context, window->slot);
+    for (uint32_t slot = 0; slot < context->limits.windows; slot++)
+    {
+        const mwinWin32Window* popup = &window->platform->windows[slot];
+        mwinWindowId owner = context->windows[slot].def.owner;
+        if (popup->hwnd != nullptr && IsPopup(popup) && owner.index1 == id.index1 &&
+            owner.generation == id.generation)
+        {
+            SetWindowPos(popup->hwnd, nullptr, window->x + popup->offset.x,
+                         window->y + popup->offset.y, 0, 0,
+                         SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    }
+}
+
 static void OnMove(mwinWin32Window* window, LPARAM place)
 {
     int32_t x = (int16_t)LOWORD(place);
@@ -145,10 +202,18 @@ static void OnMove(mwinWin32Window* window, LPARAM place)
     }
     window->x = x;
     window->y = y;
-    float scale = ScaleOf(window);
-    mwinEvent event = {.type = mwin_eventMoved};
-    event.data.position = (mwinPosition){(float)x / scale, (float)y / scale};
-    Post(window, event);
+    MovePopups(window);
+    if (IsPopup(window))
+    {
+        PostOffset(window);
+    }
+    else
+    {
+        float scale = ScaleOf(window);
+        mwinEvent event = {.type = mwin_eventMoved};
+        event.data.position = (mwinPosition){(float)x / scale, (float)y / scale};
+        Post(window, event);
+    }
     PostMonitor(window);
 }
 
@@ -235,6 +300,11 @@ static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wP
     case WM_KILLFOCUS:
         mwinWin32ClipCursor(window, message == WM_SETFOCUS);
         PostType(window, message == WM_SETFOCUS ? mwin_eventFocusGained : mwin_eventFocusLost);
+        if (message == WM_KILLFOCUS && CoreOf(window)->def.kind == mwin_windowMenu)
+        {
+            // A menu is dismissed when the keyboard goes elsewhere.
+            PostType(window, mwin_eventCloseRequested);
+        }
         return true;
     case WM_SHOWWINDOW:
         PostType(window, wParam != 0 ? mwin_eventShown : mwin_eventHidden);
@@ -351,6 +421,40 @@ static void Establish(mwinWin32Window* window)
     Post(window, scale);
     PostSize(window);
     PostMode(window, mwin_modeWindowed);
+    if (IsPopup(window))
+    {
+        window->offset = (POINT){LONG_MIN, LONG_MIN};
+        PostOffset(window);
+    }
+}
+
+// Shows a window: a tooltip without taking the keyboard.
+static void Show(const mwinWin32Window* window, int show)
+{
+    bool tooltip = CoreOf(window)->def.kind == mwin_windowTooltip;
+    ShowWindow(window->hwnd, tooltip ? SW_SHOWNA : show);
+}
+
+// Makes the window: a popup undecorated at its place against its
+// owner, an owned window in front of its owner and off the taskbar.
+static HWND Make(mwinWin32Window* window, const mwinWindow* core, DWORD style)
+{
+    mwinWin32Platform* platform = window->platform;
+    const mwinWin32Window* owner = OwnerOf(window);
+    SIZE frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
+                           ToPixels(core->def.size.height, window->dpi), window->dpi);
+    POINT origin = {CW_USEDEFAULT, CW_USEDEFAULT};
+    DWORD extended = owner != nullptr ? 0 : WS_EX_APPWINDOW;
+    if (IsPopup(window))
+    {
+        origin = PopupOrigin(window, core->def.position);
+        extended = WS_EX_TOOLWINDOW |
+                   (core->def.kind == mwin_windowTooltip ? WS_EX_NOACTIVATE | WS_EX_TOPMOST : 0);
+    }
+    return CreateWindowExW(extended, MWIN_WIN32_CLASS,
+                           WideTitle(platform, core->title, core->titleLength), style, origin.x,
+                           origin.y, frame.cx, frame.cy, owner != nullptr ? owner->hwnd : nullptr,
+                           nullptr, platform->instance, window);
 }
 
 static void EnterFullscreen(mwinWin32Window* window);
@@ -362,13 +466,8 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     mwinWin32Window* window = &platform->windows[slot];
     *window = (mwinWin32Window){.platform = platform, .slot = slot, .monitor = -1};
     window->dpi = GetDpiForSystem();
-    DWORD style = StyleOf(core->def.style, false);
-    SIZE frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
-                           ToPixels(core->def.size.height, window->dpi), window->dpi);
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, MWIN_WIN32_CLASS,
-                                WideTitle(platform, core->title, core->titleLength), style,
-                                CW_USEDEFAULT, CW_USEDEFAULT, frame.cx, frame.cy, nullptr, nullptr,
-                                platform->instance, window);
+    DWORD style = IsPopup(window) ? WS_POPUP : StyleOf(core->def.style, false);
+    HWND hwnd = Make(window, core, style);
     int32_t request =
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
     if (hwnd == nullptr)
@@ -378,8 +477,8 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     }
     // Windows opened it on a monitor of its choice, maybe of another DPI.
     window->dpi = GetDpiForWindow(hwnd);
-    frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
-                      ToPixels(core->def.size.height, window->dpi), window->dpi);
+    SIZE frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
+                           ToPixels(core->def.size.height, window->dpi), window->dpi);
     SetWindowPos(hwnd, nullptr, 0, 0, frame.cx, frame.cy,
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window->hwnd = hwnd;
@@ -398,7 +497,7 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     static const int shows[] = {SW_SHOWNORMAL, SW_SHOWNORMAL, SW_SHOWMINIMIZED, SW_SHOWMAXIMIZED};
     if (core->def.visible)
     {
-        ShowWindow(hwnd, shows[core->def.mode]);
+        Show(window, shows[core->def.mode]);
     }
     mwinComplete(context, slot, (uint32_t)request, mwin_outcomeDone);
 }
@@ -500,6 +599,13 @@ static mwinOutcome SetPosition(mwinWin32Window* window, mwinPosition position)
     {
         return mwin_outcomeDenied;
     }
+    if (IsPopup(window))
+    {
+        POINT origin = PopupOrigin(window, position);
+        SetWindowPos(window->hwnd, nullptr, origin.x, origin.y, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        return mwin_outcomeDone;
+    }
     float scale = ScaleOf(window);
     RECT rect = {0, 0, 0, 0};
     AdjustWindowRectExForDpi(&rect, CurrentStyle(window), FALSE, 0, window->dpi);
@@ -571,7 +677,14 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
     case mwin_requestMode:
         return SetMode(window, request->value.mode);
     case mwin_requestVisible:
-        ShowWindow(window->hwnd, request->value.visible ? SW_SHOW : SW_HIDE);
+        if (request->value.visible)
+        {
+            Show(window, SW_SHOW);
+        }
+        else
+        {
+            ShowWindow(window->hwnd, SW_HIDE);
+        }
         return mwin_outcomeDone;
     case mwin_requestFocus:
         // Windows lets a process take the foreground only in some cases.

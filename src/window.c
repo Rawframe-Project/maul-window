@@ -175,6 +175,14 @@ void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
     {
         *requestOut = mwinRequestIdOf(context, slot, (uint32_t)request);
     }
+    mwinRequestKind kind = context->windows[slot].requests[request].kind;
+    if (context->windows[slot].def.kind != mwin_windowNormal &&
+        (kind == mwin_requestMode || kind == mwin_requestStyle))
+    {
+        // A popup is windowed and undecorated on every platform.
+        mwinComplete(context, slot, (uint32_t)request, mwin_outcomeUnsupported);
+        return;
+    }
     context->backend->submit(context, slot, (uint32_t)request);
 }
 

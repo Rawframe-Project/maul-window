@@ -94,6 +94,8 @@ struct mwinWin32Window
     bool dialogWaiting;
     // The big and small icons made for the window, if any.
     HICON icons[2];
+    // A popup's place from its owner's client area, in pixels.
+    POINT offset;
 };
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.

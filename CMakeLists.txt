@@ -299,8 +299,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # The common item dialog, driven from the program's frames.
         maul_add_test(win32_dialog)
         target_link_libraries(test_win32_dialog PRIVATE user32)
+        # Owned windows and popups placed against their owners.
+        maul_add_test(win32_owned)
+        target_link_libraries(test_win32_owned PRIVATE user32)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
-                             win32_clipboard win32_drop win32_services win32_dialog
+                             win32_clipboard win32_drop win32_services win32_dialog win32_owned
                              PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()

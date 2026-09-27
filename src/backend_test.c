@@ -204,12 +204,6 @@ static void Focus(mwinContext* context, uint32_t slot)
 static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* request)
 {
     mwinWindow* window = &context->windows[slot];
-    bool popup = window->def.kind != mwin_windowNormal;
-    if (popup && (request->kind == mwin_requestMode || request->kind == mwin_requestStyle))
-    {
-        // A popup is windowed and undecorated.
-        return mwin_outcomeUnsupported;
-    }
     switch (request->kind)
     {
     case mwin_requestCreate:

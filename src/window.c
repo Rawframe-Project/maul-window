@@ -16,6 +16,7 @@
 #include <string.h>
 
 #define WINDOW_DEF_COOKIE 0x6D77696Eu
+#define ALL_STYLES        (mwin_styleResizable | mwin_styleDecorated | mwin_styleAlwaysOnTop)
 
 mwinWindowDef mwinDefaultWindowDef(void)
 {
@@ -24,8 +25,7 @@ mwinWindowDef mwinDefaultWindowDef(void)
     def.size = (mwinSize){1280.0f, 720.0f};
     def.mode = mwin_modeWindowed;
     def.visible = true;
-    def.resizable = true;
-    def.decorated = true;
+    def.style = mwin_styleResizable | mwin_styleDecorated;
     return def;
 }
 
@@ -63,6 +63,30 @@ static mwinRequestId RequestIdOf(const mwinContext* context, uint32_t slot, uint
                            window->requests[request].generation};
 }
 
+// The state a request the platform carried out leaves when no
+// notification reports it.
+static void Carried(mwinWindow* window, const mwinRequest* request)
+{
+    switch (request->kind)
+    {
+    case mwin_requestCreate:
+        window->state.style = window->def.style;
+        window->state.opacity = 1.0f;
+        break;
+    case mwin_requestTextInput:
+        window->state.textInput = request->value.textInput.enabled;
+        break;
+    case mwin_requestStyle:
+        window->state.style = request->value.code;
+        break;
+    case mwin_requestOpacity:
+        window->state.opacity = request->value.opacity;
+        break;
+    default:
+        break;
+    }
+}
+
 void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOutcome outcome)
 {
     mwinRequest* entry = &context->windows[slot].requests[request];
@@ -71,9 +95,9 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
         return;
     }
     entry->status = mwin_requestAnswered;
-    if (entry->kind == mwin_requestTextInput && outcome == mwin_outcomeDone)
+    if (outcome == mwin_outcomeDone)
     {
-        context->windows[slot].state.textInput = entry->value.textInput.enabled;
+        Carried(&context->windows[slot], entry);
     }
     mwinEvent event = {0};
     event.type = mwin_eventRequestCompleted;
@@ -146,7 +170,7 @@ void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
 static bool IsDefValid(const mwinContext* context, const mwinWindowDef* def)
 {
     return def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
-           def->mode <= mwin_modeMaximized &&
+           def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
            IsText(def->title, def->titleLength, context->limits.titleBytes);
 }
 
@@ -340,6 +364,84 @@ mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window, mwinReque
     mwinResult status = mwinBeginRequest(context, window, mwin_requestFocus, &slot, &request);
     if (status == mwin_success)
     {
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestSizeLimits(mwinContext* context, mwinWindowId window, mwinSize minimum,
+                                 mwinSize maximum, mwinRequestId* requestOut)
+{
+    bool finite = isfinite(minimum.width) && isfinite(minimum.height) && isfinite(maximum.width) &&
+                  isfinite(maximum.height);
+    if (!finite || minimum.width < 0.0f || minimum.height < 0.0f || maximum.width < 0.0f ||
+        maximum.height < 0.0f || (maximum.width > 0.0f && maximum.width < minimum.width) ||
+        (maximum.height > 0.0f && maximum.height < minimum.height))
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestSizeLimits, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.limits.minimum = minimum;
+        context->windows[slot].requests[request].value.limits.maximum = maximum;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestAspectRatio(mwinContext* context, mwinWindowId window, uint32_t width,
+                                  uint32_t height, mwinRequestId* requestOut)
+{
+    if ((width == 0) != (height == 0))
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestAspectRatio, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.aspect.width = width;
+        context->windows[slot].requests[request].value.aspect.height = height;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestStyle(mwinContext* context, mwinWindowId window, mwinWindowStyle style,
+                            mwinRequestId* requestOut)
+{
+    if (style > ALL_STYLES)
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestStyle, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.code = style;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestOpacity(mwinContext* context, mwinWindowId window, float opacity,
+                              mwinRequestId* requestOut)
+{
+    if (!(opacity >= 0.0f && opacity <= 1.0f))
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestOpacity, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.opacity = opacity;
         mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;

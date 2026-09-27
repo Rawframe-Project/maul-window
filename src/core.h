@@ -85,6 +85,17 @@ typedef struct mwinRequest
             bool enabled;
             mwinRect caret;
         } textInput;
+        struct
+        {
+            mwinSize minimum;
+            mwinSize maximum;
+        } limits;
+        struct
+        {
+            uint32_t width;
+            uint32_t height;
+        } aspect;
+        float opacity;
     } value;
 } mwinRequest;
 

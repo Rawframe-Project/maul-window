@@ -78,6 +78,16 @@ extern "C"
         mwin_modeMaximized = 3,
     };
 
+    // How a window looks and behaves beyond its size and mode.
+    typedef uint8_t mwinWindowStyle;
+
+    enum
+    {
+        mwin_styleResizable = 1,
+        mwin_styleDecorated = 2,
+        mwin_styleAlwaysOnTop = 4,
+    };
+
     // How a window is made. Build it with mwinDefaultWindowDef.
     typedef struct mwinWindowDef
     {
@@ -90,8 +100,7 @@ extern "C"
         mwinSize size;
         mwinWindowMode mode;
         bool visible;
-        bool resizable;
-        bool decorated;
+        mwinWindowStyle style;
     } mwinWindowDef;
 
     // What a window is, as far as the program has been told: the values
@@ -122,10 +131,17 @@ extern "C"
         bool textInput;
         // An input method composes (a preedit that is not empty).
         bool composing;
+        mwinWindowStyle style;
+        // From 0 (clear) to 1 (opaque).
+        float opacity;
+        // Counts the surfaces the window has had: one more at creation and
+        // at each mwin_eventSurfaceRestored.
+        uint32_t surfaceGeneration;
     } mwinWindowState;
 
     /// Returns the default window def: 1,280 by 720 logical units,
-    /// windowed, visible, resizable and decorated, with no title.
+    /// windowed, visible, resizable and decorated, not always on top, with
+    /// no title.
     ///
     /// @return The def, with a valid cookie.
     /// @par Thread safety
@@ -252,6 +268,68 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window,
                                                           bool visible, mwinRequestId* requestOut);
+
+    /// Asks for limits on the logical size the user can give the window;
+    /// a zero width or height leaves that side free.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param minimum     The smallest size, zero or positive and finite.
+    /// @param maximum     The largest size, zero or at least minimum.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for limits
+    ///         that are not finite, negative, or crossed.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestSizeLimits(mwinContext* context,
+                                                             mwinWindowId window, mwinSize minimum,
+                                                             mwinSize maximum,
+                                                             mwinRequestId* requestOut);
+
+    /// Asks the platform to keep the window's width to height at a ratio
+    /// while the user resizes it; 0 by 0 lifts the constraint.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param width       The ratio's width.
+    /// @param height      The ratio's height; both zero or both positive.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a ratio
+    ///         with one side zero.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestAspectRatio(mwinContext* context,
+                                                              mwinWindowId window, uint32_t width,
+                                                              uint32_t height,
+                                                              mwinRequestId* requestOut);
+
+    /// Asks for a style: resizable, decorated, always on top.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param style       mwin_style flags.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for unknown
+    ///         flags.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestStyle(mwinContext* context, mwinWindowId window,
+                                                        mwinWindowStyle style,
+                                                        mwinRequestId* requestOut);
+
+    /// Asks for the window's opacity, where the platform can blend windows;
+    /// others answer mwin_outcomeUnsupported.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param opacity     From 0 to 1.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    ///         opacity outside 0 to 1.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestOpacity(mwinContext* context, mwinWindowId window,
+                                                          float opacity, mwinRequestId* requestOut);
 
     /// Asks for keyboard focus. Platforms may refuse to take focus from
     /// another program, and answer mwin_outcomeDenied.

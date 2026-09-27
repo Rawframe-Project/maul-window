@@ -10,6 +10,7 @@
 #define MAUL_WINDOW_SRC_BACKEND_H
 
 #include "maul-window/input.h"
+#include "maul-window/native.h"
 
 typedef struct mwinBackendOps
 {
@@ -32,6 +33,8 @@ typedef struct mwinBackendOps
     // The current layout's name, as mwinGetKeyboardLayout reports it.
     mwinResult (*keyboardLayout)(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut);
+    // The handles of the surface of the window in a slot, which has one.
+    void (*nativeHandles)(const mwinContext* context, uint32_t slot, mwinNativeHandles* out);
 } mwinBackendOps;
 
 // The loop of a backend that pumps: init, then pump and frame until a

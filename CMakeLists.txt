@@ -66,6 +66,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/context.c
     src/input.c
     src/monitor.c
+    src/native.c
     src/queue.c
     src/system.c
     src/text.c
@@ -93,6 +94,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(monitor)
         maul_add_test(system)
         maul_add_test(ime)
+        maul_add_test(properties)
     endif()
     maul_add_header_tests()
 endif()

@@ -178,6 +178,7 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
     {
     case mwin_eventWindowCreated:
         state->created = true;
+        state->surfaceGeneration += 1;
         break;
     case mwin_eventResized:
         state->size = event->data.size;
@@ -207,8 +208,11 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
         state->visible = event->type == mwin_eventShown;
         break;
     case mwin_eventSurfaceLost:
+        state->surfaceLost = true;
+        break;
     case mwin_eventSurfaceRestored:
-        state->surfaceLost = event->type == mwin_eventSurfaceLost;
+        state->surfaceLost = false;
+        state->surfaceGeneration += 1;
         break;
     case mwin_eventDisplayChanged:
         state->monitor = event->data.monitor;

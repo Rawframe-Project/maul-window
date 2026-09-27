@@ -161,6 +161,10 @@ extern "C"
         mwin_requestCursorShape = 8,
         mwin_requestVirtualKeyboard = 9,
         mwin_requestTextInput = 10,
+        mwin_requestSizeLimits = 11,
+        mwin_requestAspectRatio = 12,
+        mwin_requestStyle = 13,
+        mwin_requestOpacity = 14,
     };
 
     // How a request ended.

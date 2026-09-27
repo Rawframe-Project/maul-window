@@ -18,7 +18,7 @@
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestTextInput + 1)
+#define KINDS (mwin_requestOpacity + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -396,8 +396,16 @@ static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_
     return length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
+static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)
+{
+    (void)context;
+    (void)slot;
+    out->platform = mwin_platformTest;
+}
+
 const mwinBackendOps mwinTestBackend = {
-    Start, Stop, Run, CreateWindow, DestroyWindow, Submit, Now, MapKeyCode, KeyboardLayout,
+    Start,  Stop, Run,        CreateWindow,   DestroyWindow,
+    Submit, Now,  MapKeyCode, KeyboardLayout, NativeHandles,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)

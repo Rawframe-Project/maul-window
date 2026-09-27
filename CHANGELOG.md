@@ -43,6 +43,10 @@ format.
   compositions with their caret, selection and styled segments
   (`mwin_eventImePreedit`), commits as text, and the character keys a
   composition consumes left out with their releases.
+- Window properties: size limits, aspect ratio, style (resizable,
+  decorated, always on top) and opacity requests, and the native handle
+  bundle of each surface generation for a GPU layer
+  (`mwinGetNativeHandles`, `native.h`).
 - The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched

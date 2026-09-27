@@ -2,9 +2,11 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // A small Wayland compositor for the backend's input tests, on
-// libwayland-server in a thread of the test: one output, xdg-shell
-// toplevels that are configured activated at their first commit, and a
-// seat with a keyboard whose keymap is compiled from RMLVO names. The
+// libwayland-server in a thread of the test: xdg-shell toplevels that
+// are configured activated at their first commit; a seat with a
+// keyboard whose keymap is compiled from RMLVO names, a pointer and a
+// touch screen; cursor shapes, pointer constraints and relative motion,
+// with what the client asked for kept in the Cursor state. The
 // test drives the seat through the Server functions, which take the
 // server's lock; the thread dispatches the clients' requests between
 // them.
@@ -12,7 +14,10 @@
 #ifndef MAUL_WINDOW_TEST_WAYLAND_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_SERVER_H
 
+#include <cursor-shape-v1-server-protocol.h>
+#include <pointer-constraints-unstable-v1-server-protocol.h>
 #include <pthread.h>
+#include <relative-pointer-unstable-v1-server-protocol.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -20,6 +25,17 @@
 #include <wayland-server.h>
 #include <xdg-shell-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
+
+// What the client last asked for of the pointer's cursor.
+typedef struct Cursor
+{
+    // wp_cursor_shape_device_v1 shape, 0 before any.
+    uint32_t shape;
+    // set_cursor calls with no surface, which hide it.
+    int hides;
+    bool locked;
+    bool confined;
+} Cursor;
 
 typedef struct Server
 {
@@ -38,6 +54,8 @@ typedef struct Server
     struct wl_resource* keyboard;
     struct wl_resource* pointer;
     struct wl_resource* touch;
+    struct wl_resource* relative;
+    Cursor cursor;
     int32_t repeatRate;
     int32_t repeatDelay;
     uint32_t serial;
@@ -258,11 +276,11 @@ static void ServerSetCursor(struct wl_client* client, struct wl_resource* resour
                             struct wl_resource* surface, int32_t x, int32_t y)
 {
     (void)client;
-    (void)resource;
     (void)serial;
-    (void)surface;
     (void)x;
     (void)y;
+    Server* server = wl_resource_get_user_data(resource);
+    server->cursor.hides += surface == nullptr;
 }
 
 static const struct wl_pointer_interface s_serverPointer = {
@@ -303,6 +321,135 @@ static void ServerBindSeat(struct wl_client* client, void* data, uint32_t versio
     wl_resource_set_implementation(resource, &s_serverSeat, data, nullptr);
     wl_seat_send_capabilities(resource, WL_SEAT_CAPABILITY_KEYBOARD | WL_SEAT_CAPABILITY_POINTER |
                                             WL_SEAT_CAPABILITY_TOUCH);
+}
+
+static void ServerSetShape(struct wl_client* client, struct wl_resource* resource, uint32_t serial,
+                           uint32_t shape)
+{
+    (void)client;
+    (void)serial;
+    Server* server = wl_resource_get_user_data(resource);
+    server->cursor.shape = shape;
+}
+
+static const struct wp_cursor_shape_device_v1_interface s_serverShapeDevice = {
+    .destroy = ServerDestroyResource,
+    .set_shape = ServerSetShape,
+};
+
+static void ServerGetShapeDevice(struct wl_client* client, struct wl_resource* resource,
+                                 uint32_t id, struct wl_resource* pointer)
+{
+    (void)pointer;
+    struct wl_resource* device = wl_resource_create(client, &wp_cursor_shape_device_v1_interface,
+                                                    wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(device, &s_serverShapeDevice,
+                                   wl_resource_get_user_data(resource), nullptr);
+}
+
+static const struct wp_cursor_shape_manager_v1_interface s_serverShapes = {
+    .destroy = ServerDestroyResource,
+    .get_pointer = ServerGetShapeDevice,
+};
+
+static void ServerBindShapes(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &wp_cursor_shape_manager_v1_interface, version, id);
+    wl_resource_set_implementation(resource, &s_serverShapes, data, nullptr);
+}
+
+// A constraint ends when the client destroys it.
+static void ServerEndLock(struct wl_resource* resource)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->cursor.locked = false;
+}
+
+static void ServerEndConfine(struct wl_resource* resource)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->cursor.confined = false;
+}
+
+static const struct zwp_locked_pointer_v1_interface s_serverLocked = {
+    .destroy = ServerDestroyResource,
+};
+
+static const struct zwp_confined_pointer_v1_interface s_serverConfined = {
+    .destroy = ServerDestroyResource,
+};
+
+static void ServerLock(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                       struct wl_resource* surface, struct wl_resource* pointer,
+                       struct wl_resource* region, uint32_t lifetime)
+{
+    (void)surface;
+    (void)pointer;
+    (void)region;
+    (void)lifetime;
+    Server* server = wl_resource_get_user_data(resource);
+    struct wl_resource* locked = wl_resource_create(client, &zwp_locked_pointer_v1_interface,
+                                                    wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(locked, &s_serverLocked, server, ServerEndLock);
+    server->cursor.locked = true;
+    zwp_locked_pointer_v1_send_locked(locked);
+}
+
+static void ServerConfine(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                          struct wl_resource* surface, struct wl_resource* pointer,
+                          struct wl_resource* region, uint32_t lifetime)
+{
+    (void)surface;
+    (void)pointer;
+    (void)region;
+    (void)lifetime;
+    Server* server = wl_resource_get_user_data(resource);
+    struct wl_resource* confined = wl_resource_create(client, &zwp_confined_pointer_v1_interface,
+                                                      wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(confined, &s_serverConfined, server, ServerEndConfine);
+    server->cursor.confined = true;
+    zwp_confined_pointer_v1_send_confined(confined);
+}
+
+static const struct zwp_pointer_constraints_v1_interface s_serverConstraints = {
+    .destroy = ServerDestroyResource,
+    .lock_pointer = ServerLock,
+    .confine_pointer = ServerConfine,
+};
+
+static void ServerBindConstraints(struct wl_client* client, void* data, uint32_t version,
+                                  uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &zwp_pointer_constraints_v1_interface, version, id);
+    wl_resource_set_implementation(resource, &s_serverConstraints, data, nullptr);
+}
+
+static const struct zwp_relative_pointer_v1_interface s_serverRelative = {
+    .destroy = ServerDestroyResource,
+};
+
+static void ServerGetRelative(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                              struct wl_resource* pointer)
+{
+    (void)pointer;
+    Server* server = wl_resource_get_user_data(resource);
+    server->relative = wl_resource_create(client, &zwp_relative_pointer_v1_interface,
+                                          wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(server->relative, &s_serverRelative, server, nullptr);
+}
+
+static const struct zwp_relative_pointer_manager_v1_interface s_serverRelatives = {
+    .destroy = ServerDestroyResource,
+    .get_relative_pointer = ServerGetRelative,
+};
+
+static void ServerBindRelatives(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &zwp_relative_pointer_manager_v1_interface, version, id);
+    wl_resource_set_implementation(resource, &s_serverRelatives, data, nullptr);
 }
 
 static void* ServerRun(void* data)
@@ -366,6 +513,12 @@ static bool ServerStart(Server* server, const char* layout, const char* variant)
     wl_global_create(server->display, &wl_compositor_interface, 4, server, ServerBindCompositor);
     wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
     wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
+    wl_global_create(server->display, &wp_cursor_shape_manager_v1_interface, 1, server,
+                     ServerBindShapes);
+    wl_global_create(server->display, &zwp_pointer_constraints_v1_interface, 1, server,
+                     ServerBindConstraints);
+    wl_global_create(server->display, &zwp_relative_pointer_manager_v1_interface, 1, server,
+                     ServerBindRelatives);
     setenv("WAYLAND_DISPLAY", server->socket, 1);
     pthread_mutex_init(&server->lock, nullptr);
     return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
@@ -493,6 +646,27 @@ static void ServerTouchStroke(Server* server, int32_t id)
     wl_touch_send_frame(server->touch);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
+}
+
+// Relative motion: accelerated by half again, and the raw distance.
+static void ServerRelativeMotion(Server* server, double dx, double dy)
+{
+    pthread_mutex_lock(&server->lock);
+    zwp_relative_pointer_v1_send_relative_motion(
+        server->relative, 0, 0, wl_fixed_from_double(dx * 1.5), wl_fixed_from_double(dy * 1.5),
+        wl_fixed_from_double(dx), wl_fixed_from_double(dy));
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// What the client has asked for of the cursor so far.
+static Cursor ServerCursor(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    Cursor cursor = server->cursor;
+    pthread_mutex_unlock(&server->lock);
+    return cursor;
 }
 
 #endif // MAUL_WINDOW_TEST_WAYLAND_SERVER_H

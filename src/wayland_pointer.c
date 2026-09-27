@@ -5,6 +5,8 @@
 
 #include "wayland_pointer.h"
 
+#include "wayland_cursor.h"
+
 #include <linux/input-event-codes.h>
 #include <math.h>
 
@@ -130,6 +132,7 @@ static void OnEnter(void* data, struct wl_pointer* object, uint32_t serial,
     if (pointer->focus >= 0)
     {
         PostPointer(platform, mwin_eventCursorEntered, 0, mwinWaylandNow());
+        mwinWaylandShowCursor(platform);
     }
 }
 
@@ -315,12 +318,14 @@ void mwinWaylandAddPointer(mwinWaylandPlatform* platform)
     pointer->pointer = mwinWlRequest(&platform->api, platform->seat, WL_SEAT_GET_POINTER,
                                      &wl_pointer_interface, 0);
     mwinWlListen(&platform->api, pointer->pointer, &s_pointerListener, platform);
+    mwinWaylandAttachCursors(platform);
 }
 
 void mwinWaylandRemovePointer(mwinWaylandPlatform* platform)
 {
     if (platform->pointer.pointer != nullptr)
     {
+        mwinWaylandDetachCursors(platform);
         Release(&platform->api, platform->pointer.pointer, WL_POINTER_RELEASE,
                 WL_POINTER_RELEASE_SINCE_VERSION);
     }

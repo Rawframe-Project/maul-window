@@ -48,6 +48,12 @@ typedef struct mwinWaylandWindow
     bool minimized;
     // A mode request waits for the compositor's next configure, or -1.
     int32_t modeRequest;
+    // The cursor the program asked for over the window, and the pointer
+    // constraint its mode needs.
+    mwinCursorMode cursorMode;
+    mwinCursorShape cursorShape;
+    struct zwp_locked_pointer_v1* locked;
+    struct zwp_confined_pointer_v1* confined;
 } mwinWaylandWindow;
 
 // An output the compositor announced, and the monitor slot it fills, or
@@ -116,7 +122,21 @@ typedef struct mwinWaylandPointer
     uint64_t clickNs;
     mwinPosition clickPosition;
     uint8_t clicks;
+    // The pointer's cursor shape device and relative motion, where the
+    // compositor has them.
+    struct wp_cursor_shape_device_v1* shapeDevice;
+    struct zwp_relative_pointer_v1* relative;
 } mwinWaylandPointer;
+
+// Cursor images from the cursor theme, for a compositor without cursor
+// shapes: the theme at the scale it was loaded for, and the surface the
+// image is shown on.
+typedef struct mwinWaylandCursorTheme
+{
+    struct wl_cursor_theme* theme;
+    int32_t scale;
+    struct wl_surface* surface;
+} mwinWaylandCursorTheme;
 
 // The most touches followed at once.
 #define MWIN_WAYLAND_TOUCHES 16
@@ -146,6 +166,11 @@ struct mwinWaylandPlatform
     struct zxdg_decoration_manager_v1* decorations;
     struct wp_fractional_scale_manager_v1* fractionalScale;
     struct wp_viewporter* viewporter;
+    struct wp_cursor_shape_manager_v1* cursorShapes;
+    struct zwp_pointer_constraints_v1* constraints;
+    struct zwp_relative_pointer_manager_v1* relativePointers;
+    struct wl_shm* shm;
+    mwinWaylandCursorTheme cursorTheme;
     // The first seat, its registry name, and its keyboard. libxkbcommon
     // loads with the context; without it there is no keyboard.
     struct wl_seat* seat;

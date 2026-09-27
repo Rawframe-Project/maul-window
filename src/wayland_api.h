@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// libwayland-client, opened at run time (W7), and the protocols the
-// backend speaks. The functions are reached through a table each context
-// loads for itself, so the library keeps no process-wide state. The
+// libwayland-client and libwayland-cursor, opened at run time (W7), and
+// the protocols the backend speaks. The functions are reached through a
+// table each context loads for itself, so the library keeps no
+// process-wide state. The
 // protocol headers' inline request wrappers call libwayland by name,
 // which the library never links: they are poisoned below, and requests
 // go through mwinWlRequest and the table instead.
@@ -15,7 +16,12 @@
 #include <wayland-names.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
+#include <wayland-cursor.h>
+#include <cursor-shape-v1-protocol.h>
 #include <fractional-scale-v1-protocol.h>
+#include <pointer-constraints-unstable-v1-protocol.h>
+#include <relative-pointer-unstable-v1-protocol.h>
+#include <tablet-unstable-v2-protocol.h>
 #include <viewporter-protocol.h>
 #include <xdg-decoration-unstable-v1-protocol.h>
 #include <xdg-shell-protocol.h>
@@ -45,10 +51,18 @@ typedef struct mwinWaylandApi
     int (*proxyAddListener)(struct wl_proxy* proxy, void (**implementation)(void), void* data);
     uint32_t (*proxyGetVersion)(struct wl_proxy* proxy);
     void (*proxyDestroy)(struct wl_proxy* proxy);
+    // libwayland-cursor, for compositors without cursor shapes; its
+    // library is NULL where it is missing.
+    void* cursorLibrary;
+    typeof(wl_cursor_theme_load)* cursorThemeLoad;
+    typeof(wl_cursor_theme_destroy)* cursorThemeDestroy;
+    typeof(wl_cursor_theme_get_cursor)* cursorThemeGetCursor;
+    typeof(wl_cursor_image_get_buffer)* cursorImageGetBuffer;
 } mwinWaylandApi;
 
 // Opens libwayland-client and fills the table: mwin_errorUnsupported
-// when the library or a function is missing.
+// when the library or a function is missing. libwayland-cursor is
+// opened too when it is there.
 mwinResult mwinLoadWayland(mwinWaylandApi* api);
 
 // Closes what mwinLoadWayland opened.

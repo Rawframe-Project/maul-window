@@ -91,7 +91,8 @@ extern "C"
         mwin_eventButtonUp = 24,
         // The wheel turned (data.wheel).
         mwin_eventWheel = 25,
-        // The pointing device moved, unscaled (data.delta).
+        // The pointing device moved while the window holds the cursor
+        // captured, unscaled (data.delta).
         mwin_eventRawPointerDelta = 26,
         // A touch began, moved, ended or was taken by the system
         // (data.touch).

@@ -60,4 +60,6 @@ format.
   evdev, their meaning in the current layout, text with compose
   sequences, modifiers, key repeat, and layout changes; the pointer
   (motion by pointer frame, buttons with quick clicks counted, the
-  wheel in high-resolution steps) and touch.
+  wheel in high-resolution steps) and touch; cursor shapes through the
+  cursor shape protocol or the cursor theme, hidden, captured (a
+  locked pointer with raw deltas) and confined cursors.

@@ -7,8 +7,10 @@
 // of layout group with its record and new meanings, and the reset when
 // focus goes while a key is held. The pointer: entering, the last motion
 // of a frame, quick clicks counted, high-resolution wheel steps counted
-// once, and leaving; and a touch stroke. Skipped (exit status 77)
-// without XDG_RUNTIME_DIR or xkb data.
+// once, and leaving; and a touch stroke. The cursor: a shape through
+// the cursor shape protocol, hiding, capture as a locked pointer with
+// raw relative motion, and release. Skipped (exit status 77) without
+// XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_server.h"
@@ -36,6 +38,11 @@ typedef enum Phase
     phaseClicks,
     phaseWheel,
     phaseTouch,
+    phaseShape,
+    phaseHidden,
+    phaseCaptured,
+    phaseRaw,
+    phaseVisible,
     phasePointerLeave,
     phaseDone,
 } Phase;
@@ -118,6 +125,22 @@ static bool TextIs(const Program* program, const char* text)
     return program->textLength == strlen(text) && memcmp(program->text, text, strlen(text)) == 0;
 }
 
+// Whether the compositor has seen what a cursor phase asked for.
+static bool CursorReady(Phase phase, Cursor cursor)
+{
+    switch (phase)
+    {
+    case phaseShape:
+        return cursor.shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT;
+    case phaseHidden:
+        return cursor.hides > 0;
+    case phaseCaptured:
+        return cursor.locked;
+    default:
+        return !cursor.locked;
+    }
+}
+
 // Whether what the phase waits for has come.
 static bool Ready(const Program* program)
 {
@@ -145,6 +168,14 @@ static bool Ready(const Program* program)
         return Turned(program) <= -1.0f;
     case phaseTouch:
         return First(program, mwin_eventTouchUp) != nullptr;
+    case phaseShape:
+    case phaseHidden:
+    case phaseCaptured:
+    case phaseVisible:
+        return First(program, mwin_eventRequestCompleted) != nullptr &&
+               CursorReady(program->phase, ServerCursor(program->server));
+    case phaseRaw:
+        return First(program, mwin_eventRawPointerDelta) != nullptr;
     case phasePointerLeave:
         return First(program, mwin_eventCursorLeft) != nullptr;
     default:
@@ -158,8 +189,50 @@ static void Press(Server* server, uint32_t evdev)
     ServerKey(server, evdev, false);
 }
 
+// The cursor's phases.
+static void AdvanceCursor(Program* program, mwinContext* context)
+{
+    const mwinEvent* completed = First(program, mwin_eventRequestCompleted);
+    bool done = completed != nullptr && completed->data.completion.outcome == mwin_outcomeDone;
+    switch (program->phase)
+    {
+    case phaseShape:
+        CHECK(done, "the shape through the cursor shape protocol");
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
+                  mwin_success,
+              "hide");
+        break;
+    case phaseHidden:
+        CHECK(done, "hidden with no cursor surface");
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
+                  mwin_success,
+              "capture");
+        break;
+    case phaseCaptured:
+        CHECK(done, "captured as a locked pointer");
+        ServerRelativeMotion(program->server, 3.0, -2.0);
+        break;
+    case phaseRaw:
+    {
+        const mwinEvent* delta = First(program, mwin_eventRawPointerDelta);
+        CHECK(delta->data.delta.x == 3.0f && delta->data.delta.y == -2.0f,
+              "raw deltas, before acceleration");
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+                  mwin_success,
+              "release");
+        break;
+    }
+    case phaseVisible:
+        CHECK(done, "released: the lock goes");
+        ServerPointerLeave(program->server);
+        break;
+    default:
+        break;
+    }
+}
+
 // The pointer's and the touch screen's phases.
-static void AdvancePointer(Program* program)
+static void AdvancePointer(Program* program, mwinContext* context)
 {
     Server* server = program->server;
     const mwinEvent* entered = First(program, mwin_eventCursorEntered);
@@ -214,10 +287,13 @@ static void AdvancePointer(Program* program)
                   down->data.touch.position.y == 2.0f && motion->data.touch.position.x == 3.0f &&
                   up->data.touch.id == 7 && down->data.touch.pressure == -1.0f,
               "a touch goes down, moves and lifts");
-        ServerPointerLeave(server);
+        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                  mwin_success,
+              "a text cursor");
         break;
     }
     default:
+        AdvanceCursor(program, context);
         break;
     }
 }
@@ -284,7 +360,7 @@ static void Advance(Program* program, mwinContext* context)
         ServerPointerEnter(server, 10.0, 20.0);
         break;
     default:
-        AdvancePointer(program);
+        AdvancePointer(program, context);
         break;
     }
     program->phase += 1;

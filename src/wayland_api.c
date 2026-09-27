@@ -50,11 +50,30 @@ mwinResult mwinLoadWayland(mwinWaylandApi* api)
         mwinUnloadWayland(api);
         return mwin_errorUnsupported;
     }
+    api->cursorLibrary = dlopen("libwayland-cursor.so.0", RTLD_NOW | RTLD_LOCAL);
+    bool cursors = api->cursorLibrary != nullptr &&
+                   Find(api->cursorLibrary, "wl_cursor_theme_load", (void*)&api->cursorThemeLoad,
+                        sizeof(api->cursorThemeLoad)) &&
+                   Find(api->cursorLibrary, "wl_cursor_theme_destroy",
+                        (void*)&api->cursorThemeDestroy, sizeof(api->cursorThemeDestroy)) &&
+                   Find(api->cursorLibrary, "wl_cursor_theme_get_cursor",
+                        (void*)&api->cursorThemeGetCursor, sizeof(api->cursorThemeGetCursor)) &&
+                   Find(api->cursorLibrary, "wl_cursor_image_get_buffer",
+                        (void*)&api->cursorImageGetBuffer, sizeof(api->cursorImageGetBuffer));
+    if (!cursors && api->cursorLibrary != nullptr)
+    {
+        dlclose(api->cursorLibrary);
+        api->cursorLibrary = nullptr;
+    }
     return mwin_success;
 }
 
 void mwinUnloadWayland(mwinWaylandApi* api)
 {
+    if (api->cursorLibrary != nullptr)
+    {
+        dlclose(api->cursorLibrary);
+    }
     if (api->library != nullptr)
     {
         dlclose(api->library);

@@ -17,6 +17,7 @@
 #include "core.h"
 #include "wayland.h"
 #include "wayland_api.h"
+#include "wayland_cursor.h"
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_seat.h"
@@ -32,6 +33,10 @@
 #define DECORATION_VERSION       1
 #define FRACTIONAL_SCALE_VERSION 1
 #define VIEWPORTER_VERSION       1
+#define CURSOR_SHAPE_VERSION     1
+#define CONSTRAINTS_VERSION      1
+#define RELATIVE_VERSION         1
+#define SHM_VERSION              1
 
 static mwinWaylandPlatform* PlatformOf(const mwinContext* context)
 {
@@ -96,6 +101,25 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
         platform->viewporter =
             Bind(platform, name, &wp_viewporter_interface, version, VIEWPORTER_VERSION);
     }
+    else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0)
+    {
+        platform->cursorShapes = Bind(platform, name, &wp_cursor_shape_manager_v1_interface,
+                                      version, CURSOR_SHAPE_VERSION);
+    }
+    else if (strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0)
+    {
+        platform->constraints = Bind(platform, name, &zwp_pointer_constraints_v1_interface, version,
+                                     CONSTRAINTS_VERSION);
+    }
+    else if (strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0)
+    {
+        platform->relativePointers = Bind(
+            platform, name, &zwp_relative_pointer_manager_v1_interface, version, RELATIVE_VERSION);
+    }
+    else if (strcmp(interface, wl_shm_interface.name) == 0 && platform->shm == nullptr)
+    {
+        platform->shm = Bind(platform, name, &wl_shm_interface, version, SHM_VERSION);
+    }
     else if (strcmp(interface, wl_output_interface.name) == 0)
     {
         mwinWaylandBindOutput(platform, name, version);
@@ -140,7 +164,12 @@ static void Disconnect(mwinWaylandPlatform* platform)
     if (platform->display != nullptr)
     {
         mwinWaylandReleaseSeat(platform);
+        mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
+        DestroyGlobal(api, platform->shm, -1);
+        DestroyGlobal(api, platform->relativePointers, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
+        DestroyGlobal(api, platform->constraints, ZWP_POINTER_CONSTRAINTS_V1_DESTROY);
+        DestroyGlobal(api, platform->cursorShapes, WP_CURSOR_SHAPE_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->viewporter, WP_VIEWPORTER_DESTROY);
         DestroyGlobal(api, platform->fractionalScale, WP_FRACTIONAL_SCALE_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->decorations, ZXDG_DECORATION_MANAGER_V1_DESTROY);

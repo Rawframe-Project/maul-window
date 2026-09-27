@@ -67,6 +67,17 @@ generated the same protocol code would define its interfaces twice.
   counts as one more click. Touch points are followed by id, sixteen
   at once, each on the window it began on; the seat's cancel cancels
   them all.
+- **Cursors:** each window keeps the cursor mode and shape the program
+  asked for, and the pointer shows them when it enters the window.
+  Shapes use the cursor shape protocol, or else the cursor theme
+  through `libwayland-cursor` (opened when present; `XCURSOR_THEME`,
+  `XCURSOR_SIZE`), whose animated cursors show their first image. A
+  captured cursor is a locked pointer, and raw deltas are the
+  relative pointer's motion before acceleration, posted only while
+  the window under the pointer holds it captured; a confined cursor is
+  a confined pointer. Constraints are persistent, so the compositor
+  applies them again whenever the pointer returns. A mode or shape the
+  compositor's protocols cannot give is answered unsupported.
 - **The pump** never waits: it flushes, reads what has arrived and
   dispatches it. A failed connection stops the loop, and `mwinRun`
   returns `mwin_errorPlatform`.
@@ -80,6 +91,5 @@ and `libxkbcommon`, and only in a Wayland session. The
 integration test runs against a headless weston and is skipped without
 `WAYLAND_DISPLAY`; the input tests run against a small compositor of
 their own on `libwayland-server` (`test/wayland_server.h`), since a
-headless weston has no seat. Cursor shapes and modes, text input
-and a client-side frame for compositors without server-side
+headless weston has no seat. Text input and a client-side frame for compositors without server-side
 decorations follow in their own changes.

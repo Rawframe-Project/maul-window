@@ -2,10 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The context: its defs, its one block of memory, and mwinRun. The block
-// holds the context, its critical and global rings, the monitor slots,
-// the window slots,
-// then per window a record ring per class, its text storage, its request
-// slots and its two title buffers.
+// holds the context, its critical and global rings, the locales, the
+// monitor slots, the window slots, then per window a record ring per
+// class, its text storage, its request slots and its two title buffers.
 
 #include "maul-window/context.h"
 
@@ -18,10 +17,14 @@
 #define CONTEXT_DEF_COOKIE 0x6D776378u
 #define APP_DEF_COOKIE     0x6D776170u
 
-// The notification classes that coalesce, plus created and destroyed:
-// with a window's completions, the most notifications that can wait for
-// it.
-#define FIXED_RECORDS 12
+// The notification classes of a window that coalesce, plus created and
+// destroyed: with its completions, the most notifications that can wait
+// for it.
+#define FIXED_RECORDS 15
+
+// The classes of the context's own notifications that coalesce, beyond
+// three records per monitor (its addition, a change, its removal).
+#define GLOBAL_CLASSES 4
 
 mwinContextDef mwinDefaultContextDef(void)
 {
@@ -34,6 +37,7 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.inputPerWindow = 256;
     def.limits.textBytesPerWindow = 4096;
     def.limits.monitors = 16;
+    def.limits.localeBytes = 256;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -54,7 +58,7 @@ static bool IsDefValid(const mwinAppDef* def)
            context->cookie == CONTEXT_DEF_COOKIE && mwinIsAllocatorValid(&context->allocator) &&
            limits->windows > 0 && limits->requestsPerWindow > 0 && limits->titleBytes > 0 &&
            limits->inputPerWindow > 0 && limits->textBytesPerWindow > 0 && limits->monitors > 0 &&
-           limits->notificationsPerWindow >= 3 * limits->monitors &&
+           limits->notificationsPerWindow >= 3 * limits->monitors + GLOBAL_CLASSES &&
            limits->notificationsPerWindow >= limits->requestsPerWindow + FIXED_RECORDS &&
            context->backend <= mwin_backendTest;
 }
@@ -142,7 +146,7 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
 {
     const mwinLimits* limits = &def->context.limits;
     size_t rings = RingBytes(CriticalRecords(limits)) + RingBytes(limits->notificationsPerWindow);
-    size_t header = RoundUp(sizeof(mwinContext)) + rings +
+    size_t header = RoundUp(sizeof(mwinContext)) + rings + RoundUp(limits->localeBytes) +
                     RoundUp(limits->monitors * sizeof(mwinMonitor)) +
                     RoundUp(limits->windows * sizeof(mwinWindow));
     size_t size = header + limits->windows * WindowBytes(limits);
@@ -160,6 +164,9 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     unsigned char* storage = block + RoundUp(sizeof(mwinContext));
     storage = LayRing(&context->critical, storage, CriticalRecords(limits));
     storage = LayRing(&context->global, storage, limits->notificationsPerWindow);
+    context->locales = (char*)storage;
+    storage += RoundUp(limits->localeBytes);
+    context->facts.textScale = 1.0f;
     context->monitors = (mwinMonitor*)storage;
     storage += RoundUp(limits->monitors * sizeof(mwinMonitor));
     context->windows = (mwinWindow*)storage;

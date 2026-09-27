@@ -34,6 +34,11 @@ format.
   facts including HDR luminances and the SDR white level
   (`mwinGetMonitors`, `mwinGetMonitorInfo`), and the window's monitor
   with `mwin_eventDisplayChanged`.
+- System facts: the theme, accent color, reduced motion, text scale
+  and power (`mwinGetSystemFacts`), the preferred locales
+  (`mwinGetPreferredLocales`), their change records and the keyboard
+  layout's; a window's safe area, and the on-screen keyboard with
+  `mwinRequestVirtualKeyboard` and the part it covers.
 - The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched

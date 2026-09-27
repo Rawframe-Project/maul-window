@@ -9,4 +9,5 @@ core: backend
 input: core
 monitor: core
 queue: core
+system: core
 window: core

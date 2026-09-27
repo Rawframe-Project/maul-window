@@ -7,6 +7,27 @@
 
 #include "core.h"
 
+mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window, bool visible,
+                                      mwinInputPurpose purpose, mwinRequestId* requestOut)
+{
+    if (purpose > mwin_purposeUrl)
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status =
+        mwinBeginRequest(context, window, mwin_requestVirtualKeyboard, &slot, &request);
+    if (status == mwin_success)
+    {
+        // The purpose in the low bits, the high bit set to show.
+        context->windows[slot].requests[request].value.code =
+            (uint8_t)(purpose | (visible ? 0x80u : 0u));
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
 mwinResult mwinRequestCursorMode(mwinContext* context, mwinWindowId window, mwinCursorMode mode,
                                  mwinRequestId* requestOut)
 {

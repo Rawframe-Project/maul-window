@@ -119,6 +119,20 @@ extern "C"
         mwin_eventMonitorChanged = 44,
         // The window moved to another monitor (data.monitor).
         mwin_eventDisplayChanged = 45,
+        // The window's safe area changed (data.insets).
+        mwin_eventSafeAreaChanged = 46,
+        // An on-screen keyboard now covers data.rect of the window.
+        mwin_eventVirtualKeyboardChanged = 47,
+        // The system's look changed: its theme, accent color, reduced
+        // motion or text scale (mwinGetSystemFacts).
+        mwin_eventThemeChanged = 48,
+        // The power source or power mode changed (mwinGetSystemFacts).
+        mwin_eventPowerChanged = 49,
+        // The user's preferred locales changed (mwinGetPreferredLocales).
+        mwin_eventLocaleChanged = 50,
+        // The keyboard layout changed (mwinGetKeyboardLayout,
+        // mwinMapKeyCode).
+        mwin_eventKeyboardLayoutChanged = 51,
     };
 
     // The kind of a request.
@@ -135,6 +149,7 @@ extern "C"
         mwin_requestFocus = 6,
         mwin_requestCursorMode = 7,
         mwin_requestCursorShape = 8,
+        mwin_requestVirtualKeyboard = 9,
     };
 
     // How a request ended.
@@ -282,6 +297,8 @@ extern "C"
             mwinTouchEvent touch;
             mwinPenEvent pen;
             mwinMonitorId monitor;
+            mwinInsets insets;
+            mwinRect rect;
         } data;
     } mwinEvent;
 

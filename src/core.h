@@ -18,6 +18,7 @@
 
 #include "maul-window/event.h"
 #include "maul-window/monitor.h"
+#include "maul-window/system.h"
 
 // The classes of records, each with its own storage per window.
 enum
@@ -127,6 +128,9 @@ struct mwinContext
     // Slots like the windows': free, live, or removed with its record
     // still waiting.
     mwinMonitor* monitors;
+    mwinSystemFacts facts;
+    char* locales;
+    uint16_t localeLength;
     // Lifecycle and surface notifications, which come before all others,
     // and the context's own notifications.
     mwinRing critical;
@@ -166,6 +170,14 @@ void mwinChangeMonitor(mwinContext* context, uint32_t slot, const mwinMonitorInf
 // A monitor was disconnected; its slot is free once the record is
 // drained.
 void mwinRemoveMonitor(mwinContext* context, uint32_t slot, uint64_t timeNs);
+
+// The system's facts as the platform reports them; changes post their
+// notifications.
+void mwinSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts, uint64_t timeNs);
+
+// The preferred locales as the platform reports them; false for a list
+// that is not UTF-8 or past the localeBytes limit.
+bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, uint64_t timeNs);
 
 // The id of the monitor in a slot, and the slot of a live id or -1.
 mwinMonitorId mwinMonitorIdOf(const mwinContext* context, uint32_t slot);

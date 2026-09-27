@@ -61,6 +61,18 @@ static int CoalesceClass(mwinEventType type)
         return 13;
     case mwin_eventDisplayChanged:
         return 14;
+    case mwin_eventSafeAreaChanged:
+        return 15;
+    case mwin_eventVirtualKeyboardChanged:
+        return 16;
+    case mwin_eventThemeChanged:
+        return 17;
+    case mwin_eventPowerChanged:
+        return 18;
+    case mwin_eventLocaleChanged:
+        return 19;
+    case mwin_eventKeyboardLayoutChanged:
+        return 20;
     default:
         return 0;
     }
@@ -195,6 +207,12 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
         break;
     case mwin_eventDisplayChanged:
         state->monitor = event->data.monitor;
+        break;
+    case mwin_eventSafeAreaChanged:
+        state->safeArea = event->data.insets;
+        break;
+    case mwin_eventVirtualKeyboardChanged:
+        state->virtualKeyboard = event->data.rect;
         break;
     default:
         break;

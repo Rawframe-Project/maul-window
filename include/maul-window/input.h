@@ -229,6 +229,36 @@ extern "C"
         mwin_shapeProgress = 11,
     };
 
+    // What a text field takes, which picks an on-screen keyboard's layout.
+    typedef uint8_t mwinInputPurpose;
+
+    enum
+    {
+        mwin_purposeText = 0,
+        mwin_purposeNumber = 1,
+        mwin_purposeEmail = 2,
+        mwin_purposePassword = 3,
+        mwin_purposeUrl = 4,
+    };
+
+    /// Asks to show or hide the on-screen keyboard over a window, where
+    /// the platform has one; others answer mwin_outcomeUnsupported.
+    /// mwin_eventVirtualKeyboardChanged reports the part it covers.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param visible     true to show it, false to hide it.
+    /// @param purpose     What the text field takes.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    ///         unknown purpose.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestVirtualKeyboard(mwinContext* context,
+                                                                  mwinWindowId window, bool visible,
+                                                                  mwinInputPurpose purpose,
+                                                                  mwinRequestId* requestOut);
+
     /// Asks for a cursor mode over a window.
     ///
     /// @param context     The context.

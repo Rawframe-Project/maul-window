@@ -48,6 +48,24 @@ extern "C"
         float y;
     } mwinPosition;
 
+    // Distances in logical units from each edge of the window's area.
+    typedef struct mwinInsets
+    {
+        float top;
+        float right;
+        float bottom;
+        float left;
+    } mwinInsets;
+
+    // A rectangle in the window's logical units.
+    typedef struct mwinRect
+    {
+        float x;
+        float y;
+        float width;
+        float height;
+    } mwinRect;
+
     // How a window occupies the screen. There is no exclusive fullscreen.
     typedef uint8_t mwinWindowMode;
 
@@ -95,6 +113,11 @@ extern "C"
         // The monitor that shows most of the window, null before the
         // platform says.
         mwinMonitorId monitor;
+        // What notches, rounded corners and overscan keep from view.
+        mwinInsets safeArea;
+        // The part of the window an on-screen keyboard covers, empty while
+        // none shows.
+        mwinRect virtualKeyboard;
     } mwinWindowState;
 
     /// Returns the default window def: 1,280 by 720 logical units,

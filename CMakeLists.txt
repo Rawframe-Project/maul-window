@@ -67,6 +67,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/input.c
     src/monitor.c
     src/queue.c
+    src/system.c
     src/window.c)
 if(MAUL_WINDOW_TEST_BACKEND)
     target_sources(maul-window PRIVATE src/backend_test.c)
@@ -89,6 +90,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(input)
         maul_add_test(lifecycle)
         maul_add_test(monitor)
+        maul_add_test(system)
     endif()
     maul_add_header_tests()
 endif()

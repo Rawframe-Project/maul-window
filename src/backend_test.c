@@ -18,7 +18,7 @@
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestCursorShape + 1)
+#define KINDS (mwin_requestVirtualKeyboard + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -257,6 +257,20 @@ static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* req
     case mwin_requestFocus:
         Focus(context, slot);
         break;
+    case mwin_requestVirtualKeyboard:
+    {
+        // The keyboard covers the lower two fifths of the window.
+        mwinSize size = window->state.size;
+        mwinEvent event = {0};
+        event.type = mwin_eventVirtualKeyboardChanged;
+        event.timeNs = Now(context);
+        if ((request->value.code & 0x80u) != 0)
+        {
+            event.data.rect = (mwinRect){0.0f, size.height * 0.6f, size.width, size.height * 0.4f};
+        }
+        mwinPost(context, slot, &event);
+        break;
+    }
     default:
         break; // the cursor changes on screen, with nothing to report
     }
@@ -267,13 +281,19 @@ static bool IsLifecycle(mwinEventType type)
     return type >= mwin_eventSuspending && type <= mwin_eventResumed;
 }
 
+// Reports about the application rather than a window.
+static bool IsGlobal(mwinEventType type)
+{
+    return IsLifecycle(type) || type == mwin_eventKeyboardLayoutChanged;
+}
+
 static void Pump(mwinContext* context)
 {
     TestPlatform* platform = PlatformOf(context);
     for (uint32_t i = 0; i < platform->reportCount; i++)
     {
         const mwinEvent* report = &platform->reports[i];
-        if (IsLifecycle(report->type))
+        if (IsGlobal(report->type))
         {
             mwinPostGlobal(context, report);
         }
@@ -401,7 +421,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     if (context == nullptr || event == nullptr || event->type == mwin_eventNone ||
         event->type == mwin_eventWindowCreated || event->type == mwin_eventWindowDestroyed ||
         event->type == mwin_eventRequestCompleted || event->type == mwin_eventInputStateReset ||
-        event->type > mwin_eventDisplayChanged)
+        event->type > mwin_eventKeyboardLayoutChanged)
     {
         return mwin_errorInvalid;
     }
@@ -410,11 +430,12 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorUnsupported;
     }
-    if (event->type >= mwin_eventMonitorAdded && event->type <= mwin_eventMonitorChanged)
+    if ((event->type >= mwin_eventMonitorAdded && event->type <= mwin_eventMonitorChanged) ||
+        (event->type >= mwin_eventThemeChanged && event->type <= mwin_eventLocaleChanged))
     {
-        return mwin_errorInvalid; // hotplug goes through mwinTestAddMonitor and the others
+        return mwin_errorInvalid; // these go through the mwinTest functions that set them
     }
-    if (!IsLifecycle(event->type) && mwinFindWindow(context, event->window) == nullptr)
+    if (!IsGlobal(event->type) && mwinFindWindow(context, event->window) == nullptr)
     {
         return mwin_errorStale;
     }
@@ -562,4 +583,36 @@ mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
     }
     mwinRemoveMonitor(context, (uint32_t)slot, Now(context));
     return mwin_success;
+}
+
+mwinResult mwinTestSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts)
+{
+    if (context == nullptr || facts == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    mwinSetSystemFacts(context, facts, Now(context));
+    return mwin_success;
+}
+
+mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t length)
+{
+    if (context == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    if (length > context->limits.localeBytes)
+    {
+        return mwin_errorCapacity;
+    }
+    return mwinSetLocales(context, locales, length, Now(context)) ? mwin_success
+                                                                  : mwin_errorInvalid;
 }

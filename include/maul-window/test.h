@@ -13,6 +13,7 @@
 
 #include "maul-window/event.h"
 #include "maul-window/monitor.h"
+#include "maul-window/system.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -152,6 +153,35 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestRemoveMonitor(mwinContext* context,
                                                              mwinMonitorId monitor);
+
+    /// Sets the system's preferences and facts, at once; a change of the
+    /// look posts mwin_eventThemeChanged, of the power
+    /// mwin_eventPowerChanged.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param facts    The facts.
+    /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetSystemFacts(mwinContext* context,
+                                                              const mwinSystemFacts* facts);
+
+    /// Sets the user's preferred locales, at once; a change posts
+    /// mwin_eventLocaleChanged.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param locales  BCP 47 tags separated by commas, UTF-8. May be NULL
+    ///                 when length is 0.
+    /// @param length   The number of bytes.
+    /// @return `mwin_success`; `mwin_errorCapacity` past the localeBytes
+    ///         limit; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL context or a list
+    ///         that is not UTF-8.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetLocales(mwinContext* context, const char* locales,
+                                                          size_t length);
 
 #ifdef __cplusplus
 }

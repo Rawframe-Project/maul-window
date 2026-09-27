@@ -44,4 +44,7 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
 // The test backend, in builds with MAUL_WINDOW_TEST_BACKEND.
 extern const mwinBackendOps mwinTestBackend;
 
+// The Wayland backend, in builds with MAUL_WINDOW_WAYLAND.
+extern const mwinBackendOps mwinWaylandBackend;
+
 #endif // MAUL_WINDOW_SRC_BACKEND_H

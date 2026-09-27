@@ -12,6 +12,7 @@
 #include "core.h"
 
 #include <stdalign.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CONTEXT_DEF_COOKIE 0x6D776378u
@@ -136,6 +137,14 @@ static const mwinBackendOps* FindBackend(mwinBackendKind kind)
     if (kind == mwin_backendTest)
     {
         return &mwinTestBackend;
+    }
+#endif
+#ifdef MAUL_WINDOW_WAYLAND
+    // A Wayland session names its display.
+    const char* display = getenv("WAYLAND_DISPLAY");
+    if (kind == mwin_backendNative && display != nullptr && display[0] != '\0')
+    {
+        return &mwinWaylandBackend;
     }
 #endif
     (void)kind;

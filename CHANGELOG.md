@@ -51,3 +51,9 @@ format.
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched
   (mwin-0003).
+- The Wayland backend (`MAUL_WINDOW_WAYLAND`, on by default on Linux),
+  the native backend when `WAYLAND_DISPLAY` is set: `libwayland-client`
+  opened at run time, xdg-shell toplevels, server-side decorations,
+  fractional scaling through the viewporter, outputs as monitors, and
+  the title, size, size limit and mode requests (mwin-0005). Input
+  follows.

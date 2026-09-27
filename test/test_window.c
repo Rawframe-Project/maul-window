@@ -416,7 +416,13 @@ static void TestRunAndMemory(void)
     app.init = Init;
     app.frame = Frame;
     app.user = &program;
-    CHECK(mwinRun(&app) == mwin_errorUnsupported, "no native backend in this build");
+    // A native backend runs init, which refuses here; without one, or
+    // without a window system to reach, the run is refused.
+    program = (Program){.step = CreationStep, .initStatus = mwin_errorState};
+    mwinResult native = mwinRun(&app);
+    CHECK(native == mwin_errorState || native == mwin_errorUnsupported ||
+              native == mwin_errorPlatform,
+          "the native backend, or none");
 }
 
 int main(void)

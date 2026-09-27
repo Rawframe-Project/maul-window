@@ -9,3 +9,4 @@ are listed in [README.md](README.md).
 | [mwin-0002](mwin-0002-window-contract.md) | The window contract | Accepted |
 | [mwin-0003](mwin-0003-maul-unicode-dependency.md) | Maul Unicode as a dependency | Accepted |
 | [mwin-0004](mwin-0004-input-records.md) | Input records, their storage and their limits | Accepted |
+| [mwin-0005](mwin-0005-wayland-backend.md) | The Wayland backend | Accepted |

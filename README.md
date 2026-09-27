@@ -22,15 +22,19 @@ drains; no library thread runs, and no callback delivers an event.
 
 ## Status
 
-Not released. The design is decided and the skeleton builds; the
-contract, a headless test backend and the platform backends follow.
-Backends are planned for Win32, Wayland, X11 and the web first, then
-Android, macOS and iOS.
+Not released. The contract and a headless test backend are in place,
+and the Wayland backend makes windows; its input and the other
+backends follow. Backends are planned for Win32, Wayland, X11 and the
+web first, then Android, macOS and iOS.
 
 ## Building
 
 Requirements: CMake 3.25 and GCC 14 or Clang 19 or newer; on Windows,
 `clang-cl` (the Visual Studio component "C++ Clang tools for Windows").
+On Linux the Wayland backend also needs `wayland-scanner` and the
+development files of `wayland-client` 1.22 and `wayland-protocols`
+1.32 (`libwayland-dev` and `wayland-protocols` on Debian and Ubuntu),
+or `-DMAUL_WINDOW_WAYLAND=OFF`.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release

@@ -70,6 +70,22 @@ named limit (section 11).
   read answers from its own text, since its own source would have to
   serve it through the same loop. Drag and drop offers are destroyed
   until drag and drop is taken.
+- **X11:** the `CLIPBOARD` selection, owned and received by a hidden
+  input-only window the context makes at the clipboard's first use, so
+  the selection outlives any of the program's windows. A write takes
+  the selection quoting the time of the latest key or button event
+  (ICCCM asks for an event's time, not CurrentTime) and asks the X
+  server who owns it, so a refusal fails the request. It answers
+  `TARGETS`, `TIMESTAMP`, `UTF8_STRING` and `text/plain;charset=utf-8`,
+  refuses the rest, and sends text past 64 KiB in pieces (INCR) to up
+  to four readers at once, each dropped after five seconds without
+  taking a piece. A read converts the selection to `UTF8_STRING` into
+  a property of the hidden window and takes it whole or in pieces,
+  asking for one word past the room left so text too large is told
+  without taking it all; no owner, or one without UTF-8 text, reads as
+  empty, and five seconds without an answer fail the read. As on
+  Wayland, a read while one is under way joins it, and while the
+  program owns the selection a read answers from its own text.
 - **Web:** `navigator.clipboard.writeText` and `readText`, the request
   answered when the promise settles: `NotAllowedError` (no focus, or
   the user said no) is `mwin_outcomeDenied`, any other rejection

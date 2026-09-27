@@ -37,6 +37,12 @@ enum
     mwin_atomNetActiveWindow,
     mwin_atomNetSupportingWmCheck,
     mwin_atomMotifWmHints,
+    mwin_atomClipboard,
+    mwin_atomTargets,
+    mwin_atomTimestamp,
+    mwin_atomIncr,
+    mwin_atomTextPlainUtf8,
+    mwin_atomSelection,
     MWIN_X11_ATOMS,
 };
 
@@ -110,6 +116,35 @@ typedef struct mwinX11Output
     bool seen;
 } mwinX11Output;
 
+// The most readers served the program's text a piece at a time at once.
+#define MWIN_X11_SENDS 4
+
+// The clipboard: a hidden window that owns the selection and receives
+// it, made at its first use; the readers the program's text goes to in
+// pieces (INCR); and a read under way, its text in a block of capacity
+// bytes from the allocator.
+typedef struct mwinX11Clipboard
+{
+    xcb_window_t window;
+    bool owned;
+    xcb_timestamp_t ownedTime;
+    struct
+    {
+        xcb_window_t requestor;
+        xcb_atom_t property;
+        xcb_atom_t type;
+        uint32_t offset;
+        uint64_t deadlineNs;
+    } sends[MWIN_X11_SENDS];
+    // Waiting for the owner's answer, then for its pieces.
+    bool reading;
+    bool incremental;
+    uint64_t deadlineNs;
+    char* buffer;
+    uint32_t used;
+    uint32_t capacity;
+} mwinX11Clipboard;
+
 struct mwinX11Platform
 {
     mwinX11Api api;
@@ -132,6 +167,10 @@ struct mwinX11Platform
     mwinX11Keyboard keyboard;
     mwinX11Pointer pointer;
     mwinX11Cursors cursors;
+    mwinX11Clipboard clipboard;
+    // The time of the latest key or button event, which taking the
+    // selection quotes.
+    xcb_timestamp_t inputTime;
     // The connection failed; the loop stops.
     bool failed;
     // One per window slot, and one per monitor slot.

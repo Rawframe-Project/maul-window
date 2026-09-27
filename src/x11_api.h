@@ -63,6 +63,10 @@ typedef struct mwinX11Api
     typeof(xcb_grab_pointer_reply)* grabPointerReply;
     typeof(xcb_ungrab_pointer)* ungrabPointer;
     typeof(xcb_warp_pointer)* warpPointer;
+    typeof(xcb_set_selection_owner)* setSelectionOwner;
+    typeof(xcb_get_selection_owner)* getSelectionOwner;
+    typeof(xcb_get_selection_owner_reply)* getSelectionOwnerReply;
+    typeof(xcb_convert_selection)* convertSelection;
     // libxcb-randr, NULL where it is missing.
     void* randrLibrary;
     xcb_extension_t* randrId;

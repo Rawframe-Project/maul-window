@@ -118,6 +118,7 @@ format.
   `clipboardBytes` limit and `mwin_outcomeTooLarge`; the test backend's
   clipboard and the contract tests. The Win32 clipboard, as
   `CF_UNICODETEXT`; the web clipboard, through the Clipboard API; the
-  Wayland clipboard, through the seat's data device.
+  Wayland clipboard, through the seat's data device; the X11
+  clipboard, through the CLIPBOARD selection with INCR transfers.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

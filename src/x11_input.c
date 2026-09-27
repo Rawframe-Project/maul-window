@@ -368,10 +368,12 @@ bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_
     {
     case XCB_KEY_PRESS:
     case XCB_KEY_RELEASE:
+        platform->inputTime = ((const xcb_key_press_event_t*)event)->time;
         OnKey(platform, (const xcb_key_press_event_t*)event, type == XCB_KEY_PRESS);
         return true;
     case XCB_BUTTON_PRESS:
     case XCB_BUTTON_RELEASE:
+        platform->inputTime = ((const xcb_button_press_event_t*)event)->time;
         OnButton(platform, (const xcb_button_press_event_t*)event, type == XCB_BUTTON_PRESS);
         return true;
     case XCB_MOTION_NOTIFY:

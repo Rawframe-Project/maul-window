@@ -13,6 +13,7 @@
 #include "core.h"
 #include "x11.h"
 #include "x11_api.h"
+#include "x11_clipboard.h"
 #include "x11_cursor.h"
 #include "x11_input.h"
 #include "x11_output.h"
@@ -42,6 +43,12 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "_NET_ACTIVE_WINDOW",
     "_NET_SUPPORTING_WM_CHECK",
     "_MOTIF_WM_HINTS",
+    "CLIPBOARD",
+    "TARGETS",
+    "TIMESTAMP",
+    "INCR",
+    "text/plain;charset=utf-8",
+    "_MAUL_SELECTION",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)
@@ -230,6 +237,7 @@ static void Stop(mwinContext* context)
             }
         }
         mwinX11StopCursors(platform);
+        mwinX11StopClipboard(platform);
         (void)api->flush(platform->connection);
         // A failed connection is freed the same way.
         api->disconnect(platform->connection);
@@ -280,7 +288,8 @@ static mwinResult Start(mwinContext* context)
 
 static void Dispatch(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
-    if (mwinX11HandleWindowEvent(platform, event) || mwinX11HandleInputEvent(platform, event))
+    if (mwinX11HandleClipboardEvent(platform, event) || mwinX11HandleWindowEvent(platform, event) ||
+        mwinX11HandleInputEvent(platform, event))
     {
         return;
     }
@@ -306,6 +315,7 @@ static void Pump(mwinContext* context)
         mwinReleaseSystemMemory(event);
     }
     mwinX11CheckDeadlines(platform);
+    mwinX11CheckClipboard(platform, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

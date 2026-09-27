@@ -6,6 +6,7 @@
 #include "x11_window.h"
 
 #include "allocator.h"
+#include "x11_clipboard.h"
 #include "x11_cursor.h"
 #include "x11_input.h"
 #include "x11_output.h"
@@ -425,6 +426,10 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
     case mwin_requestTextInput:
         // Keys type text whether asked or not; there is no input method.
         return mwin_outcomeDone;
+    case mwin_requestClipboardWrite:
+        return mwinX11WriteClipboard(platform);
+    case mwin_requestClipboardRead:
+        return mwinX11ReadClipboard(platform);
     default:
         return mwin_outcomeUnsupported;
     }

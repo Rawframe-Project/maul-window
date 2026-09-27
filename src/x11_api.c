@@ -63,7 +63,11 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, grabPointer, xcb_grab_pointer) &&
            FIND(library, grabPointerReply, xcb_grab_pointer_reply) &&
            FIND(library, ungrabPointer, xcb_ungrab_pointer) &&
-           FIND(library, warpPointer, xcb_warp_pointer);
+           FIND(library, warpPointer, xcb_warp_pointer) &&
+           FIND(library, setSelectionOwner, xcb_set_selection_owner) &&
+           FIND(library, getSelectionOwner, xcb_get_selection_owner) &&
+           FIND(library, getSelectionOwnerReply, xcb_get_selection_owner_reply) &&
+           FIND(library, convertSelection, xcb_convert_selection);
 }
 
 static bool FindRandr(mwinX11Api* api)

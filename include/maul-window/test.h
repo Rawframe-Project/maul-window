@@ -339,6 +339,24 @@ extern "C"
                                                     size_t filesLength, const char* text,
                                                     size_t textLength);
 
+    /// Reads the last address the test platform opened
+    /// (mwin_requestOpenUrl) or path it revealed (mwin_requestRevealFile).
+    ///
+    /// @param context    A context of the test backend.
+    /// @param kind       mwin_requestOpenUrl or mwin_requestRevealFile.
+    /// @param buffer     Receives it. May be NULL when capacity is 0.
+    /// @param capacity   The bytes buffer holds.
+    /// @param lengthOut  Receives its length in bytes, 0 before any.
+    /// @return `mwin_success`; `mwin_errorCapacity` when it does not fit
+    ///         (the bytes that fit are written); `mwin_errorUnsupported`
+    ///         for a context of another backend; `mwin_errorInvalid` for a
+    ///         NULL argument or another kind.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetOpened(const mwinContext* context,
+                                                         mwinRequestKind kind, char* buffer,
+                                                         size_t capacity, size_t* lengthOut);
+
 #ifdef __cplusplus
 }
 #endif

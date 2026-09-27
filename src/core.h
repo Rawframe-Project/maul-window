@@ -96,6 +96,15 @@ typedef struct mwinRequest
             uint32_t height;
         } aspect;
         float opacity;
+        // An address or path: a copy with a NUL after it, in a block of
+        // length + 1 bytes from the allocator, given back when the request
+        // is answered.
+        struct
+        {
+            char* bytes;
+            uint32_t length;
+        } text;
+        bool awake;
     } value;
 } mwinRequest;
 
@@ -311,6 +320,10 @@ void mwinAddDroppedFileUtf16(mwinContext* context, const uint16_t* path, size_t 
 void mwinSetDroppedText(mwinContext* context, const char* bytes, size_t length);
 void mwinSetDroppedTextUtf16(mwinContext* context, const uint16_t* units, size_t length);
 void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, uint64_t timeNs);
+
+// Gives back the text an address or path request holds, if it does;
+// answering a request, and the context's end, call it.
+void mwinReleaseRequestText(const mwinContext* context, mwinRequest* request);
 
 // Frees the drops' files and text; the context's end calls it.
 void mwinReleaseDrops(mwinContext* context);

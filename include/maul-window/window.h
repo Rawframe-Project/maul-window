@@ -139,6 +139,9 @@ extern "C"
         bool textInput;
         // An input method composes (a preedit that is not empty).
         bool composing;
+        // The window keeps the display awake (mwinRequestKeepAwake answered
+        // done).
+        bool awake;
         mwinWindowStyle style;
         // From 0 (clear) to 1 (opaque).
         float opacity;

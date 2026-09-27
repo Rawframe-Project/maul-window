@@ -194,6 +194,9 @@ extern "C"
         mwin_requestOpacity = 14,
         mwin_requestClipboardWrite = 15,
         mwin_requestClipboardRead = 16,
+        mwin_requestOpenUrl = 17,
+        mwin_requestRevealFile = 18,
+        mwin_requestKeepAwake = 19,
     };
 
     // How a request ended.

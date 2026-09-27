@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The services the test platform plays: its clipboard, and drops.
+// The services the test platform plays: its clipboard, drops, and the
+// addresses it opens and paths it reveals.
 
 #include "allocator.h"
 #include "backend_test.h"
@@ -141,4 +142,39 @@ mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window, mwinPosition 
     }
     platform->dropWaiting = true;
     return mwin_success;
+}
+
+void mwinTestOpen(mwinContext* context, const mwinRequest* request)
+{
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return;
+    }
+    int which = request->kind == mwin_requestOpenUrl ? 0 : 1;
+    memcpy(platform->opened[which], request->value.text.bytes, request->value.text.length);
+    platform->openedLength[which] = request->value.text.length;
+}
+
+mwinResult mwinTestGetOpened(const mwinContext* context, mwinRequestKind kind, char* buffer,
+                             size_t capacity, size_t* lengthOut)
+{
+    bool known = kind == mwin_requestOpenUrl || kind == mwin_requestRevealFile;
+    if (context == nullptr || lengthOut == nullptr || !known || (buffer == nullptr && capacity > 0))
+    {
+        return mwin_errorInvalid;
+    }
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    int which = kind == mwin_requestOpenUrl ? 0 : 1;
+    size_t length = platform->openedLength[which];
+    if (length > 0 && capacity > 0)
+    {
+        memcpy(buffer, platform->opened[which], length < capacity ? length : capacity);
+    }
+    *lengthOut = length;
+    return length > capacity ? mwin_errorCapacity : mwin_success;
 }

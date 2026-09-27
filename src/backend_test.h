@@ -10,7 +10,9 @@
 #include "backend.h"
 #include "core.h"
 
-#define MWIN_TEST_KINDS (mwin_requestClipboardRead + 1)
+#include "maul-window/services.h"
+
+#define MWIN_TEST_KINDS (mwin_requestKeepAwake + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -57,6 +59,9 @@ typedef struct mwinTestPlatform
     bool utf16;
     // A drop gathered in the context waits for its report.
     bool dropWaiting;
+    // The last address opened and path revealed.
+    char opened[2][MWIN_ADDRESS_BYTES];
+    uint32_t openedLength[2];
     bool hold;
     uint64_t timeNs;
     float scale;
@@ -76,6 +81,9 @@ mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* even
 // Uses the clipboard as a platform would: a write replaces its text, a
 // read takes it.
 mwinOutcome mwinTestUseClipboard(mwinContext* context, mwinRequestKind kind);
+
+// Opens an address or reveals a path as a platform would: it keeps it.
+void mwinTestOpen(mwinContext* context, const mwinRequest* request);
 
 // Gives the platform's clipboard back; the backend's stop calls it.
 void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* platform);

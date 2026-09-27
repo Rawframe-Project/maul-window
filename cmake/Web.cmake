@@ -7,6 +7,7 @@ set(MWIN_WEB_SOURCES
     src/web_clipboard.c
     src/web_drop.c
     src/web_input.c
+    src/web_message_box.c
     src/web_page.c
     src/web_text.c
     src/web_window.c)

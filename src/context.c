@@ -232,6 +232,14 @@ static void DestroyContext(mwinContext* context)
 {
     mwinReleaseClipboard(context);
     mwinReleaseDrops(context);
+    // Requests a platform never answered still hold their text.
+    for (uint32_t slot = 0; slot < context->limits.windows; slot++)
+    {
+        for (uint32_t i = 0; i < context->limits.requestsPerWindow; i++)
+        {
+            mwinReleaseRequestText(context, &context->windows[slot].requests[i]);
+        }
+    }
     mwinAllocator allocator = context->allocator;
     mwinRelease(&allocator, context, context->memorySize, alignof(max_align_t));
 }

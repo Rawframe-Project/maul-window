@@ -18,12 +18,15 @@ evdev:
 gamepad: core
 input: core
 linux_pad: allocator core monotonic pad_db
+message_box:
 monitor: core
 monotonic:
 native: core
 pad: core
 pad_db:
+posix_message_box: message_box
 queue: core text
+services: allocator core
 system: core
 text: core
 uri_list: core
@@ -45,6 +48,7 @@ web: clicks core web_pad
 web_clipboard: allocator core web
 web_drop: allocator core web
 web_input: clicks core web
+web_message_box: message_box
 web_page: core web
 web_pad: core
 web_text: core web
@@ -54,6 +58,7 @@ win32_clipboard: core win32
 win32_drop: allocator core win32
 win32_ime: core win32
 win32_input: core win32
+win32_message_box: message_box
 win32_output: core win32
 win32_pad: core
 win32_pointer: core win32

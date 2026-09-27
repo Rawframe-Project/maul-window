@@ -82,6 +82,9 @@ static void Carried(mwinWindow* window, const mwinRequest* request)
     case mwin_requestOpacity:
         window->state.opacity = request->value.opacity;
         break;
+    case mwin_requestKeepAwake:
+        window->state.awake = request->value.awake;
+        break;
     default:
         break;
     }
@@ -99,6 +102,7 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
     {
         Carried(&context->windows[slot], entry);
     }
+    mwinReleaseRequestText(context, entry);
     mwinEvent event = {0};
     event.type = mwin_eventRequestCompleted;
     event.timeNs = context->backend->now(context);

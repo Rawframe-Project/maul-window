@@ -129,5 +129,13 @@ format.
   WM_DROPFILES where OLE cannot start; Wayland drag and drop through the
   seat's data device, files from text/uri-list; X11 drag and drop by
   XDND 5.
+- Platform services (mwin-0012): requests to open a web or mail
+  address (`mwinRequestOpenUrl`), reveal a file
+  (`mwinRequestRevealFile`) and keep the display awake
+  (`mwinRequestKeepAwake`, the window state's `awake`); a message box
+  that needs no context (`mwinShowMessageBox`), through `MessageBoxW`
+  on Win32, `alert` and `confirm` on the web, and zenity or kdialog run
+  without a shell on Linux; the test backend's services and the
+  contract tests.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

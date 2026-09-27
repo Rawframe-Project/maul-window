@@ -253,6 +253,10 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardRead:
         return mwinTestUseClipboard(context, request->kind);
+    case mwin_requestOpenUrl:
+    case mwin_requestRevealFile:
+        mwinTestOpen(context, request);
+        break;
     default:
         break; // the cursor changes on screen, with nothing to report
     }

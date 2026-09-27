@@ -78,15 +78,23 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/context.c
     src/drop.c
     src/input.c
+    src/message_box.c
     src/monitor.c
     src/native.c
     src/pad.c
     src/queue.c
+    src/services.c
     src/system.c
     src/text.c
     src/uri_list.c
     src/utf8.c
     src/window.c)
+# Linux's message box runs zenity or kdialog; posix_spawn is POSIX.
+if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
+    target_sources(maul-window PRIVATE src/posix_message_box.c)
+    set_source_files_properties(src/posix_message_box.c PROPERTIES
+        COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+endif()
 if(MAUL_WINDOW_TEST_BACKEND)
     target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_services.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
@@ -133,6 +141,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(properties)
         maul_add_test(clipboard)
         maul_add_test(drop)
+        maul_add_test(services)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
         endif()
@@ -167,6 +176,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_drop PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_drop PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
+    if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
+        # Stand-ins for zenity and kdialog on PATH.
+        maul_add_test(message_box POSIX)
+        target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Makes virtual gamepads through uinput: skipped without it or a

@@ -24,6 +24,9 @@ typedef struct mwinWebWindow
 {
     char selector[MWIN_WEB_SELECTOR_BYTES];
     uint32_t selectorLength;
+    // The page opened the window's canvas: a failed or unsupported
+    // creation leaves nothing to close.
+    bool open;
     mwinSize size;
     mwinPixelSize pixels;
     float scale;

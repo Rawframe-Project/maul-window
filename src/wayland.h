@@ -61,6 +61,12 @@ typedef struct mwinWaylandWindow
     struct wl_surface* surface;
     struct xdg_surface* xdgSurface;
     struct xdg_toplevel* toplevel;
+    // A popup's role object, in place of the toplevel (wayland_popup.c):
+    // the place it was last reported at against its owner's content, and
+    // the token of its last reposition.
+    struct xdg_popup* popup;
+    mwinPosition placed;
+    uint32_t repositions;
     struct zxdg_toplevel_decoration_v1* decoration;
     struct wp_fractional_scale_v1* fractionalScale;
     struct wp_viewport* viewport;
@@ -70,6 +76,9 @@ typedef struct mwinWaylandWindow
     // size to the window.
     int32_t proposedWidth;
     int32_t proposedHeight;
+    // A popup's place from its owner's window geometry.
+    int32_t proposedX;
+    int32_t proposedY;
     mwinWindowMode proposedMode;
     bool proposedActivated;
     bool proposedSuspended;

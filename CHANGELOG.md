@@ -154,5 +154,16 @@ format.
   images; Win32 big and small icons, X11 `_NET_WM_ICON`, Wayland
   xdg-toplevel-icon-v1 (vendored); the test backend's icons and the
   tests.
+- Owned and popup windows (mwin-0015). The window def gains `owner`,
+  `kind` and `position`:
+  - Owned windows stay in front of their owners and are destroyed with
+    them.
+  - Menus and tooltips are placed against the owner's content and
+    follow it.
+  - A menu that loses the keyboard is asked to close.
+  - Win32 uses owned windows and `WS_POPUP` tool windows. X11 uses
+    `WM_TRANSIENT_FOR` and override-redirect popups. Wayland uses
+    `set_parent`, and `xdg_popup` with a positioner, a grab and
+    reposition. On the web, popups are unsupported.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

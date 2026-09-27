@@ -62,8 +62,8 @@ int32_t mwinWaylandCaptionOf(const mwinWaylandPlatform* platform, const mwinWayl
     bool serverSide = platform->decorations != nullptr &&
                       window->decorationMode != ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
     bool drawable = platform->subcompositor != nullptr && platform->shm != nullptr;
-    return (core->state.style & mwin_styleDecorated) != 0 && !serverSide && drawable &&
-                   mode != mwin_modeBorderlessFullscreen
+    return core->def.kind == mwin_windowNormal && (core->state.style & mwin_styleDecorated) != 0 &&
+                   !serverSide && drawable && mode != mwin_modeBorderlessFullscreen
                ? MWIN_FRAME_CAPTION
                : 0;
 }

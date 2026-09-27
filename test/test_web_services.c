@@ -4,8 +4,8 @@
 // The web backend's services in headless Chrome, against stand-ins for
 // window.open and the wake lock: an address opened in a new tab cut
 // from the page, a blocked popup denied, a file never revealed, no file
-// dialogs or icons; the screen kept awake while the window shows, let go while
-// it is hidden, asked for again after the page released it (before the
+// dialogs, icons or popup windows; the screen kept awake while the
+// window shows, let go while it is hidden, asked for again after the page released it (before the
 // lock came, and after), let go when the window no longer asks and at
 // the page's end.
 
@@ -172,6 +172,14 @@ static void CheckOpen(mwinContext* context, Program* program)
     CHECK(Now(context, program, mwinRequestIcon(context, window, nullptr, 0, &program->request)) ==
               mwin_outcomeUnsupported,
           "no window icons, a page having one for every canvas");
+    mwinWindowDef menu = mwinDefaultWindowDef();
+    menu.owner = window;
+    menu.kind = mwin_windowMenu;
+    mwinWindowId popup = {0};
+    CHECK(Now(context, program, mwinCreateWindow(context, &menu, &popup, &program->request)) ==
+                  mwin_outcomeUnsupported &&
+              mwinDestroyWindow(context, popup) == mwin_success,
+          "no popups, a page having no windows over its canvases");
     StandInWakeLock();
     CHECK(Now(context, program, mwinRequestKeepAwake(context, window, true, &program->request)) ==
               mwin_outcomeDone,

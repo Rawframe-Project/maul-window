@@ -19,3 +19,4 @@ are listed in [README.md](README.md).
 | [mwin-0012](mwin-0012-services.md) | Platform services | Accepted |
 | [mwin-0013](mwin-0013-file-dialogs.md) | File dialogs | Accepted |
 | [mwin-0014](mwin-0014-window-icons.md) | Window icons | Accepted |
+| [mwin-0015](mwin-0015-owned-and-popup-windows.md) | Owned and popup windows | Accepted |

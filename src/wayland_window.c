@@ -12,6 +12,7 @@
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_pointer.h"
+#include "wayland_popup.h"
 #include "wayland_text.h"
 
 #include <math.h>
@@ -314,6 +315,10 @@ static void OnSurfaceConfigure(void* data, struct xdg_surface* surface, uint32_t
     {
         Reconfigure(window, resized);
     }
+    if (window->popup != nullptr)
+    {
+        mwinWaylandSettlePopup(window);
+    }
     if (window->proposedActivated != core->state.focused)
     {
         PostType(window, window->proposedActivated ? mwin_eventFocusGained : mwin_eventFocusLost);
@@ -389,7 +394,7 @@ static void AddExtensions(mwinWaylandWindow* window, mwinWindowStyle style)
 {
     mwinWaylandPlatform* platform = window->platform;
     const mwinWaylandApi* api = &platform->api;
-    if (platform->decorations != nullptr)
+    if (platform->decorations != nullptr && window->toplevel != nullptr)
     {
         window->decoration = mwinWlCreateFor(
             api, platform->decorations, ZXDG_DECORATION_MANAGER_V1_GET_TOPLEVEL_DECORATION,
@@ -417,6 +422,32 @@ static void AddExtensions(mwinWaylandWindow* window, mwinWindowStyle style)
     }
 }
 
+// Makes the window a toplevel: in front of its owner's toplevel if it
+// has one.
+static void MakeToplevel(mwinWaylandWindow* window, const mwinWindow* core)
+{
+    const mwinWaylandApi* api = &window->platform->api;
+    window->toplevel = mwinWlRequest(api, window->xdgSurface, XDG_SURFACE_GET_TOPLEVEL,
+                                     &xdg_toplevel_interface, 0);
+    mwinWlListen(api, window->toplevel, &s_toplevelListener, window);
+    if (core->def.owner.index1 != 0)
+    {
+        const mwinWaylandWindow* owner = &window->platform->windows[core->def.owner.index1 - 1];
+        if (owner->toplevel != nullptr)
+        {
+            api->proxyMarshalFlags((struct wl_proxy*)window->toplevel, XDG_TOPLEVEL_SET_PARENT,
+                                   nullptr, mwinWlVersion(api, window->toplevel), 0,
+                                   owner->toplevel);
+        }
+    }
+    SetTitle(window, core->title, core->titleLength);
+    AddExtensions(window, core->def.style);
+    if (core->def.mode != mwin_modeWindowed && core->def.mode != mwin_modeMinimized)
+    {
+        RequestMode(window, core->def.mode);
+    }
+}
+
 void mwinWaylandCreateWindow(mwinContext* context, uint32_t slot)
 {
     mwinWaylandPlatform* platform = PlatformOf(context);
@@ -435,14 +466,14 @@ void mwinWaylandCreateWindow(mwinContext* context, uint32_t slot)
     window->xdgSurface = mwinWlCreateFor(api, platform->wmBase, XDG_WM_BASE_GET_XDG_SURFACE,
                                          &xdg_surface_interface, window->surface);
     mwinWlListen(api, window->xdgSurface, &s_xdgSurfaceListener, window);
-    window->toplevel = mwinWlRequest(api, window->xdgSurface, XDG_SURFACE_GET_TOPLEVEL,
-                                     &xdg_toplevel_interface, 0);
-    mwinWlListen(api, window->toplevel, &s_toplevelListener, window);
-    SetTitle(window, core->title, core->titleLength);
-    AddExtensions(window, core->def.style);
-    if (core->def.mode != mwin_modeWindowed && core->def.mode != mwin_modeMinimized)
+    if (core->def.kind != mwin_windowNormal)
     {
-        RequestMode(window, core->def.mode);
+        mwinWaylandMakePopup(window);
+        AddExtensions(window, core->def.style);
+    }
+    else
+    {
+        MakeToplevel(window, core);
     }
     // A commit without a buffer asks for the first configure.
     (void)mwinWlRequest(api, window->surface, WL_SURFACE_COMMIT, nullptr, 0);
@@ -478,8 +509,15 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
         (void)mwinWlRequest(api, window->decoration, ZXDG_TOPLEVEL_DECORATION_V1_DESTROY, nullptr,
                             WL_MARSHAL_FLAG_DESTROY);
     }
-    (void)mwinWlRequest(api, window->toplevel, XDG_TOPLEVEL_DESTROY, nullptr,
-                        WL_MARSHAL_FLAG_DESTROY);
+    if (window->popup != nullptr)
+    {
+        mwinWaylandDestroyPopup(window);
+    }
+    else
+    {
+        (void)mwinWlRequest(api, window->toplevel, XDG_TOPLEVEL_DESTROY, nullptr,
+                            WL_MARSHAL_FLAG_DESTROY);
+    }
     (void)mwinWlRequest(api, window->xdgSurface, XDG_SURFACE_DESTROY, nullptr,
                         WL_MARSHAL_FLAG_DESTROY);
     (void)mwinWlRequest(api, window->surface, WL_SURFACE_DESTROY, nullptr, WL_MARSHAL_FLAG_DESTROY);
@@ -531,9 +569,38 @@ static int KeepAwake(mwinWaylandWindow* window, bool awake)
     return mwin_outcomeDone;
 }
 
+// The requests a popup answers otherwise: its place and size through
+// its positioner, its title kept for the program, and what only a
+// toplevel has unsupported.
+static int CarryOutPopup(mwinWaylandWindow* window, mwinWindow* core, const mwinRequest* request)
+{
+    switch (request->kind)
+    {
+    case mwin_requestTitle:
+        memmove(core->title, core->pendingTitle, core->pendingTitleLength);
+        core->titleLength = core->pendingTitleLength;
+        return mwin_outcomeDone;
+    case mwin_requestPosition:
+        return mwinWaylandPlacePopup(window, request->value.position, window->size);
+    case mwin_requestSize:
+        // The configure that answers resizes it.
+        return mwinWaylandPlacePopup(window, window->placed, request->value.size);
+    default:
+        return mwin_outcomeUnsupported;
+    }
+}
+
 static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
 {
     const mwinRequest* request = &core->requests[index];
+    bool popupRequest =
+        request->kind == mwin_requestTitle || request->kind == mwin_requestPosition ||
+        request->kind == mwin_requestSize || request->kind == mwin_requestSizeLimits ||
+        request->kind == mwin_requestIcon;
+    if (window->popup != nullptr && popupRequest)
+    {
+        return CarryOutPopup(window, core, request);
+    }
     switch (request->kind)
     {
     case mwin_requestTitle:

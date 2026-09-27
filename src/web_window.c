@@ -76,6 +76,12 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
     *window = (mwinWebWindow){0};
     int32_t request =
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
+    if (core->def.kind != mwin_windowNormal)
+    {
+        // A page has no windows over its canvases.
+        mwinComplete(context, slot, (uint32_t)request, mwin_outcomeUnsupported);
+        return;
+    }
     float box[4];
     int length = mwinWebOpenCanvas(context, slot, core->def.canvas, core->def.canvasLength,
                                    core->def.size.width, core->def.size.height, core->def.visible,
@@ -86,6 +92,7 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
         return;
     }
     window->selectorLength = (uint32_t)length;
+    window->open = true;
     mwinWebWatchCanvas(context, slot);
     mwinWebWatchDrops(context, slot);
     uint64_t now = mwinWebNanoseconds(emscripten_get_now());
@@ -113,8 +120,12 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
 
 void mwinWebDestroyWindow(mwinContext* context, uint32_t slot)
 {
-    mwinWebCloseCanvas(context, slot);
-    PlatformOf(context)->windows[slot] = (mwinWebWindow){0};
+    mwinWebWindow* window = &PlatformOf(context)->windows[slot];
+    if (window->open)
+    {
+        mwinWebCloseCanvas(context, slot);
+    }
+    *window = (mwinWebWindow){0};
 }
 
 // A mode request's outcome, or -1 when the page answers later.

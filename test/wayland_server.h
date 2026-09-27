@@ -102,6 +102,10 @@ typedef struct Server
     int32_t repeatDelay;
     uint32_t serial;
     bool configured;
+    // The xdg-shell global, which a test with a shell of its own
+    // replaces, and a test's hook on every surface commit, or null.
+    struct wl_global* shellGlobal;
+    void (*commit)(struct wl_resource* surface);
 } Server;
 
 static inline void ServerDestroyResource(struct wl_client* client, struct wl_resource* resource)
@@ -167,6 +171,10 @@ static inline void ServerCommit(struct wl_client* client, struct wl_resource* re
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
+    if (server->commit != nullptr)
+    {
+        server->commit(resource);
+    }
     if (server->toplevel == nullptr || server->configured || resource != server->surface)
     {
         return;
@@ -746,7 +754,8 @@ static inline bool ServerStart(Server* server, const char* layout, const char* v
     }
     server->loop = wl_display_get_event_loop(server->display);
     wl_global_create(server->display, &wl_compositor_interface, 4, server, ServerBindCompositor);
-    wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
+    server->shellGlobal =
+        wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
     wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
     wl_global_create(server->display, &wp_cursor_shape_manager_v1_interface, 1, server,
                      ServerBindShapes);

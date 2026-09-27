@@ -97,6 +97,7 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_drop.c
     src/wayland_frame.c
     src/wayland_icon.c
+    src/wayland_popup.c
     src/wayland_keyboard.c
     src/wayland_output.c
     src/wayland_pipe.c

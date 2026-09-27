@@ -3,6 +3,7 @@
 allocator:
 backend:
 backend_test: allocator backend core
+backend_test_services: allocator backend backend_test core
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_drop web_input web_page web_pad web_text web_window
 backend_win32: allocator backend core win32 win32_drop win32_input win32_output win32_pad win32_system win32_window

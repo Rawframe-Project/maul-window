@@ -8,6 +8,8 @@
 // says. Carrying a request out posts the notifications a platform would
 // send.
 
+#include "backend_test.h"
+
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
@@ -18,70 +20,12 @@
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestClipboardRead + 1)
-
-// A request waiting for the next pump. The generations tell it from a
-// later window or request in the same slots.
-typedef struct Pending
-{
-    uint32_t slot;
-    uint32_t request;
-    uint32_t windowGeneration;
-    uint32_t requestGeneration;
-} Pending;
-
-// Reports and their text waiting for the next pump.
-#define MAX_REPORTS         1024
-#define MAX_REPORT_TEXT     65536
-#define MAX_REPORT_SEGMENTS 1024
-
-// A gamepad's last rumble, and how many there were.
-typedef struct Rumble
-{
-    float low;
-    float high;
-    uint32_t durationMs;
-    uint32_t count;
-} Rumble;
-
-typedef struct TestPlatform
-{
-    Pending* pending;
-    // One per gamepad slot.
-    Rumble* rumbles;
-    uint32_t pendingCount;
-    uint32_t pendingCapacity;
-    mwinEvent reports[MAX_REPORTS];
-    uint32_t reportCount;
-    char reportText[MAX_REPORT_TEXT];
-    uint32_t reportTextUsed;
-    mwinPreeditSegment reportSegments[MAX_REPORT_SEGMENTS];
-    uint32_t reportSegmentsUsed;
-    mwinOutcome answers[KINDS];
-    // The platform's clipboard: bytes, or UTF-16 units when utf16 is set,
-    // in a block of their own from the allocator.
-    void* clipboard;
-    size_t clipboardBytes;
-    bool utf16;
-    // A drop gathered in the context waits for its report.
-    bool dropWaiting;
-    bool hold;
-    uint64_t timeNs;
-    float scale;
-} TestPlatform;
-
-static TestPlatform* PlatformOf(const mwinContext* context)
-{
-    return context != nullptr && context->backend == &mwinTestBackend
-               ? (TestPlatform*)context->backendData
-               : nullptr;
-}
-
 static size_t PlatformBytes(const mwinContext* context)
 {
-    return sizeof(TestPlatform) +
-           (size_t)context->limits.windows * context->limits.requestsPerWindow * sizeof(Pending) +
-           (size_t)context->limits.gamepads * sizeof(Rumble);
+    return sizeof(mwinTestPlatform) +
+           (size_t)context->limits.windows * context->limits.requestsPerWindow *
+               sizeof(mwinTestPending) +
+           (size_t)context->limits.gamepads * sizeof(mwinTestRumble);
 }
 
 static mwinResult Start(mwinContext* context)
@@ -93,50 +37,19 @@ static mwinResult Start(mwinContext* context)
         return mwin_errorCapacity;
     }
     memset(block, 0, PlatformBytes(context));
-    TestPlatform* platform = (TestPlatform*)block;
-    platform->pending = (Pending*)(block + sizeof(TestPlatform));
+    mwinTestPlatform* platform = (mwinTestPlatform*)block;
+    platform->pending = (mwinTestPending*)(block + sizeof(mwinTestPlatform));
     platform->pendingCapacity =
         (uint32_t)context->limits.windows * context->limits.requestsPerWindow;
-    platform->rumbles = (Rumble*)(platform->pending + platform->pendingCapacity);
+    platform->rumbles = (mwinTestRumble*)(platform->pending + platform->pendingCapacity);
     platform->scale = 1.0f;
     context->backendData = platform;
     return mwin_success;
 }
 
-static void ReleaseClipboard(const mwinContext* context, TestPlatform* platform)
-{
-    if (platform->clipboard != nullptr)
-    {
-        mwinRelease(&context->allocator, platform->clipboard, platform->clipboardBytes,
-                    alignof(uint16_t));
-    }
-    platform->clipboard = nullptr;
-    platform->clipboardBytes = 0;
-}
-
-// Puts bytes on the platform's clipboard; false when there is no room.
-static bool SetClipboard(const mwinContext* context, const void* data, size_t bytes, bool utf16)
-{
-    TestPlatform* platform = PlatformOf(context);
-    void* copy = bytes > 0 ? mwinAllocate(&context->allocator, bytes, alignof(uint16_t)) : nullptr;
-    if (bytes > 0 && copy == nullptr)
-    {
-        return false;
-    }
-    if (bytes > 0)
-    {
-        memcpy(copy, data, bytes);
-    }
-    ReleaseClipboard(context, platform);
-    platform->clipboard = copy;
-    platform->clipboardBytes = bytes;
-    platform->utf16 = utf16;
-    return true;
-}
-
 static void Stop(mwinContext* context)
 {
-    ReleaseClipboard(context, PlatformOf(context));
+    mwinTestReleaseClipboard(context, mwinTestPlatformOf(context));
     mwinRelease(&context->allocator, context->backendData, PlatformBytes(context),
                 alignof(max_align_t));
     context->backendData = nullptr;
@@ -144,11 +57,11 @@ static void Stop(mwinContext* context)
 
 static uint64_t Now(const mwinContext* context)
 {
-    return PlatformOf(context)->timeNs;
+    return mwinTestPlatformOf(context)->timeNs;
 }
 
 // Whether a waiting request is still the one it was queued as.
-static bool IsCurrent(const mwinContext* context, const Pending* pending)
+static bool IsCurrent(const mwinContext* context, const mwinTestPending* pending)
 {
     const mwinWindow* window = &context->windows[pending->slot];
     const mwinRequest* request = &window->requests[pending->request];
@@ -159,7 +72,7 @@ static bool IsCurrent(const mwinContext* context, const Pending* pending)
 
 static void Queue(mwinContext* context, uint32_t slot, uint32_t request)
 {
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform->pendingCount == platform->pendingCapacity)
     {
         // Entries of answered requests go; the active requests left fit,
@@ -176,7 +89,7 @@ static void Queue(mwinContext* context, uint32_t slot, uint32_t request)
     }
     const mwinWindow* window = &context->windows[slot];
     platform->pending[platform->pendingCount++] =
-        (Pending){slot, request, window->generation, window->requests[request].generation};
+        (mwinTestPending){slot, request, window->generation, window->requests[request].generation};
 }
 
 static void CreateWindow(mwinContext* context, uint32_t slot)
@@ -208,7 +121,7 @@ static void PostType(mwinContext* context, uint32_t slot, mwinEventType type)
 // Reports a new logical size, and the pixel size the scale gives it.
 static void PostSize(mwinContext* context, uint32_t slot, mwinSize size)
 {
-    float scale = PlatformOf(context)->scale;
+    float scale = mwinTestPlatformOf(context)->scale;
     mwinEvent event = {0};
     event.timeNs = Now(context);
     event.type = mwin_eventResized;
@@ -254,7 +167,7 @@ static void Create(mwinContext* context, uint32_t slot)
     mwinEvent event = {0};
     event.type = mwin_eventScaleChanged;
     event.timeNs = Now(context);
-    event.data.scale = (mwinScaleChange){PlatformOf(context)->scale, window->def.size};
+    event.data.scale = (mwinScaleChange){mwinTestPlatformOf(context)->scale, window->def.size};
     mwinPost(context, slot, &event);
     PostSize(context, slot, window->def.size);
     PostMode(context, slot, window->def.mode);
@@ -276,22 +189,6 @@ static void Focus(mwinContext* context, uint32_t slot)
         }
     }
     PostType(context, slot, mwin_eventFocusGained);
-}
-
-// Uses the clipboard as a platform would: a write replaces its text, a
-// read takes it.
-static mwinOutcome UseClipboard(mwinContext* context, mwinRequestKind kind)
-{
-    const TestPlatform* platform = PlatformOf(context);
-    if (kind == mwin_requestClipboardWrite)
-    {
-        return SetClipboard(context, context->clipboardOffer, context->clipboardOfferLength, false)
-                   ? mwin_outcomeDone
-                   : mwin_outcomeFailed;
-    }
-    return platform->utf16
-               ? mwinTakeClipboardUtf16(context, platform->clipboard, platform->clipboardBytes / 2)
-               : mwinTakeClipboardText(context, platform->clipboard, platform->clipboardBytes);
 }
 
 // Carries out a request the answers say to do, and says how it ended.
@@ -355,7 +252,7 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     }
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardRead:
-        return UseClipboard(context, request->kind);
+        return mwinTestUseClipboard(context, request->kind);
     default:
         break; // the cursor changes on screen, with nothing to report
     }
@@ -376,7 +273,7 @@ static bool IsGlobal(mwinEventType type)
 // Delivers the gathered drop to its window, or drops it with the window.
 static void Deliver(mwinContext* context, const mwinEvent* report)
 {
-    PlatformOf(context)->dropWaiting = false;
+    mwinTestPlatformOf(context)->dropWaiting = false;
     if (mwinFindWindow(context, report->window) != nullptr)
     {
         mwinFinishDrop(context, report->window.index1 - 1, report->data.drop.position,
@@ -390,7 +287,7 @@ static void Deliver(mwinContext* context, const mwinEvent* report)
 
 static void Pump(mwinContext* context)
 {
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     for (uint32_t i = 0; i < platform->reportCount; i++)
     {
         const mwinEvent* report = &platform->reports[i];
@@ -427,7 +324,7 @@ static void Pump(mwinContext* context)
     platform->pendingCount = 0;
     for (uint32_t i = 0; i < count; i++)
     {
-        Pending pending = platform->pending[i];
+        mwinTestPending pending = platform->pending[i];
         if (!IsCurrent(context, &pending))
         {
             continue;
@@ -498,8 +395,8 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
 static mwinResult RumbleGamepad(mwinContext* context, uint32_t slot, float low, float high,
                                 uint32_t durationMs)
 {
-    Rumble* rumble = &PlatformOf(context)->rumbles[slot];
-    *rumble = (Rumble){low, high, durationMs, rumble->count + 1};
+    mwinTestRumble* rumble = &mwinTestPlatformOf(context)->rumbles[slot];
+    *rumble = (mwinTestRumble){low, high, durationMs, rumble->count + 1};
     return mwin_success;
 }
 
@@ -510,12 +407,12 @@ const mwinBackendOps mwinTestBackend = {
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
 {
-    if (context == nullptr || kind >= KINDS || outcome == mwin_outcomeSuperseded ||
+    if (context == nullptr || kind >= MWIN_TEST_KINDS || outcome == mwin_outcomeSuperseded ||
         outcome == mwin_outcomeCancelled || outcome > mwin_outcomeFailed)
     {
         return mwin_errorInvalid;
     }
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
     {
         return mwin_errorUnsupported;
@@ -530,7 +427,7 @@ mwinResult mwinTestHold(mwinContext* context, bool hold)
     {
         return mwin_errorInvalid;
     }
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
     {
         return mwin_errorUnsupported;
@@ -573,13 +470,13 @@ static bool IsTextValid(const mwinEvent* event)
 }
 
 // Copies a report, its text and its segments into the platform's queue.
-static mwinResult QueueReport(TestPlatform* platform, const mwinEvent* event)
+mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* event)
 {
     uint32_t length = HasText(event->type) ? event->data.text.length : 0;
     uint32_t segments = event->type == mwin_eventImePreedit ? event->data.preedit.segmentCount : 0;
-    if (platform->reportCount == MAX_REPORTS ||
-        MAX_REPORT_TEXT - platform->reportTextUsed < length ||
-        MAX_REPORT_SEGMENTS - platform->reportSegmentsUsed < segments)
+    if (platform->reportCount == MWIN_TEST_REPORTS ||
+        MWIN_TEST_REPORT_TEXT - platform->reportTextUsed < length ||
+        MWIN_TEST_REPORT_SEGMENTS - platform->reportSegmentsUsed < segments)
     {
         return mwin_errorCapacity;
     }
@@ -612,7 +509,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorInvalid;
     }
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
     {
         return mwin_errorUnsupported;
@@ -623,12 +520,12 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorStale;
     }
-    return QueueReport(platform, event);
+    return mwinTestQueueReport(platform, event);
 }
 
 mwinResult mwinTestSetTime(mwinContext* context, uint64_t timeNs)
 {
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (context == nullptr || (platform != nullptr && timeNs < platform->timeNs))
     {
         return mwin_errorInvalid;
@@ -647,7 +544,7 @@ mwinResult mwinTestSetScale(mwinContext* context, float scale)
     {
         return mwin_errorInvalid;
     }
-    TestPlatform* platform = PlatformOf(context);
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
     {
         return mwin_errorUnsupported;
@@ -663,7 +560,7 @@ mwinResult mwinTestGetTitle(const mwinContext* context, mwinWindowId window, cha
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -688,7 +585,7 @@ mwinResult mwinTestAddMonitor(mwinContext* context, const mwinMonitorInfo* info,
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -708,7 +605,7 @@ mwinResult mwinTestChangeMonitor(mwinContext* context, mwinMonitorId monitor,
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -727,7 +624,7 @@ mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -746,7 +643,7 @@ mwinResult mwinTestSetSystemFacts(mwinContext* context, const mwinSystemFacts* f
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -760,7 +657,7 @@ mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t 
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -780,7 +677,7 @@ static mwinResult FindTestGamepad(const mwinContext* context, mwinGamepadId game
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -795,7 +692,7 @@ mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
     {
         return mwin_errorInvalid;
     }
-    if (PlatformOf(context) == nullptr)
+    if (mwinTestPlatformOf(context) == nullptr)
     {
         return mwin_errorUnsupported;
     }
@@ -804,7 +701,7 @@ mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
     {
         return mwin_errorCapacity;
     }
-    PlatformOf(context)->rumbles[slot] = (Rumble){0};
+    mwinTestPlatformOf(context)->rumbles[slot] = (mwinTestRumble){0};
     *gamepadOut = mwinGamepadIdOf(context, (uint32_t)slot);
     return mwin_success;
 }
@@ -867,99 +764,11 @@ mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, 
             : mwin_errorInvalid;
     if (status == mwin_success)
     {
-        const Rumble* rumble = &PlatformOf(context)->rumbles[slot];
+        const mwinTestRumble* rumble = &mwinTestPlatformOf(context)->rumbles[slot];
         *lowOut = rumble->low;
         *highOut = rumble->high;
         *durationMsOut = rumble->durationMs;
         *countOut = rumble->count;
     }
     return status;
-}
-
-mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length)
-{
-    if (context == nullptr || (bytes == nullptr && length != 0))
-    {
-        return mwin_errorInvalid;
-    }
-    if (PlatformOf(context) == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    return SetClipboard(context, bytes, length, false) ? mwin_success : mwin_errorCapacity;
-}
-
-mwinResult mwinTestSetClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length)
-{
-    if (context == nullptr || (units == nullptr && length != 0))
-    {
-        return mwin_errorInvalid;
-    }
-    if (PlatformOf(context) == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    return SetClipboard(context, units, length * 2, true) ? mwin_success : mwin_errorCapacity;
-}
-
-mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t capacity,
-                                size_t* lengthOut)
-{
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
-    {
-        return mwin_errorInvalid;
-    }
-    const TestPlatform* platform = PlatformOf(context);
-    if (platform == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    size_t length = platform->clipboardBytes;
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(buffer, platform->clipboard, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
-}
-
-mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
-                        const char* files, size_t filesLength, const char* text, size_t textLength)
-{
-    if (context == nullptr || (files == nullptr && filesLength != 0) ||
-        (filesLength > 0 && files[filesLength - 1] != '\0'))
-    {
-        return mwin_errorInvalid;
-    }
-    TestPlatform* platform = PlatformOf(context);
-    if (platform == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    if (mwinFindWindow(context, window) == nullptr)
-    {
-        return mwin_errorStale;
-    }
-    if (platform->dropWaiting)
-    {
-        return mwin_errorState;
-    }
-    mwinEvent report = {.type = mwin_eventDropped, .window = window, .timeNs = Now(context)};
-    report.data.drop.position = position;
-    mwinResult status = QueueReport(platform, &report);
-    if (status != mwin_success)
-    {
-        return status;
-    }
-    mwinBeginDrop(context);
-    for (size_t at = 0; at < filesLength; at += strlen(files + at) + 1)
-    {
-        mwinAddDroppedFile(context, files + at, strlen(files + at));
-    }
-    if (text != nullptr)
-    {
-        mwinSetDroppedText(context, text, textLength);
-    }
-    platform->dropWaiting = true;
-    return mwin_success;
 }

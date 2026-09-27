@@ -88,7 +88,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/utf8.c
     src/window.c)
 if(MAUL_WINDOW_TEST_BACKEND)
-    target_sources(maul-window PRIVATE src/backend_test.c)
+    target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_services.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
 endif()
 # The gamepad component: its functions, and the backends' gamepad code.

@@ -12,6 +12,7 @@
 #include "backend.h"
 #include "web.h"
 #include "web_input.h"
+#include "web_pad.h"
 #include "web_page.h"
 #include "web_text.h"
 #include "web_window.h"
@@ -143,6 +144,9 @@ static mwinResult Start(mwinContext* context)
     context->backendData = platform;
     mwinWebAttach(context, Lifecycle);
     mwinWebAttachInput(context);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinWebPadsStart(&platform->pads, context);
+#endif
     ReadScreen(platform);
     ReadFacts(platform);
     return mwin_success;
@@ -227,6 +231,9 @@ static void Pump(mwinContext* context)
             break;
         }
     }
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinWebPadsPump(&platform->pads, NowNs());
+#endif
 }
 
 // A frame of the browser's: the program's frame, or its end.
@@ -282,16 +289,19 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.web.selectorLength = window->selectorLength;
 }
 
-// No gamepad of this backend's has motors yet.
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    return mwinWebPadsRumble(&PlatformOf(context)->pads, slot, low, high, durationMs);
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinWebBackend = {

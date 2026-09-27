@@ -11,6 +11,7 @@
 
 #include "clicks.h"
 #include "core.h"
+#include "web_pad.h"
 
 // A canvas's selector as the native handles give it: "#" and its id.
 #define MWIN_WEB_SELECTOR_BYTES 128
@@ -50,6 +51,8 @@ typedef struct mwinWebPlatform
     char* text;
     // The page went away (hidden, frozen or left) and has not come back.
     bool suspended;
+    // The gamepads, with the gamepad component.
+    mwinWebPads pads;
 } mwinWebPlatform;
 
 // What the page reports, one record at a time.

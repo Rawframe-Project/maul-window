@@ -173,6 +173,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         add_test(NAME web_lifecycle COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                  $<TARGET_FILE:test_web_lifecycle>)
         set_tests_properties(web web_input web_ime web_lifecycle PROPERTIES SKIP_RETURN_CODE 77)
+        if(MAUL_WINDOW_GAMEPAD)
+            maul_add_test(web_gamepad MANUAL)
+            add_test(NAME web_gamepad COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
+                     $<TARGET_FILE:test_web_gamepad>)
+            set_tests_properties(web_gamepad PROPERTIES SKIP_RETURN_CODE 77)
+        endif()
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

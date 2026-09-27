@@ -92,6 +92,19 @@ in their own changes.
   out, as XInput keeps a motor running until told otherwise. Other HID
   gamepads (through Raw Input and the database's Windows entries) are
   later work.
+- **Web:** gamepads are the Gamepad API's, `navigator.getGamepads()`
+  read at each pump for the first eight indexes, a pad's controls
+  posted when its timestamp moves. A pad with the standard mapping is
+  mapped (its analog triggers are buttons 6 and 7 there, their values
+  the trigger axes), any other raw. A pad's index can be reused, so the
+  page's disconnections are counted per index and a pad found there
+  after one is a new pad even when no pump saw the index empty. The
+  name, vendor and product come from the id, as Chrome ("Name (...
+  Vendor: 045e Product: 028e)") and Firefox and Safari ("45e-28e-Name")
+  write it. Rumble is the vibration actuator's `dual-rumble` effect,
+  which the browser stops when its duration ends; a duration of 0
+  resets the actuator. The page gives no battery. Browsers show a page
+  no gamepad before one of them is pressed there.
 
 ## Consequences
 
@@ -101,4 +114,5 @@ A gamepad driver belongs to a platform rather than a window system, so
 Wayland and X11 share Linux's, tested with virtual devices made through
 uinput (CI lets its test user make them). Win32's driver is tested
 against a stand-in for XInput, as no virtual XInput device can be made;
-the web follows.
+the web's in headless Chrome against a stand-in for
+`navigator.getGamepads()`, for the same reason.

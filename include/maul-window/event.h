@@ -199,6 +199,7 @@ extern "C"
         mwin_requestKeepAwake = 19,
         mwin_requestFileDialog = 20,
         mwin_requestIcon = 21,
+        mwin_requestHitRegions = 22,
     };
 
     // How a request ended.

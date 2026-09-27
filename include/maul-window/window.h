@@ -86,6 +86,11 @@ extern "C"
         mwin_styleResizable = 1,
         mwin_styleDecorated = 2,
         mwin_styleAlwaysOnTop = 4,
+        // The program draws the window's frame: the platform draws no
+        // title bar or border, over mwin_styleDecorated, but keeps what
+        // its frame does (shadows, snapping, animations) where it can.
+        // Hit regions say where the caption and edges are.
+        mwin_styleCustomChrome = 8,
     };
 
     // What a window is to the others.
@@ -388,6 +393,67 @@ extern "C"
         size_t stride;
         const uint8_t* pixels;
     } mwinIconImage;
+
+// The most hit regions of a window.
+#define MWIN_HIT_REGIONS 16
+
+    // What a part of a window is to the platform.
+    typedef uint8_t mwinHitKind;
+
+    enum
+    {
+        // The program's: the pointer's records go to it.
+        mwin_hitClient = 0,
+        // Dragging moves the window; a double click maximizes or restores
+        // it.
+        mwin_hitCaption = 1,
+        // Dragging resizes the window from an edge or a corner.
+        mwin_hitLeft = 2,
+        mwin_hitRight = 3,
+        mwin_hitTop = 4,
+        mwin_hitBottom = 5,
+        mwin_hitTopLeft = 6,
+        mwin_hitTopRight = 7,
+        mwin_hitBottomLeft = 8,
+        mwin_hitBottomRight = 9,
+        // The program's buttons, whose pointer records go to it as the
+        // client's do. Windows 11 shows its snap layouts over a maximize
+        // button (mwinSystemFacts.snapLayouts).
+        mwin_hitMinimize = 10,
+        mwin_hitMaximize = 11,
+        mwin_hitClose = 12,
+    };
+
+    // A part of a window's client area, in logical units from its top
+    // left.
+    typedef struct mwinHitRegion
+    {
+        mwinRect rect;
+        mwinHitKind kind;
+    } mwinHitRegion;
+
+    /// Tells the platform what the parts of the window's client area are,
+    /// replacing what it was told before: a later region over an earlier
+    /// one, and the client everywhere else. A press on a caption or an
+    /// edge moves or resizes the window through the platform, and is not
+    /// reported. The regions are copied at the call. The web answers
+    /// mwin_outcomeUnsupported.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param regions     The regions. May be NULL when count is 0.
+    /// @param count       How many, at most MWIN_HIT_REGIONS; 0 for none.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for more
+    ///         regions than MWIN_HIT_REGIONS, a region not finite, of a
+    ///         negative size or of an unknown kind.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestHitRegions(mwinContext* context,
+                                                             mwinWindowId window,
+                                                             const mwinHitRegion* regions,
+                                                             uint32_t count,
+                                                             mwinRequestId* requestOut);
 
     /// Asks for the window's icon, as its title bar, the taskbar and the
     /// window switcher show it; each platform takes the images nearest

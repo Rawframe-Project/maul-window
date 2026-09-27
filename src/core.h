@@ -139,6 +139,9 @@ typedef struct mwinWindow
     char* pendingTitle;
     uint16_t titleLength;
     uint16_t pendingTitleLength;
+    // The hit regions the program declared (chrome.c).
+    mwinHitRegion regions[MWIN_HIT_REGIONS];
+    uint8_t regionCount;
     // The backend's own data for the window.
     void* platform;
 } mwinWindow;

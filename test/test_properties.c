@@ -42,7 +42,7 @@ static void PropertyStep(Program* program, mwinContext* context, int step)
                   mwinRequestSizeLimits(context, window, (mwinSize){NAN, 0.0f},
                                         (mwinSize){0.0f, 0.0f}, nullptr) == mwin_errorInvalid &&
                   mwinRequestAspectRatio(context, window, 16, 0, nullptr) == mwin_errorInvalid &&
-                  mwinRequestStyle(context, window, 8, nullptr) == mwin_errorInvalid &&
+                  mwinRequestStyle(context, window, 16, nullptr) == mwin_errorInvalid &&
                   mwinRequestOpacity(context, window, 1.5f, nullptr) == mwin_errorInvalid &&
                   mwinRequestOpacity(context, window, NAN, nullptr) == mwin_errorInvalid,
               "crossed limits, a half ratio, unknown flags, an opacity out of range");

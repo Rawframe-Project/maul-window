@@ -51,6 +51,10 @@ extern "C"
         float textScale;
         mwinTristate onBattery;
         mwinTristate lowPower;
+        // Windows shows its snap layouts over a window's maximize hit
+        // region (Windows 11); a named optional capability, false
+        // elsewhere.
+        bool snapLayouts;
     } mwinSystemFacts;
 
     /// Reads the system's preferences and facts.

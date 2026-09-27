@@ -16,7 +16,8 @@
 #include <string.h>
 
 #define WINDOW_DEF_COOKIE 0x6D77696Eu
-#define ALL_STYLES        (mwin_styleResizable | mwin_styleDecorated | mwin_styleAlwaysOnTop)
+#define ALL_STYLES                                                                                 \
+    (mwin_styleResizable | mwin_styleDecorated | mwin_styleAlwaysOnTop | mwin_styleCustomChrome)
 
 mwinWindowDef mwinDefaultWindowDef(void)
 {
@@ -222,6 +223,7 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
     window->status = mwin_slotLive;
     window->generation += 1;
     window->state = (mwinWindowState){0};
+    window->regionCount = 0;
     window->def = *def;
     window->def.title = nullptr;
     window->titleLength = (uint16_t)def->titleLength;

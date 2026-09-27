@@ -121,4 +121,14 @@ jobs:
       - name: Test
         run: MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure
       - name: Size
-        run: ls -l build/libmaul-window.a
+        # The library, and what the web backend costs a program: the same
+        # test program's wasm and JavaScript with the backend and without.
+        run: |
+          ls -l build/libmaul-window.a
+          emcmake cmake -B build-noweb -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WEB=OFF >/dev/null
+          cmake --build build-noweb -j 4 --target test_window >/dev/null
+          for kind in wasm js; do
+            with=$(stat -c %s build/test_window.$kind)
+            without=$(stat -c %s build-noweb/test_window.$kind)
+            echo "test_window.$kind  $with bytes, the web backend $((with - without))"
+          done

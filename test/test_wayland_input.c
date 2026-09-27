@@ -10,8 +10,12 @@
 // once, and leaving; and a touch stroke. The cursor: a shape through
 // the cursor shape protocol, hiding, capture as a locked pointer with
 // raw relative motion, and release. The input method: enabling with
-// the caret, a composition, its commit, and disabling. Skipped (exit
-// status 77) without XDG_RUNTIME_DIR or xkb data.
+// the caret, a composition, its commit, and disabling. The frame the
+// backend draws, as the compositor offers no server-side decorations:
+// the window geometry with the caption, and the caption moving the
+// window, its close button, a resize edge and a double click, none of
+// which reaches the program as pointer input. Skipped (exit status 77)
+// without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_server.h"
@@ -49,6 +53,11 @@ typedef enum Phase
     phasePreedit,
     phaseTextCommit,
     phaseTextDisable,
+    phaseFrame,
+    phaseMove,
+    phaseCloseButton,
+    phaseResize,
+    phaseDoubleClick,
     phaseDone,
 } Phase;
 
@@ -64,6 +73,8 @@ typedef struct Program
     char text[TEXT_BYTES];
     uint32_t textLength;
     bool timedOut;
+    // The frame part the pointer is on.
+    struct wl_resource* part;
 } Program;
 
 static uint64_t NowNs(void)
@@ -130,6 +141,22 @@ static bool TextIs(const Program* program, const char* text)
     return program->textLength == strlen(text) && memcmp(program->text, text, strlen(text)) == 0;
 }
 
+// Whether the compositor has seen what the frame asked of it.
+static bool FrameReady(Phase phase, Shell shell)
+{
+    switch (phase)
+    {
+    case phaseFrame:
+        return shell.parts == 5 && shell.geometry[1] == -28;
+    case phaseMove:
+        return shell.moves > 0;
+    case phaseResize:
+        return shell.resizeEdge != 0;
+    default:
+        return shell.maximizes > 0;
+    }
+}
+
 // Whether the compositor has seen what a cursor phase asked for.
 static bool CursorReady(Phase phase, Cursor cursor)
 {
@@ -192,6 +219,13 @@ static bool Ready(const Program* program)
     }
     case phasePreedit:
         return First(program, mwin_eventImePreedit) != nullptr;
+    case phaseFrame:
+    case phaseMove:
+    case phaseResize:
+    case phaseDoubleClick:
+        return FrameReady(program->phase, ServerShell(program->server));
+    case phaseCloseButton:
+        return First(program, mwin_eventCloseRequested) != nullptr;
     case phaseTextCommit:
         return First(program, mwin_eventTextInput) != nullptr;
     default:
@@ -203,6 +237,60 @@ static void Press(Server* server, uint32_t evdev)
 {
     ServerKey(server, evdev, true);
     ServerKey(server, evdev, false);
+}
+
+// Clicks a point of a frame part with a button.
+static void ClickPart(Program* program, struct wl_resource* part, double x, double y,
+                      uint32_t button)
+{
+    if (program->part != nullptr)
+    {
+        ServerPointerLeaveFrom(program->server, program->part);
+    }
+    program->part = part;
+    ServerPointerEnterOn(program->server, part, x, y);
+    ServerButton(program->server, button, true);
+    ServerButton(program->server, button, false);
+}
+
+// The frame's phases.
+static void AdvanceFrame(Program* program)
+{
+    Server* server = program->server;
+    Shell shell = ServerShell(server);
+    struct wl_resource* caption = ServerPartAt(server, 0, -28);
+    switch (program->phase)
+    {
+    case phaseFrame:
+        CHECK(shell.geometry[0] == 0 && shell.geometry[2] == 1280 && shell.geometry[3] == 748 &&
+                  caption != nullptr,
+              "the window geometry holds the caption above the content");
+        ClickPart(program, caption, 100.0, 10.0, BTN_LEFT);
+        break;
+    case phaseMove:
+        CHECK(First(program, mwin_eventCursorEntered) == nullptr &&
+                  First(program, mwin_eventButtonDown) == nullptr,
+              "the caption moves the window, and the program sees none of it");
+        ClickPart(program, caption, 1270.0, 10.0, BTN_LEFT);
+        break;
+    case phaseCloseButton:
+        // The left margin reaches from above the caption to below the
+        // content.
+        ClickPart(program, ServerPartAt(server, -6, -34), 3.0, 400.0, BTN_LEFT);
+        break;
+    case phaseResize:
+        CHECK(shell.resizeEdge == XDG_TOPLEVEL_RESIZE_EDGE_LEFT, "the left margin resizes");
+        ClickPart(program, caption, 300.0, 10.0, BTN_LEFT);
+        ServerButton(server, BTN_LEFT, true);
+        ServerButton(server, BTN_LEFT, false);
+        break;
+    case phaseDoubleClick:
+        CHECK(shell.maximizes == 1, "a double click on the caption maximizes");
+        ServerPointerLeaveFrom(server, program->part);
+        break;
+    default:
+        break;
+    }
 }
 
 // The input method's phases.
@@ -234,6 +322,8 @@ static void AdvanceText(Program* program, mwinContext* context)
               "a composition, underlined, with its caret");
         ServerCompose(program->server, nullptr, 0, 0, "\xE6\xBC\xA2");
         break;
+    case phaseTextDisable:
+        break;
     case phaseTextCommit:
         CHECK(TextIs(program, "\xE6\xBC\xA2") && preedit != nullptr &&
                   preedit->data.preedit.length == 0 &&
@@ -244,6 +334,7 @@ static void AdvanceText(Program* program, mwinContext* context)
               "stop accepting text");
         break;
     default:
+        AdvanceFrame(program);
         break;
     }
 }

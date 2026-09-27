@@ -39,6 +39,7 @@
 #define RELATIVE_VERSION         1
 #define SHM_VERSION              1
 #define TEXT_INPUT_VERSION       1
+#define SUBCOMPOSITOR_VERSION    1
 
 static mwinWaylandPlatform* PlatformOf(const mwinContext* context)
 {
@@ -124,6 +125,11 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
         platform->textInputs =
             Bind(platform, name, &zwp_text_input_manager_v3_interface, version, TEXT_INPUT_VERSION);
     }
+    else if (strcmp(interface, wl_subcompositor_interface.name) == 0)
+    {
+        platform->subcompositor =
+            Bind(platform, name, &wl_subcompositor_interface, version, SUBCOMPOSITOR_VERSION);
+    }
     else if (strcmp(interface, wl_shm_interface.name) == 0 && platform->shm == nullptr)
     {
         platform->shm = Bind(platform, name, &wl_shm_interface, version, SHM_VERSION);
@@ -175,6 +181,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
         mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
         DestroyGlobal(api, platform->shm, -1);
+        DestroyGlobal(api, platform->subcompositor, WL_SUBCOMPOSITOR_DESTROY);
         DestroyGlobal(api, platform->textInputs, ZWP_TEXT_INPUT_MANAGER_V3_DESTROY);
         DestroyGlobal(api, platform->relativePointers, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->constraints, ZWP_POINTER_CONSTRAINTS_V1_DESTROY);

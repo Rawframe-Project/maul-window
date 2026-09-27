@@ -17,6 +17,37 @@
 
 typedef struct mwinWaylandPlatform mwinWaylandPlatform;
 
+// The parts of a window's own frame: the caption with its buttons above
+// the content, and the invisible margins that resize it.
+enum
+{
+    mwin_framePartCaption = 0,
+    mwin_framePartTop = 1,
+    mwin_framePartLeft = 2,
+    mwin_framePartRight = 3,
+    mwin_framePartBottom = 4,
+    MWIN_FRAME_PARTS = 5,
+};
+
+// A frame the backend draws where the compositor draws none (W4): a
+// subsurface per part, their buffers from one shared memory pool, and
+// the caption button under the pointer.
+typedef struct mwinWaylandFrame
+{
+    struct wl_surface* parts[MWIN_FRAME_PARTS];
+    struct wl_subsurface* subsurfaces[MWIN_FRAME_PARTS];
+    struct wl_buffer* buffers[MWIN_FRAME_PARTS];
+    struct wl_shm_pool* pool;
+    // The parts show, and the caption alone (maximized).
+    bool shown;
+    bool captionOnly;
+    // The caption button under the pointer and the one pressed, or -1.
+    int8_t hover;
+    int8_t pressed;
+    // The last press on the caption, for a double click.
+    uint64_t captionPressNs;
+} mwinWaylandFrame;
+
 // A window's objects, and what the compositor proposed in the configure
 // sequence that is still open.
 typedef struct mwinWaylandWindow
@@ -57,6 +88,10 @@ typedef struct mwinWaylandWindow
     // The window accepts text, and where its caret is.
     bool textInput;
     mwinRect caret;
+    // The decoration mode the compositor chose, 0 before it says, and the
+    // frame the backend draws otherwise.
+    uint32_t decorationMode;
+    mwinWaylandFrame frame;
 } mwinWaylandWindow;
 
 // An output the compositor announced, and the monitor slot it fills, or
@@ -106,9 +141,11 @@ typedef struct mwinWaylandPointer
 {
     struct wl_pointer* pointer;
     // The window slot under the pointer, or -1, and the serial of the
-    // enter event, which cursor requests quote.
+    // enter event, which cursor requests quote. The frame part under the
+    // pointer instead, or NULL.
     int32_t focus;
     uint32_t enterSerial;
+    struct wl_surface* framePart;
     mwinPosition position;
     uint8_t buttons;
     // Gathered until the frame event: motion, and per axis (0 vertical,
@@ -195,6 +232,7 @@ struct mwinWaylandPlatform
     struct zwp_pointer_constraints_v1* constraints;
     struct zwp_relative_pointer_manager_v1* relativePointers;
     struct wl_shm* shm;
+    struct wl_subcompositor* subcompositor;
     struct zwp_text_input_manager_v3* textInputs;
     mwinWaylandCursorTheme cursorTheme;
     // The first seat, its registry name, and its keyboard. libxkbcommon
@@ -232,6 +270,14 @@ static inline uint64_t mwinWaylandTime(uint32_t milliseconds)
     uint64_t now = mwinWaylandNow();
     uint32_t age = (uint32_t)(now / 1000000u) - milliseconds;
     return age < 60000u && (uint64_t)age * 1000000u <= now ? now - (uint64_t)age * 1000000u : now;
+}
+
+// The integer scale an image needs over a window: its scale, rounded
+// up. Cursor images and the frame are drawn at it.
+static inline int32_t mwinWaylandImageScale(const mwinWaylandWindow* window)
+{
+    return window->scale120 != 0 ? (int32_t)((window->scale120 + 119u) / 120u)
+                                 : window->bufferScale;
 }
 
 // The slot of the window whose surface this is, or -1.

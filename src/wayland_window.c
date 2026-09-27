@@ -6,6 +6,7 @@
 #include "wayland_window.h"
 
 #include "wayland_cursor.h"
+#include "wayland_frame.h"
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_pointer.h"
@@ -104,6 +105,7 @@ static void SetScale(mwinWaylandWindow* window, uint32_t scale120, int32_t buffe
     ApplySurfaceSize(window);
     PostScale(window);
     PostSize(window);
+    mwinWaylandUpdateFrame(window->platform, window->slot);
 }
 
 static void OnEnter(void* data, struct wl_surface* surface, struct wl_output* output)
@@ -291,12 +293,16 @@ static void OnSurfaceConfigure(void* data, struct xdg_surface* surface, uint32_t
     const mwinWindow* core = &window->platform->context->windows[window->slot];
     api->proxyMarshalFlags((struct wl_proxy*)surface, XDG_SURFACE_ACK_CONFIGURE, nullptr,
                            mwinWlVersion(api, surface), 0, serial);
-    bool resized = window->proposedWidth > 0 && window->proposedHeight > 0 &&
+    // The compositor sizes the window geometry, which holds a frame's
+    // caption above the content.
+    int32_t height = window->proposedHeight -
+                     mwinWaylandCaptionOf(window->platform, window, window->proposedMode);
+    bool resized = window->proposedWidth > 0 && height > 0 &&
                    ((float)window->proposedWidth != window->size.width ||
-                    (float)window->proposedHeight != window->size.height);
+                    (float)height != window->size.height);
     if (resized)
     {
-        window->size = (mwinSize){(float)window->proposedWidth, (float)window->proposedHeight};
+        window->size = (mwinSize){(float)window->proposedWidth, (float)height};
     }
     if (!window->configured)
     {
@@ -314,18 +320,21 @@ static void OnSurfaceConfigure(void* data, struct xdg_surface* surface, uint32_t
     {
         PostType(window, window->proposedSuspended ? mwin_eventOccluded : mwin_eventRevealed);
     }
+    mwinWaylandUpdateFrame(window->platform, window->slot);
 }
 
 static const struct xdg_surface_listener s_xdgSurfaceListener = {
     OnSurfaceConfigure,
 };
 
+// The compositor chose who draws the decorations; the frame follows.
 static void OnDecorationConfigure(void* data, struct zxdg_toplevel_decoration_v1* decoration,
                                   uint32_t mode)
 {
-    (void)data;
     (void)decoration;
-    (void)mode;
+    mwinWaylandWindow* window = data;
+    window->decorationMode = mode;
+    mwinWaylandUpdateFrame(window->platform, window->slot);
 }
 
 static const struct zxdg_toplevel_decoration_v1_listener s_decorationListener = {
@@ -416,7 +425,8 @@ void mwinWaylandCreateWindow(mwinContext* context, uint32_t slot)
                                   .slot = slot,
                                   .size = core->def.size,
                                   .bufferScale = 1,
-                                  .modeRequest = -1};
+                                  .modeRequest = -1,
+                                  .frame = {.hover = -1, .pressed = -1}};
     window->surface = mwinWlRequest(api, platform->compositor, WL_COMPOSITOR_CREATE_SURFACE,
                                     &wl_surface_interface, 0);
     mwinWlListen(api, window->surface, &s_surfaceListener, window);
@@ -445,6 +455,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     mwinWaylandForgetPointerFocus(platform, slot);
     mwinWaylandDropCursor(platform, slot);
     mwinWaylandForgetTextFocus(platform, slot);
+    mwinWaylandDestroyFrame(platform, slot);
     if (window->viewport != nullptr)
     {
         (void)mwinWlRequest(api, window->viewport, WP_VIEWPORT_DESTROY, nullptr,
@@ -468,16 +479,22 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     *window = (mwinWaylandWindow){0};
 }
 
-// Sets the smallest and largest size, 0 for no bound.
+// Sets the smallest and largest size, 0 for no bound. The compositor
+// bounds the window geometry, which holds a frame's caption.
 static void SetLimits(mwinWaylandWindow* window, mwinSize minimum, mwinSize maximum)
 {
     const mwinWaylandApi* api = &window->platform->api;
     struct wl_proxy* toplevel = (struct wl_proxy*)window->toplevel;
     uint32_t version = mwinWlVersion(api, toplevel);
+    int32_t caption = mwinWaylandCaptionOf(window->platform, window, mwin_modeWindowed);
+    int32_t minimumHeight = (int32_t)lroundf(minimum.height);
+    int32_t maximumHeight = (int32_t)lroundf(maximum.height);
     api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_SET_MIN_SIZE, nullptr, version, 0,
-                           (int32_t)lroundf(minimum.width), (int32_t)lroundf(minimum.height));
+                           (int32_t)lroundf(minimum.width),
+                           minimumHeight > 0 ? minimumHeight + caption : 0);
     api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_SET_MAX_SIZE, nullptr, version, 0,
-                           (int32_t)lroundf(maximum.width), (int32_t)lroundf(maximum.height));
+                           (int32_t)lroundf(maximum.width),
+                           maximumHeight > 0 ? maximumHeight + caption : 0);
 }
 
 // Carries out a request the protocol can; the outcome, or -1 for one the
@@ -501,6 +518,7 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         window->size = request->value.size;
         ApplySurfaceSize(window);
         PostSize(window);
+        mwinWaylandUpdateFrame(window->platform, window->slot);
         return mwin_outcomeDone;
     case mwin_requestMode:
         RequestMode(window, request->value.mode);

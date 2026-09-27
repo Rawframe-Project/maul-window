@@ -17,11 +17,12 @@ text: core
 wayland: core wayland_api xkb_api
 wayland_api:
 wayland_cursor: core wayland wayland_api
+wayland_frame: core wayland wayland_api wayland_cursor
 wayland_keyboard: core evdev wayland wayland_api xkb_api
 wayland_output: core wayland wayland_api
-wayland_pointer: core wayland wayland_api wayland_cursor
+wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_text
 wayland_text: core wayland wayland_api
-wayland_window: core wayland wayland_api wayland_cursor wayland_keyboard wayland_output wayland_pointer wayland_text
+wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
 window: core
 xkb_api:

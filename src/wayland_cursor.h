@@ -23,6 +23,11 @@ void mwinWaylandDetachCursors(mwinWaylandPlatform* platform);
 // Shows the cursor of the window under the pointer.
 void mwinWaylandShowCursor(mwinWaylandPlatform* platform);
 
+// Shows a shape over the frame of the window in a slot, whatever the
+// window's own cursor is.
+void mwinWaylandShowFrameCursor(mwinWaylandPlatform* platform, uint32_t slot,
+                                mwinCursorShape shape);
+
 // Carries out a cursor mode or shape request of the window in a slot:
 // its outcome.
 mwinOutcome mwinWaylandSetCursorMode(mwinWaylandPlatform* platform, uint32_t slot,

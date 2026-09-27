@@ -92,6 +92,7 @@ set(MWIN_WAYLAND_SOURCES
     src/evdev.c
     src/wayland_api.c
     src/wayland_cursor.c
+    src/wayland_frame.c
     src/wayland_keyboard.c
     src/wayland_output.c
     src/wayland_pointer.c
@@ -104,6 +105,8 @@ target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WAYLAND)
 # poll, clock_gettime and dlopen are POSIX, outside strict C.
 set_source_files_properties(${MWIN_WAYLAND_SOURCES} PROPERTIES
     COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+# memfd_create is a GNU extension, in glibc and musl.
+set_property(SOURCE src/wayland_frame.c APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 target_link_libraries(maul-window PRIVATE ${CMAKE_DL_LIBS})
 if(CMAKE_DL_LIBS)
     string(APPEND MAUL_PKG_LIBS_PRIVATE " -l${CMAKE_DL_LIBS}")

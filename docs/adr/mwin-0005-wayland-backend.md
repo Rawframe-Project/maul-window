@@ -90,6 +90,22 @@ twice.
   its own in the protocol: `mwinRequestVirtualKeyboard` is answered
   unsupported, and a compositor shows its keyboard when text input is
   enabled.
+- **Frame (W4):** a decorated window gets a frame of the backend's own
+  where the compositor has no xdg-decoration or chooses client-side
+  decorations. Five subsurfaces, committing on their own so the frame
+  shows without the renderer: a 28-unit caption above the content,
+  in the system's light or dark theme, with close, maximize (or
+  restore) and minimize buttons drawn as anti-aliased shapes and no
+  title text; and 6-unit invisible margins around it, whose corners
+  reach 16 units along each edge. The caption moves the window, opens
+  the window menu on a right click and maximizes on a double click;
+  the margins resize it with the matching cursor. The window geometry
+  takes in the caption, so the compositor's sizes and size limits are
+  the frame's and the content is smaller by the caption. A maximized
+  window keeps the caption alone, a full-screen one no frame. Pointer
+  input on the frame never reaches the program. Its parts are drawn
+  into shared memory from `memfd_create`, at the window's scale
+  rounded up.
 - **The pump** never waits: it flushes, reads what has arrived and
   dispatches it. A failed connection stops the loop, and `mwinRun`
   returns `mwin_errorPlatform`.
@@ -103,5 +119,4 @@ and `libxkbcommon`, and only in a Wayland session. The integration
 test runs against a headless weston and is skipped without
 `WAYLAND_DISPLAY`; the input tests run against a small compositor of
 their own on `libwayland-server` (`test/wayland_server.h`), since a
-headless weston has no seat. A client-side frame for compositors
-without server-side decorations follows in its own change.
+headless weston has no seat.

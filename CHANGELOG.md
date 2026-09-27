@@ -63,4 +63,6 @@ format.
   wheel in high-resolution steps) and touch; cursor shapes through the
   cursor shape protocol or the cursor theme, hidden, captured (a
   locked pointer with raw deltas) and confined cursors; input methods
-  through text-input-v3.
+  through text-input-v3; and a frame of its own where the compositor
+  draws none (W4): a caption that moves the window, with close,
+  maximize and minimize buttons, and resize margins.

@@ -5,7 +5,9 @@
 // libwayland-server in a thread of the test: xdg-shell toplevels that
 // are configured activated at their first commit; a seat with a
 // keyboard whose keymap is compiled from RMLVO names, a pointer and a
-// touch screen; cursor shapes, pointer constraints and relative motion,
+// touch screen; subsurfaces and shared memory, with the shell requests
+// a client's own frame makes; cursor shapes, pointer constraints and
+// relative motion,
 // with what the client asked for kept in the Cursor state; and a text
 // input whose committed state is kept in TextState. The
 // test drives the seat through the Server functions, which take the
@@ -50,6 +52,21 @@ typedef struct TextState
     uint32_t commits;
 } TextState;
 
+// What the client asked of its toplevel's shell: the window geometry,
+// and the moves, resizes, window menus and maximizations it started.
+typedef struct Shell
+{
+    int32_t geometry[4];
+    int moves;
+    uint32_t resizeEdge;
+    int menus;
+    int maximizes;
+    // The subsurfaces made, with their surfaces and places.
+    int parts;
+} Shell;
+
+#define SERVER_PARTS 8
+
 typedef struct Server
 {
     struct wl_display* display;
@@ -73,6 +90,14 @@ typedef struct Server
     // What the client asked for since its last commit, and what holds.
     TextState pendingText;
     TextState text;
+    Shell shell;
+    struct
+    {
+        struct wl_resource* surface;
+        struct wl_resource* subsurface;
+        int32_t x;
+        int32_t y;
+    } parts[SERVER_PARTS];
     int32_t repeatRate;
     int32_t repeatDelay;
     uint32_t serial;
@@ -140,7 +165,7 @@ static void ServerCommit(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
-    if (server->toplevel == nullptr || server->configured)
+    if (server->toplevel == nullptr || server->configured || resource != server->surface)
     {
         return;
     }
@@ -171,7 +196,6 @@ static void ServerCreateSurface(struct wl_client* client, struct wl_resource* re
     struct wl_resource* surface =
         wl_resource_create(client, &wl_surface_interface, wl_resource_get_version(resource), id);
     wl_resource_set_implementation(surface, &s_serverSurface, server, nullptr);
-    server->surface = surface;
 }
 
 static const struct wl_compositor_interface s_serverCompositor = {
@@ -194,13 +218,55 @@ static void ServerSetOutput(struct wl_client* client, struct wl_resource* resour
     (void)output;
 }
 
+static void ServerMove(struct wl_client* client, struct wl_resource* resource,
+                       struct wl_resource* seat, uint32_t serial)
+{
+    (void)client;
+    (void)seat;
+    (void)serial;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.moves += 1;
+}
+
+static void ServerResize(struct wl_client* client, struct wl_resource* resource,
+                         struct wl_resource* seat, uint32_t serial, uint32_t edges)
+{
+    (void)client;
+    (void)seat;
+    (void)serial;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.resizeEdge = edges;
+}
+
+static void ServerMenu(struct wl_client* client, struct wl_resource* resource,
+                       struct wl_resource* seat, uint32_t serial, int32_t x, int32_t y)
+{
+    (void)client;
+    (void)seat;
+    (void)serial;
+    (void)x;
+    (void)y;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.menus += 1;
+}
+
+static void ServerMaximize(struct wl_client* client, struct wl_resource* resource)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.maximizes += 1;
+}
+
 static const struct xdg_toplevel_interface s_serverToplevel = {
     .destroy = ServerDestroyResource,
     .set_title = ServerNoString,
     .set_app_id = ServerNoString,
     .set_max_size = ServerNoTwoInts,
     .set_min_size = ServerNoTwoInts,
-    .set_maximized = ServerNoRequest,
+    .show_window_menu = ServerMenu,
+    .move = ServerMove,
+    .resize = ServerResize,
+    .set_maximized = ServerMaximize,
     .unset_maximized = ServerNoRequest,
     .set_fullscreen = ServerSetOutput,
     .unset_fullscreen = ServerNoRequest,
@@ -223,18 +289,29 @@ static void ServerAck(struct wl_client* client, struct wl_resource* resource, ui
     (void)serial;
 }
 
+static void ServerGeometry(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                           int32_t y, int32_t width, int32_t height)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.geometry[0] = x;
+    server->shell.geometry[1] = y;
+    server->shell.geometry[2] = width;
+    server->shell.geometry[3] = height;
+}
+
 static const struct xdg_surface_interface s_serverXdgSurface = {
     .destroy = ServerDestroyResource,
     .get_toplevel = ServerGetToplevel,
-    .set_window_geometry = ServerNoRect,
+    .set_window_geometry = ServerGeometry,
     .ack_configure = ServerAck,
 };
 
 static void ServerGetXdgSurface(struct wl_client* client, struct wl_resource* resource, uint32_t id,
                                 struct wl_resource* surface)
 {
-    (void)surface;
     Server* server = wl_resource_get_user_data(resource);
+    server->surface = surface;
     server->xdgSurface =
         wl_resource_create(client, &xdg_surface_interface, wl_resource_get_version(resource), id);
     wl_resource_set_implementation(server->xdgSurface, &s_serverXdgSurface, server, nullptr);
@@ -543,6 +620,57 @@ static void ServerBindTextInputs(struct wl_client* client, void* data, uint32_t 
     wl_resource_set_implementation(resource, &s_serverTextInputs, data, nullptr);
 }
 
+static void ServerPosition(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                           int32_t y)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    for (int i = 0; i < server->shell.parts; i++)
+    {
+        if (server->parts[i].subsurface == resource)
+        {
+            server->parts[i].x = x;
+            server->parts[i].y = y;
+        }
+    }
+}
+
+static const struct wl_subsurface_interface s_serverSubsurface = {
+    .destroy = ServerDestroyResource,
+    .set_position = ServerPosition,
+    .set_sync = ServerNoRequest,
+    .set_desync = ServerNoRequest,
+};
+
+static void ServerGetSubsurface(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                                struct wl_resource* surface, struct wl_resource* parent)
+{
+    (void)parent;
+    Server* server = wl_resource_get_user_data(resource);
+    struct wl_resource* subsurface =
+        wl_resource_create(client, &wl_subsurface_interface, wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(subsurface, &s_serverSubsurface, server, nullptr);
+    if (server->shell.parts < SERVER_PARTS)
+    {
+        int index = server->shell.parts++;
+        server->parts[index].surface = surface;
+        server->parts[index].subsurface = subsurface;
+    }
+}
+
+static const struct wl_subcompositor_interface s_serverSubcompositor = {
+    .destroy = ServerDestroyResource,
+    .get_subsurface = ServerGetSubsurface,
+};
+
+static void ServerBindSubcompositor(struct wl_client* client, void* data, uint32_t version,
+                                    uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &wl_subcompositor_interface, version, id);
+    wl_resource_set_implementation(resource, &s_serverSubcompositor, data, nullptr);
+}
+
 static void* ServerRun(void* data)
 {
     Server* server = data;
@@ -612,6 +740,9 @@ static bool ServerStart(Server* server, const char* layout, const char* variant)
                      ServerBindRelatives);
     wl_global_create(server->display, &zwp_text_input_manager_v3_interface, 1, server,
                      ServerBindTextInputs);
+    wl_global_create(server->display, &wl_subcompositor_interface, 1, server,
+                     ServerBindSubcompositor);
+    wl_display_init_shm(server->display);
     setenv("WAYLAND_DISPLAY", server->socket, 1);
     pthread_mutex_init(&server->lock, nullptr);
     return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
@@ -668,21 +799,29 @@ static void ServerModifiers(Server* server, uint32_t depressed, uint32_t group)
     pthread_mutex_unlock(&server->lock);
 }
 
-// Pointer events, each in a frame of its own unless noted.
-static void ServerPointerEnter(Server* server, double x, double y)
+// Pointer events, each in a frame of its own unless noted. The pointer
+// enters a surface, the toplevel's content where none is named.
+static void ServerPointerEnterOn(Server* server, struct wl_resource* surface, double x, double y)
 {
     pthread_mutex_lock(&server->lock);
-    wl_pointer_send_enter(server->pointer, ++server->serial, server->surface,
-                          wl_fixed_from_double(x), wl_fixed_from_double(y));
+    wl_pointer_send_enter(server->pointer, ++server->serial,
+                          surface != nullptr ? surface : server->surface, wl_fixed_from_double(x),
+                          wl_fixed_from_double(y));
     wl_pointer_send_frame(server->pointer);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
 }
 
-static void ServerPointerLeave(Server* server)
+static void ServerPointerEnter(Server* server, double x, double y)
+{
+    ServerPointerEnterOn(server, nullptr, x, y);
+}
+
+static void ServerPointerLeaveFrom(Server* server, struct wl_resource* surface)
 {
     pthread_mutex_lock(&server->lock);
-    wl_pointer_send_leave(server->pointer, ++server->serial, server->surface);
+    wl_pointer_send_leave(server->pointer, ++server->serial,
+                          surface != nullptr ? surface : server->surface);
     wl_pointer_send_frame(server->pointer);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
@@ -796,6 +935,33 @@ static TextState ServerText(Server* server)
     TextState text = server->text;
     pthread_mutex_unlock(&server->lock);
     return text;
+}
+
+static void ServerPointerLeave(Server* server)
+{
+    ServerPointerLeaveFrom(server, nullptr);
+}
+
+static Shell ServerShell(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    Shell shell = server->shell;
+    pthread_mutex_unlock(&server->lock);
+    return shell;
+}
+
+// The subsurface placed at a point relative to its parent, or NULL.
+static struct wl_resource* ServerPartAt(Server* server, int32_t x, int32_t y)
+{
+    pthread_mutex_lock(&server->lock);
+    struct wl_resource* found = nullptr;
+    for (int i = 0; i < server->shell.parts; i++)
+    {
+        found =
+            server->parts[i].x == x && server->parts[i].y == y ? server->parts[i].surface : found;
+    }
+    pthread_mutex_unlock(&server->lock);
+    return found;
 }
 
 #endif // MAUL_WINDOW_TEST_WAYLAND_SERVER_H

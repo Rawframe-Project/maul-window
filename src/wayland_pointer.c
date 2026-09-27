@@ -6,6 +6,7 @@
 #include "wayland_pointer.h"
 
 #include "wayland_cursor.h"
+#include "wayland_frame.h"
 
 #include <linux/input-event-codes.h>
 #include <math.h>
@@ -129,6 +130,11 @@ static void OnEnter(void* data, struct wl_pointer* object, uint32_t serial,
     pointer->position = PositionOf(x, y);
     pointer->buttons = 0;
     pointer->moved = false;
+    // A frame's part is the backend's, not the program's.
+    if (pointer->focus < 0 && mwinWaylandFrameEnter(platform, surface, pointer->position))
+    {
+        return;
+    }
     if (pointer->focus >= 0)
     {
         PostPointer(platform, mwin_eventCursorEntered, 0, mwinWaylandNow());
@@ -144,6 +150,11 @@ static void OnLeave(void* data, struct wl_pointer* object, uint32_t serial,
     (void)surface;
     mwinWaylandPlatform* platform = data;
     mwinWaylandPointer* pointer = &platform->pointer;
+    if (pointer->framePart != nullptr)
+    {
+        mwinWaylandFrameLeave(platform);
+        return;
+    }
     Flush(platform);
     if (pointer->focus >= 0)
     {
@@ -166,6 +177,11 @@ static void OnMotion(void* data, struct wl_pointer* object, uint32_t time, wl_fi
 {
     (void)object;
     mwinWaylandPlatform* platform = data;
+    if (platform->pointer.framePart != nullptr)
+    {
+        mwinWaylandFrameMotion(platform, PositionOf(x, y));
+        return;
+    }
     platform->pointer.position = PositionOf(x, y);
     platform->pointer.moved = true;
     platform->pointer.timeNs = mwinWaylandTime(time);
@@ -190,9 +206,14 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
                      uint32_t evdev, uint32_t state)
 {
     (void)object;
-    (void)serial;
     mwinWaylandPlatform* platform = data;
     mwinWaylandPointer* pointer = &platform->pointer;
+    if (pointer->framePart != nullptr)
+    {
+        mwinWaylandFrameButton(platform, serial, evdev, state == WL_POINTER_BUTTON_STATE_PRESSED,
+                               mwinWaylandTime(time));
+        return;
+    }
     mwinMouseButton button = ButtonOf(evdev);
     if (pointer->focus < 0 || button == 0)
     {

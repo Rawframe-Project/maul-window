@@ -138,6 +138,8 @@ format.
   without a shell on Linux; the test backend's services and the
   contract tests. Win32 services through ShellExecuteExW,
   SHOpenFolderAndSelectItems and the thread's execution state. Web
-  services through window.open and a wake lock.
+  services through window.open and a wake lock. Linux services: xdg-open
+  for addresses, the file manager over the session bus (libdbus-1,
+  opened at run time) for files.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

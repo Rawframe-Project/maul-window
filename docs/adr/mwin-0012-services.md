@@ -65,6 +65,28 @@ at all (a page reveals no files).
   unsupported without one. The browser releases a lock when the page
   is hidden, so the backend asks for one again when the page shows,
   and again at once for a lock that came already released.
+- **Linux** (Wayland and X11 alike): an address goes to `xdg-open`,
+  run through `posix_spawnp` with no shell. Every desktop has it, it
+  hands the address to the desktop's own opener, and inside a Flatpak
+  or a Snap it is the sandbox's shim to the desktop portal, so one path
+  serves all. The run is reaped at the pumps and answered by how it
+  ends (0 done, 3, no tool for the desktop, unsupported, else failed),
+  or as done once it has run five seconds, since an opener that starts
+  a browser may wait for it; no `xdg-open` is unsupported. A file is
+  shown by the file manager over the session bus
+  (`org.freedesktop.FileManager1.ShowItems` with its file URI, which
+  opens the folder with the file selected); with no bus, or a file
+  manager that refuses, `xdg-open` opens the folder that holds it.
+- **The session bus** is reached through libdbus-1, opened at run time
+  the first time a service needs it and never unloaded, since it keeps
+  process-wide caches other libraries may share; its headers are not
+  needed to build. The connection is private to the context and never
+  ends the process when the bus goes. The library is never let start
+  a bus: the address comes from `DBUS_SESSION_BUS_ADDRESS`, else the
+  user's bus socket in `XDG_RUNTIME_DIR`, else there is none. Calls
+  are read without blocking at each pump, and each has a deadline of
+  its own (ten seconds), since the library's timeouts need a main loop
+  the program does not have.
 - **Message boxes** need no context: `mwinShowMessageBox` shows a
   modal box with a title, a message, a kind (information, warning,
   error) and buttons (OK, OK and Cancel, Yes and No), waits for the

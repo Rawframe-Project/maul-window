@@ -434,6 +434,10 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         return mwinX11WriteClipboard(platform);
     case mwin_requestClipboardRead:
         return mwinX11ReadClipboard(platform);
+    case mwin_requestOpenUrl:
+        return mwinLinuxOpenUrl(&platform->services, window->slot, index);
+    case mwin_requestRevealFile:
+        return mwinLinuxRevealFile(&platform->services, window->slot, index);
     default:
         return mwin_outcomeUnsupported;
     }

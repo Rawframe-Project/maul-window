@@ -89,10 +89,14 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/uri_list.c
     src/utf8.c
     src/window.c)
-# Linux's message box runs zenity or kdialog; posix_spawn is POSIX.
+# Linux's message box runs zenity or kdialog, and its services xdg-open
+# and the session bus (libdbus-1, opened at run time); posix_spawn is
+# POSIX.
 if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
-    target_sources(maul-window PRIVATE src/posix_message_box.c)
-    set_source_files_properties(src/posix_message_box.c PROPERTIES
+    set(MWIN_POSIX_SOURCES src/dbus_api.c src/linux_bus.c src/linux_services.c
+        src/posix_message_box.c)
+    target_sources(maul-window PRIVATE ${MWIN_POSIX_SOURCES})
+    set_source_files_properties(${MWIN_POSIX_SOURCES} PROPERTIES
         COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
 if(MAUL_WINDOW_TEST_BACKEND)
@@ -181,6 +185,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Stand-ins for zenity and kdialog on PATH.
         maul_add_test(message_box POSIX)
         target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
+    endif()
+    if(MAUL_WINDOW_X11)
+        # xdg-open on PATH and a session bus of the test's own; X11, and
+        # Wayland where there is a compositor too.
+        maul_add_test(linux_services POSIX)
+        target_compile_definitions(test_linux_services PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_linux_services PRIVATE ${CMAKE_DL_LIBS})
+        set_tests_properties(linux_services PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Makes virtual gamepads through uinput: skipped without it or a

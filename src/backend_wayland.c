@@ -252,6 +252,7 @@ static void Stop(mwinContext* context)
         }
     }
     Disconnect(platform);
+    mwinLinuxServicesStop(&platform->services);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsStop(&platform->pads);
 #endif
@@ -285,6 +286,7 @@ static mwinResult Start(mwinContext* context)
     platform->text.focus = -1;
     mwinWaylandInitClipboard(&platform->clipboard);
     mwinWaylandInitDrag(&platform->drag);
+    mwinLinuxServicesStart(&platform->services, context);
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
@@ -328,6 +330,7 @@ static void Pump(mwinContext* context)
     mwinWaylandRepeatKeys(platform);
     mwinWaylandPumpClipboard(platform, mwinMonotonicNow());
     mwinWaylandPumpDrag(platform, mwinMonotonicNow());
+    mwinLinuxServicesPump(&platform->services, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

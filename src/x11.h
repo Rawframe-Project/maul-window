@@ -11,6 +11,7 @@
 #include "clicks.h"
 #include "core.h"
 #include "linux_pad.h"
+#include "linux_services.h"
 #include "monotonic.h"
 #include "x11_api.h"
 #include "xkb_keyboard.h"
@@ -199,6 +200,8 @@ struct mwinX11Platform
     mwinX11Cursors cursors;
     mwinX11Clipboard clipboard;
     mwinX11Drag drag;
+    // Addresses, files and the bus (linux_services.c).
+    mwinLinuxServices services;
     // The time of the latest key or button event, which taking the
     // selection quotes.
     xcb_timestamp_t inputTime;

@@ -13,11 +13,14 @@ clicks:
 clipboard: allocator core utf8
 context: allocator backend core
 core: backend
+dbus_api:
 drop: allocator core utf8
 evdev:
 gamepad: core
 input: core
+linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db
+linux_services: core linux_bus monotonic
 message_box:
 monitor: core
 monotonic:
@@ -31,7 +34,7 @@ system: core
 text: core
 uri_list: core
 utf8:
-wayland: clicks core linux_pad monotonic wayland_api wayland_pipe xkb_api xkb_keyboard
+wayland: clicks core linux_pad linux_services monotonic wayland_api wayland_pipe xkb_api xkb_keyboard
 wayland_api:
 wayland_clipboard: core monotonic wayland wayland_api wayland_drop wayland_pipe
 wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
@@ -67,7 +70,7 @@ win32_services: core win32
 win32_system: core win32
 win32_window: core win32 win32_clipboard win32_drop win32_ime win32_input win32_output win32_pointer win32_services win32_system
 window: core
-x11: clicks core linux_pad monotonic x11_api xkb_api xkb_keyboard
+x11: clicks core linux_pad linux_services monotonic x11_api xkb_api xkb_keyboard
 x11_api:
 x11_clipboard: allocator core monotonic x11 x11_api
 x11_cursor: allocator core x11 x11_api

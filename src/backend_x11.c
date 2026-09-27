@@ -255,6 +255,7 @@ static void Stop(mwinContext* context)
         api->disconnect(platform->connection);
     }
     mwinX11StopKeyboard(platform);
+    mwinLinuxServicesStop(&platform->services);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsStop(&platform->pads);
 #endif
@@ -284,6 +285,7 @@ static mwinResult Start(mwinContext* context)
     platform->scale = 1.0f;
     platform->pointer.focus = -1;
     platform->drag.slot = -1;
+    mwinLinuxServicesStart(&platform->services, context);
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
@@ -330,6 +332,7 @@ static void Pump(mwinContext* context)
     mwinX11CheckDeadlines(platform);
     mwinX11CheckClipboard(platform, mwinMonotonicNow());
     mwinX11CheckDrop(platform, mwinMonotonicNow());
+    mwinLinuxServicesPump(&platform->services, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

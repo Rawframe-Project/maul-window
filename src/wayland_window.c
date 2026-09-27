@@ -546,6 +546,10 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinWaylandWriteClipboard(window->platform);
     case mwin_requestClipboardRead:
         return mwinWaylandReadClipboard(window->platform);
+    case mwin_requestOpenUrl:
+        return mwinLinuxOpenUrl(&window->platform->services, window->slot, index);
+    case mwin_requestRevealFile:
+        return mwinLinuxRevealFile(&window->platform->services, window->slot, index);
     default:
         // Positions, visibility, focus without an activation token, and
         // the rest have no request in the protocols bound.

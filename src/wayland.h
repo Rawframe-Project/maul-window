@@ -12,6 +12,7 @@
 #include "clicks.h"
 #include "core.h"
 #include "linux_pad.h"
+#include "linux_services.h"
 #include "monotonic.h"
 #include "wayland_api.h"
 #include "wayland_pipe.h"
@@ -292,6 +293,8 @@ struct mwinWaylandPlatform
     mwinWaylandText text;
     mwinWaylandClipboard clipboard;
     mwinWaylandDrag drag;
+    // Addresses, files and the bus (linux_services.c).
+    mwinLinuxServices services;
     // The serial of the latest input event, which setting the selection
     // quotes.
     uint32_t inputSerial;

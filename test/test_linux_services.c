@@ -1,0 +1,472 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The Linux services against stand-ins: xdg-open, a script on PATH
+// that writes its argument down and exits as told, and a file manager
+// of the test's own on a private session bus. Without a bus, on X11: an
+// address opened by xdg-open, its statuses for no tool and a failure,
+// no xdg-open at all, and files revealed by opening their folders. With
+// the bus, on Wayland where there is one: a file shown by the file
+// manager as a file URI, never by xdg-open; its folder opened when the
+// file manager refuses; and a reveal superseded while the file manager
+// answers, whose answer goes to no one.
+
+#include "test_harness.h"
+
+#include "maul-window/event.h"
+#include "maul-window/services.h"
+
+#include <dlfcn.h>
+#include <signal.h>
+#include <spawn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
+
+extern char** environ;
+
+#define DEADLINE_NS 20000000000u
+
+static char s_directory[] = "/tmp/mwin-services-XXXXXX";
+
+// The test's file manager, on its own connection through libdbus.
+typedef struct Fake
+{
+    void* library;
+    void* connection;
+    void* (*busGet)(int type, void* error);
+    int (*requestName)(void* connection, const char* name, unsigned flags, void* error);
+    unsigned (*readWrite)(void* connection, int timeout);
+    void* (*pop)(void* connection);
+    unsigned (*isCall)(void* message, const char* interface, const char* method);
+    unsigned (*iterInit)(void* message, void* iter);
+    void (*recurse)(void* iter, void* sub);
+    int (*argType)(void* iter);
+    void (*getBasic)(void* iter, void* value);
+    unsigned (*next)(void* iter);
+    void* (*newReturn)(void* message);
+    void* (*newError)(void* message, const char* name, const char* text);
+    unsigned (*send)(void* connection, void* message, unsigned* serial);
+    void (*flush)(void* connection);
+    void (*unref)(void* message);
+    void (*close)(void* connection);
+    void (*unrefConnection)(void* connection);
+    void (*setExit)(void* connection, unsigned exit);
+    // What it was asked last, how often, and whether it refuses.
+    char item[256];
+    char startup[64];
+    int calls;
+    bool refuse;
+} Fake;
+
+typedef struct Step
+{
+    const char* what;
+    mwinRequestKind kind;
+    const char* text;
+    // MWIN_EXIT for the stand-in, and whether the file manager refuses.
+    const char* status;
+    bool refuse;
+    mwinOutcome outcome;
+    // xdg-open's argument, and the item the file manager showed, or
+    // NULL for none.
+    const char* ran;
+    const char* item;
+} Step;
+
+typedef struct Program
+{
+    const Step* steps;
+    int count;
+    int at;
+    bool asked;
+    bool superseding;
+    mwinWindowId window;
+    mwinRequestId create;
+    mwinRequestId request;
+    mwinRequestId superseded;
+    int supersededOutcome;
+    uint64_t startNs;
+    Fake* fake;
+    bool done;
+} Program;
+
+static uint64_t NowNs(void)
+{
+    struct timespec now;
+    (void)clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
+}
+
+static void Path(char* out, size_t size, const char* name)
+{
+    (void)snprintf(out, size, "%s/%s", s_directory, name);
+}
+
+static void Write(const char* name, const char* text, mode_t mode)
+{
+    char path[128];
+    Path(path, sizeof(path), name);
+    FILE* file = fopen(path, "w");
+    (void)fputs(text, file);
+    (void)fclose(file);
+    (void)chmod(path, mode);
+}
+
+// Whether xdg-open ran with this argument, or did not run for NULL.
+static bool Ran(const char* expected)
+{
+    char path[128];
+    char text[512] = {0};
+    Path(path, sizeof(path), "argument");
+    FILE* file = fopen(path, "r");
+    size_t length = file != nullptr ? fread(text, 1, sizeof(text) - 1, file) : 0;
+    if (file != nullptr)
+    {
+        (void)fclose(file);
+        (void)remove(path);
+    }
+    return expected == nullptr ? file == nullptr
+                               : length > 0 && strncmp(text, expected, length - 1) == 0 &&
+                                     strlen(expected) == length - 1;
+}
+
+#define FIND(field, name)                                                                          \
+    (symbol = dlsym(fake->library, #name),                                                         \
+     symbol != nullptr &&                                                                          \
+         (memcpy((void*)&fake->field, (const void*)&symbol, sizeof(symbol)), true))
+
+static bool OpenFake(Fake* fake)
+{
+    fake->library = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
+    void* symbol = nullptr;
+    bool found =
+        fake->library != nullptr && FIND(busGet, dbus_bus_get_private) &&
+        FIND(requestName, dbus_bus_request_name) && FIND(readWrite, dbus_connection_read_write) &&
+        FIND(pop, dbus_connection_pop_message) && FIND(isCall, dbus_message_is_method_call) &&
+        FIND(iterInit, dbus_message_iter_init) && FIND(recurse, dbus_message_iter_recurse) &&
+        FIND(argType, dbus_message_iter_get_arg_type) &&
+        FIND(getBasic, dbus_message_iter_get_basic) && FIND(next, dbus_message_iter_next) &&
+        FIND(newReturn, dbus_message_new_method_return) && FIND(newError, dbus_message_new_error) &&
+        FIND(send, dbus_connection_send) && FIND(flush, dbus_connection_flush) &&
+        FIND(unref, dbus_message_unref) && FIND(close, dbus_connection_close) &&
+        FIND(unrefConnection, dbus_connection_unref) &&
+        FIND(setExit, dbus_connection_set_exit_on_disconnect);
+    fake->connection = found ? fake->busGet(0, nullptr) : nullptr;
+    if (fake->connection == nullptr)
+    {
+        return false;
+    }
+    fake->setExit(fake->connection, 0);
+    // 1: the primary owner.
+    return fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) == 1;
+}
+
+// Reads ShowItems' URIs and startup id.
+static void ReadShowItems(Fake* fake, void* message)
+{
+    void* iter[16];
+    void* items[16];
+    const char* text = "";
+    fake->item[0] = '\0';
+    if (fake->iterInit(message, iter) && fake->argType(iter) == 'a')
+    {
+        fake->recurse(iter, items);
+        if (fake->argType(items) == 's')
+        {
+            fake->getBasic(items, (void*)&text);
+            (void)snprintf(fake->item, sizeof(fake->item), "%s", text);
+        }
+        if (fake->next(iter) && fake->argType(iter) == 's')
+        {
+            fake->getBasic(iter, (void*)&text);
+            (void)snprintf(fake->startup, sizeof(fake->startup), "%s", text);
+        }
+    }
+}
+
+// Answers what the file manager was asked.
+static void PumpFake(Fake* fake)
+{
+    if (fake == nullptr)
+    {
+        return;
+    }
+    (void)fake->readWrite(fake->connection, 0);
+    for (void* message = fake->pop(fake->connection); message != nullptr;
+         message = fake->pop(fake->connection))
+    {
+        if (fake->isCall(message, "org.freedesktop.FileManager1", "ShowItems"))
+        {
+            ReadShowItems(fake, message);
+            fake->calls++;
+            void* reply = fake->refuse
+                              ? fake->newError(message, "org.freedesktop.DBus.Error.Failed", "no")
+                              : fake->newReturn(message);
+            (void)fake->send(fake->connection, reply, nullptr);
+            fake->unref(reply);
+        }
+        fake->unref(message);
+    }
+    fake->flush(fake->connection);
+}
+
+static void CloseFake(Fake* fake)
+{
+    if (fake->connection != nullptr)
+    {
+        fake->close(fake->connection);
+        fake->unrefConnection(fake->connection);
+    }
+    if (fake->library != nullptr)
+    {
+        (void)dlclose(fake->library);
+    }
+}
+
+static mwinResult Ask(mwinContext* context, Program* program, const Step* step,
+                      mwinRequestId* request)
+{
+    size_t length = strlen(step->text);
+    return step->kind == mwin_requestOpenUrl
+               ? mwinRequestOpenUrl(context, program->window, step->text, length, request)
+               : mwinRequestRevealFile(context, program->window, step->text, length, request);
+}
+
+static void Begin(mwinContext* context, Program* program)
+{
+    const Step* step = &program->steps[program->at];
+    if (step->status != nullptr)
+    {
+        (void)setenv("MWIN_EXIT", step->status, 1);
+    }
+    else
+    {
+        (void)unsetenv("MWIN_EXIT");
+    }
+    if (program->fake != nullptr)
+    {
+        program->fake->refuse = step->refuse;
+        program->fake->item[0] = '\0';
+    }
+    program->superseding = step->kind == mwin_requestRevealFile && program->fake != nullptr &&
+                           !step->refuse && program->superseded.index1 == 0;
+    if (program->superseding)
+    {
+        CHECK(Ask(context, program, step, &program->superseded) == mwin_success, "ask");
+    }
+    CHECK(Ask(context, program, step, &program->request) == mwin_success, step->what);
+    program->asked = true;
+}
+
+static void Finish(Program* program, int outcome)
+{
+    const Step* step = &program->steps[program->at];
+    bool shown = step->item == nullptr ||
+                 (program->fake != nullptr && strcmp(program->fake->item, step->item) == 0 &&
+                  program->fake->startup[0] == '\0');
+    CHECK(outcome == step->outcome && Ran(step->ran) && shown, step->what);
+    program->asked = false;
+    program->at++;
+}
+
+static bool Same(mwinRequestId a, mwinRequestId b)
+{
+    return a.index1 == b.index1 && a.generation == b.generation;
+}
+
+static void Drain(mwinContext* context, Program* program)
+{
+    mwinEvent event;
+    while (mwinNextEvent(context, &event) == mwin_success)
+    {
+        const mwinCompletion* completion = &event.data.completion;
+        if (event.type != mwin_eventRequestCompleted)
+        {
+            continue;
+        }
+        if (Same(completion->request, program->create))
+        {
+            program->create = (mwinRequestId){0};
+        }
+        else if (Same(completion->request, program->superseded))
+        {
+            program->supersededOutcome = completion->outcome;
+        }
+        else if (program->asked && Same(completion->request, program->request))
+        {
+            Finish(program, completion->outcome);
+        }
+    }
+}
+
+static mwinResult Init(mwinContext* context, void* user)
+{
+    Program* program = user;
+    program->startNs = NowNs();
+    mwinWindowDef def = mwinDefaultWindowDef();
+    def.size = (mwinSize){200.0f, 100.0f};
+    return mwinCreateWindow(context, &def, &program->window, &program->create);
+}
+
+static mwinFrameResult Frame(mwinContext* context, void* user)
+{
+    Program* program = user;
+    PumpFake(program->fake);
+    Drain(context, program);
+    if (program->create.index1 == 0 && !program->asked && program->at < program->count)
+    {
+        Begin(context, program);
+    }
+    program->done = program->at == program->count;
+    struct timespec pause = {0, 1000000};
+    (void)nanosleep(&pause, nullptr);
+    return program->done || NowNs() - program->startNs > DEADLINE_NS ? mwin_frameStop
+                                                                     : mwin_frameContinue;
+}
+
+static void Run(const Step* steps, int count, Fake* fake, const char* what)
+{
+    static Program program;
+    program = (Program){.steps = steps, .count = count, .fake = fake, .supersededOutcome = -1};
+    mwinAppDef def = mwinDefaultAppDef();
+    def.init = Init;
+    def.frame = Frame;
+    def.user = &program;
+    CHECK(mwinRun(&def) == mwin_success && program.done, what);
+    if (program.superseded.index1 != 0)
+    {
+        CHECK(program.supersededOutcome == mwin_outcomeSuperseded && fake->calls >= 2,
+              "a reveal superseded while the file manager answers");
+    }
+}
+
+static const Step s_withoutBus[] = {
+    {"an address opened by xdg-open", mwin_requestOpenUrl, "https://example.com/?q=%C3%A9&x=1",
+     nullptr, false, mwin_outcomeDone, "https://example.com/?q=%C3%A9&x=1", nullptr},
+    {"no tool for the desktop unsupported", mwin_requestOpenUrl, "mailto:a@example.com", "3", false,
+     mwin_outcomeUnsupported, "mailto:a@example.com", nullptr},
+    {"xdg-open failing failed", mwin_requestOpenUrl, "http://example.com", "4", false,
+     mwin_outcomeFailed, "http://example.com", nullptr},
+    {"a file revealed by opening its folder", mwin_requestRevealFile, "/tmp/x y/z.txt", nullptr,
+     false, mwin_outcomeDone, "/tmp/x y", nullptr},
+    {"a file at the root revealed by opening the root", mwin_requestRevealFile, "/z.txt", nullptr,
+     false, mwin_outcomeDone, "/", nullptr},
+};
+
+static const Step s_withBus[] = {
+    {"a file shown by the file manager", mwin_requestRevealFile, "/tmp/a b/\xC3\xA9.txt", nullptr,
+     false, mwin_outcomeDone, nullptr, "file:///tmp/a%20b/%C3%A9.txt"},
+    {"its folder opened when the file manager refuses", mwin_requestRevealFile,
+     "/tmp/a b/\xC3\xA9.txt", nullptr, true, mwin_outcomeDone, "/tmp/a b",
+     "file:///tmp/a%20b/%C3%A9.txt"},
+};
+
+static const Step s_noOpener[] = {
+    {"no xdg-open unsupported", mwin_requestOpenUrl, "http://example.com", nullptr, false,
+     mwin_outcomeUnsupported, nullptr, nullptr},
+};
+
+// A bus of the test's own, with nothing to start on demand.
+static pid_t StartBus(void)
+{
+    char config[512];
+    char path[128];
+    (void)snprintf(config, sizeof(config),
+                   "<busconfig><type>session</type><listen>unix:path=%s/bus</listen>"
+                   "<policy context=\"default\"><allow send_destination=\"*\"/>"
+                   "<allow receive_sender=\"*\"/><allow own=\"*\"/></policy></busconfig>",
+                   s_directory);
+    Write("bus.conf", config, 0600);
+    char argument[160];
+    Path(path, sizeof(path), "bus.conf");
+    (void)snprintf(argument, sizeof(argument), "--config-file=%s", path);
+    char* arguments[] = {(char*)"/usr/bin/dbus-daemon", argument, (char*)"--nofork",
+                         (char*)"--nopidfile", nullptr};
+    pid_t daemon = 0;
+    if (posix_spawn(&daemon, arguments[0], nullptr, nullptr, arguments, environ) != 0)
+    {
+        return 0;
+    }
+    Path(path, sizeof(path), "bus");
+    struct stat status;
+    for (int i = 0; i < 500 && stat(path, &status) != 0; i++)
+    {
+        struct timespec pause = {0, 10000000};
+        (void)nanosleep(&pause, nullptr);
+    }
+    char address[160];
+    (void)snprintf(address, sizeof(address), "unix:path=%s", path);
+    (void)setenv("DBUS_SESSION_BUS_ADDRESS", address, 1);
+    return daemon;
+}
+
+static void RunWithBus(const char* wayland)
+{
+    pid_t daemon = StartBus();
+    static Fake fake;
+    if (daemon == 0 || !OpenFake(&fake))
+    {
+        (void)printf("no dbus-daemon or libdbus-1: the bus is not tested\n");
+    }
+    else
+    {
+        if (wayland != nullptr)
+        {
+            (void)setenv("WAYLAND_DISPLAY", wayland, 1);
+        }
+        Run(s_withBus, 2, &fake, "the services with a bus");
+    }
+    CloseFake(&fake);
+    if (daemon != 0)
+    {
+        (void)kill(daemon, SIGTERM);
+        (void)waitpid(daemon, nullptr, 0);
+    }
+}
+
+int main(void)
+{
+    const char* display = getenv("DISPLAY");
+    if (display == nullptr || mkdtemp(s_directory) == nullptr)
+    {
+        return 77;
+    }
+    const char* wayland = getenv("WAYLAND_DISPLAY");
+    const char* runtime = getenv("XDG_RUNTIME_DIR");
+    char saved[64] = {0};
+    char savedRuntime[256] = {0};
+    (void)snprintf(saved, sizeof(saved), "%s", wayland != nullptr ? wayland : "");
+    (void)snprintf(savedRuntime, sizeof(savedRuntime), "%s", runtime != nullptr ? runtime : "");
+    char script[256];
+    (void)snprintf(
+        script, sizeof(script),
+        "#!/bin/sh\nprintf '%%s\\n' \"$1\" > \"%s/argument\"\nexit \"${MWIN_EXIT:-0}\"\n",
+        s_directory);
+    Write("xdg-open", script, 0700);
+    char none[128];
+    Path(none, sizeof(none), "none");
+    (void)mkdir(none, 0700);
+    // No bus, and X11.
+    (void)unsetenv("DBUS_SESSION_BUS_ADDRESS");
+    (void)setenv("XDG_RUNTIME_DIR", s_directory, 1);
+    (void)unsetenv("WAYLAND_DISPLAY");
+    (void)setenv("PATH", s_directory, 1);
+    Run(s_withoutBus, 5, nullptr, "the services without a bus");
+    (void)setenv("PATH", none, 1);
+    Run(s_noOpener, 1, nullptr, "the services without xdg-open");
+    (void)setenv("PATH", s_directory, 1);
+    if (savedRuntime[0] != '\0')
+    {
+        (void)setenv("XDG_RUNTIME_DIR", savedRuntime, 1);
+    }
+    RunWithBus(saved[0] != '\0' && savedRuntime[0] != '\0' ? saved : nullptr);
+    char command[160];
+    (void)snprintf(command, sizeof(command), "/bin/rm -rf %s", s_directory);
+    (void)system(command);
+    return s_failures == 0 ? 0 : 1;
+}

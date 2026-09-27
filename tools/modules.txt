@@ -41,13 +41,14 @@ web_pad: core
 web_text: core web
 web_window: core web web_input web_page web_text
 win32: clicks core win32_pad
+win32_clipboard: core win32
 win32_ime: core win32
 win32_input: core win32
 win32_output: core win32
 win32_pad: core
 win32_pointer: core win32
 win32_system: core win32
-win32_window: core win32 win32_ime win32_input win32_output win32_pointer win32_system
+win32_window: core win32 win32_clipboard win32_ime win32_input win32_output win32_pointer win32_system
 window: core
 x11: clicks core linux_pad monotonic x11_api xkb_api xkb_keyboard
 x11_api:

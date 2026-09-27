@@ -5,6 +5,7 @@
 
 set(MWIN_WIN32_SOURCES
     src/backend_win32.c
+    src/win32_clipboard.c
     src/win32_ime.c
     src/win32_input.c
     src/win32_output.c

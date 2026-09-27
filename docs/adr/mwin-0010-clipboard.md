@@ -46,6 +46,12 @@ named limit (section 11).
 - **The written text** stays in the context, where a backend that
   serves the selection (X11, Wayland) reads it for as long as it owns
   it.
+- **Win32:** the clipboard is used at once, while the request is
+  submitted, as `CF_UNICODETEXT`. Emptying the clipboard first makes
+  the window its owner. Another program may hold the clipboard open
+  for a moment, so opening it is tried five times a millisecond apart
+  before the request fails. Text read is bounded by its memory's size,
+  since another program's text need not end with a terminator.
 
 ## Consequences
 

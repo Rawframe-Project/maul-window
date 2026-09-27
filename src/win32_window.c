@@ -5,6 +5,7 @@
 
 #include "win32_window.h"
 
+#include "win32_clipboard.h"
 #include "win32_ime.h"
 #include "win32_input.h"
 #include "win32_output.h"
@@ -575,6 +576,10 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
     case mwin_requestTextInput:
         return mwinWin32SetTextInput(window, request->value.textInput.enabled,
                                      request->value.textInput.caret);
+    case mwin_requestClipboardWrite:
+        return mwinWin32WriteClipboard(window);
+    case mwin_requestClipboardRead:
+        return mwinWin32ReadClipboard(window);
     default:
         return mwin_outcomeUnsupported;
     }

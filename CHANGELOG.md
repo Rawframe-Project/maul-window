@@ -26,6 +26,10 @@ format.
   (mwin-0004); cursor mode and shape requests (`mwinRequestCursorMode`,
   `mwinRequestCursorShape`); `mwinMapKeyCode` and
   `mwinGetKeyboardLayout`.
+- The application lifecycle (suspending, suspended, resuming, resumed)
+  and surface loss, delivered before every other record, with a frame
+  run at once from inside the platform's call when it waits for the
+  program; suspending resets every window's input.
 - The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched

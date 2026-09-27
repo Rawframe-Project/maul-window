@@ -49,15 +49,37 @@ static int CoalesceClass(mwinEventType type)
         return 9;
     case mwin_eventInputStateReset:
         return 10;
+    case mwin_eventSuspending:
+    case mwin_eventSuspended:
+    case mwin_eventResuming:
+    case mwin_eventResumed:
+        return 11;
+    case mwin_eventSurfaceLost:
+    case mwin_eventSurfaceRestored:
+        return 12;
     default:
         return 0;
     }
 }
 
+// The classes a record may take, beyond a window's own: the critical
+// ring comes before everything.
+enum
+{
+    ClassCritical = MWIN_CLASSES,
+};
+
 static int ClassOf(mwinEventType type)
 {
     switch (type)
     {
+    case mwin_eventSuspending:
+    case mwin_eventSuspended:
+    case mwin_eventResuming:
+    case mwin_eventResumed:
+    case mwin_eventSurfaceLost:
+    case mwin_eventSurfaceRestored:
+        return ClassCritical;
     case mwin_eventCursorMoved:
     case mwin_eventTouchMoved:
     case mwin_eventPenMoved:
@@ -67,7 +89,8 @@ static int ClassOf(mwinEventType type)
     case mwin_eventWheel:
         return mwin_classWheel;
     default:
-        return type < mwin_eventKeyDown ? mwin_classNotification : mwin_classDiscrete;
+        return type < mwin_eventKeyDown || type > mwin_eventPenButtonUp ? mwin_classNotification
+                                                                        : mwin_classDiscrete;
     }
 }
 
@@ -87,13 +110,19 @@ static void RemoveAt(mwinRing* ring, uint16_t index)
     ring->count -= 1;
 }
 
+static bool SameWindow(mwinWindowId a, mwinWindowId b)
+{
+    return a.index1 == b.index1 && a.generation == b.generation;
+}
+
 // Appends a record; false when the ring is full.
 static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
 {
     int coalesce = CoalesceClass(event->type);
     for (uint16_t i = 0; coalesce != 0 && i < ring->count; i++)
     {
-        if (CoalesceClass(ring->events[At(ring, i)].type) == coalesce)
+        const mwinEvent* waiting = &ring->events[At(ring, i)];
+        if (CoalesceClass(waiting->type) == coalesce && SameWindow(waiting->window, event->window))
         {
             RemoveAt(ring, i);
             break;
@@ -145,6 +174,10 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
     case mwin_eventShown:
     case mwin_eventHidden:
         state->visible = event->type == mwin_eventShown;
+        break;
+    case mwin_eventSurfaceLost:
+    case mwin_eventSurfaceRestored:
+        state->surfaceLost = event->type == mwin_eventSurfaceLost;
         break;
     default:
         break;
@@ -285,7 +318,7 @@ void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
     }
     Apply(&window->state, &record);
     int kind = ClassOf(record.type);
-    mwinRing* ring = &window->rings[kind];
+    mwinRing* ring = kind == ClassCritical ? &context->critical : &window->rings[kind];
     bool added = Append(context, ring, &record) ||
                  ((kind == mwin_classMotion || kind == mwin_classRaw || kind == mwin_classWheel) &&
                   Merge(ring, &record));
@@ -295,11 +328,36 @@ void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
     }
 }
 
+void mwinPostGlobal(mwinContext* context, const mwinEvent* event)
+{
+    mwinEvent record = *event;
+    record.window = (mwinWindowId){0};
+    bool critical = ClassOf(record.type) == ClassCritical;
+    // Coalescing keeps both rings within their bound.
+    (void)Append(context, critical ? &context->critical : &context->global, &record);
+    for (uint32_t i = 0; record.type == mwin_eventSuspending && i < context->limits.windows; i++)
+    {
+        if (context->windows[i].status == mwin_slotLive)
+        {
+            PostReset(context, i, record.timeNs);
+        }
+    }
+}
+
 // Frees everything a slot's rings hold but its completions, and queues
 // its destroyed record.
 void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
     mwinWindow* window = &context->windows[slot];
+    mwinWindowId id = mwinWindowIdOf(context, slot);
+    for (uint16_t i = context->critical.count; i > 0; i--)
+    {
+        if (SameWindow(context->critical.events[At(&context->critical, (uint16_t)(i - 1))].window,
+                       id))
+        {
+            RemoveAt(&context->critical, (uint16_t)(i - 1));
+        }
+    }
     for (int kind = mwin_classDiscrete; kind < MWIN_CLASSES; kind++)
     {
         window->rings[kind].count = 0;
@@ -336,11 +394,18 @@ void mwinBeginPump(mwinContext* context)
     }
 }
 
-// The ring holding the oldest record of the context, or NULL.
+// The ring holding the next record of the stream, or NULL: the critical
+// ring's first, else the oldest of all others. windowOut receives the
+// window whose ring it is, or NULL.
 static mwinRing* FindOldest(mwinContext* context, mwinWindow** windowOut)
 {
-    mwinRing* oldest = nullptr;
-    uint64_t oldestSequence = UINT64_MAX;
+    *windowOut = nullptr;
+    if (context->critical.count > 0)
+    {
+        return &context->critical;
+    }
+    mwinRing* oldest = context->global.count > 0 ? &context->global : nullptr;
+    uint64_t oldestSequence = oldest != nullptr ? oldest->sequences[oldest->head] : UINT64_MAX;
     for (uint32_t i = 0; i < context->limits.windows; i++)
     {
         for (int kind = 0; kind < MWIN_CLASSES; kind++)
@@ -372,11 +437,12 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
     *eventOut = oldest->events[oldest->head];
     oldest->head = (uint16_t)((oldest->head + 1) % oldest->capacity);
     oldest->count -= 1;
-    if (eventOut->type == mwin_eventTextInput)
+    if (window != nullptr && eventOut->type == mwin_eventTextInput)
     {
         Drained(&window->text, eventOut);
     }
-    if (window->status == mwin_slotDestroyed && eventOut->type == mwin_eventWindowDestroyed)
+    if (window != nullptr && window->status == mwin_slotDestroyed &&
+        eventOut->type == mwin_eventWindowDestroyed)
     {
         window->status = mwin_slotFree;
     }

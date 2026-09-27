@@ -244,15 +244,31 @@ static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* req
     }
 }
 
+static bool IsLifecycle(mwinEventType type)
+{
+    return type >= mwin_eventSuspending && type <= mwin_eventResumed;
+}
+
 static void Pump(mwinContext* context)
 {
     TestPlatform* platform = PlatformOf(context);
     for (uint32_t i = 0; i < platform->reportCount; i++)
     {
         const mwinEvent* report = &platform->reports[i];
-        if (mwinFindWindow(context, report->window) != nullptr)
+        if (IsLifecycle(report->type))
+        {
+            mwinPostGlobal(context, report);
+        }
+        else if (mwinFindWindow(context, report->window) != nullptr)
         {
             mwinPost(context, report->window.index1 - 1, report);
+        }
+        // A platform waits for the program to handle these before it goes
+        // on, as Android does for onPause.
+        if (IsLifecycle(report->type) || report->type == mwin_eventSurfaceLost ||
+            report->type == mwin_eventSurfaceRestored)
+        {
+            mwinRunCriticalFrame(context);
         }
     }
     platform->reportCount = 0;
@@ -367,7 +383,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     if (context == nullptr || event == nullptr || event->type == mwin_eventNone ||
         event->type == mwin_eventWindowCreated || event->type == mwin_eventWindowDestroyed ||
         event->type == mwin_eventRequestCompleted || event->type == mwin_eventInputStateReset ||
-        event->type > mwin_eventPenButtonUp)
+        event->type > mwin_eventSurfaceRestored)
     {
         return mwin_errorInvalid;
     }
@@ -376,7 +392,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorUnsupported;
     }
-    if (mwinFindWindow(context, event->window) == nullptr)
+    if (!IsLifecycle(event->type) && mwinFindWindow(context, event->window) == nullptr)
     {
         return mwin_errorStale;
     }

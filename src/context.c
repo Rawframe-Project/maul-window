@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The context: its defs, its one block of memory, and mwinRun. The block
-// holds the context, then the window slots, then per window a record
-// ring per class, its text storage, its request slots and its two title
-// buffers.
+// holds the context, its critical and global rings, the window slots,
+// then per window a record ring per class, its text storage, its request
+// slots and its two title buffers.
 
 #include "maul-window/context.h"
 
@@ -72,6 +72,22 @@ static size_t RingBytes(size_t records)
     return RoundUp(records * sizeof(mwinEvent)) + RoundUp(records * sizeof(uint64_t));
 }
 
+// The records the critical ring holds: a surface record per window and a
+// lifecycle record, each class coalescing.
+static size_t CriticalRecords(const mwinLimits* limits)
+{
+    return (size_t)limits->windows + 1;
+}
+
+// Points a ring at its storage and returns the storage after it.
+static unsigned char* LayRing(mwinRing* ring, unsigned char* storage, size_t records)
+{
+    ring->events = (mwinEvent*)storage;
+    ring->sequences = (uint64_t*)(storage + RoundUp(records * sizeof(mwinEvent)));
+    ring->capacity = (uint16_t)records;
+    return storage + RingBytes(records);
+}
+
 // The bytes one window slot's storage takes.
 static size_t WindowBytes(const mwinLimits* limits)
 {
@@ -93,12 +109,7 @@ static void Lay(mwinContext* context, unsigned char* storage)
         mwinWindow* window = &context->windows[i];
         for (int kind = 0; kind < MWIN_CLASSES; kind++)
         {
-            size_t records = RingRecords(limits, kind);
-            window->rings[kind].events = (mwinEvent*)storage;
-            window->rings[kind].sequences =
-                (uint64_t*)(storage + RoundUp(records * sizeof(mwinEvent)));
-            window->rings[kind].capacity = (uint16_t)records;
-            storage += RingBytes(records);
+            storage = LayRing(&window->rings[kind], storage, RingRecords(limits, kind));
         }
         window->text.bytes = (char*)storage;
         window->text.capacity = limits->textBytesPerWindow;
@@ -127,7 +138,9 @@ static const mwinBackendOps* FindBackend(mwinBackendKind kind)
 static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
 {
     const mwinLimits* limits = &def->context.limits;
-    size_t header = RoundUp(sizeof(mwinContext)) + RoundUp(limits->windows * sizeof(mwinWindow));
+    size_t rings = RingBytes(CriticalRecords(limits)) + RingBytes(limits->notificationsPerWindow);
+    size_t header =
+        RoundUp(sizeof(mwinContext)) + rings + RoundUp(limits->windows * sizeof(mwinWindow));
     size_t size = header + limits->windows * WindowBytes(limits);
     unsigned char* block = mwinAllocate(&def->context.allocator, size, alignof(max_align_t));
     if (block == nullptr)
@@ -140,7 +153,10 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     context->memorySize = size;
     context->limits = *limits;
     context->app = def;
-    context->windows = (mwinWindow*)(block + RoundUp(sizeof(mwinContext)));
+    unsigned char* storage = block + RoundUp(sizeof(mwinContext));
+    storage = LayRing(&context->critical, storage, CriticalRecords(limits));
+    storage = LayRing(&context->global, storage, limits->notificationsPerWindow);
+    context->windows = (mwinWindow*)storage;
     Lay(context, block + header);
     *contextOut = context;
     return mwin_success;
@@ -186,18 +202,21 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
     context->inProgram = true;
     mwinResult status = app->init(context, app->user);
     context->inProgram = false;
-    while (status == mwin_success)
+    context->running = status == mwin_success;
+    while (context->running && !context->stopping)
     {
         mwinBeginPump(context);
         pump(context);
+        if (context->stopping)
+        {
+            break; // a critical frame asked to stop
+        }
         context->inProgram = true;
         mwinFrameResult result = app->frame(context, app->user);
         context->inProgram = false;
-        if (result != mwin_frameContinue)
-        {
-            break;
-        }
+        context->stopping = result != mwin_frameContinue;
     }
+    context->running = false;
     if (app->quit != nullptr)
     {
         context->inProgram = true;
@@ -205,4 +224,17 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
         context->inProgram = false;
     }
     return status;
+}
+
+void mwinRunCriticalFrame(mwinContext* context)
+{
+    if (context->inProgram || !context->running || context->stopping)
+    {
+        return;
+    }
+    const mwinAppDef* app = context->app;
+    context->inProgram = true;
+    mwinFrameResult result = app->frame(context, app->user);
+    context->inProgram = false;
+    context->stopping = result != mwin_frameContinue;
 }

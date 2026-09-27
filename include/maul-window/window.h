@@ -90,6 +90,8 @@ extern "C"
         bool visible;
         bool focused;
         bool occluded;
+        // Between mwin_eventSurfaceLost and mwin_eventSurfaceRestored.
+        bool surfaceLost;
     } mwinWindowState;
 
     /// Returns the default window def: 1,280 by 720 logical units,

@@ -116,6 +116,14 @@ struct mwinContext
     const mwinAppDef* app;
     uint64_t sequence;
     mwinWindow* windows;
+    // Lifecycle and surface notifications, which come before all others,
+    // and the context's own notifications.
+    mwinRing critical;
+    mwinRing global;
+    // Between init's success and quit.
+    bool running;
+    // A frame asked to stop.
+    bool stopping;
     // The program's functions are running; a critical frame waits.
     bool inProgram;
 };
@@ -131,6 +139,15 @@ mwinWindowId mwinWindowIdOf(const mwinContext* context, uint32_t slot);
 // input takes its class's storage, merging or resetting when it is full
 // (see event.h). Text is copied; text that is not UTF-8 is refused.
 void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event);
+
+// Reports a notification about the application rather than a window:
+// the lifecycle, and later monitors and system facts.
+void mwinPostGlobal(mwinContext* context, const mwinEvent* event);
+
+// Runs a frame now, from inside a platform callback that waits for the
+// program to handle a critical notification; does nothing while the
+// program's functions run or before init has succeeded.
+void mwinRunCriticalFrame(mwinContext* context);
 
 // Reclaims the text of records drained before; a backend calls it when
 // a pump begins.

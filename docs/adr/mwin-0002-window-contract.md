@@ -38,6 +38,13 @@ they leave open for windows.
   `restored`, which are that notification with `data.mode`.
   `mwin_eventShown` and `mwin_eventHidden` answer visibility requests.
 
+- **Critical records.** The lifecycle and surface records wait in a
+  ring of their own that the stream empties first. When a platform
+  waits for the program before it goes on (Android's pause, a lost
+  surface), the backend runs a frame at once from inside the platform's
+  call, so the program handles the record in time; a frame that stops
+  there ends the loop. Suspending resets every window's input.
+
 ## Consequences
 
 Every request is answered exactly once, including those of a window

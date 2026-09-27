@@ -5,8 +5,11 @@
 // which returns every record in the order it arrived, across windows.
 // Records wait in storage per window, each with its own limit, so one
 // busy window cannot push out another's records. Notifications that
-// must be handled before the platform goes on (suspending, a lost
-// surface) come first.
+// must be handled before the platform goes on (the application's
+// lifecycle, a lost or restored surface) come before all others; when
+// the platform waits for the program to handle one, the library runs a
+// frame at once, from inside the platform's call, so the program sees it
+// in time. The context's own notifications carry the null window id.
 //
 // A request's completion comes after the notifications the change
 // caused: a size request is answered after mwin_eventResized.
@@ -95,6 +98,20 @@ extern "C"
         mwin_eventPenUp = 33,
         mwin_eventPenButtonDown = 34,
         mwin_eventPenButtonUp = 35,
+        // The application is about to stop running: save what must
+        // survive now. Every window's input state resets.
+        mwin_eventSuspending = 36,
+        // The application stopped running; nothing is drawn.
+        mwin_eventSuspended = 37,
+        // The application is about to run again.
+        mwin_eventResuming = 38,
+        // The application runs again.
+        mwin_eventResumed = 39,
+        // The window's surface is gone (a rotation, the application in the
+        // background, a hidden canvas): stop drawing to it.
+        mwin_eventSurfaceLost = 40,
+        // The window has a surface again.
+        mwin_eventSurfaceRestored = 41,
     };
 
     // The kind of a request.

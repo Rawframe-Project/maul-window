@@ -78,6 +78,8 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
+        // The trace a failure's output shows.
+        (void)printf("phase %d: record %d\n", (int)program->phase, (int)event.type);
         program->records[program->count++] = event;
     }
 }
@@ -119,7 +121,12 @@ static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
     contact.rcContact = (RECT){at.x - 2, at.y - 2, at.x + 2, at.y + 2};
     contact.orientation = 90;
     contact.pressure = 512;
-    CHECK(InjectTouchInput(1, &contact), "Windows takes the touch");
+    BOOL taken = InjectTouchInput(1, &contact);
+    CHECK(taken, "Windows takes the touch");
+    if (!taken)
+    {
+        (void)printf("  InjectTouchInput failed: error %lu\n", GetLastError());
+    }
 }
 
 static void Pen(const Program* program, LONG x, LONG y, POINTER_FLAGS flags, PEN_FLAGS pen)

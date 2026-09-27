@@ -139,6 +139,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_wayland PRIVATE _POSIX_C_SOURCE=200809L)
         set_tests_properties(wayland PROPERTIES SKIP_RETURN_CODE 77)
         mwin_add_wayland_server_test(wayland_input)
+        mwin_add_wayland_server_test(wayland_clipboard)
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.

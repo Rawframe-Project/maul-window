@@ -5,6 +5,7 @@
 
 #include "wayland_window.h"
 
+#include "wayland_clipboard.h"
 #include "wayland_cursor.h"
 #include "wayland_frame.h"
 #include "wayland_keyboard.h"
@@ -541,6 +542,10 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinWaylandSetTextInput(window->platform, window->slot,
                                        request->value.textInput.enabled,
                                        request->value.textInput.caret);
+    case mwin_requestClipboardWrite:
+        return mwinWaylandWriteClipboard(window->platform);
+    case mwin_requestClipboardRead:
+        return mwinWaylandReadClipboard(window->platform);
     default:
         // Positions, visibility, focus without an activation token, and
         // the rest have no request in the protocols bound.

@@ -52,6 +52,24 @@ named limit (section 11).
   for a moment, so opening it is tried five times a millisecond apart
   before the request fails. Text read is bounded by its memory's size,
   since another program's text need not end with a terminator.
+- **Wayland:** the seat's data device. A write sets a data source
+  offering the text as `text/plain;charset=utf-8`, `UTF8_STRING` and
+  `text/plain`, quoting the serial of the latest keyboard, button or
+  touch event, and is done once asked: the protocol says nothing when a
+  compositor ignores the request. Each reader's pipe is written without
+  blocking, a piece at each pump, up to four readers at once, so a slow
+  or large reader never stalls the program; a new write closes them. A
+  reader that has gone would raise SIGPIPE, which ends a process by
+  default and which a library may not ignore for the whole process, so
+  the signal is held for the writing thread and taken back when the
+  write raised it. A read receives the selection by its best text type
+  through a pipe read without blocking at each pump, growing its buffer
+  to one byte past the limit, and fails after five seconds without an
+  end; a read while one is under way joins it, and the text answers the
+  read requests of every window. While the program owns the selection a
+  read answers from its own text, since its own source would have to
+  serve it through the same loop. Drag and drop offers are destroyed
+  until drag and drop is taken.
 - **Web:** `navigator.clipboard.writeText` and `readText`, the request
   answered when the promise settles: `NotAllowedError` (no focus, or
   the user said no) is `mwin_outcomeDenied`, any other rejection

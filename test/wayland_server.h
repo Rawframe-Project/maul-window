@@ -104,14 +104,14 @@ typedef struct Server
     bool configured;
 } Server;
 
-static void ServerDestroyResource(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerDestroyResource(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     wl_resource_destroy(resource);
 }
 
-static void ServerNoAttach(struct wl_client* client, struct wl_resource* resource,
-                           struct wl_resource* buffer, int32_t x, int32_t y)
+static inline void ServerNoAttach(struct wl_client* client, struct wl_resource* resource,
+                                  struct wl_resource* buffer, int32_t x, int32_t y)
 {
     (void)client;
     (void)resource;
@@ -120,8 +120,8 @@ static void ServerNoAttach(struct wl_client* client, struct wl_resource* resourc
     (void)y;
 }
 
-static void ServerNoRect(struct wl_client* client, struct wl_resource* resource, int32_t x,
-                         int32_t y, int32_t width, int32_t height)
+static inline void ServerNoRect(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                                int32_t y, int32_t width, int32_t height)
 {
     (void)client;
     (void)resource;
@@ -131,15 +131,16 @@ static void ServerNoRect(struct wl_client* client, struct wl_resource* resource,
     (void)height;
 }
 
-static void ServerNoInt(struct wl_client* client, struct wl_resource* resource, int32_t value)
+static inline void ServerNoInt(struct wl_client* client, struct wl_resource* resource,
+                               int32_t value)
 {
     (void)client;
     (void)resource;
     (void)value;
 }
 
-static void ServerNoTwoInts(struct wl_client* client, struct wl_resource* resource, int32_t a,
-                            int32_t b)
+static inline void ServerNoTwoInts(struct wl_client* client, struct wl_resource* resource,
+                                   int32_t a, int32_t b)
 {
     (void)client;
     (void)resource;
@@ -147,21 +148,22 @@ static void ServerNoTwoInts(struct wl_client* client, struct wl_resource* resour
     (void)b;
 }
 
-static void ServerNoString(struct wl_client* client, struct wl_resource* resource, const char* text)
+static inline void ServerNoString(struct wl_client* client, struct wl_resource* resource,
+                                  const char* text)
 {
     (void)client;
     (void)resource;
     (void)text;
 }
 
-static void ServerNoRequest(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerNoRequest(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     (void)resource;
 }
 
 // The first commit of a toplevel is answered with its first configure.
-static void ServerCommit(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerCommit(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -190,7 +192,8 @@ static const struct wl_surface_interface s_serverSurface = {
     .offset = ServerNoTwoInts,
 };
 
-static void ServerCreateSurface(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static inline void ServerCreateSurface(struct wl_client* client, struct wl_resource* resource,
+                                       uint32_t id)
 {
     Server* server = wl_resource_get_user_data(resource);
     struct wl_resource* surface =
@@ -202,24 +205,24 @@ static const struct wl_compositor_interface s_serverCompositor = {
     .create_surface = ServerCreateSurface,
 };
 
-static void ServerBindCompositor(struct wl_client* client, void* data, uint32_t version,
-                                 uint32_t id)
+static inline void ServerBindCompositor(struct wl_client* client, void* data, uint32_t version,
+                                        uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &wl_compositor_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverCompositor, data, nullptr);
 }
 
-static void ServerSetOutput(struct wl_client* client, struct wl_resource* resource,
-                            struct wl_resource* output)
+static inline void ServerSetOutput(struct wl_client* client, struct wl_resource* resource,
+                                   struct wl_resource* output)
 {
     (void)client;
     (void)resource;
     (void)output;
 }
 
-static void ServerMove(struct wl_client* client, struct wl_resource* resource,
-                       struct wl_resource* seat, uint32_t serial)
+static inline void ServerMove(struct wl_client* client, struct wl_resource* resource,
+                              struct wl_resource* seat, uint32_t serial)
 {
     (void)client;
     (void)seat;
@@ -228,8 +231,8 @@ static void ServerMove(struct wl_client* client, struct wl_resource* resource,
     server->shell.moves += 1;
 }
 
-static void ServerResize(struct wl_client* client, struct wl_resource* resource,
-                         struct wl_resource* seat, uint32_t serial, uint32_t edges)
+static inline void ServerResize(struct wl_client* client, struct wl_resource* resource,
+                                struct wl_resource* seat, uint32_t serial, uint32_t edges)
 {
     (void)client;
     (void)seat;
@@ -238,8 +241,8 @@ static void ServerResize(struct wl_client* client, struct wl_resource* resource,
     server->shell.resizeEdge = edges;
 }
 
-static void ServerMenu(struct wl_client* client, struct wl_resource* resource,
-                       struct wl_resource* seat, uint32_t serial, int32_t x, int32_t y)
+static inline void ServerMenu(struct wl_client* client, struct wl_resource* resource,
+                              struct wl_resource* seat, uint32_t serial, int32_t x, int32_t y)
 {
     (void)client;
     (void)seat;
@@ -250,7 +253,7 @@ static void ServerMenu(struct wl_client* client, struct wl_resource* resource,
     server->shell.menus += 1;
 }
 
-static void ServerMaximize(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerMaximize(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -273,7 +276,8 @@ static const struct xdg_toplevel_interface s_serverToplevel = {
     .set_minimized = ServerNoRequest,
 };
 
-static void ServerGetToplevel(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static inline void ServerGetToplevel(struct wl_client* client, struct wl_resource* resource,
+                                     uint32_t id)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->toplevel =
@@ -282,15 +286,16 @@ static void ServerGetToplevel(struct wl_client* client, struct wl_resource* reso
     server->configured = false;
 }
 
-static void ServerAck(struct wl_client* client, struct wl_resource* resource, uint32_t serial)
+static inline void ServerAck(struct wl_client* client, struct wl_resource* resource,
+                             uint32_t serial)
 {
     (void)client;
     (void)resource;
     (void)serial;
 }
 
-static void ServerGeometry(struct wl_client* client, struct wl_resource* resource, int32_t x,
-                           int32_t y, int32_t width, int32_t height)
+static inline void ServerGeometry(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                                  int32_t y, int32_t width, int32_t height)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -307,8 +312,8 @@ static const struct xdg_surface_interface s_serverXdgSurface = {
     .ack_configure = ServerAck,
 };
 
-static void ServerGetXdgSurface(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                                struct wl_resource* surface)
+static inline void ServerGetXdgSurface(struct wl_client* client, struct wl_resource* resource,
+                                       uint32_t id, struct wl_resource* surface)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->surface = surface;
@@ -317,7 +322,8 @@ static void ServerGetXdgSurface(struct wl_client* client, struct wl_resource* re
     wl_resource_set_implementation(server->xdgSurface, &s_serverXdgSurface, server, nullptr);
 }
 
-static void ServerPong(struct wl_client* client, struct wl_resource* resource, uint32_t serial)
+static inline void ServerPong(struct wl_client* client, struct wl_resource* resource,
+                              uint32_t serial)
 {
     (void)client;
     (void)resource;
@@ -330,7 +336,8 @@ static const struct xdg_wm_base_interface s_serverWmBase = {
     .pong = ServerPong,
 };
 
-static void ServerBindWmBase(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+static inline void ServerBindWmBase(struct wl_client* client, void* data, uint32_t version,
+                                    uint32_t id)
 {
     struct wl_resource* resource = wl_resource_create(client, &xdg_wm_base_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverWmBase, data, nullptr);
@@ -341,7 +348,7 @@ static const struct wl_keyboard_interface s_serverKeyboard = {
 };
 
 // Sends the keymap through a sealed memory file, as compositors do.
-static void ServerSendKeymap(Server* server)
+static inline void ServerSendKeymap(Server* server)
 {
     int fd = memfd_create("keymap", MFD_CLOEXEC);
     if (fd < 0 || ftruncate(fd, (off_t)server->keymapSize) != 0)
@@ -356,7 +363,8 @@ static void ServerSendKeymap(Server* server)
     close(fd);
 }
 
-static void ServerGetKeyboard(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static inline void ServerGetKeyboard(struct wl_client* client, struct wl_resource* resource,
+                                     uint32_t id)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->keyboard =
@@ -366,8 +374,9 @@ static void ServerGetKeyboard(struct wl_client* client, struct wl_resource* reso
     wl_keyboard_send_repeat_info(server->keyboard, server->repeatRate, server->repeatDelay);
 }
 
-static void ServerSetCursor(struct wl_client* client, struct wl_resource* resource, uint32_t serial,
-                            struct wl_resource* surface, int32_t x, int32_t y)
+static inline void ServerSetCursor(struct wl_client* client, struct wl_resource* resource,
+                                   uint32_t serial, struct wl_resource* surface, int32_t x,
+                                   int32_t y)
 {
     (void)client;
     (void)serial;
@@ -382,7 +391,8 @@ static const struct wl_pointer_interface s_serverPointer = {
     .release = ServerDestroyResource,
 };
 
-static void ServerGetPointer(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static inline void ServerGetPointer(struct wl_client* client, struct wl_resource* resource,
+                                    uint32_t id)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->pointer =
@@ -394,7 +404,8 @@ static const struct wl_touch_interface s_serverTouch = {
     .release = ServerDestroyResource,
 };
 
-static void ServerGetTouch(struct wl_client* client, struct wl_resource* resource, uint32_t id)
+static inline void ServerGetTouch(struct wl_client* client, struct wl_resource* resource,
+                                  uint32_t id)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->touch =
@@ -409,7 +420,8 @@ static const struct wl_seat_interface s_serverSeat = {
     .release = ServerDestroyResource,
 };
 
-static void ServerBindSeat(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+static inline void ServerBindSeat(struct wl_client* client, void* data, uint32_t version,
+                                  uint32_t id)
 {
     struct wl_resource* resource = wl_resource_create(client, &wl_seat_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverSeat, data, nullptr);
@@ -417,8 +429,8 @@ static void ServerBindSeat(struct wl_client* client, void* data, uint32_t versio
                                             WL_SEAT_CAPABILITY_TOUCH);
 }
 
-static void ServerSetShape(struct wl_client* client, struct wl_resource* resource, uint32_t serial,
-                           uint32_t shape)
+static inline void ServerSetShape(struct wl_client* client, struct wl_resource* resource,
+                                  uint32_t serial, uint32_t shape)
 {
     (void)client;
     (void)serial;
@@ -431,8 +443,8 @@ static const struct wp_cursor_shape_device_v1_interface s_serverShapeDevice = {
     .set_shape = ServerSetShape,
 };
 
-static void ServerGetShapeDevice(struct wl_client* client, struct wl_resource* resource,
-                                 uint32_t id, struct wl_resource* pointer)
+static inline void ServerGetShapeDevice(struct wl_client* client, struct wl_resource* resource,
+                                        uint32_t id, struct wl_resource* pointer)
 {
     (void)pointer;
     struct wl_resource* device = wl_resource_create(client, &wp_cursor_shape_device_v1_interface,
@@ -446,7 +458,8 @@ static const struct wp_cursor_shape_manager_v1_interface s_serverShapes = {
     .get_pointer = ServerGetShapeDevice,
 };
 
-static void ServerBindShapes(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+static inline void ServerBindShapes(struct wl_client* client, void* data, uint32_t version,
+                                    uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &wp_cursor_shape_manager_v1_interface, version, id);
@@ -454,13 +467,13 @@ static void ServerBindShapes(struct wl_client* client, void* data, uint32_t vers
 }
 
 // A constraint ends when the client destroys it.
-static void ServerEndLock(struct wl_resource* resource)
+static inline void ServerEndLock(struct wl_resource* resource)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->cursor.locked = false;
 }
 
-static void ServerEndConfine(struct wl_resource* resource)
+static inline void ServerEndConfine(struct wl_resource* resource)
 {
     Server* server = wl_resource_get_user_data(resource);
     server->cursor.confined = false;
@@ -474,9 +487,9 @@ static const struct zwp_confined_pointer_v1_interface s_serverConfined = {
     .destroy = ServerDestroyResource,
 };
 
-static void ServerLock(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                       struct wl_resource* surface, struct wl_resource* pointer,
-                       struct wl_resource* region, uint32_t lifetime)
+static inline void ServerLock(struct wl_client* client, struct wl_resource* resource, uint32_t id,
+                              struct wl_resource* surface, struct wl_resource* pointer,
+                              struct wl_resource* region, uint32_t lifetime)
 {
     (void)surface;
     (void)pointer;
@@ -490,9 +503,10 @@ static void ServerLock(struct wl_client* client, struct wl_resource* resource, u
     zwp_locked_pointer_v1_send_locked(locked);
 }
 
-static void ServerConfine(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                          struct wl_resource* surface, struct wl_resource* pointer,
-                          struct wl_resource* region, uint32_t lifetime)
+static inline void ServerConfine(struct wl_client* client, struct wl_resource* resource,
+                                 uint32_t id, struct wl_resource* surface,
+                                 struct wl_resource* pointer, struct wl_resource* region,
+                                 uint32_t lifetime)
 {
     (void)surface;
     (void)pointer;
@@ -512,8 +526,8 @@ static const struct zwp_pointer_constraints_v1_interface s_serverConstraints = {
     .confine_pointer = ServerConfine,
 };
 
-static void ServerBindConstraints(struct wl_client* client, void* data, uint32_t version,
-                                  uint32_t id)
+static inline void ServerBindConstraints(struct wl_client* client, void* data, uint32_t version,
+                                         uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &zwp_pointer_constraints_v1_interface, version, id);
@@ -524,8 +538,8 @@ static const struct zwp_relative_pointer_v1_interface s_serverRelative = {
     .destroy = ServerDestroyResource,
 };
 
-static void ServerGetRelative(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                              struct wl_resource* pointer)
+static inline void ServerGetRelative(struct wl_client* client, struct wl_resource* resource,
+                                     uint32_t id, struct wl_resource* pointer)
 {
     (void)pointer;
     Server* server = wl_resource_get_user_data(resource);
@@ -539,29 +553,30 @@ static const struct zwp_relative_pointer_manager_v1_interface s_serverRelatives 
     .get_relative_pointer = ServerGetRelative,
 };
 
-static void ServerBindRelatives(struct wl_client* client, void* data, uint32_t version, uint32_t id)
+static inline void ServerBindRelatives(struct wl_client* client, void* data, uint32_t version,
+                                       uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &zwp_relative_pointer_manager_v1_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverRelatives, data, nullptr);
 }
 
-static void ServerEnableText(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerEnableText(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
     server->pendingText.enabled = true;
 }
 
-static void ServerDisableText(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerDisableText(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
     server->pendingText.enabled = false;
 }
 
-static void ServerContentType(struct wl_client* client, struct wl_resource* resource, uint32_t hint,
-                              uint32_t purpose)
+static inline void ServerContentType(struct wl_client* client, struct wl_resource* resource,
+                                     uint32_t hint, uint32_t purpose)
 {
     (void)client;
     (void)resource;
@@ -569,8 +584,8 @@ static void ServerContentType(struct wl_client* client, struct wl_resource* reso
     (void)purpose;
 }
 
-static void ServerCaret(struct wl_client* client, struct wl_resource* resource, int32_t x,
-                        int32_t y, int32_t width, int32_t height)
+static inline void ServerCaret(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                               int32_t y, int32_t width, int32_t height)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -580,7 +595,7 @@ static void ServerCaret(struct wl_client* client, struct wl_resource* resource, 
     server->pendingText.height = height;
 }
 
-static void ServerCommitText(struct wl_client* client, struct wl_resource* resource)
+static inline void ServerCommitText(struct wl_client* client, struct wl_resource* resource)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -597,8 +612,8 @@ static const struct zwp_text_input_v3_interface s_serverTextInput = {
     .commit = ServerCommitText,
 };
 
-static void ServerGetTextInput(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                               struct wl_resource* seat)
+static inline void ServerGetTextInput(struct wl_client* client, struct wl_resource* resource,
+                                      uint32_t id, struct wl_resource* seat)
 {
     (void)seat;
     Server* server = wl_resource_get_user_data(resource);
@@ -612,16 +627,16 @@ static const struct zwp_text_input_manager_v3_interface s_serverTextInputs = {
     .get_text_input = ServerGetTextInput,
 };
 
-static void ServerBindTextInputs(struct wl_client* client, void* data, uint32_t version,
-                                 uint32_t id)
+static inline void ServerBindTextInputs(struct wl_client* client, void* data, uint32_t version,
+                                        uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &zwp_text_input_manager_v3_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverTextInputs, data, nullptr);
 }
 
-static void ServerPosition(struct wl_client* client, struct wl_resource* resource, int32_t x,
-                           int32_t y)
+static inline void ServerPosition(struct wl_client* client, struct wl_resource* resource, int32_t x,
+                                  int32_t y)
 {
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
@@ -642,8 +657,9 @@ static const struct wl_subsurface_interface s_serverSubsurface = {
     .set_desync = ServerNoRequest,
 };
 
-static void ServerGetSubsurface(struct wl_client* client, struct wl_resource* resource, uint32_t id,
-                                struct wl_resource* surface, struct wl_resource* parent)
+static inline void ServerGetSubsurface(struct wl_client* client, struct wl_resource* resource,
+                                       uint32_t id, struct wl_resource* surface,
+                                       struct wl_resource* parent)
 {
     (void)parent;
     Server* server = wl_resource_get_user_data(resource);
@@ -663,15 +679,15 @@ static const struct wl_subcompositor_interface s_serverSubcompositor = {
     .get_subsurface = ServerGetSubsurface,
 };
 
-static void ServerBindSubcompositor(struct wl_client* client, void* data, uint32_t version,
-                                    uint32_t id)
+static inline void ServerBindSubcompositor(struct wl_client* client, void* data, uint32_t version,
+                                           uint32_t id)
 {
     struct wl_resource* resource =
         wl_resource_create(client, &wl_subcompositor_interface, version, id);
     wl_resource_set_implementation(resource, &s_serverSubcompositor, data, nullptr);
 }
 
-static void* ServerRun(void* data)
+static inline void* ServerRun(void* data)
 {
     Server* server = data;
     for (;;)
@@ -694,7 +710,7 @@ static void* ServerRun(void* data)
 }
 
 // Compiles the keymap from RMLVO names. False without xkb data.
-static bool ServerCompileKeymap(Server* server, const char* layout, const char* variant)
+static inline bool ServerCompileKeymap(Server* server, const char* layout, const char* variant)
 {
     struct xkb_context* context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     struct xkb_rule_names names = {"evdev", "pc105", layout, variant, nullptr};
@@ -715,7 +731,7 @@ static bool ServerCompileKeymap(Server* server, const char* layout, const char* 
 
 // Starts the compositor on a new socket, which WAYLAND_DISPLAY then
 // names. False when it cannot.
-static bool ServerStart(Server* server, const char* layout, const char* variant)
+static inline bool ServerStart(Server* server, const char* layout, const char* variant)
 {
     *server = (Server){.repeatRate = 50, .repeatDelay = 40};
     if (!ServerCompileKeymap(server, layout, variant))
@@ -748,7 +764,7 @@ static bool ServerStart(Server* server, const char* layout, const char* variant)
     return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
 }
 
-static void ServerStop(Server* server)
+static inline void ServerStop(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     server->stop = true;
@@ -761,7 +777,7 @@ static void ServerStop(Server* server)
 }
 
 // The seat's keyboard focus comes to the last surface made.
-static void ServerEnter(Server* server)
+static inline void ServerEnter(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     struct wl_array keys;
@@ -773,7 +789,7 @@ static void ServerEnter(Server* server)
     pthread_mutex_unlock(&server->lock);
 }
 
-static void ServerLeave(Server* server)
+static inline void ServerLeave(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     wl_keyboard_send_leave(server->keyboard, ++server->serial, server->surface);
@@ -782,7 +798,7 @@ static void ServerLeave(Server* server)
 }
 
 // A key by its evdev code, and the modifier state and layout group.
-static void ServerKey(Server* server, uint32_t evdev, bool pressed)
+static inline void ServerKey(Server* server, uint32_t evdev, bool pressed)
 {
     pthread_mutex_lock(&server->lock);
     wl_keyboard_send_key(server->keyboard, ++server->serial, 1000, evdev,
@@ -791,7 +807,7 @@ static void ServerKey(Server* server, uint32_t evdev, bool pressed)
     pthread_mutex_unlock(&server->lock);
 }
 
-static void ServerModifiers(Server* server, uint32_t depressed, uint32_t group)
+static inline void ServerModifiers(Server* server, uint32_t depressed, uint32_t group)
 {
     pthread_mutex_lock(&server->lock);
     wl_keyboard_send_modifiers(server->keyboard, ++server->serial, depressed, 0, 0, group);
@@ -801,7 +817,8 @@ static void ServerModifiers(Server* server, uint32_t depressed, uint32_t group)
 
 // Pointer events, each in a frame of its own unless noted. The pointer
 // enters a surface, the toplevel's content where none is named.
-static void ServerPointerEnterOn(Server* server, struct wl_resource* surface, double x, double y)
+static inline void ServerPointerEnterOn(Server* server, struct wl_resource* surface, double x,
+                                        double y)
 {
     pthread_mutex_lock(&server->lock);
     wl_pointer_send_enter(server->pointer, ++server->serial,
@@ -812,12 +829,12 @@ static void ServerPointerEnterOn(Server* server, struct wl_resource* surface, do
     pthread_mutex_unlock(&server->lock);
 }
 
-static void ServerPointerEnter(Server* server, double x, double y)
+static inline void ServerPointerEnter(Server* server, double x, double y)
 {
     ServerPointerEnterOn(server, nullptr, x, y);
 }
 
-static void ServerPointerLeaveFrom(Server* server, struct wl_resource* surface)
+static inline void ServerPointerLeaveFrom(Server* server, struct wl_resource* surface)
 {
     pthread_mutex_lock(&server->lock);
     wl_pointer_send_leave(server->pointer, ++server->serial,
@@ -828,7 +845,7 @@ static void ServerPointerLeaveFrom(Server* server, struct wl_resource* surface)
 }
 
 // Two motions in one frame, of which the program sees the last.
-static void ServerPointerMotion(Server* server, double x, double y)
+static inline void ServerPointerMotion(Server* server, double x, double y)
 {
     pthread_mutex_lock(&server->lock);
     wl_pointer_send_motion(server->pointer, 1000, wl_fixed_from_double(x - 5.0),
@@ -839,7 +856,7 @@ static void ServerPointerMotion(Server* server, double x, double y)
     pthread_mutex_unlock(&server->lock);
 }
 
-static void ServerButton(Server* server, uint32_t button, bool pressed)
+static inline void ServerButton(Server* server, uint32_t button, bool pressed)
 {
     pthread_mutex_lock(&server->lock);
     wl_pointer_send_button(server->pointer, ++server->serial, 1000, button,
@@ -853,7 +870,7 @@ static void ServerButton(Server* server, uint32_t button, bool pressed)
 // A wheel turn toward the user by steps120 120ths of a detent, with a
 // continuous distance of as many units, which the program must not
 // count as well.
-static void ServerWheel(Server* server, int32_t steps120)
+static inline void ServerWheel(Server* server, int32_t steps120)
 {
     pthread_mutex_lock(&server->lock);
     wl_pointer_send_axis_source(server->pointer, WL_POINTER_AXIS_SOURCE_WHEEL);
@@ -866,7 +883,7 @@ static void ServerWheel(Server* server, int32_t steps120)
 }
 
 // A touch goes down, moves and lifts.
-static void ServerTouchStroke(Server* server, int32_t id)
+static inline void ServerTouchStroke(Server* server, int32_t id)
 {
     pthread_mutex_lock(&server->lock);
     wl_touch_send_down(server->touch, ++server->serial, 1000, server->surface, id,
@@ -881,7 +898,7 @@ static void ServerTouchStroke(Server* server, int32_t id)
 }
 
 // Relative motion: accelerated by half again, and the raw distance.
-static void ServerRelativeMotion(Server* server, double dx, double dy)
+static inline void ServerRelativeMotion(Server* server, double dx, double dy)
 {
     pthread_mutex_lock(&server->lock);
     zwp_relative_pointer_v1_send_relative_motion(
@@ -893,7 +910,7 @@ static void ServerRelativeMotion(Server* server, double dx, double dy)
 }
 
 // What the client has asked for of the cursor so far.
-static Cursor ServerCursor(Server* server)
+static inline Cursor ServerCursor(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     Cursor cursor = server->cursor;
@@ -902,7 +919,7 @@ static Cursor ServerCursor(Server* server)
 }
 
 // The seat's text input focuses on the last surface made.
-static void ServerTextEnter(Server* server)
+static inline void ServerTextEnter(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     zwp_text_input_v3_send_enter(server->textInput, server->surface);
@@ -912,8 +929,8 @@ static void ServerTextEnter(Server* server)
 
 // The input method's next state: a composition with its cursor (NULL
 // for none) and committed text (NULL for none), applied by done.
-static void ServerCompose(Server* server, const char* preedit, int32_t begin, int32_t end,
-                          const char* commit)
+static inline void ServerCompose(Server* server, const char* preedit, int32_t begin, int32_t end,
+                                 const char* commit)
 {
     pthread_mutex_lock(&server->lock);
     if (commit != nullptr)
@@ -929,7 +946,7 @@ static void ServerCompose(Server* server, const char* preedit, int32_t begin, in
     pthread_mutex_unlock(&server->lock);
 }
 
-static TextState ServerText(Server* server)
+static inline TextState ServerText(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     TextState text = server->text;
@@ -937,12 +954,12 @@ static TextState ServerText(Server* server)
     return text;
 }
 
-static void ServerPointerLeave(Server* server)
+static inline void ServerPointerLeave(Server* server)
 {
     ServerPointerLeaveFrom(server, nullptr);
 }
 
-static Shell ServerShell(Server* server)
+static inline Shell ServerShell(Server* server)
 {
     pthread_mutex_lock(&server->lock);
     Shell shell = server->shell;
@@ -951,7 +968,7 @@ static Shell ServerShell(Server* server)
 }
 
 // The subsurface placed at a point relative to its parent, or NULL.
-static struct wl_resource* ServerPartAt(Server* server, int32_t x, int32_t y)
+static inline struct wl_resource* ServerPartAt(Server* server, int32_t x, int32_t y)
 {
     pthread_mutex_lock(&server->lock);
     struct wl_resource* found = nullptr;

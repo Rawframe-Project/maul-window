@@ -190,6 +190,7 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
 {
     (void)object;
     mwinWaylandPlatform* platform = data;
+    platform->inputSerial = serial;
     mwinWaylandPointer* pointer = &platform->pointer;
     if (pointer->framePart != nullptr)
     {
@@ -364,8 +365,8 @@ static void OnTouchDown(void* data, struct wl_touch* object, uint32_t serial, ui
                         struct wl_surface* surface, int32_t id, wl_fixed_t x, wl_fixed_t y)
 {
     (void)object;
-    (void)serial;
     mwinWaylandPlatform* platform = data;
+    platform->inputSerial = serial;
     mwinWaylandTouch* touch = &platform->touch;
     int32_t slot = mwinWaylandSlotOf(platform, surface);
     // A touch past the ones followed is left out, all its life.

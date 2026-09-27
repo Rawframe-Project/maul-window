@@ -17,6 +17,7 @@
 #include "core.h"
 #include "wayland.h"
 #include "wayland_api.h"
+#include "wayland_clipboard.h"
 #include "wayland_cursor.h"
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
@@ -142,6 +143,11 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
     {
         mwinWaylandBindSeat(platform, name, version);
     }
+    else if (strcmp(interface, wl_data_device_manager_interface.name) == 0 &&
+             platform->clipboard.manager == nullptr)
+    {
+        mwinWaylandBindDataManager(platform, name, version);
+    }
 }
 
 static void OnGlobalRemove(void* data, struct wl_registry* registry, uint32_t name)
@@ -178,6 +184,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
     if (platform->display != nullptr)
     {
         mwinWaylandReleaseSeat(platform);
+        DestroyGlobal(api, platform->clipboard.manager, -1);
         mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
         DestroyGlobal(api, platform->shm, -1);
@@ -228,6 +235,7 @@ static mwinResult Connect(mwinWaylandPlatform* platform)
         }
     }
     mwinWaylandAttachText(platform);
+    mwinWaylandAttachClipboard(platform);
     return platform->compositor != nullptr && platform->wmBase != nullptr ? mwin_success
                                                                           : mwin_errorUnsupported;
 }
@@ -274,6 +282,7 @@ static mwinResult Start(mwinContext* context)
     platform->keyboard.focus = -1;
     platform->pointer.focus = -1;
     platform->text.focus = -1;
+    mwinWaylandInitClipboard(&platform->clipboard);
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
@@ -315,6 +324,7 @@ static void Pump(mwinContext* context)
     }
     (void)api->displayDispatchPending(display);
     mwinWaylandRepeatKeys(platform);
+    mwinWaylandPumpClipboard(platform, mwinMonotonicNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsPump(&platform->pads);
 #endif

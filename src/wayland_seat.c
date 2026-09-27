@@ -5,6 +5,7 @@
 
 #include "wayland_seat.h"
 
+#include "wayland_clipboard.h"
 #include "wayland_keyboard.h"
 #include "wayland_pointer.h"
 #include "wayland_text.h"
@@ -78,6 +79,7 @@ void mwinWaylandReleaseSeat(mwinWaylandPlatform* platform)
         return;
     }
     mwinWaylandDetachText(platform);
+    mwinWaylandDetachClipboard(platform);
     if (platform->keyboard.keyboard != nullptr)
     {
         mwinWaylandRemoveKeyboard(platform);

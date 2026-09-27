@@ -117,6 +117,7 @@ format.
   `mwinGetClipboardText`, ill-formed text repaired, the
   `clipboardBytes` limit and `mwin_outcomeTooLarge`; the test backend's
   clipboard and the contract tests. The Win32 clipboard, as
-  `CF_UNICODETEXT`; the web clipboard, through the Clipboard API.
+  `CF_UNICODETEXT`; the web clipboard, through the Clipboard API; the
+  Wayland clipboard, through the seat's data device.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

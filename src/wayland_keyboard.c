@@ -64,9 +64,9 @@ static void OnEnter(void* data, struct wl_keyboard* object, uint32_t serial,
                     struct wl_surface* surface, struct wl_array* keys)
 {
     (void)object;
-    (void)serial;
     (void)keys;
     mwinWaylandPlatform* platform = data;
+    platform->inputSerial = serial;
     // Keys already held when focus comes are not reported as pressed.
     platform->keyboard.focus = mwinWaylandSlotOf(platform, surface);
     platform->keyboard.held = 0;
@@ -124,8 +124,8 @@ static void OnKey(void* data, struct wl_keyboard* object, uint32_t serial, uint3
                   uint32_t evdev, uint32_t state)
 {
     (void)object;
-    (void)serial;
     mwinWaylandPlatform* platform = data;
+    platform->inputSerial = serial;
     mwinWaylandKeyboard* keyboard = &platform->keyboard;
     if (keyboard->focus < 0 || keyboard->xkb.state == nullptr)
     {

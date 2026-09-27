@@ -209,6 +209,37 @@ typedef struct mwinWaylandText
     mwinWaylandString commit;
 } mwinWaylandText;
 
+// The most readers served the program's text at once.
+#define MWIN_WAYLAND_SENDS 4
+
+// The clipboard: the data device, the selection another client offers
+// and the text type it has, the source while the program owns the
+// selection with the pipes of its readers, and a read under way.
+typedef struct mwinWaylandClipboard
+{
+    struct wl_data_device_manager* manager;
+    struct wl_data_device* device;
+    // The newest offer and its best text type, an index of the types the
+    // backend knows or -1, until the selection names it.
+    struct wl_data_offer* incoming;
+    int8_t incomingType;
+    struct wl_data_offer* selection;
+    int8_t selectionType;
+    struct wl_data_source* source;
+    struct
+    {
+        int fd;
+        uint32_t offset;
+    } sends[MWIN_WAYLAND_SENDS];
+    // The read's pipe, or -1, and the text so far in a block of capacity
+    // bytes from the allocator; past the limit, the read is too large.
+    int readFd;
+    char* buffer;
+    uint32_t used;
+    uint32_t capacity;
+    uint64_t deadlineNs;
+} mwinWaylandClipboard;
+
 struct mwinWaylandPlatform
 {
     mwinWaylandApi api;
@@ -238,6 +269,10 @@ struct mwinWaylandPlatform
     mwinWaylandPointer pointer;
     mwinWaylandTouch touch;
     mwinWaylandText text;
+    mwinWaylandClipboard clipboard;
+    // The serial of the latest input event, which setting the selection
+    // quotes.
+    uint32_t inputSerial;
     // The connection failed; the loop stops.
     bool failed;
     // One per window slot, and one per monitor slot.

@@ -71,11 +71,22 @@ static LRESULT CALLBACK OnMessage(int code, WPARAM wParam, LPARAM lParam)
     return CallNextHookEx(nullptr, code, wParam, lParam);
 }
 
+// A point of the client area, in pixels from its top left, on screen.
+static POINT OnScreen(const Program* program, LONG x, LONG y)
+{
+    POINT point = {x, y};
+    ClientToScreen(program->hwnd, &point);
+    return point;
+}
+
 // What a gesture brought, for a failure's report.
 static void Dump(const Program* program)
 {
-    (void)printf("  phase %d: %d records, %d pointer messages\n", (int)program->phase,
-                 program->count, s_pointerMessages);
+    POINT point = OnScreen(program, 100, 80);
+    (void)printf("  phase %d: %d records, %d pointer messages; under the point %p, the window "
+                 "%p, foreground %p\n",
+                 (int)program->phase, program->count, s_pointerMessages,
+                 (void*)WindowFromPoint(point), (void*)program->hwnd, (void*)GetForegroundWindow());
     for (int i = 0; i < program->count; i++)
     {
         (void)printf("    record %d\n", (int)program->records[i].type);
@@ -101,14 +112,6 @@ static const mwinEvent* Find(const Program* program, mwinEventType type)
         }
     }
     return nullptr;
-}
-
-// A point of the client area, in pixels from its top left, on screen.
-static POINT OnScreen(const Program* program, LONG x, LONG y)
-{
-    POINT point = {x, y};
-    ClientToScreen(program->hwnd, &point);
-    return point;
 }
 
 // Whether a position in logical units is a pixel of the client area.
@@ -236,6 +239,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
+        // Nothing of the desktop's may cover the points touched.
+        SetWindowPos(program->hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
     else if (program->phase == phaseTouch)
     {

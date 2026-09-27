@@ -75,6 +75,44 @@ static void ReadFacts(mwinWebPlatform* platform)
     }
 }
 
+static void PostLifecycle(mwinContext* context, mwinEventType type)
+{
+    mwinEvent event = {.type = type, .timeNs = NowNs()};
+    mwinPostGlobal(context, &event);
+}
+
+// A frame the page's loop may not run for a while, or may never run
+// again, where the program can save what must survive. False when the
+// frame stopped the program, which is over and its context freed.
+static bool RunCriticalFrame(mwinContext* context)
+{
+    mwinRunCriticalFrame(context);
+    if (!context->stopping || !context->running)
+    {
+        return true;
+    }
+    emscripten_cancel_main_loop();
+    (void)mwinEndProgram(context);
+    mwinFinishRun(context);
+    return false;
+}
+
+// The page went away or came back: the program hears of it at once.
+static void Lifecycle(mwinContext* context, int running)
+{
+    mwinWebPlatform* platform = PlatformOf(context);
+    if ((running != 0) != platform->suspended)
+    {
+        return;
+    }
+    platform->suspended = running == 0;
+    PostLifecycle(context, running != 0 ? mwin_eventResuming : mwin_eventSuspending);
+    if (RunCriticalFrame(context))
+    {
+        PostLifecycle(context, running != 0 ? mwin_eventResumed : mwin_eventSuspended);
+    }
+}
+
 static void Stop(mwinContext* context)
 {
     mwinWebPlatform* platform = PlatformOf(context);
@@ -103,7 +141,7 @@ static mwinResult Start(mwinContext* context)
     platform->monitor = -1;
     platform->scale = mwinWebScale();
     context->backendData = platform;
-    mwinWebAttach(context);
+    mwinWebAttach(context, Lifecycle);
     mwinWebAttachInput(context);
     ReadScreen(platform);
     ReadFacts(platform);
@@ -174,11 +212,11 @@ static void Pump(mwinContext* context)
             {
                 break;
             }
-            if (record.kind >= mwin_webCommit)
+            if (record.kind == mwin_webCommit || record.kind == mwin_webPreedit)
             {
                 mwinWebHandleTextRecord(platform, &record);
             }
-            else if (record.kind >= mwin_webKey)
+            else if (record.kind >= mwin_webKey && record.kind <= mwin_webLockFailed)
             {
                 mwinWebHandleInputRecord(platform, &record);
             }

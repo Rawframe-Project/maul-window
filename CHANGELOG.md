@@ -97,4 +97,7 @@ format.
   KeyboardEvent.code with meanings from the layout map, text, the
   mouse, the wheel, touch and pen from pointer events, CSS cursors,
   and a captured cursor through pointer lock with raw motion; input
-  methods and on-screen keyboards through a text field at the caret.
+  methods and on-screen keyboards through a text field at the caret;
+  the lifecycle from page visibility, the back-forward cache and
+  freezing, with the program's frame run inside the browser's event,
+  and surfaces lost with a canvas out of the document.

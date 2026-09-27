@@ -14,7 +14,7 @@
 static_assert(offsetof(mwinWebRecord, x) == 16 && offsetof(mwinWebRecord, timeMs) == 40,
               "the page writes records at these offsets");
 
-EM_JS_DEPS(mwin_web_page, "$UTF8ToString,$stringToUTF8,$lengthBytesUTF8");
+EM_JS_DEPS(mwin_web_page, "$UTF8ToString,$stringToUTF8,$lengthBytesUTF8,$getWasmTableEntry");
 
 // A function of this file's own, not JavaScript: the backend's call to it
 // is what takes this file, and all the JavaScript in it, into a program
@@ -26,7 +26,7 @@ EM_JS(bool, HasDocument, (void), {
     return typeof document !== 'undefined' && typeof window !== 'undefined';
 });
 
-EM_JS(void, mwinWebAttach, (const mwinContext* context), {
+EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
     const map = Module.mwinWeb || (Module.mwinWeb = new Map());
     const state = {queue: [], strings: [], canvases: [], listeners: []};
     map.set(context, state);
@@ -37,7 +37,17 @@ EM_JS(void, mwinWebAttach, (const mwinContext* context), {
         target.addEventListener(type, handler);
         state.listeners.push(() => target.removeEventListener(type, handler));
     };
-    listen(document, 'visibilitychange', () => push(6, -1, document.hidden ? 0 : 1));
+    // The page going away or coming back: the backend answers at once,
+    // before the browser goes on.
+    const live = running => getWasmTableEntry(lifecycle)(context, running ? 1 : 0);
+    listen(document, 'visibilitychange', () => {
+        push(6, -1, document.hidden ? 0 : 1);
+        live(!document.hidden);
+    });
+    listen(window, 'pagehide', () => live(false));
+    listen(window, 'pageshow', e => e.persisted && live(true));
+    listen(document, 'freeze', () => live(false));
+    listen(document, 'resume', () => live(true));
     listen(document, 'fullscreenchange', () => state.canvases.forEach((entry, slot) => {
         const now = entry && document.fullscreenElement === entry.canvas;
         if (entry && now !== entry.fullscreen) {
@@ -88,6 +98,15 @@ EM_JS(void, mwinWebAttach, (const mwinContext* context), {
     };
     watchScale();
     listen(window, 'resize', state.checkScale);
+    // A canvas taken out of the document has no surface until it is back.
+    const surfaces = new MutationObserver(() => state.canvases.forEach((entry, slot) => {
+        if (entry && entry.canvas.isConnected === entry.lost) {
+            entry.lost = !entry.canvas.isConnected;
+            push(entry.lost ? 22 : 23, slot);
+        }
+    }));
+    surfaces.observe(document, {childList: true, subtree: true});
+    state.listeners.push(() => surfaces.disconnect());
     // Stops watching a canvas; one the backend made goes, one of the
     // page's gets its style back.
     state.close = slot => {
@@ -134,7 +153,8 @@ EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const 
     if (!(canvas instanceof HTMLCanvasElement)) {
         return -1;
     }
-    const entry = {canvas, made, style: canvas.style.cssText, fullscreen: false, listeners: []};
+    const entry = {canvas, made, style: canvas.style.cssText, fullscreen: false, lost: false,
+                   listeners: []};
     if (!canvas.id) {
         canvas.id = 'mwin-' + context + '-' + slot;
     }

@@ -48,6 +48,8 @@ typedef struct mwinWebPlatform
     // A string of the page's as UTF-8: textBytesPerWindow and its
     // terminator.
     char* text;
+    // The page went away (hidden, frozen or left) and has not come back.
+    bool suspended;
 } mwinWebPlatform;
 
 // What the page reports, one record at a time.
@@ -96,6 +98,9 @@ typedef enum mwinWebRecordKind
     mwin_webCommit = 20,
     // A composition: its string, empty when it ends, and code its caret.
     mwin_webPreedit = 21,
+    // A canvas left the document, or came back.
+    mwin_webSurfaceLost = 22,
+    mwin_webSurfaceRestored = 23,
 } mwinWebRecordKind;
 
 typedef enum mwinWebMouse

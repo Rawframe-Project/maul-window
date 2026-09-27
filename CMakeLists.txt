@@ -151,7 +151,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(web_ime MANUAL)
         add_test(NAME web_ime COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                  $<TARGET_FILE:test_web_ime>)
-        set_tests_properties(web web_input web_ime PROPERTIES SKIP_RETURN_CODE 77)
+        maul_add_test(web_lifecycle MANUAL)
+        add_test(NAME web_lifecycle COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
+                 $<TARGET_FILE:test_web_lifecycle>)
+        set_tests_properties(web web_input web_ime web_lifecycle PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

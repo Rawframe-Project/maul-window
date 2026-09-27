@@ -12,8 +12,12 @@
 // Whether there is a page (not a worker, not Node).
 bool mwinWebHasPage(void);
 
+// What the page calls, with 0 when it goes away and 1 when it comes
+// back, from inside the browser's event.
+typedef void (*mwinWebLifecycle)(mwinContext* context, int running);
+
 // Sets up and takes down the context's state and the page's listeners.
-void mwinWebAttach(const mwinContext* context);
+void mwinWebAttach(mwinContext* context, mwinWebLifecycle lifecycle);
 void mwinWebDetach(const mwinContext* context);
 
 // Takes the next record the page reported: false when there is none.

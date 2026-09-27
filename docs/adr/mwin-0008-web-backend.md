@@ -20,9 +20,10 @@ gesture; and every browser API is JavaScript.
   function the backend calls, which takes the file, and its
   JavaScript, into the program. The state of a context is an object in
   `Module.mwinWeb`, a Map keyed by the context's address.
-- **Delivery:** the page's listeners queue records in that object and
-  never call into the program; the backend takes them at the start of
-  each frame, in order, stamped with `performance.now()`.
+- **Delivery:** the page's listeners queue records in that object; the
+  backend takes them at the start of each frame, in order, stamped with
+  `performance.now()`. Only the lifecycle calls into the backend, from
+  inside the browser's event (below).
 - **The loop:** `mwinRun` calls init, then gives the frame to
   Emscripten's main loop on `requestAnimationFrame` and does not
   return, as W6 allows. The frame that stops the program ends the loop,
@@ -95,6 +96,17 @@ gesture; and every browser API is JavaScript.
   `inputmode` for the purpose and moves the focus into it or out; the
   keyboard's size is not reported. The EditContext API, which would
   give clauses without a field, is Chrome's only.
+- **The lifecycle:** a hidden page (`visibilitychange`), one left for
+  the back-forward cache (`pagehide`) and a frozen one (`freeze`) are
+  suspended; shown again (`pageshow` from the cache, `resume`) they are
+  resumed. The browser runs no animation frame for a hidden page and
+  may never come back from `pagehide`, so the page's listener calls the
+  backend, which posts Suspending or Resuming and runs the program's
+  frame at once, inside the event, as W2 asks; Suspended or Resumed
+  follows. A frame that stops there ends the program there, quit
+  included. A hidden page also occludes its windows. A canvas taken out
+  of the document (a mutation observer watches) loses its surface until
+  it is back.
 - **Facts:** the color scheme and reduced motion from media queries,
   the preferred languages from `navigator.languages`, each read again
   when the page says it changed. The accent, the text scale and power
@@ -107,5 +119,6 @@ The web tests run in headless Chrome through puppeteer
 canvas of its own, and carries out what the test asks: a new device
 pixel ratio or color scheme, keys, the mouse and the wheel through
 puppeteer, and touches, a pen and compositions through the DevTools
-protocol. The lifecycle, the clipboard and gamepads follow in their
-own changes.
+protocol. The lifecycle test plays a hidden page and the back-forward
+cache itself, between frames. The clipboard and gamepads follow in
+their own changes.

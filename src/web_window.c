@@ -214,6 +214,13 @@ void mwinWebHandleWindowRecord(mwinWebPlatform* platform, const mwinWebRecord* r
     case mwin_webFullscreenFailed:
         AnswerMode(platform, slot, mwin_outcomeDenied);
         break;
+    case mwin_webSurfaceLost:
+    case mwin_webSurfaceRestored:
+        PostType(platform, slot,
+                 record->kind == mwin_webSurfaceLost ? mwin_eventSurfaceLost
+                                                     : mwin_eventSurfaceRestored,
+                 timeNs);
+        break;
     default:
         break;
     }

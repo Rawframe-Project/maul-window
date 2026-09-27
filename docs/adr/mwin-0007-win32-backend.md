@@ -79,6 +79,17 @@ runs a loop of Windows' own inside the message dispatch.
   its caret from the cursor position, all offsets in UTF-8 bytes. The
   result comes as text from the composition, not from `WM_IME_CHAR`.
   The candidate window opens below the caret, kept clear of it.
+- **System facts** come from where Windows' settings keep them: the
+  apps' theme, the accent and the text size in the user's registry,
+  reduced motion from the client area animation setting, the power
+  source and battery saver from the power status, and the preferred UI
+  languages. Windows announces changes to top-level windows
+  (`WM_SETTINGCHANGE`, `WM_SYSCOLORCHANGE`, the colorization and power
+  messages); any of them reads everything again, and the core posts
+  only what changed. Nothing is read with no window to hear of it
+  but once at start.
+- **The frame** follows the apps' theme, as Windows' own apps do: a
+  dark title bar in a dark theme, on Windows 10 20H1 and later.
 
 ## Consequences
 
@@ -86,6 +97,6 @@ The backend builds with clang-cl in CI and with clang for mingw, and
 its tests run on the Windows runner's desktop and under wine, input
 driven through `SendInput`, touch injection and a synthetic pen; wine
 injects neither, so touch and pen are tested on the runner only.
-Input methods are tested under wine, whose input method composes what
-the test sets; an English runner has none and skips that test. System
-facts and the dark title bar follow in their own changes.
+Input methods are tested under wine and on the runner, whose input
+methods compose what the test sets. The facts test changes the user's
+settings for a moment and puts them back.

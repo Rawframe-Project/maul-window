@@ -12,6 +12,7 @@
 #include "win32.h"
 #include "win32_input.h"
 #include "win32_output.h"
+#include "win32_system.h"
 #include "win32_window.h"
 
 #include <string.h>
@@ -26,7 +27,8 @@ static size_t PlatformBytes(const mwinContext* context)
     const mwinLimits* limits = &context->limits;
     return sizeof(mwinWin32Platform) + limits->windows * sizeof(mwinWin32Window) +
            limits->monitors * sizeof(mwinWin32Output) + (limits->titleBytes + 1) * sizeof(WCHAR) +
-           limits->textBytesPerWindow * (sizeof(WCHAR) + sizeof(BYTE) + sizeof(char));
+           limits->textBytesPerWindow * (sizeof(WCHAR) + sizeof(BYTE) + sizeof(char)) +
+           (limits->localeBytes + 2u) * sizeof(WCHAR) + limits->localeBytes;
 }
 
 // Makes the process per-monitor DPI aware, unless it chose an awareness
@@ -89,13 +91,18 @@ static mwinResult Start(mwinContext* context)
     storage += limits->windows * sizeof(mwinWin32Window);
     platform->outputs = (mwinWin32Output*)storage;
     storage += limits->monitors * sizeof(mwinWin32Output);
+    // The UTF-16 buffers, then the byte ones, so each stays aligned.
     platform->title = (WCHAR*)storage;
     storage += (limits->titleBytes + 1) * sizeof(WCHAR);
     platform->imeUnits = (WCHAR*)storage;
     storage += limits->textBytesPerWindow * sizeof(WCHAR);
+    platform->localeUnits = (WCHAR*)storage;
+    storage += (limits->localeBytes + 2u) * sizeof(WCHAR);
     platform->imeAttributes = storage;
-    storage += limits->textBytesPerWindow * sizeof(BYTE);
+    storage += limits->textBytesPerWindow;
     platform->imeBytes = (char*)storage;
+    storage += limits->textBytesPerWindow;
+    platform->localeText = (char*)storage;
     for (uint32_t i = 0; i < limits->monitors; i++)
     {
         platform->outputs[i].monitor = -1;
@@ -110,6 +117,7 @@ static mwinResult Start(mwinContext* context)
         return mwin_errorPlatform;
     }
     mwinWin32RefreshMonitors(platform);
+    mwinWin32ReadSystem(platform);
     return mwin_success;
 }
 

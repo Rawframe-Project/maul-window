@@ -9,6 +9,7 @@
 #include "win32_input.h"
 #include "win32_output.h"
 #include "win32_pointer.h"
+#include "win32_system.h"
 
 #include "maul-unicode/encoding.h"
 
@@ -296,6 +297,10 @@ LRESULT CALLBACK mwinWin32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     {
         mwinWin32RefreshMonitors(window->platform);
     }
+    if (mwinWin32IsSystemChange(message, wParam))
+    {
+        mwinWin32ReadSystem(window->platform);
+    }
     if (HandleSizeMove(window, message, wParam) ||
         HandleWindowMessage(window, message, wParam, lParam, &result) ||
         mwinWin32HandleInput(window, message, wParam, lParam, &result) ||
@@ -369,6 +374,7 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window->hwnd = hwnd;
     mwinWin32StartIme(window);
+    mwinWin32ApplyTheme(window);
     Establish(window);
     if ((core->def.style & mwin_styleAlwaysOnTop) != 0)
     {

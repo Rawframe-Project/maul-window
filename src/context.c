@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The context: its defs, its one block of memory, and mwinRun. The block
-// holds the context, then the window slots, then per window its record
-// ring, its request slots and its two title buffers.
+// holds the context, then the window slots, then per window a record
+// ring per class, its text storage, its request slots and its two title
+// buffers.
 
 #include "maul-window/context.h"
 
@@ -17,8 +18,9 @@
 #define APP_DEF_COOKIE     0x6D776170u
 
 // The notification classes that coalesce, plus created and destroyed:
-// with a window's completions, the most records that can wait for it.
-#define FIXED_RECORDS 11
+// with a window's completions, the most notifications that can wait for
+// it.
+#define FIXED_RECORDS 12
 
 mwinContextDef mwinDefaultContextDef(void)
 {
@@ -28,6 +30,8 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.requestsPerWindow = 32;
     def.limits.notificationsPerWindow = 256;
     def.limits.titleBytes = 1024;
+    def.limits.inputPerWindow = 256;
+    def.limits.textBytesPerWindow = 4096;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -47,6 +51,7 @@ static bool IsDefValid(const mwinAppDef* def)
     return def->cookie == APP_DEF_COOKIE && def->init != nullptr && def->frame != nullptr &&
            context->cookie == CONTEXT_DEF_COOKIE && mwinIsAllocatorValid(&context->allocator) &&
            limits->windows > 0 && limits->requestsPerWindow > 0 && limits->titleBytes > 0 &&
+           limits->inputPerWindow > 0 && limits->textBytesPerWindow > 0 &&
            limits->notificationsPerWindow >= limits->requestsPerWindow + FIXED_RECORDS &&
            context->backend <= mwin_backendTest;
 }
@@ -56,13 +61,27 @@ static size_t RoundUp(size_t size)
     return (size + alignof(max_align_t) - 1) & ~(alignof(max_align_t) - 1);
 }
 
+// The records a ring of a class holds.
+static size_t RingRecords(const mwinLimits* limits, int kind)
+{
+    return kind == mwin_classNotification ? limits->notificationsPerWindow : limits->inputPerWindow;
+}
+
+static size_t RingBytes(size_t records)
+{
+    return RoundUp(records * sizeof(mwinEvent)) + RoundUp(records * sizeof(uint64_t));
+}
+
 // The bytes one window slot's storage takes.
 static size_t WindowBytes(const mwinLimits* limits)
 {
-    size_t records = limits->notificationsPerWindow;
-    return RoundUp(records * sizeof(mwinEvent)) + RoundUp(records * sizeof(uint64_t)) +
-           RoundUp(limits->requestsPerWindow * sizeof(mwinRequest)) +
-           2 * RoundUp(limits->titleBytes);
+    size_t rings = 0;
+    for (int kind = 0; kind < MWIN_CLASSES; kind++)
+    {
+        rings += RingBytes(RingRecords(limits, kind));
+    }
+    return rings + RoundUp(limits->requestsPerWindow * sizeof(mwinRequest)) +
+           2 * RoundUp(limits->titleBytes) + RoundUp(limits->textBytesPerWindow);
 }
 
 // Points each window slot at its part of the block after the slots.
@@ -72,12 +91,18 @@ static void Lay(mwinContext* context, unsigned char* storage)
     for (uint32_t i = 0; i < limits->windows; i++)
     {
         mwinWindow* window = &context->windows[i];
-        size_t records = limits->notificationsPerWindow;
-        window->ring.events = (mwinEvent*)storage;
-        storage += RoundUp(records * sizeof(mwinEvent));
-        window->ring.sequences = (uint64_t*)storage;
-        storage += RoundUp(records * sizeof(uint64_t));
-        window->ring.capacity = (uint16_t)records;
+        for (int kind = 0; kind < MWIN_CLASSES; kind++)
+        {
+            size_t records = RingRecords(limits, kind);
+            window->rings[kind].events = (mwinEvent*)storage;
+            window->rings[kind].sequences =
+                (uint64_t*)(storage + RoundUp(records * sizeof(mwinEvent)));
+            window->rings[kind].capacity = (uint16_t)records;
+            storage += RingBytes(records);
+        }
+        window->text.bytes = (char*)storage;
+        window->text.capacity = limits->textBytesPerWindow;
+        storage += RoundUp(limits->textBytesPerWindow);
         window->requests = (mwinRequest*)storage;
         storage += RoundUp(limits->requestsPerWindow * sizeof(mwinRequest));
         window->title = (char*)storage;
@@ -163,6 +188,7 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
     context->inProgram = false;
     while (status == mwin_success)
     {
+        mwinBeginPump(context);
         pump(context);
         context->inProgram = true;
         mwinFrameResult result = app->frame(context, app->user);

@@ -1,15 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The event stream: each window's records wait in its own ring, and the
-// stream hands out the oldest record of all rings by a sequence number
-// the context counts. A state notification replaces one of its class
-// still waiting for the same window (the newer one moves to the end, so
-// order stays true), which bounds the waiting notifications of a window
-// by the number of classes plus its requests in flight; the context
-// refuses limits below that bound.
+// The event stream: each window's records wait in one ring per class,
+// and the stream hands out the oldest record of all rings by a sequence
+// number the context counts.
+//
+// A state notification replaces one of its class still waiting for the
+// same window (the newer one moves to the end, so order stays true),
+// which bounds the waiting notifications of a window by the number of
+// classes plus its requests in flight; the context refuses limits below
+// that bound. Discrete input never merges: when its ring is full, or
+// its text does not fit, the record is lost and the window gets
+// mwin_eventInputStateReset. Motion, raw deltas and the wheel merge into
+// the newest waiting record of their kind when their ring is full.
 
 #include "core.h"
+
+#include "maul-unicode/encoding.h"
+
+#include <string.h>
 
 // The class of a notification that a newer one of the same class
 // replaces, or 0 for records that never coalesce.
@@ -38,8 +47,27 @@ static int CoalesceClass(mwinEventType type)
         return 8;
     case mwin_eventCloseRequested:
         return 9;
+    case mwin_eventInputStateReset:
+        return 10;
     default:
         return 0;
+    }
+}
+
+static int ClassOf(mwinEventType type)
+{
+    switch (type)
+    {
+    case mwin_eventCursorMoved:
+    case mwin_eventTouchMoved:
+    case mwin_eventPenMoved:
+        return mwin_classMotion;
+    case mwin_eventRawPointerDelta:
+        return mwin_classRaw;
+    case mwin_eventWheel:
+        return mwin_classWheel;
+    default:
+        return type < mwin_eventKeyDown ? mwin_classNotification : mwin_classDiscrete;
     }
 }
 
@@ -59,7 +87,8 @@ static void RemoveAt(mwinRing* ring, uint16_t index)
     ring->count -= 1;
 }
 
-static void Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
+// Appends a record; false when the ring is full.
+static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
 {
     int coalesce = CoalesceClass(event->type);
     for (uint16_t i = 0; coalesce != 0 && i < ring->count; i++)
@@ -72,12 +101,14 @@ static void Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
     }
     if (ring->count == ring->capacity)
     {
-        return; // unreachable while the context keeps its limits' bound
+        return false;
     }
     uint16_t slot = At(ring, ring->count);
     ring->events[slot] = *event;
+    ring->events[slot].samples = 1;
     ring->sequences[slot] = context->sequence++;
     ring->count += 1;
+    return true;
 }
 
 // The window state a notification reports.
@@ -120,6 +151,125 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
     }
 }
 
+// Whether two input records are of one kind, so one can absorb the other.
+static bool SameKind(const mwinEvent* a, const mwinEvent* b)
+{
+    return a->type == b->type &&
+           (a->type != mwin_eventTouchMoved || a->data.touch.id == b->data.touch.id);
+}
+
+// Merges a record into the newest waiting one of its kind: the newer
+// position wins, deltas and wheel turns add up. False when there is none.
+static bool Merge(mwinRing* ring, const mwinEvent* event)
+{
+    for (uint16_t i = ring->count; i > 0; i--)
+    {
+        mwinEvent* waiting = &ring->events[At(ring, (uint16_t)(i - 1))];
+        if (!SameKind(waiting, event))
+        {
+            continue;
+        }
+        uint16_t samples = waiting->samples;
+        mwinEvent merged = *event;
+        if (event->type == mwin_eventRawPointerDelta)
+        {
+            merged.data.delta.x += waiting->data.delta.x;
+            merged.data.delta.y += waiting->data.delta.y;
+        }
+        else if (event->type == mwin_eventWheel)
+        {
+            merged.data.wheel.x += waiting->data.wheel.x;
+            merged.data.wheel.y += waiting->data.wheel.y;
+        }
+        *waiting = merged;
+        waiting->samples = samples < UINT16_MAX ? (uint16_t)(samples + 1) : samples;
+        return true;
+    }
+    return false;
+}
+
+// Copies a text into the window's text ring; NULL when it does not fit.
+static const char* PlaceText(mwinTextRing* ring, const char* text, uint32_t length)
+{
+    if (ring->busy == 0)
+    {
+        ring->head = 0;
+        ring->tail = 0;
+    }
+    if (ring->busy == ring->capacity)
+    {
+        return nullptr;
+    }
+    uint32_t start = ring->tail;
+    uint32_t skipped = 0;
+    if (ring->tail < ring->head)
+    {
+        if (ring->head - ring->tail < length)
+        {
+            return nullptr;
+        }
+    }
+    else if (ring->capacity - ring->tail < length)
+    {
+        // The free space at the start, before head, must take it whole.
+        if (ring->busy == 0 || ring->head < length)
+        {
+            return nullptr;
+        }
+        skipped = ring->capacity - ring->tail;
+        start = 0;
+    }
+    memcpy(ring->bytes + start, text, length);
+    ring->tail = start + length;
+    ring->busy += skipped + length;
+    return ring->bytes + start;
+}
+
+// Marks a drained record's text for reclaiming at the next pump, with
+// any end of the buffer skipped before it.
+static void Drained(mwinTextRing* ring, const mwinEvent* event)
+{
+    if (event->data.text.length == 0)
+    {
+        return;
+    }
+    uint32_t start = (uint32_t)(event->data.text.text - ring->bytes);
+    uint32_t end = start + event->data.text.length;
+    uint32_t from = ring->reclaimBytes > 0 ? ring->reclaimHead : ring->head;
+    ring->reclaimBytes += start >= from ? end - from : ring->capacity - from + end;
+    ring->reclaimHead = end;
+}
+
+static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
+{
+    mwinEvent reset = {0};
+    reset.type = mwin_eventInputStateReset;
+    reset.window = mwinWindowIdOf(context, slot);
+    reset.timeNs = timeNs;
+    // A reset replaces one still waiting, so it always has room.
+    (void)Append(context, &context->windows[slot].rings[mwin_classNotification], &reset);
+}
+
+// Moves a text record's text into the window's storage; false when the
+// record is lost.
+static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
+{
+    const char* text = record->data.text.text;
+    uint32_t length = record->data.text.length;
+    if ((text == nullptr && length != 0) || muniValidateUtf8(text, length).status != muni_success)
+    {
+        return false; // backends repair platform text; this never happens
+    }
+    record->data.text.text =
+        length == 0 ? "" : PlaceText(&context->windows[slot].text, text, length);
+    if (record->data.text.text == nullptr)
+    {
+        PostReset(context, slot, record->timeNs);
+        return false;
+    }
+    return true;
+}
+
 void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
 {
     mwinWindow* window = &context->windows[slot];
@@ -129,14 +279,35 @@ void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
     }
     mwinEvent record = *event;
     record.window = mwinWindowIdOf(context, slot);
+    if (record.type == mwin_eventTextInput && !TakeText(context, slot, &record))
+    {
+        return;
+    }
     Apply(&window->state, &record);
-    Append(context, &window->ring, &record);
+    int kind = ClassOf(record.type);
+    mwinRing* ring = &window->rings[kind];
+    bool added = Append(context, ring, &record) ||
+                 ((kind == mwin_classMotion || kind == mwin_classRaw || kind == mwin_classWheel) &&
+                  Merge(ring, &record));
+    if (!added || record.type == mwin_eventFocusLost)
+    {
+        PostReset(context, slot, record.timeNs);
+    }
 }
 
+// Frees everything a slot's rings hold but its completions, and queues
+// its destroyed record.
 void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
+    mwinWindow* window = &context->windows[slot];
+    for (int kind = mwin_classDiscrete; kind < MWIN_CLASSES; kind++)
+    {
+        window->rings[kind].count = 0;
+    }
+    window->text.reclaimHead = window->text.tail;
+    window->text.reclaimBytes = window->text.busy;
     // Completions stay: every request is answered, even a cancelled one.
-    mwinRing* ring = &context->windows[slot].ring;
+    mwinRing* ring = &window->rings[mwin_classNotification];
     for (uint16_t i = ring->count; i > 0; i--)
     {
         if (ring->events[At(ring, (uint16_t)(i - 1))].type != mwin_eventRequestCompleted)
@@ -148,7 +319,42 @@ void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
     event.type = mwin_eventWindowDestroyed;
     event.window = mwinWindowIdOf(context, slot);
     event.timeNs = timeNs;
-    Append(context, ring, &event);
+    (void)Append(context, ring, &event);
+}
+
+void mwinBeginPump(mwinContext* context)
+{
+    for (uint32_t i = 0; i < context->limits.windows; i++)
+    {
+        mwinTextRing* text = &context->windows[i].text;
+        if (text->reclaimBytes > 0)
+        {
+            text->head = text->reclaimHead;
+            text->busy -= text->reclaimBytes;
+            text->reclaimBytes = 0;
+        }
+    }
+}
+
+// The ring holding the oldest record of the context, or NULL.
+static mwinRing* FindOldest(mwinContext* context, mwinWindow** windowOut)
+{
+    mwinRing* oldest = nullptr;
+    uint64_t oldestSequence = UINT64_MAX;
+    for (uint32_t i = 0; i < context->limits.windows; i++)
+    {
+        for (int kind = 0; kind < MWIN_CLASSES; kind++)
+        {
+            mwinRing* ring = &context->windows[i].rings[kind];
+            if (ring->count > 0 && ring->sequences[ring->head] < oldestSequence)
+            {
+                *windowOut = &context->windows[i];
+                oldest = ring;
+                oldestSequence = ring->sequences[ring->head];
+            }
+        }
+    }
+    return oldest;
 }
 
 mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
@@ -157,28 +363,22 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
     {
         return mwin_errorInvalid;
     }
-    mwinWindow* oldest = nullptr;
-    uint64_t oldestSequence = UINT64_MAX;
-    for (uint32_t i = 0; i < context->limits.windows; i++)
-    {
-        mwinRing* ring = &context->windows[i].ring;
-        if (ring->count > 0 && ring->sequences[ring->head] < oldestSequence)
-        {
-            oldest = &context->windows[i];
-            oldestSequence = ring->sequences[ring->head];
-        }
-    }
+    mwinWindow* window = nullptr;
+    mwinRing* oldest = FindOldest(context, &window);
     if (oldest == nullptr)
     {
         return mwin_empty;
     }
-    mwinRing* ring = &oldest->ring;
-    *eventOut = ring->events[ring->head];
-    ring->head = (uint16_t)((ring->head + 1) % ring->capacity);
-    ring->count -= 1;
-    if (oldest->status == mwin_slotDestroyed && eventOut->type == mwin_eventWindowDestroyed)
+    *eventOut = oldest->events[oldest->head];
+    oldest->head = (uint16_t)((oldest->head + 1) % oldest->capacity);
+    oldest->count -= 1;
+    if (eventOut->type == mwin_eventTextInput)
     {
-        oldest->status = mwin_slotFree;
+        Drained(&window->text, eventOut);
+    }
+    if (window->status == mwin_slotDestroyed && eventOut->type == mwin_eventWindowDestroyed)
+    {
+        window->status = mwin_slotFree;
     }
     if (eventOut->type == mwin_eventRequestCompleted)
     {

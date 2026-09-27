@@ -53,6 +53,11 @@ extern "C"
         uint16_t notificationsPerWindow;
         // Bytes of a window title.
         uint16_t titleBytes;
+        // Input records waiting per window and class (discrete, motion,
+        // raw deltas, wheel).
+        uint16_t inputPerWindow;
+        // Bytes of text waiting per window.
+        uint16_t textBytesPerWindow;
     } mwinLimits;
 
     // How a context is made. Build it with mwinDefaultContextDef.
@@ -89,9 +94,10 @@ extern "C"
         void* user;
     } mwinAppDef;
 
-    /// Returns the default context def: the default limits (8 windows, 32
-    /// requests and 256 notifications per window, 1,024 title bytes), the
-    /// C library's allocator and the native backend.
+    /// Returns the default context def: the default limits (8 windows; per
+    /// window 32 requests, 256 notifications, 256 input records per class
+    /// and 4,096 bytes of text; 1,024 title bytes), the C library's
+    /// allocator and the native backend.
     ///
     /// @return The def, with a valid cookie.
     /// @par Thread safety

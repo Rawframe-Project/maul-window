@@ -6,5 +6,6 @@ backend:
 backend_test: allocator backend core
 context: allocator backend core
 core: backend
+input: core
 queue: core
 window: core

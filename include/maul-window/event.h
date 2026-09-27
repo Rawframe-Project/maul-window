@@ -10,11 +10,22 @@
 //
 // A request's completion comes after the notifications the change
 // caused: a size request is answered after mwin_eventResized.
+//
+// Input comes in four classes, each with its own storage per window.
+// Discrete records (keys, text, buttons, touches and pen contacts
+// beginning or ending) are never merged: when their storage is full the
+// window gets mwin_eventInputStateReset instead, which also follows every
+// loss of focus, after which no key or button counts as held. Motion,
+// raw deltas and the wheel are delivered sample by sample while there is
+// room, and merged into the newest waiting record of their kind when
+// there is not; samples says how many a record stands for.
+//
+// Text in a record stays valid until the frame that drained it returns.
 
 #ifndef MAUL_WINDOW_EVENT_H
 #define MAUL_WINDOW_EVENT_H
 
-#include "maul-window/window.h"
+#include "maul-window/input.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -53,6 +64,37 @@ extern "C"
         mwin_eventHidden = 14,
         // A request was answered (data.completion).
         mwin_eventRequestCompleted = 15,
+        // Forget every key and button held: focus was lost or input was.
+        mwin_eventInputStateReset = 16,
+        // A key went down or up (data.key).
+        mwin_eventKeyDown = 17,
+        mwin_eventKeyUp = 18,
+        // Text was typed or composed (data.text), validated UTF-8.
+        mwin_eventTextInput = 19,
+        // The cursor moved over the window (data.pointer).
+        mwin_eventCursorMoved = 20,
+        mwin_eventCursorEntered = 21,
+        mwin_eventCursorLeft = 22,
+        // A mouse button went down or up (data.pointer).
+        mwin_eventButtonDown = 23,
+        mwin_eventButtonUp = 24,
+        // The wheel turned (data.wheel).
+        mwin_eventWheel = 25,
+        // The pointing device moved, unscaled (data.delta).
+        mwin_eventRawPointerDelta = 26,
+        // A touch began, moved, ended or was taken by the system
+        // (data.touch).
+        mwin_eventTouchDown = 27,
+        mwin_eventTouchMoved = 28,
+        mwin_eventTouchUp = 29,
+        mwin_eventTouchCancelled = 30,
+        // A pen moved, touched down, lifted, or a pen button changed
+        // (data.pen).
+        mwin_eventPenMoved = 31,
+        mwin_eventPenDown = 32,
+        mwin_eventPenUp = 33,
+        mwin_eventPenButtonDown = 34,
+        mwin_eventPenButtonUp = 35,
     };
 
     // The kind of a request.
@@ -67,6 +109,8 @@ extern "C"
         mwin_requestMode = 4,
         mwin_requestVisible = 5,
         mwin_requestFocus = 6,
+        mwin_requestCursorMode = 7,
+        mwin_requestCursorShape = 8,
     };
 
     // How a request ended.
@@ -104,10 +148,95 @@ extern "C"
         mwinSize suggestedSize;
     } mwinScaleChange;
 
+    // A key going down or up.
+    typedef struct mwinKeyEvent
+    {
+        mwinKeyCode code;
+        mwinModifiers modifiers;
+        mwinKey key;
+        // The platform repeats a held key.
+        bool repeat;
+    } mwinKeyEvent;
+
+    // Typed or composed text, valid until the frame that drained it
+    // returns.
+    typedef struct mwinTextEvent
+    {
+        const char* text;
+        uint32_t length;
+    } mwinTextEvent;
+
+    // The cursor: where it is, the buttons held, and for a button record
+    // the button that changed and the count of quick clicks it completes.
+    typedef struct mwinPointerEvent
+    {
+        mwinPosition position;
+        mwinModifiers modifiers;
+        // Bit b - 1 is set while button b is held.
+        uint8_t buttons;
+        mwinMouseButton button;
+        uint8_t clicks;
+    } mwinPointerEvent;
+
+    // Wheel turns in detents, fractional for smooth wheels and touchpads;
+    // positive y is away from the user, positive x to the right.
+    typedef struct mwinWheelEvent
+    {
+        float x;
+        float y;
+    } mwinWheelEvent;
+
+    // Relative motion in the device's own units, before any acceleration
+    // the platform can leave out.
+    typedef struct mwinDeltaEvent
+    {
+        float x;
+        float y;
+    } mwinDeltaEvent;
+
+    // A touch, by an id stable from its down to its up or cancel.
+    typedef struct mwinTouchEvent
+    {
+        uint64_t id;
+        mwinPosition position;
+        // From 0 to 1, or -1 where the platform does not measure it.
+        float pressure;
+    } mwinTouchEvent;
+
+    // The pen's state.
+    typedef uint8_t mwinPenFlags;
+
+    enum
+    {
+        // The eraser end is in use.
+        mwin_penEraser = 1,
+        // The tip touches the surface; otherwise the pen hovers.
+        mwin_penContact = 2,
+        // The barrel button is held.
+        mwin_penBarrel = 4,
+    };
+
+    // A pen, where the platform has one.
+    typedef struct mwinPenEvent
+    {
+        mwinPosition position;
+        // From 0 to 1.
+        float pressure;
+        // Degrees from upright, toward positive x and positive y.
+        float tiltX;
+        float tiltY;
+        mwinPenFlags flags;
+        // For a pen button record, the button: 1 for the barrel.
+        uint8_t button;
+    } mwinPenEvent;
+
     // One record of the stream.
     typedef struct mwinEvent
     {
         mwinEventType type;
+        // How many platform samples the record stands for: 1, or more for
+        // motion merged when its storage was full.
+        uint16_t samples;
         // The window it is about.
         mwinWindowId window;
         // Nanoseconds on a monotonic clock, from the platform's own event
@@ -121,6 +250,13 @@ extern "C"
             mwinPosition position;
             mwinWindowMode mode;
             mwinCompletion completion;
+            mwinKeyEvent key;
+            mwinTextEvent text;
+            mwinPointerEvent pointer;
+            mwinWheelEvent wheel;
+            mwinDeltaEvent delta;
+            mwinTouchEvent touch;
+            mwinPenEvent pen;
         } data;
     } mwinEvent;
 

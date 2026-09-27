@@ -9,7 +9,7 @@
 #ifndef MAUL_WINDOW_SRC_BACKEND_H
 #define MAUL_WINDOW_SRC_BACKEND_H
 
-#include "maul-window/context.h"
+#include "maul-window/input.h"
 
 typedef struct mwinBackendOps
 {
@@ -27,6 +27,11 @@ typedef struct mwinBackendOps
     void (*submit)(mwinContext* context, uint32_t slot, uint32_t request);
     // Nanoseconds on the clock the platform stamps its events with.
     uint64_t (*now)(const mwinContext* context);
+    // What a physical key means under the current layout.
+    mwinKey (*mapKeyCode)(const mwinContext* context, mwinKeyCode code);
+    // The current layout's name, as mwinGetKeyboardLayout reports it.
+    mwinResult (*keyboardLayout)(const mwinContext* context, char* buffer, size_t capacity,
+                                 size_t* lengthOut);
 } mwinBackendOps;
 
 // The loop of a backend that pumps: init, then pump and frame until a

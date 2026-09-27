@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The test backend: a platform with no screen. Requests wait in a list
-// until the next pump, which answers them in order as the answer set for
-// their kind says; carrying one out posts the notifications a platform
-// would send. Its reports come from mwinTestPost.
+// The test backend: a platform with no screen. What mwinTestPost reports
+// and the requests the program makes wait until the next pump, as a
+// platform's messages would; the pump delivers the reports in order,
+// then answers the requests in order as the answer set for their kind
+// says. Carrying a request out posts the notifications a platform would
+// send.
 
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
 
+#include "maul-unicode/encoding.h"
 #include "maul-window/test.h"
 
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestFocus + 1)
+#define KINDS (mwin_requestCursorShape + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -27,11 +30,19 @@ typedef struct Pending
     uint32_t requestGeneration;
 } Pending;
 
+// Reports and their text waiting for the next pump.
+#define MAX_REPORTS     1024
+#define MAX_REPORT_TEXT 65536
+
 typedef struct TestPlatform
 {
     Pending* pending;
     uint32_t pendingCount;
     uint32_t pendingCapacity;
+    mwinEvent reports[MAX_REPORTS];
+    uint32_t reportCount;
+    char reportText[MAX_REPORT_TEXT];
+    uint32_t reportTextUsed;
     mwinOutcome answers[KINDS];
     bool hold;
     uint64_t timeNs;
@@ -225,15 +236,27 @@ static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* req
     case mwin_requestVisible:
         PostType(context, slot, request->value.visible ? mwin_eventShown : mwin_eventHidden);
         break;
-    default:
+    case mwin_requestFocus:
         Focus(context, slot);
         break;
+    default:
+        break; // the cursor changes on screen, with nothing to report
     }
 }
 
 static void Pump(mwinContext* context)
 {
     TestPlatform* platform = PlatformOf(context);
+    for (uint32_t i = 0; i < platform->reportCount; i++)
+    {
+        const mwinEvent* report = &platform->reports[i];
+        if (mwinFindWindow(context, report->window) != nullptr)
+        {
+            mwinPost(context, report->window.index1 - 1, report);
+        }
+    }
+    platform->reportCount = 0;
+    platform->reportTextUsed = 0;
     if (platform->hold)
     {
         return;
@@ -263,8 +286,49 @@ static mwinResult Run(mwinContext* context)
     return mwinRunLoop(context, Pump);
 }
 
+// The characters of the keys from Enter to Slash on a US layout, in code
+// order; a space marks a key that types nothing.
+static const char s_punctuation[] = "     -=[]\\\\;'`,./";
+
+// A US layout.
+static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
+{
+    (void)context;
+    if (code >= mwin_codeKeyA && code <= mwin_codeKeyZ)
+    {
+        return 'a' + (code - mwin_codeKeyA);
+    }
+    if (code >= mwin_codeDigit1 && code <= mwin_codeDigit0)
+    {
+        return code == mwin_codeDigit0 ? '0' : '1' + (code - mwin_codeDigit1);
+    }
+    if (code == mwin_codeSpace)
+    {
+        return ' ';
+    }
+    if (code >= mwin_codeMinus && code <= mwin_codeSlash)
+    {
+        return (mwinKey)(unsigned char)s_punctuation[code - mwin_codeEnter];
+    }
+    return MWIN_KEY_NAMED | code;
+}
+
+static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
+                                 size_t* lengthOut)
+{
+    (void)context;
+    static const char name[] = "English (US)";
+    size_t length = sizeof(name) - 1;
+    if (capacity > 0)
+    {
+        memcpy(buffer, name, length < capacity ? length : capacity);
+    }
+    *lengthOut = length;
+    return length > capacity ? mwin_errorCapacity : mwin_success;
+}
+
 const mwinBackendOps mwinTestBackend = {
-    Start, Stop, Run, CreateWindow, DestroyWindow, Submit, Now,
+    Start, Stop, Run, CreateWindow, DestroyWindow, Submit, Now, MapKeyCode, KeyboardLayout,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
@@ -302,7 +366,8 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 {
     if (context == nullptr || event == nullptr || event->type == mwin_eventNone ||
         event->type == mwin_eventWindowCreated || event->type == mwin_eventWindowDestroyed ||
-        event->type >= mwin_eventRequestCompleted)
+        event->type == mwin_eventRequestCompleted || event->type == mwin_eventInputStateReset ||
+        event->type > mwin_eventPenButtonUp)
     {
         return mwin_errorInvalid;
     }
@@ -315,9 +380,30 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorStale;
     }
-    mwinEvent record = *event;
-    record.timeNs = platform->timeNs;
-    mwinPost(context, event->window.index1 - 1, &record);
+    if (event->type == mwin_eventTextInput &&
+        ((event->data.text.text == nullptr && event->data.text.length != 0) ||
+         muniValidateUtf8(event->data.text.text, event->data.text.length).status != muni_success))
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t length = event->type == mwin_eventTextInput ? event->data.text.length : 0;
+    if (platform->reportCount == MAX_REPORTS || MAX_REPORT_TEXT - platform->reportTextUsed < length)
+    {
+        return mwin_errorCapacity;
+    }
+    mwinEvent* record = &platform->reports[platform->reportCount++];
+    *record = *event;
+    record->timeNs = platform->timeNs;
+    if (event->type == mwin_eventTextInput)
+    {
+        char* text = platform->reportText + platform->reportTextUsed;
+        if (length > 0)
+        {
+            memcpy(text, event->data.text.text, length);
+        }
+        record->data.text.text = text;
+        platform->reportTextUsed += length;
+    }
     return mwin_success;
 }
 

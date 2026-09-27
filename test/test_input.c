@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The input contract against the test backend: keys and text in order,
+// text that stays valid through its frame and wraps in its storage,
+// discrete input that resets instead of vanishing, motion, deltas and
+// wheel turns that merge when their storage is full, touches merged
+// only with their own, refused records, the keyboard layout, and cursor
+// requests.
+
+#include "test_program.h"
+
+#include <string.h>
+
+static mwinEvent Key(mwinWindowId window, mwinEventType type, mwinKeyCode code, mwinKey key)
+{
+    mwinEvent event = {.type = type, .window = window};
+    event.data.key.code = code;
+    event.data.key.key = key;
+    return event;
+}
+
+static mwinEvent Text(mwinWindowId window, const char* text)
+{
+    mwinEvent event = {.type = mwin_eventTextInput, .window = window};
+    event.data.text.text = text;
+    event.data.text.length = (uint32_t)strlen(text);
+    return event;
+}
+
+static bool TextIs(const mwinEvent* event, const char* text)
+{
+    return event->type == mwin_eventTextInput && event->data.text.length == strlen(text) &&
+           memcmp(event->data.text.text, text, strlen(text)) == 0;
+}
+
+static void KeyStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        mwinEvent events[3] = {Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a'),
+                               Text(window, "\xC3\xA4"),
+                               Key(window, mwin_eventKeyUp, mwin_codeKeyA, 'a')};
+        for (int i = 0; i < 3; i++)
+        {
+            CHECK(mwinTestPost(context, &events[i]) == mwin_success, "a key and its text");
+        }
+        return;
+    }
+    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventTextInput,
+                                             mwin_eventKeyUp};
+    CHECK(Types(program, expected, 3) && program->events[0].data.key.code == mwin_codeKeyA &&
+              program->events[0].data.key.key == 'a' && TextIs(&program->events[1], "\xC3\xA4"),
+          "keys and text in order");
+    program->done = true;
+}
+
+static void TestKeysAndText(void)
+{
+    Program program = {.step = KeyStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+// Takes one record of the stream.
+static mwinEvent Next(mwinContext* context)
+{
+    mwinEvent event = {0};
+    CHECK(mwinNextEvent(context, &event) == mwin_success, "a record waits");
+    return event;
+}
+
+// 16 bytes of text storage: A and B fill 12; draining A frees its 6 at
+// the next pump, and C wraps to the start past the 4 bytes left at the
+// end; then three texts with nothing drained do not fit.
+static void WrapStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    mwinEvent a = Text(window, "aaaaaa");
+    mwinEvent b = Text(window, "bbbbbb");
+    mwinEvent c = Text(window, "cccccc");
+    switch (step)
+    {
+    case 0:
+        program->windows[0] = Create(context, nullptr);
+        return;
+    case 1:
+        Drain(program, context);
+        CHECK(mwinTestPost(context, &a) == mwin_success &&
+                  mwinTestPost(context, &b) == mwin_success,
+              "A and B");
+        return;
+    case 2:
+    {
+        mwinEvent first = Next(context);
+        CHECK(TextIs(&first, "aaaaaa"), "A, while B waits");
+        CHECK(mwinTestPost(context, &c) == mwin_success, "C");
+        return;
+    }
+    case 3:
+    {
+        mwinEvent second = Next(context);
+        mwinEvent third = Next(context);
+        CHECK(TextIs(&second, "bbbbbb") && TextIs(&third, "cccccc"),
+              "B, then C whole after the wrap");
+        for (int i = 0; i < 3; i++)
+        {
+            CHECK(mwinTestPost(context, &a) == mwin_success, "three more");
+        }
+        return;
+    }
+    default:
+        Drain(program, context);
+        static const mwinEventType expected[] = {mwin_eventTextInput, mwin_eventTextInput,
+                                                 mwin_eventInputStateReset};
+        CHECK(Types(program, expected, 3), "a text that does not fit is a reset");
+        program->done = true;
+    }
+}
+
+static void TestTextStorage(void)
+{
+    Program program = {.step = WrapStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.textBytesPerWindow = 16;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+static void OverflowStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            mwinEvent key = Key(window, mwin_eventKeyDown, (mwinKeyCode)(mwin_codeKeyA + i), 0);
+            CHECK(mwinTestPost(context, &key) == mwin_success, "five keys");
+        }
+        for (int i = 1; i <= 6; i++)
+        {
+            mwinEvent move = {.type = mwin_eventCursorMoved, .window = window};
+            move.data.pointer.position = (mwinPosition){(float)i, 0.0f};
+            mwinEvent delta = {.type = mwin_eventRawPointerDelta, .window = window};
+            delta.data.delta = (mwinDeltaEvent){1.0f, 2.0f};
+            mwinEvent wheel = {.type = mwin_eventWheel, .window = window};
+            wheel.data.wheel = (mwinWheelEvent){0.0f, 0.5f};
+            CHECK(mwinTestPost(context, &move) == mwin_success &&
+                      mwinTestPost(context, &delta) == mwin_success &&
+                      mwinTestPost(context, &wheel) == mwin_success,
+                  "six of each continuous kind");
+        }
+        return;
+    }
+    int keys = 0;
+    int resets = 0;
+    float deltaX = 0.0f;
+    float wheelY = 0.0f;
+    const mwinEvent* lastMove = nullptr;
+    int moveSamples = 0;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        const mwinEvent* event = &program->events[i];
+        keys += event->type == mwin_eventKeyDown;
+        resets += event->type == mwin_eventInputStateReset;
+        CHECK(event->type != mwin_eventInputStateReset || keys == 4, "the reset where the loss");
+        deltaX += event->type == mwin_eventRawPointerDelta ? event->data.delta.x : 0.0f;
+        wheelY += event->type == mwin_eventWheel ? event->data.wheel.y : 0.0f;
+        lastMove = event->type == mwin_eventCursorMoved ? event : lastMove;
+        moveSamples += event->type == mwin_eventCursorMoved ? event->samples : 0;
+    }
+    CHECK(keys == 4 && resets == 1, "the fifth key is lost to a reset");
+    CHECK(deltaX == 6.0f && wheelY == 3.0f, "deltas and wheel turns add up when merged");
+    CHECK(lastMove != nullptr && lastMove->data.pointer.position.x == 6.0f &&
+              lastMove->samples == 3 && moveSamples == 6,
+          "merged motion ends at the newest position and counts its samples");
+    program->done = true;
+}
+
+static void TestOverflow(void)
+{
+    Program program = {.step = OverflowStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.inputPerWindow = 4;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+static void TouchStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        // Two moves of touch 7 fill the storage; touch 9 has nothing to join.
+        for (int i = 0; i < 3; i++)
+        {
+            mwinEvent move = {.type = mwin_eventTouchMoved, .window = window};
+            move.data.touch.id = i < 2 ? 7 : 9;
+            CHECK(mwinTestPost(context, &move) == mwin_success, "touch moves");
+        }
+        return;
+    }
+    static const mwinEventType expected[] = {mwin_eventTouchMoved, mwin_eventTouchMoved,
+                                             mwin_eventInputStateReset};
+    CHECK(Types(program, expected, 3), "a touch never merges into another");
+    program->done = true;
+}
+
+static void TestTouches(void)
+{
+    Program program = {.step = TouchStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.inputPerWindow = 2;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+static void RefusalStep(Program* program, mwinContext* context, int step)
+{
+    (void)step;
+    mwinWindowId window = Create(context, nullptr);
+    mwinEvent bad = Text(window, "\xE0\x80\x80");
+    CHECK(mwinTestPost(context, &bad) == mwin_errorInvalid, "text that is not UTF-8");
+    mwinEvent reset = {.type = mwin_eventInputStateReset, .window = window};
+    CHECK(mwinTestPost(context, &reset) == mwin_errorInvalid, "resets are the core's");
+    CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
+    mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
+    CHECK(mwinTestPost(context, &key) == mwin_errorStale, "no input for a stale window");
+    CHECK(mwinMapKeyCode(context, mwin_codeKeyQ) == 'q' &&
+              mwinMapKeyCode(context, mwin_codeDigit0) == '0' &&
+              mwinMapKeyCode(context, mwin_codeSlash) == '/' &&
+              mwinMapKeyCode(context, mwin_codeBackslash) == '\\' &&
+              mwinMapKeyCode(context, mwin_codeEnter) == (MWIN_KEY_NAMED | mwin_codeEnter) &&
+              mwinMapKeyCode(context, 999) == 0 && mwinMapKeyCode(nullptr, mwin_codeKeyA) == 0,
+          "the layout maps codes to keys");
+    char name[8];
+    size_t length = 0;
+    CHECK(mwinGetKeyboardLayout(context, name, sizeof(name), &length) == mwin_errorCapacity &&
+              length == 12 && memcmp(name, "English ", 8) == 0,
+          "the layout's name, cut to the buffer");
+    program->done = true;
+}
+
+static void TestRefusalsAndLayout(void)
+{
+    Program program = {.step = RefusalStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+static void CursorStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        CHECK(mwinRequestCursorMode(context, window, mwin_cursorCaptured, &program->requests[0]) ==
+                      mwin_success &&
+                  mwinRequestCursorShape(context, window, mwin_shapeText, &program->requests[1]) ==
+                      mwin_success,
+              "cursor requests");
+        CHECK(mwinRequestCursorMode(context, window, 5, nullptr) == mwin_errorInvalid &&
+                  mwinRequestCursorShape(context, window, 12, nullptr) == mwin_errorInvalid,
+              "unknown modes and shapes");
+        return;
+    }
+    CHECK(program->eventCount == 2 &&
+              program->events[0].data.completion.kind == mwin_requestCursorMode &&
+              program->events[1].data.completion.kind == mwin_requestCursorShape &&
+              program->events[1].data.completion.outcome == mwin_outcomeDone,
+          "each answered");
+    program->done = true;
+}
+
+static void TestCursor(void)
+{
+    Program program = {.step = CursorStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+int main(void)
+{
+    TestKeysAndText();
+    TestTextStorage();
+    TestOverflow();
+    TestTouches();
+    TestRefusalsAndLayout();
+    TestCursor();
+    return s_failures == 0 ? 0 : 1;
+}

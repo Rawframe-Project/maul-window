@@ -9,120 +9,11 @@
 // byte of memory returned. Each test is a program: its frame function
 // runs one step per frame, and the test backend pumps between frames.
 
-#include "test_harness.h"
-
-#include "maul-window/test.h"
+#include "test_program.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MAX_EVENTS 64
-
-typedef struct Program Program;
-typedef void StepFn(Program* program, mwinContext* context, int step);
-
-struct Program
-{
-    StepFn* step;
-    int frame;
-    bool done;
-    mwinWindowId windows[16];
-    mwinRequestId requests[40];
-    mwinEvent events[MAX_EVENTS];
-    int eventCount;
-    mwinResult initStatus;
-    mwinResult quitStatus;
-    int quitCalls;
-};
-
-static mwinResult Init(mwinContext* context, void* user)
-{
-    (void)context;
-    return ((Program*)user)->initStatus;
-}
-
-static mwinFrameResult Frame(mwinContext* context, void* user)
-{
-    Program* program = user;
-    program->step(program, context, program->frame++);
-    return program->done || program->frame > 50 ? mwin_frameStop : mwin_frameContinue;
-}
-
-static void Quit(mwinContext* context, mwinResult status, void* user)
-{
-    (void)context;
-    Program* program = user;
-    program->quitStatus = status;
-    program->quitCalls += 1;
-}
-
-// Runs a program on the test backend with a context def.
-static mwinResult RunWith(Program* program, mwinContextDef contextDef)
-{
-    mwinAppDef def = mwinDefaultAppDef();
-    def.context = contextDef;
-    def.context.backend = mwin_backendTest;
-    def.init = Init;
-    def.frame = Frame;
-    def.quit = Quit;
-    def.user = program;
-    return mwinRun(&def);
-}
-
-static mwinResult Run(Program* program)
-{
-    return RunWith(program, mwinDefaultContextDef());
-}
-
-// Drains the stream into the program's list.
-static void Drain(Program* program, mwinContext* context)
-{
-    program->eventCount = 0;
-    mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->eventCount < MAX_EVENTS)
-    {
-        program->events[program->eventCount++] = event;
-    }
-}
-
-static bool SameId(mwinRequestId a, mwinRequestId b)
-{
-    return a.index1 == b.index1 && a.generation == b.generation;
-}
-
-static bool SameWindow(mwinWindowId a, mwinWindowId b)
-{
-    return a.index1 == b.index1 && a.generation == b.generation;
-}
-
-// Whether the drained records have exactly these types, in order.
-static bool Types(const Program* program, const mwinEventType* types, int count)
-{
-    if (program->eventCount != count)
-    {
-        return false;
-    }
-    for (int i = 0; i < count; i++)
-    {
-        if (program->events[i].type != types[i])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-static mwinWindowId Create(mwinContext* context, mwinRequestId* requestOut)
-{
-    mwinWindowDef def = mwinDefaultWindowDef();
-    def.title = "Maul";
-    def.titleLength = 4;
-    def.size = (mwinSize){640.0f, 480.0f};
-    mwinWindowId window = {0};
-    CHECK(mwinCreateWindow(context, &def, &window, requestOut) == mwin_success, "create");
-    return window;
-}
 
 static void CreationStep(Program* program, mwinContext* context, int step)
 {
@@ -409,14 +300,12 @@ static void OrderStep(Program* program, mwinContext* context, int step)
         CHECK(mwinTestSetTime(context, 999) == mwin_errorInvalid, "time goes forward");
         return;
     }
-    CHECK(program->eventCount == 3 && program->events[0].type == mwin_eventFocusLost &&
-              SameWindow(program->events[0].window, a) &&
-              program->events[1].type == mwin_eventFocusGained &&
-              SameWindow(program->events[1].window, b),
-          "one stream in arrival order across windows");
-    CHECK(program->events[2].type == mwin_eventResized &&
-              program->events[2].data.size.width == 300.0f,
-          "resizes coalesce to the newest");
+    static const mwinEventType expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
+                                             mwin_eventFocusGained, mwin_eventResized};
+    CHECK(Types(program, expected, 4) && SameWindow(program->events[0].window, a) &&
+              SameWindow(program->events[1].window, a) && SameWindow(program->events[2].window, b),
+          "one stream in arrival order across windows, a reset after focus leaves");
+    CHECK(program->events[3].data.size.width == 300.0f, "resizes coalesce to the newest");
     CHECK(program->events[0].timeNs == 1000, "records carry the platform's time");
     program->done = true;
 }

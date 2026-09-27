@@ -20,6 +20,12 @@ format.
   `mwinRequestPosition`, `mwinRequestMode`, `mwinRequestVisible`,
   `mwinRequestFocus`), and the ordered event stream (`mwinNextEvent`),
   with the named limits (mwin-0002).
+- Input: keys by physical code and layout meaning, validated text,
+  cursor, buttons, wheel, raw deltas, touch and pen records, in four
+  bounded classes per window with merging and input state resets
+  (mwin-0004); cursor mode and shape requests (`mwinRequestCursorMode`,
+  `mwinRequestCursorShape`); `mwinMapKeyCode` and
+  `mwinGetKeyboardLayout`.
 - The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched

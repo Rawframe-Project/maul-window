@@ -129,8 +129,8 @@ static int32_t TakeRequest(mwinContext* context, uint32_t slot, mwinRequestKind 
     return free;
 }
 
-// Starts a request once its value is set, and reports its id.
-static void Submit(mwinContext* context, uint32_t slot, int32_t request, mwinRequestId* requestOut)
+void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
+                       mwinRequestId* requestOut)
 {
     if (requestOut != nullptr)
     {
@@ -221,10 +221,8 @@ mwinResult mwinGetWindowState(const mwinContext* context, mwinWindowId window,
     return mwin_success;
 }
 
-// The checks every request shares: a context, a live window and a free
-// request slot. Returns the slot through slotOut.
-static mwinResult Begin(mwinContext* context, mwinWindowId window, mwinRequestKind kind,
-                        uint32_t* slotOut, int32_t* requestOut)
+mwinResult mwinBeginRequest(mwinContext* context, mwinWindowId window, mwinRequestKind kind,
+                            uint32_t* slotOut, int32_t* requestOut)
 {
     if (context == nullptr)
     {
@@ -248,7 +246,7 @@ mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window, const cha
     }
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestTitle, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestTitle, &slot, &request);
     if (status != mwin_success)
     {
         return status;
@@ -259,7 +257,7 @@ mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window, const cha
         memcpy(found->pendingTitle, title, length);
     }
     found->pendingTitleLength = (uint16_t)length;
-    Submit(context, slot, request, requestOut);
+    mwinSubmitRequest(context, slot, request, requestOut);
     return mwin_success;
 }
 
@@ -272,11 +270,11 @@ mwinResult mwinRequestSize(mwinContext* context, mwinWindowId window, mwinSize s
     }
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestSize, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestSize, &slot, &request);
     if (status == mwin_success)
     {
         context->windows[slot].requests[request].value.size = size;
-        Submit(context, slot, request, requestOut);
+        mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;
 }
@@ -290,11 +288,11 @@ mwinResult mwinRequestPosition(mwinContext* context, mwinWindowId window, mwinPo
     }
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestPosition, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestPosition, &slot, &request);
     if (status == mwin_success)
     {
         context->windows[slot].requests[request].value.position = position;
-        Submit(context, slot, request, requestOut);
+        mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;
 }
@@ -308,11 +306,11 @@ mwinResult mwinRequestMode(mwinContext* context, mwinWindowId window, mwinWindow
     }
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestMode, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestMode, &slot, &request);
     if (status == mwin_success)
     {
         context->windows[slot].requests[request].value.mode = mode;
-        Submit(context, slot, request, requestOut);
+        mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;
 }
@@ -322,11 +320,11 @@ mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window, bool vi
 {
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestVisible, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestVisible, &slot, &request);
     if (status == mwin_success)
     {
         context->windows[slot].requests[request].value.visible = visible;
-        Submit(context, slot, request, requestOut);
+        mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;
 }
@@ -335,10 +333,10 @@ mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window, mwinReque
 {
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = Begin(context, window, mwin_requestFocus, &slot, &request);
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestFocus, &slot, &request);
     if (status == mwin_success)
     {
-        Submit(context, slot, request, requestOut);
+        mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;
 }

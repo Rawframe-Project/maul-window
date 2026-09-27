@@ -18,6 +18,33 @@
 
 #include "maul-window/event.h"
 
+// The classes of records, each with its own storage per window.
+enum
+{
+    mwin_classNotification = 0,
+    mwin_classDiscrete = 1,
+    mwin_classMotion = 2,
+    mwin_classRaw = 3,
+    mwin_classWheel = 4,
+    MWIN_CLASSES = 5,
+};
+
+// Text of waiting records, in a circular buffer of bytes. A text never
+// wraps, so the end of the buffer may be skipped; busy counts the bytes
+// from head to tail, skipped ones included. Drained text is reclaimed
+// only when the next pump begins (reclaimHead and reclaimBytes say how
+// far), so it stays valid through the frame that drained it.
+typedef struct mwinTextRing
+{
+    char* bytes;
+    uint32_t capacity;
+    uint32_t head;
+    uint32_t tail;
+    uint32_t busy;
+    uint32_t reclaimHead;
+    uint32_t reclaimBytes;
+} mwinTextRing;
+
 // Records waiting in arrival order, in a circular buffer.
 typedef struct mwinRing
 {
@@ -49,6 +76,8 @@ typedef struct mwinRequest
         mwinPosition position;
         mwinWindowMode mode;
         bool visible;
+        // A cursor mode or shape.
+        uint8_t code;
     } value;
 } mwinRequest;
 
@@ -66,7 +95,8 @@ typedef struct mwinWindow
     mwinWindowState state;
     // What the program asked for at creation, for the backend.
     mwinWindowDef def;
-    mwinRing ring;
+    mwinRing rings[MWIN_CLASSES];
+    mwinTextRing text;
     mwinRequest* requests;
     char* title;
     char* pendingTitle;
@@ -96,10 +126,15 @@ mwinWindow* mwinFindWindow(const mwinContext* context, mwinWindowId window);
 // The id of the window in a slot.
 mwinWindowId mwinWindowIdOf(const mwinContext* context, uint32_t slot);
 
-// Reports a notification about the window in a slot: its state takes
-// the record's values, and the record joins the stream. A newer
-// notification of the same class replaces one still waiting.
+// Reports what the platform did to the window in a slot. A notification
+// updates the window's state and replaces a waiting one of its class;
+// input takes its class's storage, merging or resetting when it is full
+// (see event.h). Text is copied; text that is not UTF-8 is refused.
 void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event);
+
+// Reclaims the text of records drained before; a backend calls it when
+// a pump begins.
+void mwinBeginPump(mwinContext* context);
 
 // Queues the destroyed record of a slot whose window just went; its
 // notifications still waiting go with it, its completions stay.
@@ -111,6 +146,16 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
 
 // Frees the slot of an answered request whose completion was drained.
 void mwinReleaseRequest(mwinContext* context, mwinRequestId request);
+
+// Starts a request: checks the context and the window and takes a
+// request slot, superseding an active request of the kind. The caller
+// then sets the request's value and calls mwinSubmitRequest.
+mwinResult mwinBeginRequest(mwinContext* context, mwinWindowId window, mwinRequestKind kind,
+                            uint32_t* slotOut, int32_t* requestOut);
+
+// Hands a started request to the backend and reports its id.
+void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
+                       mwinRequestId* requestOut);
 
 // The request slot of an active request of a kind, or -1.
 int32_t mwinFindActiveRequest(const mwinWindow* window, uint16_t count, mwinRequestKind kind);

@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// Cursor requests and the keyboard layout, which the backend answers.
+
+#include "maul-window/input.h"
+
+#include "core.h"
+
+mwinResult mwinRequestCursorMode(mwinContext* context, mwinWindowId window, mwinCursorMode mode,
+                                 mwinRequestId* requestOut)
+{
+    if (mode > mwin_cursorConfinedHidden)
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestCursorMode, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.code = mode;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestCursorShape(mwinContext* context, mwinWindowId window, mwinCursorShape shape,
+                                  mwinRequestId* requestOut)
+{
+    if (shape > mwin_shapeProgress)
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestCursorShape, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.code = shape;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinKey mwinMapKeyCode(const mwinContext* context, mwinKeyCode code)
+{
+    if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight)
+    {
+        return 0;
+    }
+    return context->backend->mapKeyCode(context, code);
+}
+
+mwinResult mwinGetKeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
+                                 size_t* lengthOut)
+{
+    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
+    {
+        return mwin_errorInvalid;
+    }
+    return context->backend->keyboardLayout(context, buffer, capacity, lengthOut);
+}

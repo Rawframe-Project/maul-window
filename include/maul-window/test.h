@@ -45,16 +45,21 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestHold(mwinContext* context, bool hold);
 
-    /// Reports a notification as the platform would: the user resized or
-    /// closed a window, focus moved, the scale changed. Completions and
-    /// the created and destroyed records are the core's and refused.
+    /// Reports what the platform would: the user resized or closed a
+    /// window, focus moved, the scale changed, a key went down, text was
+    /// typed. The report reaches the stream at the next pump, stamped with
+    /// the time of this call; text is copied from the record's pointer.
+    /// Completions, input state resets and the created and destroyed
+    /// records are the core's and refused.
     ///
     /// @param context  A context of the test backend.
     /// @param event    The notification; its window must be live.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
-    ///         longer exists; `mwin_errorUnsupported` for a context of
-    ///         another backend; `mwin_errorInvalid` for a NULL argument or
-    ///         a record type only the core makes.
+    ///         longer exists; `mwin_errorCapacity` when 1,024 reports or
+    ///         64 KiB of their text already wait; `mwin_errorUnsupported`
+    ///         for a context of another backend; `mwin_errorInvalid` for a
+    ///         NULL argument, a
+    ///         record type only the core makes, or text that is not UTF-8.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event);

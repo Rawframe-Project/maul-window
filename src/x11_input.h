@@ -8,7 +8,9 @@
 // comes from the keymap, through compose sequences; X11 has no input
 // method here, as XIM needs Xlib. The pointer is the core pointer:
 // buttons 4 to 7 turn the wheel, a detent each, and quick clicks are
-// counted by the backend (clicks.h).
+// counted by the backend (clicks.h). XInput 2's raw motion, before the
+// X server's acceleration, arrives as raw deltas while a focused window
+// holds the cursor captured.
 
 #ifndef MAUL_WINDOW_SRC_X11_INPUT_H
 #define MAUL_WINDOW_SRC_X11_INPUT_H
@@ -20,7 +22,11 @@
 void mwinX11StartKeyboard(mwinX11Platform* platform);
 void mwinX11StopKeyboard(mwinX11Platform* platform);
 
-// Handles a keyboard, pointer or XKB event: false for another kind.
+// Asks for XInput 2's raw motion, where the X server has XInput 2.
+void mwinX11StartRawMotion(mwinX11Platform* platform);
+
+// Handles a keyboard, pointer, XKB or XInput event: false for another
+// kind.
 bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_t* event);
 
 // A window lost focus: the keys held are forgotten.

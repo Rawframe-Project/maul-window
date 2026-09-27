@@ -120,8 +120,10 @@ struct mwinX11Platform
     bool windowManager;
     // Logical units per pixel from Xft.dpi, 1 where it is not set.
     float scale;
-    // RandR's first event code, 0 without RandR 1.5.
+    // RandR's first event code, 0 without RandR 1.5, and XInput's major
+    // opcode, 0 without XInput 2 raw motion.
     uint8_t randrEvent;
+    uint8_t xinputOpcode;
     // libxkbcommon, and the keyboard, where both load.
     mwinXkbApi xkbApi;
     mwinX11Keyboard keyboard;

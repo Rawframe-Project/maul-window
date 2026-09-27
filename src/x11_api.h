@@ -3,8 +3,8 @@
 //
 // XCB, opened at run time (W7) into a table each context loads for
 // itself: libxcb, and where they are there libxcb-randr for monitors,
-// libxkbcommon-x11 and libxcb-xkb for the keyboard, and libxcb-cursor
-// for cursor themes. The X server's replies come from the C library's
+// libxkbcommon-x11 and libxcb-xkb for the keyboard, libxcb-cursor for
+// cursor themes, and libxcb-xinput for raw motion. The X server's replies come from the C library's
 // malloc and go back through mwinReleaseSystemMemory.
 
 #ifndef MAUL_WINDOW_SRC_X11_API_H
@@ -15,6 +15,7 @@
 #include <xcb/randr.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_cursor.h>
+#include <xcb/xinput.h>
 #include <xcb/xkb.h>
 #include <xkbcommon/xkbcommon-x11.h>
 
@@ -61,6 +62,7 @@ typedef struct mwinX11Api
     typeof(xcb_grab_pointer)* grabPointer;
     typeof(xcb_grab_pointer_reply)* grabPointerReply;
     typeof(xcb_ungrab_pointer)* ungrabPointer;
+    typeof(xcb_warp_pointer)* warpPointer;
     // libxcb-randr, NULL where it is missing.
     void* randrLibrary;
     xcb_extension_t* randrId;
@@ -86,6 +88,16 @@ typedef struct mwinX11Api
     typeof(xcb_cursor_context_new)* cursorContextNew;
     typeof(xcb_cursor_load_cursor)* cursorLoad;
     typeof(xcb_cursor_context_free)* cursorContextFree;
+    // libxcb-xinput, NULL where it is missing.
+    void* xinputLibrary;
+    xcb_extension_t* xinputId;
+    typeof(xcb_input_xi_query_version)* xiQueryVersion;
+    typeof(xcb_input_xi_query_version_reply)* xiQueryVersionReply;
+    typeof(xcb_input_xi_select_events)* xiSelectEvents;
+    typeof(xcb_input_raw_button_press_valuator_mask)* rawValuatorMask;
+    typeof(xcb_input_raw_button_press_valuator_mask_length)* rawValuatorMaskLength;
+    typeof(xcb_input_raw_button_press_axisvalues_raw)* rawAxisValues;
+    typeof(xcb_input_raw_button_press_axisvalues_raw_length)* rawAxisValuesLength;
 } mwinX11Api;
 
 // Opens libxcb and fills the table: mwin_errorUnsupported when it or a

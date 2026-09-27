@@ -6,8 +6,8 @@
 // codes, meanings and text, Shift, the X server's repeats, the pointer
 // entering and moving, a double click, the wheel, cursor shapes, a
 // hidden cursor, a confined one whose grab another client then meets,
-// and the captured cursor this backend does not offer. Without DISPLAY
-// the test is skipped (exit status 77).
+// and a captured one with XInput 2's raw motion. Without DISPLAY the
+// test is skipped (exit status 77).
 
 #include "test_harness.h"
 
@@ -40,6 +40,8 @@ typedef enum Phase
     phaseConfine,
     phaseRelease,
     phaseCapture,
+    phaseRaw,
+    phaseUncapture,
     phaseDone,
 } Phase;
 
@@ -147,6 +149,8 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventButtonUp, 1) != nullptr;
     case phaseWheel:
         return Find(program, mwin_eventWheel, 0) != nullptr;
+    case phaseRaw:
+        return Find(program, mwin_eventRawPointerDelta, 0) != nullptr;
     default:
         return Find(program, mwin_eventRequestCompleted, 0) != nullptr;
     }
@@ -212,7 +216,22 @@ static void AdvancePointer(Program* program, mwinContext* context)
               "capture");
         break;
     case phaseCapture:
-        CHECK(outcome == mwin_outcomeUnsupported, "capture needs XInput 2");
+        CHECK(outcome == mwin_outcomeDone && !CanGrab(program), "captured: grabbed and hidden");
+        // Relative motion, as a mouse makes it.
+        Fake(program, XCB_MOTION_NOTIFY, 1, 5, -3);
+        break;
+    case phaseRaw:
+    {
+        const mwinEvent* delta = Find(program, mwin_eventRawPointerDelta, 0);
+        CHECK(delta->data.delta.x == 5.0f && delta->data.delta.y == -3.0f,
+              "raw motion while captured");
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+                  mwin_success,
+              "release the capture");
+        break;
+    }
+    case phaseUncapture:
+        CHECK(outcome == mwin_outcomeDone && CanGrab(program), "released: the grab goes");
         break;
     default:
         break;

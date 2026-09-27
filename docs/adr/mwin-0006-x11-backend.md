@@ -64,17 +64,22 @@ binary must run there as on Wayland (W7 in the design notes).
   from the cursor theme through `libxcb-cursor` (whose X11 names the
   core cursor font also has), or an empty cursor that hides the
   pointer. A confined cursor is a pointer grab confined to the window
-  while it has focus. A captured cursor needs XInput 2's raw motion,
-  which this backend does not use yet, and is answered unsupported.
+  while it has focus. A captured cursor is a hidden confined one put
+  in the window's middle, and its motion is XInput 2's raw motion
+  (`libxcb-xinput`), the first two valuators before the X server's
+  acceleration, posted as raw deltas while the window has focus;
+  without XInput 2 capture is answered unsupported. The wheel stays on
+  buttons 4 to 7: smooth scrolling through XInput 2's scroll valuators
+  is left for later.
 - **The pump** never waits: it flushes and handles every event that
   has arrived. A failed connection stops the loop.
 
 ## Consequences
 
-Building needs the `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor` and
-`xkbcommon-x11` headers; running needs only `libxcb`, and the others
-for more than one monitor, the keyboard and cursor shapes. The
+Building needs the `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`,
+`xcb-xinput` and `xkbcommon-x11` headers; running needs only `libxcb`,
+and the others for more than one monitor, the keyboard, cursor shapes
+and capture. The
 integration tests run against Xvfb, which has no window manager, the
 input test driving it through XTEST; both are skipped without
-`DISPLAY`. Raw motion, a captured cursor and smooth scrolling through
-XInput 2 follow in their own change.
+`DISPLAY`.

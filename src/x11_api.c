@@ -62,7 +62,8 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, freeCursor, xcb_free_cursor) &&
            FIND(library, grabPointer, xcb_grab_pointer) &&
            FIND(library, grabPointerReply, xcb_grab_pointer_reply) &&
-           FIND(library, ungrabPointer, xcb_ungrab_pointer);
+           FIND(library, ungrabPointer, xcb_ungrab_pointer) &&
+           FIND(library, warpPointer, xcb_warp_pointer);
 }
 
 static bool FindRandr(mwinX11Api* api)
@@ -97,6 +98,22 @@ static bool FindCursors(mwinX11Api* api)
            FIND(cursorLibrary, cursorContextFree, xcb_cursor_context_free);
 }
 
+static bool FindXinput(mwinX11Api* api)
+{
+    // The extension's id is data, not a function.
+    api->xinputId = dlsym(api->xinputLibrary, "xcb_input_id");
+    return api->xinputId != nullptr &&
+           FIND(xinputLibrary, xiQueryVersion, xcb_input_xi_query_version) &&
+           FIND(xinputLibrary, xiQueryVersionReply, xcb_input_xi_query_version_reply) &&
+           FIND(xinputLibrary, xiSelectEvents, xcb_input_xi_select_events) &&
+           FIND(xinputLibrary, rawValuatorMask, xcb_input_raw_button_press_valuator_mask) &&
+           FIND(xinputLibrary, rawValuatorMaskLength,
+                xcb_input_raw_button_press_valuator_mask_length) &&
+           FIND(xinputLibrary, rawAxisValues, xcb_input_raw_button_press_axisvalues_raw) &&
+           FIND(xinputLibrary, rawAxisValuesLength,
+                xcb_input_raw_button_press_axisvalues_raw_length);
+}
+
 // Opens an optional library, or leaves it NULL when it or one of its
 // functions is missing.
 static void OpenOptional(mwinX11Api* api, void** library, const char* name,
@@ -122,6 +139,7 @@ mwinResult mwinLoadX11(mwinX11Api* api)
     // Each links libxcb itself, and shares the one libxcb.so.1 loaded.
     OpenOptional(api, &api->randrLibrary, "libxcb-randr.so.0", FindRandr);
     OpenOptional(api, &api->cursorLibrary, "libxcb-cursor.so.0", FindCursors);
+    OpenOptional(api, &api->xinputLibrary, "libxcb-xinput.so.0", FindXinput);
     api->xcbXkbLibrary = dlopen("libxcb-xkb.so.1", RTLD_NOW | RTLD_LOCAL);
     if (api->xcbXkbLibrary != nullptr)
     {
@@ -138,7 +156,7 @@ mwinResult mwinLoadX11(mwinX11Api* api)
 void mwinUnloadX11(mwinX11Api* api)
 {
     void* optional[] = {api->randrLibrary, api->cursorLibrary, api->xkbX11Library,
-                        api->xcbXkbLibrary};
+                        api->xcbXkbLibrary, api->xinputLibrary};
     for (size_t i = 0; i < sizeof(optional) / sizeof(optional[0]); i++)
     {
         if (optional[i] != nullptr)

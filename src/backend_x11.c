@@ -211,6 +211,7 @@ static mwinResult Connect(mwinX11Platform* platform)
     StartRandr(platform);
     mwinX11RefreshMonitors(platform);
     mwinX11StartKeyboard(platform);
+    mwinX11StartRawMotion(platform);
     mwinX11StartCursors(platform);
     return mwin_success;
 }

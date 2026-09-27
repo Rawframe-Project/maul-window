@@ -36,9 +36,10 @@ development files of `wayland-client` 1.22, `wayland-protocols` 1.32
 and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and
 `libxkbcommon-dev` on Debian and Ubuntu), or
 `-DMAUL_WINDOW_WAYLAND=OFF`; the X11 backend needs the development
-files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor` and
+files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-xinput` and
 `xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`, `libxcb-xkb-dev`,
-`libxcb-cursor-dev` and `libxkbcommon-x11-dev`), or
+`libxcb-cursor-dev`, `libxcb-xinput-dev` and `libxkbcommon-x11-dev`),
+or
 `-DMAUL_WINDOW_X11=OFF`.
 
 ```sh

@@ -262,12 +262,106 @@ static void OnCrossing(mwinX11Platform* platform, const xcb_enter_notify_event_t
     pointer->focus = -1;
 }
 
+void mwinX11StartRawMotion(mwinX11Platform* platform)
+{
+    const mwinX11Api* api = &platform->api;
+    if (api->xinputLibrary == nullptr)
+    {
+        return;
+    }
+    const xcb_query_extension_reply_t* extension =
+        api->getExtensionData(platform->connection, api->xinputId);
+    if (extension == nullptr || !extension->present)
+    {
+        return;
+    }
+    xcb_input_xi_query_version_reply_t* version = api->xiQueryVersionReply(
+        platform->connection, api->xiQueryVersion(platform->connection, 2, 0), nullptr);
+    bool recent = version != nullptr && version->major_version >= 2;
+    mwinReleaseSystemMemory(version);
+    if (!recent)
+    {
+        return;
+    }
+    struct
+    {
+        xcb_input_event_mask_t head;
+        uint32_t mask;
+    } select = {{XCB_INPUT_DEVICE_ALL_MASTER, 1}, XCB_INPUT_XI_EVENT_MASK_RAW_MOTION};
+    api->xiSelectEvents(platform->connection, platform->screen->root, 1, &select.head);
+    platform->xinputOpcode = extension->major_opcode;
+}
+
+// The window whose cursor is captured and that has focus, or -1.
+static int32_t CapturingWindow(const mwinX11Platform* platform)
+{
+    for (uint32_t i = 0; i < platform->context->limits.windows; i++)
+    {
+        if (platform->windows[i].window != 0 &&
+            platform->windows[i].cursorMode == mwin_cursorCaptured &&
+            platform->context->windows[i].state.focused)
+        {
+            return (int32_t)i;
+        }
+    }
+    return -1;
+}
+
+static float FixedValue(xcb_input_fp3232_t value)
+{
+    return (float)((double)value.integral + (double)value.frac / 4294967296.0);
+}
+
+// Raw motion: the first two valuators, before acceleration.
+static void OnRawMotion(mwinX11Platform* platform, const xcb_input_raw_motion_event_t* event)
+{
+    const mwinX11Api* api = &platform->api;
+    int32_t slot = CapturingWindow(platform);
+    if (slot < 0)
+    {
+        return;
+    }
+    const uint32_t* mask = api->rawValuatorMask(event);
+    int words = api->rawValuatorMaskLength(event);
+    const xcb_input_fp3232_t* values = api->rawAxisValues(event);
+    int count = api->rawAxisValuesLength(event);
+    float delta[2] = {0.0f, 0.0f};
+    int index = 0;
+    for (int bit = 0; bit < words * 32 && index < count; bit++)
+    {
+        if ((mask[bit / 32] & (1u << (bit % 32))) == 0)
+        {
+            continue;
+        }
+        if (bit < 2)
+        {
+            delta[bit] = FixedValue(values[index]);
+        }
+        index += 1;
+    }
+    mwinEvent record = {0};
+    record.type = mwin_eventRawPointerDelta;
+    record.timeNs = mwinMonotonicFromMilliseconds(event->time);
+    record.data.delta = (mwinDeltaEvent){delta[0], delta[1]};
+    mwinPost(platform->context, (uint32_t)slot, &record);
+}
+
 bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
     uint8_t type = event->response_type & 0x7F;
     if (platform->keyboard.event != 0 && type == platform->keyboard.event)
     {
         OnXkb(platform, event);
+        return true;
+    }
+    if (type == XCB_GE_GENERIC && platform->xinputOpcode != 0)
+    {
+        const xcb_ge_generic_event_t* generic = (const xcb_ge_generic_event_t*)event;
+        if (generic->extension == platform->xinputOpcode &&
+            generic->event_type == XCB_INPUT_RAW_MOTION)
+        {
+            OnRawMotion(platform, (const xcb_input_raw_motion_event_t*)event);
+        }
         return true;
     }
     switch (type)

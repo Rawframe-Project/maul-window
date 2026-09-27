@@ -69,7 +69,8 @@ void mwinX11StopCursors(mwinX11Platform* platform)
 
 static bool IsHidden(mwinCursorMode mode)
 {
-    return mode == mwin_cursorHidden || mode == mwin_cursorConfinedHidden;
+    return mode == mwin_cursorHidden || mode == mwin_cursorConfinedHidden ||
+           mode == mwin_cursorCaptured;
 }
 
 // The cursor of a shape, loaded once; none (the root window's) for the
@@ -131,12 +132,13 @@ static void Confine(mwinX11Platform* platform, mwinX11Window* window, bool confi
 
 static bool IsConfined(mwinCursorMode mode)
 {
-    return mode == mwin_cursorConfined || mode == mwin_cursorConfinedHidden;
+    return mode == mwin_cursorConfined || mode == mwin_cursorConfinedHidden ||
+           mode == mwin_cursorCaptured;
 }
 
 mwinOutcome mwinX11SetCursorMode(mwinX11Platform* platform, uint32_t slot, mwinCursorMode mode)
 {
-    if (mode == mwin_cursorCaptured)
+    if (mode == mwin_cursorCaptured && platform->xinputOpcode == 0)
     {
         return mwin_outcomeUnsupported;
     }
@@ -145,6 +147,12 @@ mwinOutcome mwinX11SetCursorMode(mwinX11Platform* platform, uint32_t slot, mwinC
     Apply(platform, window);
     bool focused = platform->context->windows[slot].state.focused;
     Confine(platform, window, IsConfined(mode) && focused);
+    if (mode == mwin_cursorCaptured && focused)
+    {
+        // Kept in the middle, the pointer never meets an edge.
+        platform->api.warpPointer(platform->connection, XCB_NONE, window->window, 0, 0, 0, 0,
+                                  (int16_t)(window->width / 2), (int16_t)(window->height / 2));
+    }
     return mwin_outcomeDone;
 }
 

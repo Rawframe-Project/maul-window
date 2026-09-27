@@ -72,4 +72,5 @@ format.
   properties, the scale from `Xft.dpi`, modes through the window
   manager, and monitors from RandR (mwin-0006); the keyboard through
   XKB and xkbcommon-x11, the core pointer and wheel, cursor shapes
-  through libxcb-cursor, and hidden and confined cursors.
+  through libxcb-cursor, hidden and confined cursors, and captured
+  cursors with XInput 2 raw motion.

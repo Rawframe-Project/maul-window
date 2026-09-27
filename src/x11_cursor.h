@@ -6,8 +6,9 @@
 // pointer goes over it: a shape from the cursor theme through
 // libxcb-cursor, or an empty cursor that hides the pointer. A confined
 // cursor is a pointer grab that confines it to the window while the
-// window has focus. A captured cursor needs XInput 2's raw motion,
-// which this backend does not use yet: it is answered unsupported.
+// window has focus; a captured one is a hidden confined cursor, put in
+// the window's middle, whose motion arrives through XInput 2's raw
+// events (x11_input.h), and is unsupported without XInput 2.
 
 #ifndef MAUL_WINDOW_SRC_X11_CURSOR_H
 #define MAUL_WINDOW_SRC_X11_CURSOR_H

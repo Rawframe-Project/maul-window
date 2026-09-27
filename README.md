@@ -43,13 +43,18 @@ files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-xinput` and
 `xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`, `libxcb-xkb-dev`,
 `libxcb-cursor-dev`, `libxcb-xinput-dev` and `libxkbcommon-x11-dev`),
 or
-`-DMAUL_WINDOW_X11=OFF`.
+`-DMAUL_WINDOW_X11=OFF`. For the web, Emscripten (`emcmake cmake`);
+its browser tests run in headless Chrome through puppeteer, found
+through `MWIN_NODE_MODULES`, and are skipped without it.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build
 ```
+
+`samples/window.c` opens a window and prints what the platform says of
+it; F11 switches to fullscreen, T accepts text, Escape ends it.
 
 ## Design
 

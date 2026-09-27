@@ -101,3 +101,5 @@ format.
   the lifecycle from page visibility, the back-forward cache and
   freezing, with the program's frame run inside the browser's event,
   and surfaces lost with a canvas out of the document.
+- A sample (`samples/window.c`): one window and what the platform says
+  of it, fullscreen, text input with input methods, and a clean end.

@@ -16,6 +16,7 @@ project(maul-window
 
 option(MAUL_WINDOW_BUILD_TESTS "Build the test suites" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_WINDOW_BUILD_BENCH "Build the benchmarks" ${PROJECT_IS_TOP_LEVEL})
+option(MAUL_WINDOW_BUILD_SAMPLES "Build the samples" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_WINDOW_BUILD_SHARED "Build a shared library instead of a static one" OFF)
 option(MAUL_WINDOW_INSTALL "Generate install rules" ${PROJECT_IS_TOP_LEVEL})
 option(MAUL_WINDOW_WERROR "Treat compiler warnings as errors" OFF)
@@ -179,6 +180,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
                              PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
+endif()
+
+if(MAUL_WINDOW_BUILD_SAMPLES)
+    add_subdirectory(samples)
 endif()
 
 if(MAUL_WINDOW_BUILD_BENCH AND EXISTS ${PROJECT_SOURCE_DIR}/bench/bench_main.c)

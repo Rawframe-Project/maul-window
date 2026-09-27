@@ -45,7 +45,7 @@ static size_t Decode(char* text, size_t length)
 
 // The path of a file URI, decoded in place: its length, or 0 when the
 // line names no local file.
-static size_t PathOf(char* line, size_t length, char** pathOut)
+size_t mwinFileUriPath(char* line, size_t length, char** pathOut)
 {
     static const char scheme[] = "file://";
     static const char local[] = "localhost";
@@ -82,7 +82,8 @@ void mwinGatherUriList(mwinContext* context, char* list, size_t length)
             line -= 1;
         }
         char* path = nullptr;
-        size_t pathLength = line > 0 && list[start] != '#' ? PathOf(list + start, line, &path) : 0;
+        size_t pathLength =
+            line > 0 && list[start] != '#' ? mwinFileUriPath(list + start, line, &path) : 0;
         if (pathLength > 0)
         {
             mwinAddDroppedFile(context, path, pathLength);

@@ -582,6 +582,10 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinLinuxRevealFile(&window->platform->services, window->slot, index);
     case mwin_requestKeepAwake:
         return KeepAwake(window, request->value.awake);
+    case mwin_requestFileDialog:
+        // The portal places dialogs over a Wayland window only through an
+        // exported handle (xdg-foreign), which the backend does not make.
+        return mwinDialogsOpen(&window->platform->services.dialogs, window->slot, index, "");
     default:
         // Positions, visibility, focus without an activation token, and
         // the rest have no request in the protocols bound.

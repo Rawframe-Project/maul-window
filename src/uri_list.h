@@ -16,4 +16,8 @@
 // in place.
 void mwinGatherUriList(mwinContext* context, char* list, size_t length);
 
+// The path of one file URI, decoded in place: its length, with
+// *pathOut where it starts, or 0 for a URI that names no local file.
+size_t mwinFileUriPath(char* uri, size_t length, char** pathOut);
+
 #endif // MAUL_WINDOW_SRC_URI_LIST_H

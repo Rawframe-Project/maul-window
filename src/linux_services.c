@@ -26,25 +26,7 @@ extern char** environ;
 void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context)
 {
     *services = (mwinLinuxServices){.context = context};
-}
-
-static mwinServiceAnswer AnswerTo(const mwinContext* context, uint32_t slot, uint32_t request)
-{
-    return (mwinServiceAnswer){slot, request, context->windows[slot].requests[request].generation,
-                               true};
-}
-
-// Answers a request that still waits for its answer.
-static void Answer(mwinContext* context, mwinServiceAnswer* to, mwinOutcome outcome)
-{
-    const mwinWindow* window = &context->windows[to->slot];
-    const mwinRequest* request = &window->requests[to->request];
-    if (to->waiting && window->status == mwin_slotLive && request->status == mwin_requestActive &&
-        request->generation == to->generation)
-    {
-        mwinComplete(context, to->slot, to->request, outcome);
-    }
-    to->waiting = false;
+    mwinDialogsStart(&services->dialogs, context, &services->bus);
 }
 
 // Runs xdg-open on a target, followed until it ends: -1, or the outcome
@@ -74,7 +56,7 @@ static int Open(mwinLinuxServices* services, const char* target, mwinServiceAnsw
 int mwinLinuxOpenUrl(mwinLinuxServices* services, uint32_t slot, uint32_t request)
 {
     const mwinRequest* entry = &services->context->windows[slot].requests[request];
-    return Open(services, entry->value.text.bytes, AnswerTo(services->context, slot, request));
+    return Open(services, entry->value.text.bytes, mwinAnswerTo(services->context, slot, request));
 }
 
 // Opens the folder that holds a path.
@@ -147,7 +129,7 @@ static bool ShowItem(mwinLinuxServices* services, const mwinRequest* entry, mwin
 int mwinLinuxRevealFile(mwinLinuxServices* services, uint32_t slot, uint32_t request)
 {
     const mwinRequest* entry = &services->context->windows[slot].requests[request];
-    mwinServiceAnswer to = AnswerTo(services->context, slot, request);
+    mwinServiceAnswer to = mwinAnswerTo(services->context, slot, request);
     for (size_t i = 0; i < MWIN_LINUX_REVEALS; i++)
     {
         mwinLinuxReveal* reveal = &services->reveals[i];
@@ -189,12 +171,12 @@ static void PumpOpeners(mwinLinuxServices* services, uint64_t nowNs)
         pid_t reaped = waitpid(opener->pid, &status, WNOHANG);
         if (reaped == opener->pid || (reaped < 0 && errno == ECHILD))
         {
-            Answer(services->context, &opener->to, Ended(reaped, status));
+            mwinAnswer(services->context, &opener->to, Ended(reaped, status));
             opener->pid = 0;
         }
         else if (nowNs >= opener->deadlineNs)
         {
-            Answer(services->context, &opener->to, mwin_outcomeDone);
+            mwinAnswer(services->context, &opener->to, mwin_outcomeDone);
         }
     }
 }
@@ -225,7 +207,7 @@ static void PumpReveals(mwinLinuxServices* services, uint64_t nowNs)
             failed && waiting ? OpenFolder(services, entry, reveal->to) : mwin_outcomeDone;
         if (outcome >= 0)
         {
-            Answer(services->context, &reveal->to, (mwinOutcome)outcome);
+            mwinAnswer(services->context, &reveal->to, (mwinOutcome)outcome);
         }
         reveal->to.waiting = false;
     }
@@ -241,6 +223,7 @@ void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awa
     mwinBusPump(&services->bus, 0);
     PumpReveals(services, nowNs);
     PumpOpeners(services, nowNs);
+    mwinDialogsPump(&services->dialogs, nowNs);
     // Only a program that asked has a bus to keep the display awake on.
     if (services->bus.connection != nullptr)
     {
@@ -254,6 +237,7 @@ void mwinLinuxServicesStop(mwinLinuxServices* services)
     {
         mwinBusDrop(&services->bus, &services->reveals[i].call);
     }
+    mwinDialogsStop(&services->dialogs);
     if (services->bus.connection != nullptr)
     {
         mwinInhibitStop(&services->bus, &services->inhibit);

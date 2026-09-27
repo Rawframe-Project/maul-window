@@ -147,5 +147,6 @@ format.
   copied out under the request (`mwinGetDialogFiles`); the
   `dialogFiles` and `dialogBytes` limits; cancelled for a dialog the
   user closes; the test backend's dialogs and the contract tests.
+  Linux dialogs through the desktop portal's FileChooser, else zenity.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

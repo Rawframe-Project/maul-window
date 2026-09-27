@@ -17,6 +17,12 @@ typedef struct DBusConnection DBusConnection;
 typedef struct DBusMessage DBusMessage;
 typedef struct DBusPendingCall DBusPendingCall;
 
+// What a filter did with a message: 1 handled, 2 not; the library's
+// DBusHandlerResult.
+typedef int mwinDBusHandled;
+typedef mwinDBusHandled mwinDBusFilter(DBusConnection* connection, DBusMessage* message,
+                                       void* data);
+
 // The library's iterator is a public struct of pointers and integers,
 // 72 bytes on 64-bit systems; this holds it with room to spare.
 typedef struct mwinDBusIter
@@ -32,7 +38,11 @@ enum
     mwin_dbusSession = 0,
     mwin_dbusDataRemains = 0,
     mwin_dbusMessageError = 3,
+    mwin_dbusNotHandled = 1,
     mwin_dbusTypeArray = 'a',
+    mwin_dbusTypeBoolean = 'b',
+    mwin_dbusTypeByte = 'y',
+    mwin_dbusTypeStruct = 'r',
     mwin_dbusTypeDictEntry = 'e',
     mwin_dbusTypeObjectPath = 'o',
     mwin_dbusTypeString = 's',
@@ -60,6 +70,15 @@ typedef struct mwinDBusApi
     mwinDBusBool (*openContainer)(mwinDBusIter* iter, int type, const char* signature,
                                   mwinDBusIter* sub);
     mwinDBusBool (*closeContainer)(mwinDBusIter* iter, mwinDBusIter* sub);
+    mwinDBusBool (*appendFixedArray)(mwinDBusIter* iter, int type, const void* values, int count);
+    mwinDBusBool (*addFilter)(DBusConnection* connection, mwinDBusFilter* filter, void* data,
+                              void (*release)(void* data));
+    void (*removeFilter)(DBusConnection* connection, mwinDBusFilter* filter, void* data);
+    mwinDBusBool (*isSignal)(DBusMessage* message, const char* interface, const char* name);
+    const char* (*path)(DBusMessage* message);
+    const char* (*uniqueName)(DBusConnection* connection);
+    mwinDBusBool (*next)(mwinDBusIter* iter);
+    void (*recurse)(mwinDBusIter* iter, mwinDBusIter* sub);
     mwinDBusBool (*send)(DBusConnection* connection, DBusMessage* message, uint32_t* serial);
     mwinDBusBool (*sendWithReply)(DBusConnection* connection, DBusMessage* message,
                                   DBusPendingCall** pending, int timeoutMs);

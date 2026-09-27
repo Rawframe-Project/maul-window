@@ -441,6 +441,12 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwinLinuxCanKeepAwake(&platform->services);
+    case mwin_requestFileDialog:
+    {
+        char parent[24];
+        (void)snprintf(parent, sizeof(parent), "x11:%x", window->window);
+        return mwinDialogsOpen(&platform->services.dialogs, window->slot, index, parent);
+    }
     default:
         return mwin_outcomeUnsupported;
     }

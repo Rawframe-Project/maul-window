@@ -17,7 +17,9 @@
 #define MAUL_WINDOW_SRC_LINUX_SERVICES_H
 
 #include "core.h"
+#include "linux_answer.h"
 #include "linux_bus.h"
+#include "linux_dialog.h"
 #include "linux_inhibit.h"
 
 #include <sys/types.h>
@@ -25,15 +27,6 @@
 // The xdg-open runs followed at once, and the file manager's calls.
 #define MWIN_LINUX_OPENERS 8
 #define MWIN_LINUX_REVEALS 4
-
-// The request an answer goes to, while it waits for one.
-typedef struct mwinServiceAnswer
-{
-    uint32_t slot;
-    uint32_t request;
-    uint32_t generation;
-    bool waiting;
-} mwinServiceAnswer;
 
 // An xdg-open run: 0 for none. It is followed until it ends, after its
 // answer too, so none is left unreaped.
@@ -57,6 +50,7 @@ typedef struct mwinLinuxServices
     mwinLinuxOpener openers[MWIN_LINUX_OPENERS];
     mwinLinuxReveal reveals[MWIN_LINUX_REVEALS];
     mwinLinuxInhibit inhibit;
+    mwinLinuxDialogs dialogs;
 } mwinLinuxServices;
 
 void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context);

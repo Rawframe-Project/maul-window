@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "core.h"
+#include "utf8.h"
 
 #include "maul-unicode/encoding.h"
 
@@ -24,39 +25,6 @@ static void Release(const mwinContext* context, char* text, size_t length)
     {
         mwinRelease(&context->allocator, text, length, 1);
     }
-}
-
-// The length of the text with each maximal ill-formed subpart replaced
-// with U+FFFD, written to out unless it is NULL. It is never shorter.
-static size_t Repair(const char* bytes, size_t length, char* out)
-{
-    static const char replacement[3] = {'\xEF', '\xBF', '\xBD'};
-    size_t written = 0;
-    size_t at = 0;
-    while (at < length)
-    {
-        size_t run = muniValidateUtf8(bytes + at, length - at).offset;
-        if (out != nullptr && run > 0)
-        {
-            memcpy(out + written, bytes + at, run);
-        }
-        written += run;
-        at += run;
-        if (at == length)
-        {
-            break;
-        }
-        uint32_t codePoint = 0;
-        size_t size = 1;
-        (void)muniDecodeUtf8(bytes + at, length - at, &codePoint, &size);
-        if (out != nullptr)
-        {
-            memcpy(out + written, replacement, sizeof(replacement));
-        }
-        written += sizeof(replacement);
-        at += size;
-    }
-    return written;
 }
 
 // Makes room for a read's text of a length, the last one's given back;
@@ -81,7 +49,7 @@ mwinOutcome mwinTakeClipboardText(mwinContext* context, const char* bytes, size_
     {
         return mwin_outcomeTooLarge;
     }
-    size_t needed = Repair(bytes, length, nullptr);
+    size_t needed = mwinRepairUtf8(bytes, length, nullptr);
     if (needed > context->limits.clipboardBytes)
     {
         return mwin_outcomeTooLarge;
@@ -92,7 +60,7 @@ mwinOutcome mwinTakeClipboardText(mwinContext* context, const char* bytes, size_
     {
         return mwin_outcomeFailed;
     }
-    (void)Repair(bytes, length, text);
+    (void)mwinRepairUtf8(bytes, length, text);
     return mwin_outcomeDone;
 }
 

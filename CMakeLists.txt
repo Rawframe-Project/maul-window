@@ -76,6 +76,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/base.c
     src/clipboard.c
     src/context.c
+    src/drop.c
     src/input.c
     src/monitor.c
     src/native.c
@@ -83,6 +84,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/queue.c
     src/system.c
     src/text.c
+    src/utf8.c
     src/window.c)
 if(MAUL_WINDOW_TEST_BACKEND)
     target_sources(maul-window PRIVATE src/backend_test.c)
@@ -129,6 +131,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(ime)
         maul_add_test(properties)
         maul_add_test(clipboard)
+        maul_add_test(drop)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
         endif()

@@ -45,6 +45,8 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.localeBytes = 256;
     def.limits.gamepads = 8;
     def.limits.clipboardBytes = 1u << 20;
+    def.limits.dropBytes = 1u << 20;
+    def.limits.droppedFiles = 256;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -229,6 +231,7 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
 static void DestroyContext(mwinContext* context)
 {
     mwinReleaseClipboard(context);
+    mwinReleaseDrops(context);
     mwinAllocator allocator = context->allocator;
     mwinRelease(&allocator, context, context->memorySize, alignof(max_align_t));
 }

@@ -312,6 +312,33 @@ extern "C"
                                                             char* buffer, size_t capacity,
                                                             size_t* lengthOut);
 
+    /// Drops files and text on a window of the test platform: gathered at
+    /// once, delivered in order with the reports at the next pump. The
+    /// drag's own records are reported with mwinTestPost.
+    ///
+    /// @param context      A context of the test backend.
+    /// @param window       The window.
+    /// @param position     Where, in the window.
+    /// @param files        The paths as the platform gives them, each ended
+    ///                     by a NUL; they need not be UTF-8. May be NULL
+    ///                     when filesLength is 0.
+    /// @param filesLength  Their bytes, NULs included.
+    /// @param text         The text, which need not be UTF-8, or NULL for
+    ///                     none.
+    /// @param textLength   Its bytes.
+    /// @return `mwin_success`; `mwin_errorState` while an earlier drop
+    ///         waits; `mwin_errorCapacity` when 1,024 reports wait;
+    ///         `mwin_errorStale` for a window that no longer exists;
+    ///         `mwin_errorUnsupported` for a context of another backend;
+    ///         `mwin_errorInvalid` for a NULL context, or files that are
+    ///         NULL with a length or not ended by a NUL.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window,
+                                                    mwinPosition position, const char* files,
+                                                    size_t filesLength, const char* text,
+                                                    size_t textLength);
+
 #ifdef __cplusplus
 }
 #endif

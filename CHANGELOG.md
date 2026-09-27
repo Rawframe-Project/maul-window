@@ -120,5 +120,10 @@ format.
   `CF_UNICODETEXT`; the web clipboard, through the Clipboard API; the
   Wayland clipboard, through the seat's data device; the X11
   clipboard, through the CLIPBOARD selection with INCR transfers.
+- Drag and drop (mwin-0011): drag records while something is dragged
+  over a window, drops of files and text with their payload copied out
+  under the drop's number (`mwinGetDroppedFiles`,
+  `mwinGetDroppedText`), the `droppedFiles` and `dropBytes` limits; the
+  test backend's drops and the contract tests.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

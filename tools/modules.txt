@@ -9,9 +9,10 @@ backend_win32: allocator backend core win32 win32_input win32_output win32_pad w
 backend_x11: allocator backend core monotonic x11 x11_api x11_clipboard x11_cursor x11_input x11_output x11_window
 base:
 clicks:
-clipboard: allocator core
+clipboard: allocator core utf8
 context: allocator backend core
 core: backend
+drop: allocator core utf8
 evdev:
 gamepad: core
 input: core
@@ -24,6 +25,7 @@ pad_db:
 queue: core text
 system: core
 text: core
+utf8:
 wayland: clicks core linux_pad monotonic wayland_api xkb_api xkb_keyboard
 wayland_api:
 wayland_clipboard: allocator core monotonic wayland wayland_api

@@ -104,7 +104,12 @@ static int ClassOf(mwinEventType type)
     case mwin_eventCursorMoved:
     case mwin_eventTouchMoved:
     case mwin_eventPenMoved:
+    case mwin_eventDragMoved:
         return mwin_classMotion;
+    case mwin_eventDragEntered:
+    case mwin_eventDragLeft:
+    case mwin_eventDropped:
+        return mwin_classDiscrete;
     case mwin_eventRawPointerDelta:
         return mwin_classRaw;
     case mwin_eventWheel:

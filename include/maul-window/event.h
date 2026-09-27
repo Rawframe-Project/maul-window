@@ -162,6 +162,14 @@ extern "C"
         mwin_eventGamepadButtonUp = 57,
         // A gamepad's axis moved (data.gamepadAxis).
         mwin_eventGamepadAxisMoved = 58,
+        // Something dragged came over the window, moved over it, or left
+        // it without a drop (data.drag).
+        mwin_eventDragEntered = 59,
+        mwin_eventDragMoved = 60,
+        mwin_eventDragLeft = 61,
+        // Something was dropped on the window (data.drop):
+        // mwinGetDroppedFiles and mwinGetDroppedText have it.
+        mwin_eventDropped = 62,
     };
 
     // The kind of a request.
@@ -347,6 +355,36 @@ extern "C"
         uint8_t button;
     } mwinPenEvent;
 
+    // What a drag carries.
+    typedef uint8_t mwinDragContents;
+
+    enum
+    {
+        mwin_dragFiles = 1,
+        mwin_dragText = 2,
+    };
+
+    // A drag over a window.
+    typedef struct mwinDragEvent
+    {
+        mwinPosition position;
+        mwinDragContents contents;
+    } mwinDragEvent;
+
+    // A drop: its files and text wait under its number until the next
+    // drop.
+    typedef struct mwinDropEvent
+    {
+        mwinPosition position;
+        uint32_t drop;
+        // The files and the bytes of text it delivers.
+        uint32_t fileCount;
+        uint32_t textLength;
+        // Files or text were left out: past the droppedFiles or dropBytes
+        // limit, or a path that is not UTF-8.
+        bool truncated;
+    } mwinDropEvent;
+
     // One record of the stream.
     typedef struct mwinEvent
     {
@@ -381,6 +419,8 @@ extern "C"
             mwinGamepadId gamepad;
             mwinGamepadButtonEvent gamepadButton;
             mwinGamepadAxisEvent gamepadAxis;
+            mwinDragEvent drag;
+            mwinDropEvent drop;
         } data;
     } mwinEvent;
 

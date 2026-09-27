@@ -1,0 +1,53 @@
+# mwin-0011. Drag and drop
+
+Status: Accepted
+
+## Context
+
+The requirements (section 9) ask for drops of files and text onto
+windows: one bounded record with validated paths, the text, records
+while something is dragged over a window so an editor can highlight
+where it would land, and no file access granted by the delivery. The
+limits (section 11) name the files a drop delivers and their path
+bytes. Every platform offers the same shape: the drag enters a window,
+moves over it, and leaves or drops, and the dropped data is fetched
+from the platform once, sometimes asynchronously (Wayland, X11).
+
+## Decision
+
+- **Records:** `mwin_eventDragEntered`, `mwin_eventDragMoved` and
+  `mwin_eventDragLeft` carry the position and what the drag holds
+  (`mwin_dragFiles`, `mwin_dragText`); a drop brings
+  `mwin_eventDropped` instead of the leaving. The moves are motion,
+  merged when motion waits, as the cursor's are; the others are
+  discrete input, never merged. Windows take every drag that carries
+  files or text; a program that does not want one ignores it.
+- **The payload** is copied out with `mwinGetDroppedFiles` and
+  `mwinGetDroppedText` under the drop's number from its record, as the
+  clipboard's text is: a drop can be larger than a window's text
+  storage. The files and text of the last drop stay until the next,
+  whose number makes the earlier one stale, so a program that reads a
+  late record learns the payload went rather than getting another
+  drop's.
+- **Paths** come in UTF-8, each ended by a NUL. A path that is not
+  UTF-8, or holds a NUL, names no file the program could open, so it is
+  left out rather than repaired. Text is repaired as the clipboard's
+  (mwin-0010).
+- **Limits:** `droppedFiles` (256) bounds the files and `dropBytes`
+  (1 MiB) the paths and, apart, the text. What passes them is left out
+  whole, never cut, and the record's `truncated` says that anything was
+  left out, so a program can tell the user.
+- **Access:** a path names a file; nothing is granted with it. On the
+  web, where a page never sees paths, files come as their names.
+- **Memory:** the drop being gathered and the last one delivered each
+  hold blocks of their own size from the context's allocator, released
+  at the next drop and at the context's end.
+
+## Consequences
+
+The test backend reports the drag's records through `mwinTestPost` and
+gathers a drop with `mwinTestDrop`, delivered in order with the other
+reports at the next pump; the contract tests cover the records, the
+payload, both limits, stale numbers and a drop on a window that went.
+Each backend's drag and drop follows in its own change; until then no
+backend reports drags.

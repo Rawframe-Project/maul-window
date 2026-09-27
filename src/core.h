@@ -151,6 +151,19 @@ enum
     mwin_padRingAxes = 1,
 };
 
+// A drop's files, each path ended by a NUL, and its text, each in a
+// block of its capacity from the allocator.
+typedef struct mwinDropPayload
+{
+    char* files;
+    uint32_t filesLength;
+    uint32_t filesCapacity;
+    uint32_t fileCount;
+    char* text;
+    uint32_t textLength;
+    bool truncated;
+} mwinDropPayload;
+
 struct mwinContext
 {
     mwinAllocator allocator;
@@ -178,6 +191,11 @@ struct mwinContext
     uint32_t clipboardOfferLength;
     char* clipboardFound;
     uint32_t clipboardFoundLength;
+    // The drop being gathered, and the last one delivered with its
+    // number.
+    mwinDropPayload dropping;
+    mwinDropPayload dropped;
+    uint32_t dropNumber;
     // Lifecycle and surface notifications, which come before all others,
     // and the context's own notifications.
     mwinRing critical;
@@ -282,6 +300,20 @@ mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, 
 
 // Frees the clipboard's text; the context's end calls it.
 void mwinReleaseClipboard(mwinContext* context);
+
+// A drop as the backend gathers it: begun, its files and text added as
+// the platform gives them (paths that are not UTF-8 and what passes the
+// limits left out, text repaired), then delivered to a window with its
+// record, replacing the last drop.
+void mwinBeginDrop(mwinContext* context);
+void mwinAddDroppedFile(mwinContext* context, const char* path, size_t length);
+void mwinAddDroppedFileUtf16(mwinContext* context, const uint16_t* path, size_t length);
+void mwinSetDroppedText(mwinContext* context, const char* bytes, size_t length);
+void mwinSetDroppedTextUtf16(mwinContext* context, const uint16_t* units, size_t length);
+void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, uint64_t timeNs);
+
+// Frees the drops' files and text; the context's end calls it.
+void mwinReleaseDrops(mwinContext* context);
 
 // Frees the slot of an answered request whose completion was drained.
 void mwinReleaseRequest(mwinContext* context, mwinRequestId request);

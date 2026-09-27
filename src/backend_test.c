@@ -63,6 +63,8 @@ typedef struct TestPlatform
     void* clipboard;
     size_t clipboardBytes;
     bool utf16;
+    // A drop gathered in the context waits for its report.
+    bool dropWaiting;
     bool hold;
     uint64_t timeNs;
     float scale;
@@ -371,6 +373,21 @@ static bool IsGlobal(mwinEventType type)
     return IsLifecycle(type) || type == mwin_eventKeyboardLayoutChanged;
 }
 
+// Delivers the gathered drop to its window, or drops it with the window.
+static void Deliver(mwinContext* context, const mwinEvent* report)
+{
+    PlatformOf(context)->dropWaiting = false;
+    if (mwinFindWindow(context, report->window) != nullptr)
+    {
+        mwinFinishDrop(context, report->window.index1 - 1, report->data.drop.position,
+                       report->timeNs);
+    }
+    else
+    {
+        mwinBeginDrop(context);
+    }
+}
+
 static void Pump(mwinContext* context)
 {
     TestPlatform* platform = PlatformOf(context);
@@ -380,6 +397,11 @@ static void Pump(mwinContext* context)
         if (IsGlobal(report->type))
         {
             mwinPostGlobal(context, report);
+        }
+        else if (report->type == mwin_eventDropped)
+        {
+            // Its window may have gone: the drop still ends.
+            Deliver(context, report);
         }
         else if (mwinFindWindow(context, report->window) != nullptr)
         {
@@ -523,7 +545,9 @@ static bool IsReportable(mwinEventType type)
 {
     return type != mwin_eventNone && type != mwin_eventWindowCreated &&
            type != mwin_eventWindowDestroyed && type != mwin_eventRequestCompleted &&
-           type != mwin_eventInputStateReset && type <= mwin_eventImePreedit &&
+           type != mwin_eventInputStateReset &&
+           (type <= mwin_eventImePreedit ||
+            (type >= mwin_eventDragEntered && type <= mwin_eventDragLeft)) &&
            !(type >= mwin_eventMonitorAdded && type <= mwin_eventMonitorChanged) &&
            !(type >= mwin_eventThemeChanged && type <= mwin_eventLocaleChanged);
 }
@@ -897,4 +921,45 @@ mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;
+}
+
+mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
+                        const char* files, size_t filesLength, const char* text, size_t textLength)
+{
+    if (context == nullptr || (files == nullptr && filesLength != 0) ||
+        (filesLength > 0 && files[filesLength - 1] != '\0'))
+    {
+        return mwin_errorInvalid;
+    }
+    TestPlatform* platform = PlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    if (mwinFindWindow(context, window) == nullptr)
+    {
+        return mwin_errorStale;
+    }
+    if (platform->dropWaiting)
+    {
+        return mwin_errorState;
+    }
+    mwinEvent report = {.type = mwin_eventDropped, .window = window, .timeNs = Now(context)};
+    report.data.drop.position = position;
+    mwinResult status = QueueReport(platform, &report);
+    if (status != mwin_success)
+    {
+        return status;
+    }
+    mwinBeginDrop(context);
+    for (size_t at = 0; at < filesLength; at += strlen(files + at) + 1)
+    {
+        mwinAddDroppedFile(context, files + at, strlen(files + at));
+    }
+    if (text != nullptr)
+    {
+        mwinSetDroppedText(context, text, textLength);
+    }
+    platform->dropWaiting = true;
+    return mwin_success;
 }

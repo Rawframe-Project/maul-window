@@ -79,6 +79,19 @@ in their own changes.
   worth at a time; dropped events are answered by reading the whole
   state again. Rumble is `FF_RUMBLE` force feedback, where the device
   has it and its node opens for writing.
+- **Win32:** gamepads are XInput's four players, through the newest
+  XInput DLL the system has, loaded when the context starts; without
+  one there are no gamepads. A connected player is read at each pump
+  and its controls posted only when XInput's packet number moves; the
+  free players are asked about every half second, since asking about
+  an empty one is slow. XInput pads are mapped by their fixed layout,
+  with no guide button (XInput does not report it) and no vendor or
+  product; a wireless pad's battery comes in XInput's four levels.
+  Rumble drives the heavy motor from the low frequency and the light
+  one from the high, and the backend stops it when its duration runs
+  out, as XInput keeps a motor running until told otherwise. Other HID
+  gamepads (through Raw Input and the database's Windows entries) are
+  later work.
 
 ## Consequences
 
@@ -86,4 +99,6 @@ The test backend connects gamepads, presses their buttons, moves their
 axes and records their rumble, and the contract tests run against it.
 A gamepad driver belongs to a platform rather than a window system, so
 Wayland and X11 share Linux's, tested with virtual devices made through
-uinput (CI lets its test user make them). Win32 and the web follow.
+uinput (CI lets its test user make them). Win32's driver is tested
+against a stand-in for XInput, as no virtual XInput device can be made;
+the web follows.

@@ -108,6 +108,7 @@ format.
   backend's gamepads and the contract tests. Linux gamepads through
   evdev for the Wayland and X11 backends, mapped by SDL_GameControllerDB
   (compiled into tables) or the kernel's gamepad layout, with rumble
-  through force feedback.
+  through force feedback. Win32 gamepads through XInput, with rumble
+  stopped when its duration runs out.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

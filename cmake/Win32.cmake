@@ -11,6 +11,10 @@ set(MWIN_WIN32_SOURCES
     src/win32_pointer.c
     src/win32_system.c
     src/win32_window.c)
+# XInput is loaded at run time: the gamepads need no library to link.
+if(MAUL_WINDOW_GAMEPAD)
+    list(APPEND MWIN_WIN32_SOURCES src/win32_pad.c)
+endif()
 target_sources(maul-window PRIVATE ${MWIN_WIN32_SOURCES})
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WIN32)
 # Windows 10 1703 or later, for per-monitor DPI awareness version 2.

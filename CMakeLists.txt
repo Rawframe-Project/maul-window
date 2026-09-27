@@ -184,6 +184,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(win32_pointer)
         target_link_libraries(test_win32_pointer PRIVATE user32)
         set_tests_properties(win32_pointer PROPERTIES SKIP_RETURN_CODE 77)
+        if(MAUL_WINDOW_GAMEPAD AND MAUL_WINDOW_TEST_BACKEND)
+            # The XInput gamepads against a stand-in for XInput.
+            maul_add_test(win32_gamepad WHITEBOX)
+        endif()
         # Composes through the input context: skipped with no input method.
         maul_add_test(win32_ime)
         target_link_libraries(test_win32_ime PRIVATE user32 imm32)

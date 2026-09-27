@@ -11,6 +11,7 @@
 
 #include "clicks.h"
 #include "core.h"
+#include "win32_pad.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -100,6 +101,8 @@ struct mwinWin32Platform
     bool inSizeMove;
     // The mouse's raw input goes to the window with focus.
     bool rawInput;
+    // The gamepads, with the gamepad component.
+    mwinWin32Pads pads;
 };
 
 // The pointer a message parameter or window long carries. Win32 passes

@@ -71,6 +71,9 @@ static void Stop(mwinContext* context)
     {
         UnregisterClassW(MWIN_WIN32_CLASS, platform->instance);
     }
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinWin32PadsStop(&platform->pads);
+#endif
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
 }
@@ -118,18 +121,25 @@ static mwinResult Start(mwinContext* context)
     }
     mwinWin32RefreshMonitors(platform);
     mwinWin32ReadSystem(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinWin32PadsStart(&platform->pads, context);
+#endif
     return mwin_success;
 }
 
 static void Pump(mwinContext* context)
 {
-    (void)context;
     MSG message;
     while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinWin32PadsPump(&PlatformOf(context)->pads, mwinWin32Now());
+#else
+    (void)context;
+#endif
 }
 
 static mwinResult Run(mwinContext* context)
@@ -164,16 +174,20 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.win32.hinstance = platform->instance;
 }
 
-// No gamepad of this backend's has motors yet.
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    return mwinWin32PadsRumble(&PlatformOf(context)->pads, slot, low, high, durationMs,
+                               mwinWin32Now());
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinWin32Backend = {

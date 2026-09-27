@@ -131,24 +131,42 @@ static void Lay(mwinContext* context, unsigned char* storage)
     }
 }
 
-static const mwinBackendOps* FindBackend(mwinBackendKind kind)
+#if defined(MAUL_WINDOW_WAYLAND) || defined(MAUL_WINDOW_X11)
+// Whether an environment variable names something.
+static bool IsSet(const char* name)
 {
+    const char* value = getenv(name);
+    return value != nullptr && value[0] != '\0';
+}
+#endif
+
+// The backends to try for a kind, in order: for the native one, Wayland
+// where a Wayland session names its display, then X11 where DISPLAY
+// names one (W7). Returns their count.
+static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
+{
+    int count = 0;
 #ifdef MAUL_WINDOW_TEST_BACKEND
     if (kind == mwin_backendTest)
     {
-        return &mwinTestBackend;
+        backends[count++] = &mwinTestBackend;
     }
 #endif
 #ifdef MAUL_WINDOW_WAYLAND
-    // A Wayland session names its display.
-    const char* display = getenv("WAYLAND_DISPLAY");
-    if (kind == mwin_backendNative && display != nullptr && display[0] != '\0')
+    if (kind == mwin_backendNative && IsSet("WAYLAND_DISPLAY"))
     {
-        return &mwinWaylandBackend;
+        backends[count++] = &mwinWaylandBackend;
+    }
+#endif
+#ifdef MAUL_WINDOW_X11
+    if (kind == mwin_backendNative && IsSet("DISPLAY"))
+    {
+        backends[count++] = &mwinX11Backend;
     }
 #endif
     (void)kind;
-    return nullptr;
+    (void)backends;
+    return count;
 }
 
 static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
@@ -196,25 +214,34 @@ mwinResult mwinRun(const mwinAppDef* def)
     {
         return mwin_errorInvalid;
     }
-    const mwinBackendOps* backend = FindBackend(def->context.backend);
-    if (backend == nullptr)
+    const mwinBackendOps* backends[2] = {nullptr, nullptr};
+    int count = FindBackends(def->context.backend, backends);
+    mwinResult status = mwin_errorUnsupported;
+    // A backend that cannot reach its window system gives way to the
+    // next, with a fresh context.
+    for (int i = 0; i < count; i++)
     {
-        return mwin_errorUnsupported;
+        mwinContext* context = nullptr;
+        status = CreateContext(def, &context);
+        if (status != mwin_success)
+        {
+            return status;
+        }
+        context->backend = backends[i];
+        status = backends[i]->start(context);
+        if (status == mwin_success)
+        {
+            status = backends[i]->run(context);
+            backends[i]->stop(context);
+            DestroyContext(context);
+            return status;
+        }
+        DestroyContext(context);
+        if (status != mwin_errorUnsupported && status != mwin_errorPlatform)
+        {
+            return status;
+        }
     }
-    mwinContext* context = nullptr;
-    mwinResult status = CreateContext(def, &context);
-    if (status != mwin_success)
-    {
-        return status;
-    }
-    context->backend = backend;
-    status = backend->start(context);
-    if (status == mwin_success)
-    {
-        status = backend->run(context);
-        backend->stop(context);
-    }
-    DestroyContext(context);
     return status;
 }
 

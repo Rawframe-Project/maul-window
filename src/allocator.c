@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The one place a zeroed allocator reaches the C library.
+// The one place a zeroed allocator, or memory a system library handed
+// over, reaches the C library.
 
 #include "allocator.h"
 
@@ -33,5 +34,10 @@ void mwinRelease(const mwinAllocator* allocator, void* memory, size_t size, size
         allocator->free(memory, size, alignment, allocator->context);
         return;
     }
+    free(memory);
+}
+
+void mwinReleaseSystemMemory(void* memory)
+{
     free(memory);
 }

@@ -21,4 +21,9 @@ void* mwinAllocate(const mwinAllocator* allocator, size_t size, size_t alignment
 // Returns memory mwinAllocate gave, with the same size and alignment.
 void mwinRelease(const mwinAllocator* allocator, void* memory, size_t size, size_t alignment);
 
+// Frees memory a system library allocated with the C library's malloc
+// and hands over to its caller, as XCB does with its replies. NULL is
+// nothing.
+void mwinReleaseSystemMemory(void* memory);
+
 #endif // MAUL_WINDOW_SRC_ALLOCATOR_H

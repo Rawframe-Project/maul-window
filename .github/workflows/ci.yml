@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 clang-tidy-20 ninja-build libwayland-dev wayland-protocols \
-            libxkbcommon-dev
+            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev
           pip install clang-format==22.1.5 >/dev/null
       - name: clang-format
         run: |
@@ -65,16 +65,19 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-14 g++-14 clang-20 ninja-build libwayland-dev \
-            wayland-protocols libxkbcommon-dev xkb-data libx11-data weston
+            wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
+            libxcb-randr0-dev xvfb
       - name: Configure
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -D${PREFIX}_WERROR=ON \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} ${{ matrix.extra }}
       - name: Build
         run: cmake --build build -j 4
-      - name: Start a headless compositor
+      - name: Start a headless compositor and X server
         if: runner.os == 'Linux'
         run: |
+          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
           mkdir -m 700 -p /tmp/xdg-runtime
           echo "XDG_RUNTIME_DIR=/tmp/xdg-runtime" >> "$GITHUB_ENV"
           echo "WAYLAND_DISPLAY=wayland-ci" >> "$GITHUB_ENV"

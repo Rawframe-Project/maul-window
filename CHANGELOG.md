@@ -66,3 +66,8 @@ format.
   through text-input-v3; and a frame of its own where the compositor
   draws none (W4): a caption that moves the window, with close,
   maximize and minimize buttons, and resize margins.
+- The X11 backend (`MAUL_WINDOW_X11`, on by default on Linux), the
+  native backend where `DISPLAY` is set and Wayland is not reachable:
+  XCB opened at run time, windows with their ICCCM and EWMH
+  properties, the scale from `Xft.dpi`, modes through the window
+  manager, and monitors from RandR (mwin-0006). Input follows.

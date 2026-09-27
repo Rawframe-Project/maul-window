@@ -10,3 +10,4 @@ are listed in [README.md](README.md).
 | [mwin-0003](mwin-0003-maul-unicode-dependency.md) | Maul Unicode as a dependency | Accepted |
 | [mwin-0004](mwin-0004-input-records.md) | Input records, their storage and their limits | Accepted |
 | [mwin-0005](mwin-0005-wayland-backend.md) | The Wayland backend | Accepted |
+| [mwin-0006](mwin-0006-x11-backend.md) | The X11 backend | Accepted |

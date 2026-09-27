@@ -340,8 +340,20 @@ static void AdvanceKeys(Program* program, mwinContext* context)
     }
 }
 
+// What a phase brought, for a failure's report.
+static void Dump(const Program* program)
+{
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* event = &program->records[i];
+        (void)printf("  phase %d: type %d, key %u, %s\n", (int)program->phase, (int)event->type,
+                     (unsigned)event->data.key.code, event->data.key.repeat ? "repeat" : "");
+    }
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
+    int failures = s_failures;
     if (program->phase == phaseCreate)
     {
         mwinNativeHandles handles;
@@ -361,6 +373,10 @@ static void Advance(Program* program, mwinContext* context)
     {
         AdvancePointer(program);
         AdvanceCursor(program, context);
+    }
+    if (s_failures != failures)
+    {
+        Dump(program);
     }
     program->phase += 1;
     program->count = 0;

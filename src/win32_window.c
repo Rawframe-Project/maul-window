@@ -5,6 +5,7 @@
 
 #include "win32_window.h"
 
+#include "win32_ime.h"
 #include "win32_input.h"
 #include "win32_output.h"
 #include "win32_pointer.h"
@@ -298,7 +299,8 @@ LRESULT CALLBACK mwinWin32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     if (HandleSizeMove(window, message, wParam) ||
         HandleWindowMessage(window, message, wParam, lParam, &result) ||
         mwinWin32HandleInput(window, message, wParam, lParam, &result) ||
-        mwinWin32HandlePointer(window, message, wParam))
+        mwinWin32HandlePointer(window, message, wParam) ||
+        mwinWin32HandleIme(window, message, wParam, lParam, &result))
     {
         return result;
     }
@@ -366,6 +368,7 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     SetWindowPos(hwnd, nullptr, 0, 0, frame.cx, frame.cy,
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window->hwnd = hwnd;
+    mwinWin32StartIme(window);
     Establish(window);
     if ((core->def.style & mwin_styleAlwaysOnTop) != 0)
     {
@@ -564,9 +567,8 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
     case mwin_requestCursorShape:
         return mwinWin32SetCursorShape(window, request->value.code);
     case mwin_requestTextInput:
-        // Keys type text whether asked or not; the input method is not
-        // steered yet.
-        return mwin_outcomeDone;
+        return mwinWin32SetTextInput(window, request->value.textInput.enabled,
+                                     request->value.textInput.caret);
     default:
         return mwin_outcomeUnsupported;
     }

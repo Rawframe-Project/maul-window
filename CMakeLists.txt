@@ -145,8 +145,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(win32_pointer)
         target_link_libraries(test_win32_pointer PRIVATE user32)
         set_tests_properties(win32_pointer PROPERTIES SKIP_RETURN_CODE 77)
+        # Composes through the input context: skipped with no input method.
+        maul_add_test(win32_ime)
+        target_link_libraries(test_win32_ime PRIVATE user32 imm32)
+        set_tests_properties(win32_ime PROPERTIES SKIP_RETURN_CODE 77)
         # One desktop: the focus and the pointer are not shared.
-        set_tests_properties(win32 win32_input win32_pointer PROPERTIES RESOURCE_LOCK desktop)
+        set_tests_properties(win32 win32_input win32_pointer win32_ime
+                             PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
 endif()

@@ -62,6 +62,8 @@ typedef struct mwinWin32Window
     WCHAR highSurrogate;
     // The pen's flags at its last record.
     mwinPenFlags penFlags;
+    // Where the program's caret is, for the input method's windows.
+    mwinRect caret;
     // The touches down on the window, by pointer id; 0 for none.
     UINT32 touches[MWIN_WIN32_TOUCHES];
 } mwinWin32Window;
@@ -81,6 +83,11 @@ struct mwinWin32Platform
     ATOM windowClass;
     // A UTF-16 copy of a title with its terminator: titleBytes + 1 units.
     WCHAR* title;
+    // An input method's string as read, its attributes and as UTF-8:
+    // textBytesPerWindow of each.
+    WCHAR* imeUnits;
+    BYTE* imeAttributes;
+    char* imeBytes;
     // One per window slot, and one per monitor slot.
     mwinWin32Window* windows;
     mwinWin32Output* outputs;

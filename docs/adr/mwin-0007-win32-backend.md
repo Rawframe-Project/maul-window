@@ -70,6 +70,15 @@ runs a loop of Windows' own inside the message dispatch.
   cancelled. A pen's pressure and tilt come when the pen measures
   them; without a pressure it presses fully or not at all. The eraser
   end and the eraser button both count as the eraser.
+- **Input methods** go through imm32. A window has no input context
+  until it accepts text, so an input method never takes a game's keys;
+  accepting text gives it the default context back, and stopping
+  cancels a composition and ends it. Windows' composition window is
+  hidden and the composition comes as a preedit: its clauses from the
+  attribute of each UTF-16 unit, the target clauses as the selection,
+  its caret from the cursor position, all offsets in UTF-8 bytes. The
+  result comes as text from the composition, not from `WM_IME_CHAR`.
+  The candidate window opens below the caret, kept clear of it.
 
 ## Consequences
 
@@ -77,5 +86,6 @@ The backend builds with clang-cl in CI and with clang for mingw, and
 its tests run on the Windows runner's desktop and under wine, input
 driven through `SendInput`, touch injection and a synthetic pen; wine
 injects neither, so touch and pen are tested on the runner only.
-Input methods, system facts and the dark title bar follow in their own
-changes.
+Input methods are tested under wine, whose input method composes what
+the test sets; an English runner has none and skips that test. System
+facts and the dark title bar follow in their own changes.

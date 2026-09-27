@@ -25,7 +25,8 @@ static size_t PlatformBytes(const mwinContext* context)
 {
     const mwinLimits* limits = &context->limits;
     return sizeof(mwinWin32Platform) + limits->windows * sizeof(mwinWin32Window) +
-           limits->monitors * sizeof(mwinWin32Output) + (limits->titleBytes + 1) * sizeof(WCHAR);
+           limits->monitors * sizeof(mwinWin32Output) + (limits->titleBytes + 1) * sizeof(WCHAR) +
+           limits->textBytesPerWindow * (sizeof(WCHAR) + sizeof(BYTE) + sizeof(char));
 }
 
 // Makes the process per-monitor DPI aware, unless it chose an awareness
@@ -89,6 +90,12 @@ static mwinResult Start(mwinContext* context)
     platform->outputs = (mwinWin32Output*)storage;
     storage += limits->monitors * sizeof(mwinWin32Output);
     platform->title = (WCHAR*)storage;
+    storage += (limits->titleBytes + 1) * sizeof(WCHAR);
+    platform->imeUnits = (WCHAR*)storage;
+    storage += limits->textBytesPerWindow * sizeof(WCHAR);
+    platform->imeAttributes = storage;
+    storage += limits->textBytesPerWindow * sizeof(BYTE);
+    platform->imeBytes = (char*)storage;
     for (uint32_t i = 0; i < limits->monitors; i++)
     {
         platform->outputs[i].monitor = -1;

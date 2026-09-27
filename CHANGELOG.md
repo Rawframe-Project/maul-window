@@ -83,4 +83,5 @@ format.
   layout and text from `WM_CHAR`, the mouse with Windows' double-click
   time and distance, the wheels, cursor shapes, hidden and confined
   cursors, and captured cursors with raw input; touch and pen from the
-  WM_POINTER messages, with pressure, tilt and the barrel button.
+  WM_POINTER messages, with pressure, tilt and the barrel button; input
+  methods through imm32, compositions with their clauses and caret.

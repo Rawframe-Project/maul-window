@@ -25,7 +25,7 @@ drains; no library thread runs, and no callback delivers an event.
 Not released. The contract and a headless test backend are in place;
 the Wayland and X11 backends are complete for it, and the Win32
 backend has windows, monitors, the keyboard, the mouse, cursors,
-touch and pen, input methods following. Backends are planned for Win32, Wayland, X11 and the
+touch, pen and input methods. Backends are planned for Win32, Wayland, X11 and the
 web first, then Android, macOS and iOS.
 
 ## Building

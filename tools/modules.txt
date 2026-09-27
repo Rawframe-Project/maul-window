@@ -29,10 +29,11 @@ wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_keyboard wayland_output wayland_pointer wayland_text
 win32: clicks core
+win32_ime: core win32
 win32_input: core win32
 win32_output: core win32
 win32_pointer: core win32
-win32_window: core win32 win32_input win32_output win32_pointer
+win32_window: core win32 win32_ime win32_input win32_output win32_pointer
 window: core
 x11: clicks core monotonic x11_api xkb_api xkb_keyboard
 x11_api:

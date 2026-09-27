@@ -193,6 +193,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_drop PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_drop PROPERTIES SKIP_RETURN_CODE 77)
+        # Owned windows and popups read back by the test's own connection.
+        maul_add_test(x11_owned POSIX)
+        target_compile_definitions(test_x11_owned PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_owned PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # The tests that move the X server's focus take turns.
+        set_tests_properties(x11 x11_input x11_clipboard x11_icon x11_drop x11_owned
+                             PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK x11-focus)
     endif()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         # Stand-ins for zenity and kdialog on PATH.

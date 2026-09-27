@@ -62,6 +62,10 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "XdndTypeList",
     "XdndActionCopy",
     "text/uri-list",
+    "_NET_WM_WINDOW_TYPE",
+    "_NET_WM_WINDOW_TYPE_DIALOG",
+    "_NET_WM_WINDOW_TYPE_POPUP_MENU",
+    "_NET_WM_WINDOW_TYPE_TOOLTIP",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)

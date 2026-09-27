@@ -56,6 +56,10 @@ enum
     mwin_atomXdndTypeList,
     mwin_atomXdndActionCopy,
     mwin_atomUriList,
+    mwin_atomNetWmWindowType,
+    mwin_atomNetWmWindowTypeDialog,
+    mwin_atomNetWmWindowTypePopupMenu,
+    mwin_atomNetWmWindowTypeTooltip,
     MWIN_X11_ATOMS,
 };
 
@@ -90,6 +94,9 @@ typedef struct mwinX11Window
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
     bool confined;
+    // A popup's place from its owner's corner, in pixels.
+    int32_t offsetX;
+    int32_t offsetY;
 } mwinX11Window;
 
 // The core keyboard through XKB: the device, XKB's event code, and the

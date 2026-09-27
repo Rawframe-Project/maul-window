@@ -184,6 +184,37 @@ static uint32_t StateAtoms(const mwinX11Platform* platform, mwinWindowMode mode,
     return count;
 }
 
+static bool IsPopup(const mwinX11Platform* platform, uint32_t slot)
+{
+    return platform->context->windows[slot].def.kind != mwin_windowNormal;
+}
+
+// The window's owner, or nullptr: live while the window is.
+static const mwinX11Window* OwnerOf(const mwinX11Platform* platform, uint32_t slot)
+{
+    mwinWindowId owner = platform->context->windows[slot].def.owner;
+    return owner.index1 != 0 ? &platform->windows[owner.index1 - 1] : nullptr;
+}
+
+// An owned window is transient for its owner's, a dialog of it or a
+// popup of its kind.
+static void SetOwnership(const mwinX11Platform* platform, const mwinWindow* core,
+                         const mwinX11Window* window)
+{
+    const mwinX11Window* owner = OwnerOf(platform, window->slot);
+    if (owner == nullptr)
+    {
+        return;
+    }
+    SetProperty(platform, window->window, XCB_ATOM_WM_TRANSIENT_FOR, XCB_ATOM_WINDOW, 32, 1,
+                &owner->window);
+    static const int types[] = {mwin_atomNetWmWindowTypeDialog, mwin_atomNetWmWindowTypePopupMenu,
+                                mwin_atomNetWmWindowTypeTooltip};
+    xcb_atom_t type = platform->atoms[types[core->def.kind]];
+    SetProperty(platform, window->window, platform->atoms[mwin_atomNetWmWindowType], XCB_ATOM_ATOM,
+                32, 1, &type);
+}
+
 // Sets what a window manager reads before it maps a window.
 static void SetInitialProperties(const mwinX11Platform* platform, const mwinWindow* core,
                                  const mwinX11Window* window)
@@ -197,6 +228,7 @@ static void SetInitialProperties(const mwinX11Platform* platform, const mwinWind
     SetProperty(platform, window->window, platform->atoms[mwin_atomXdndAware], XCB_ATOM_ATOM, 32, 1,
                 &xdnd);
     SetTitle(platform, window->window, core->title, core->titleLength);
+    SetOwnership(platform, core, window);
     SetNormalHints(platform, window, core->def.style);
     if ((core->def.style & mwin_styleDecorated) == 0)
     {
@@ -226,6 +258,24 @@ static void Establish(mwinX11Platform* platform, mwinX11Window* window)
     mwinEvent mode = {.type = mwin_eventModeChanged};
     mode.data.mode = mwin_modeWindowed;
     Post(platform, window->slot, mode);
+    if (IsPopup(platform, window->slot))
+    {
+        // A popup is where it was put against its owner.
+        mwinEvent moved = {.type = mwin_eventMoved};
+        moved.data.position = context->windows[window->slot].def.position;
+        Post(platform, window->slot, moved);
+    }
+}
+
+// Places a popup against its owner's corner, in pixels, without the
+// window manager: it is override-redirect.
+static void PlacePopup(mwinX11Platform* platform, mwinX11Window* window, mwinPosition position)
+{
+    const mwinX11Window* owner = OwnerOf(platform, window->slot);
+    window->offsetX = (int32_t)lroundf(position.x * platform->scale);
+    window->offsetY = (int32_t)lroundf(position.y * platform->scale);
+    window->x = owner->x + window->offsetX;
+    window->y = owner->y + window->offsetY;
 }
 
 void mwinX11CreateWindow(mwinContext* context, uint32_t slot)
@@ -238,7 +288,12 @@ void mwinX11CreateWindow(mwinContext* context, uint32_t slot)
     window->width = ToPixels(platform, core->def.size.width);
     window->height = ToPixels(platform, core->def.size.height);
     window->window = api->generateId(platform->connection);
-    const uint32_t values[3] = {platform->screen->black_pixel, 0,
+    bool popup = IsPopup(platform, slot);
+    if (popup)
+    {
+        PlacePopup(platform, window, core->def.position);
+    }
+    const uint32_t values[4] = {platform->screen->black_pixel, 0, popup,
                                 XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY |
                                     XCB_EVENT_MASK_FOCUS_CHANGE | XCB_EVENT_MASK_PROPERTY_CHANGE |
                                     XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
@@ -247,11 +302,13 @@ void mwinX11CreateWindow(mwinContext* context, uint32_t slot)
                                     XCB_EVENT_MASK_LEAVE_WINDOW};
     xcb_generic_error_t* error = api->requestCheck(
         platform->connection,
-        api->createWindowChecked(
-            platform->connection, XCB_COPY_FROM_PARENT, window->window, platform->screen->root, 0,
-            0, (uint16_t)window->width, (uint16_t)window->height, 0, XCB_WINDOW_CLASS_INPUT_OUTPUT,
-            platform->screen->root_visual,
-            XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK, values));
+        api->createWindowChecked(platform->connection, XCB_COPY_FROM_PARENT, window->window,
+                                 platform->screen->root, (int16_t)window->x, (int16_t)window->y,
+                                 (uint16_t)window->width, (uint16_t)window->height, 0,
+                                 XCB_WINDOW_CLASS_INPUT_OUTPUT, platform->screen->root_visual,
+                                 XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL |
+                                     XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK,
+                                 values));
     int32_t request =
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
     if (error != nullptr)
@@ -319,10 +376,11 @@ static void Configure(const mwinX11Platform* platform, const mwinX11Window* wind
     platform->api.configureWindow(platform->connection, window->window, mask, values);
 }
 
-// Focus through the window manager, or directly without one.
+// Focus through the window manager, or directly without one or for a
+// popup, which the window manager does not see.
 static void Focus(const mwinX11Platform* platform, const mwinX11Window* window)
 {
-    if (platform->windowManager)
+    if (platform->windowManager && !IsPopup(platform, window->slot))
     {
         const uint32_t data[5] = {1, XCB_CURRENT_TIME, 0, 0, 0};
         SendToRoot(platform, window->window, platform->atoms[mwin_atomNetActiveWindow], data);
@@ -362,6 +420,17 @@ static int CarryOutGeometry(mwinX11Platform* platform, mwinX11Window* window,
         const uint32_t size[2] = {ToPixels(platform, request->value.size.width),
                                   ToPixels(platform, request->value.size.height)};
         Configure(platform, window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, size);
+        return mwin_outcomeDone;
+    }
+    if (request->kind == mwin_requestPosition && IsPopup(platform, window->slot))
+    {
+        PlacePopup(platform, window, request->value.position);
+        const uint32_t place[2] = {(uint32_t)window->x, (uint32_t)window->y};
+        Configure(platform, window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, place);
+        // Its own configure event then finds it where it was put.
+        mwinEvent moved = {.type = mwin_eventMoved};
+        moved.data.position = request->value.position;
+        Post(platform, window->slot, moved);
         return mwin_outcomeDone;
     }
     if (request->kind == mwin_requestPosition)
@@ -416,6 +485,10 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
                                                                      window->window);
         return mwin_outcomeDone;
     case mwin_requestFocus:
+        if (core->def.kind == mwin_windowTooltip)
+        {
+            return mwin_outcomeDenied;
+        }
         Focus(platform, window);
         return mwin_outcomeDone;
     case mwin_requestStyle:
@@ -490,6 +563,42 @@ static void Locate(const mwinX11Platform* platform, mwinX11Window* window,
     }
 }
 
+// The popups of a window that moved keep their places against it.
+static void MovePopups(const mwinX11Platform* platform, const mwinX11Window* window)
+{
+    const mwinContext* context = platform->context;
+    mwinWindowId id = mwinWindowIdOf(context, window->slot);
+    for (uint32_t slot = 0; slot < context->limits.windows; slot++)
+    {
+        const mwinX11Window* popup = &platform->windows[slot];
+        mwinWindowId owner = context->windows[slot].def.owner;
+        if (popup->window != 0 && IsPopup(platform, slot) && owner.index1 == id.index1 &&
+            owner.generation == id.generation)
+        {
+            const uint32_t place[2] = {(uint32_t)(window->x + popup->offsetX),
+                                       (uint32_t)(window->y + popup->offsetY)};
+            Configure(platform, popup, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, place);
+        }
+    }
+}
+
+// A popup's place against its owner, reported when it changed.
+static void PostOffset(mwinX11Platform* platform, mwinX11Window* window)
+{
+    const mwinX11Window* owner = OwnerOf(platform, window->slot);
+    int32_t x = window->x - owner->x;
+    int32_t y = window->y - owner->y;
+    if (x == window->offsetX && y == window->offsetY)
+    {
+        return;
+    }
+    window->offsetX = x;
+    window->offsetY = y;
+    mwinEvent moved = {.type = mwin_eventMoved};
+    moved.data.position = (mwinPosition){(float)x / platform->scale, (float)y / platform->scale};
+    Post(platform, window->slot, moved);
+}
+
 static void OnConfigure(mwinX11Platform* platform, const xcb_configure_notify_event_t* event)
 {
     int32_t slot = mwinX11SlotOf(platform, event->window);
@@ -507,8 +616,13 @@ static void OnConfigure(mwinX11Platform* platform, const xcb_configure_notify_ev
         window->height = event->height;
         PostSize(platform, window);
     }
-    if (window->x != x || window->y != y)
+    if ((window->x != x || window->y != y) && IsPopup(platform, window->slot))
     {
+        PostOffset(platform, window);
+    }
+    else if (window->x != x || window->y != y)
+    {
+        MovePopups(platform, window);
         mwinEvent moved = {.type = mwin_eventMoved};
         moved.data.position =
             (mwinPosition){(float)window->x / platform->scale, (float)window->y / platform->scale};
@@ -608,6 +722,23 @@ static void OnFocus(mwinX11Platform* platform, const xcb_focus_in_event_t* event
     }
     PostType(platform, (uint32_t)slot, gained ? mwin_eventFocusGained : mwin_eventFocusLost);
     mwinX11CursorFocus(platform, (uint32_t)slot, gained);
+    if (!gained && platform->context->windows[slot].def.kind == mwin_windowMenu)
+    {
+        // A menu is dismissed when the keyboard goes elsewhere.
+        PostType(platform, (uint32_t)slot, mwin_eventCloseRequested);
+    }
+}
+
+// A menu takes the keyboard once it is mapped; the window manager does
+// not give it.
+static void OnMap(mwinX11Platform* platform, uint32_t slot, bool shown)
+{
+    PostType(platform, slot, shown ? mwin_eventShown : mwin_eventHidden);
+    if (shown && platform->context->windows[slot].def.kind == mwin_windowMenu)
+    {
+        platform->api.setInputFocus(platform->connection, XCB_INPUT_FOCUS_PARENT,
+                                    platform->windows[slot].window, XCB_CURRENT_TIME);
+    }
 }
 
 bool mwinX11HandleWindowEvent(mwinX11Platform* platform, const xcb_generic_event_t* event)
@@ -624,8 +755,7 @@ bool mwinX11HandleWindowEvent(mwinX11Platform* platform, const xcb_generic_event
         int32_t slot = mwinX11SlotOf(platform, map->window);
         if (slot >= 0)
         {
-            bool shown = (event->response_type & 0x7F) == XCB_MAP_NOTIFY;
-            PostType(platform, (uint32_t)slot, shown ? mwin_eventShown : mwin_eventHidden);
+            OnMap(platform, (uint32_t)slot, (event->response_type & 0x7F) == XCB_MAP_NOTIFY);
         }
         return true;
     }

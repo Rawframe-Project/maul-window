@@ -5,6 +5,7 @@ set(MWIN_WIN32_SOURCES
     src/backend_win32.c
     src/win32_input.c
     src/win32_output.c
+    src/win32_pointer.c
     src/win32_window.c)
 target_sources(maul-window PRIVATE ${MWIN_WIN32_SOURCES})
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WIN32)

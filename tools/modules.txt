@@ -31,7 +31,8 @@ wayland_window: core wayland wayland_api wayland_cursor wayland_frame wayland_ke
 win32: clicks core
 win32_input: core win32
 win32_output: core win32
-win32_window: core win32 win32_input win32_output
+win32_pointer: core win32
+win32_window: core win32 win32_input win32_output win32_pointer
 window: core
 x11: clicks core monotonic x11_api xkb_api xkb_keyboard
 x11_api:

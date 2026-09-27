@@ -7,6 +7,7 @@
 
 #include "win32_input.h"
 #include "win32_output.h"
+#include "win32_pointer.h"
 
 #include "maul-unicode/encoding.h"
 
@@ -296,7 +297,8 @@ LRESULT CALLBACK mwinWin32WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     }
     if (HandleSizeMove(window, message, wParam) ||
         HandleWindowMessage(window, message, wParam, lParam, &result) ||
-        mwinWin32HandleInput(window, message, wParam, lParam, &result))
+        mwinWin32HandleInput(window, message, wParam, lParam, &result) ||
+        mwinWin32HandlePointer(window, message, wParam))
     {
         return result;
     }

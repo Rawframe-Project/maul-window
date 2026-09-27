@@ -23,6 +23,9 @@
 
 typedef struct mwinWin32Platform mwinWin32Platform;
 
+// The touches followed at once on a window; more are left out.
+#define MWIN_WIN32_TOUCHES 10
+
 // A window, and what the program asked of it that Win32 keeps nowhere.
 typedef struct mwinWin32Window
 {
@@ -57,6 +60,10 @@ typedef struct mwinWin32Window
     mwinClickCounter clicks;
     // The first half of a character outside the BMP, 0 for none.
     WCHAR highSurrogate;
+    // The pen's flags at its last record.
+    mwinPenFlags penFlags;
+    // The touches down on the window, by pointer id; 0 for none.
+    UINT32 touches[MWIN_WIN32_TOUCHES];
 } mwinWin32Window;
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.

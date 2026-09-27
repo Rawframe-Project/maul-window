@@ -61,10 +61,21 @@ runs a loop of Windows' own inside the message dispatch.
   captured one is hidden and clipped to a point in the middle, and the
   mouse's raw input, registered on the first capture, brings its
   motion before acceleration.
+- **Touch and pen** come from the `WM_POINTER` messages; the mouse
+  keeps its own, as the pointer messages would change what every
+  mouse program sees. The touch and pen messages never reach
+  `DefWindowProc`, so Windows makes no mouse input of them. Up to ten
+  touches are followed on a window by their pointer ids; one that
+  Windows takes while down, by a cancelled lift or a lost capture, is
+  cancelled. A pen's pressure and tilt come when the pen measures
+  them; without a pressure it presses fully or not at all. The eraser
+  end and the eraser button both count as the eraser.
 
 ## Consequences
 
 The backend builds with clang-cl in CI and with clang for mingw, and
 its tests run on the Windows runner's desktop and under wine, input
-driven through `SendInput`. Touch and pen, input methods, system facts
-and the dark title bar follow in their own changes.
+driven through `SendInput`, touch injection and a synthetic pen; wine
+injects neither, so touch and pen are tested on the runner only.
+Input methods, system facts and the dark title bar follow in their own
+changes.

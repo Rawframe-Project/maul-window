@@ -141,8 +141,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Drives the desktop through SendInput.
         maul_add_test(win32_input)
         target_link_libraries(test_win32_input PRIVATE user32)
+        # Injects touch and pen: skipped where Windows cannot (wine).
+        maul_add_test(win32_pointer)
+        target_link_libraries(test_win32_pointer PRIVATE user32)
+        set_tests_properties(win32_pointer PROPERTIES SKIP_RETURN_CODE 77)
         # One desktop: the focus and the pointer are not shared.
-        set_tests_properties(win32 win32_input PROPERTIES RESOURCE_LOCK desktop)
+        set_tests_properties(win32 win32_input win32_pointer PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()
 endif()

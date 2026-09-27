@@ -124,8 +124,11 @@ static bool CanGrab(Program* program)
     free(reply);
     if (grabbed)
     {
+        // A round trip: the X server has let the grab go before the
+        // program's next grab can meet it.
         xcb_ungrab_pointer(program->connection, XCB_CURRENT_TIME);
-        xcb_flush(program->connection);
+        free(xcb_get_input_focus_reply(program->connection,
+                                       xcb_get_input_focus(program->connection), nullptr));
     }
     return grabbed;
 }

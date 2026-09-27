@@ -284,8 +284,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Keeps the display awake, and points http at itself for a moment.
         maul_add_test(win32_services)
         target_link_libraries(test_win32_services PRIVATE user32 advapi32 shell32)
+        # The common item dialog, driven from the program's frames.
+        maul_add_test(win32_dialog)
+        target_link_libraries(test_win32_dialog PRIVATE user32)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
-                             win32_clipboard win32_drop win32_services
+                             win32_clipboard win32_drop win32_services win32_dialog
                              PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()

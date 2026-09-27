@@ -61,6 +61,19 @@ contents without paths.
   control character no file name holds, and output past what the
   limits allow is too large. Without zenity too, dialogs are
   unsupported.
+- **Win32:** the common item dialog (`IFileOpenDialog`,
+  `IFileSaveDialog`), owned by the window, with file system paths only,
+  the filters as `*.png;*.jpg` (Windows matches in any case), the first
+  filter's first extension as the default for a save, the folder and
+  the name offered. Its `Show` runs a modal loop until the user is
+  done. F18 allows a thread only where a platform leaves no other way,
+  and here there is one: the dialog is never shown while the program's
+  frame runs (a request waits for the next pump, which shows one
+  dialog), and inside its loop a timer on the owner runs frames, as it
+  does while a window is moved or sized. From that timer a dialog whose
+  request went (a later dialog, or its window) or whose program stops
+  is closed through its own window, on the same thread. `CarryOut` on
+  Win32 may now answer later, as the other backends' do.
 - **The web has no dialogs** (`mwin_outcomeUnsupported`): a page's file
   input gives contents, never paths, and reading contents is a matter
   for the program's storage, which the family decides elsewhere.
@@ -74,5 +87,7 @@ refusals, the copy of the def, the paths and their staleness, each
 outcome, and defs given back with their window or at the end under the
 sanitizers. The Linux dialogs are tested against a portal of the
 test's own on a private bus, which notes what it was asked and answers
-with a Response when the test says, and a stand-in zenity; Windows'
-follow in their own change.
+with a Response when the test says, and a stand-in zenity. The Win32
+dialogs are driven from the test's own frames, which go on while a
+dialog shows: they find it among the thread's windows, type a name,
+and press OK or Cancel, or end its window or the program.

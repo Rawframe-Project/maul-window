@@ -90,6 +90,8 @@ struct mwinWin32Window
     // The touches down on the window, by pointer id; 0 for none.
     UINT32 touches[MWIN_WIN32_TOUCHES];
     mwinWin32DropTarget drop;
+    // A file dialog waits for the pump to show it (win32_dialog.c).
+    bool dialogWaiting;
 };
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.
@@ -129,6 +131,11 @@ struct mwinWin32Platform
     bool ole;
     // The thread keeps the display awake (win32_services.c).
     bool awake;
+    // The file dialog showing, and its request (win32_dialog.c).
+    struct IFileDialog* dialog;
+    uint32_t dialogSlot;
+    uint32_t dialogRequest;
+    uint32_t dialogGeneration;
     // The gamepads, with the gamepad component.
     mwinWin32Pads pads;
 };

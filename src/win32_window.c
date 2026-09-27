@@ -6,6 +6,7 @@
 #include "win32_window.h"
 
 #include "win32_clipboard.h"
+#include "win32_dialog.h"
 #include "win32_drop.h"
 #include "win32_ime.h"
 #include "win32_input.h"
@@ -276,7 +277,11 @@ static bool HandleSizeMove(mwinWin32Window* window, UINT message, WPARAM wParam)
         {
             mwinRunCriticalFrame(platform->context);
         }
-        return wParam == SIZE_MOVE_TIMER;
+        if (wParam == MWIN_WIN32_DIALOG_TIMER)
+        {
+            mwinWin32DialogTick(platform);
+        }
+        return wParam == SIZE_MOVE_TIMER || wParam == MWIN_WIN32_DIALOG_TIMER;
     default:
         return false;
     }
@@ -542,7 +547,9 @@ static mwinOutcome Rebound(mwinWin32Window* window)
     return mwin_outcomeDone;
 }
 
-static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
+// Carries out a request now: its outcome, or -1 when it is answered
+// later.
+static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
 {
     const mwinRequest* request = &core->requests[index];
     switch (request->kind)
@@ -595,6 +602,8 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwin_outcomeDone;
+    case mwin_requestFileDialog:
+        return mwinWin32AskDialog(window);
     default:
         return mwin_outcomeUnsupported;
     }
@@ -603,6 +612,9 @@ static mwinOutcome CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t 
 void mwinWin32Submit(mwinContext* context, uint32_t slot, uint32_t request)
 {
     mwinWin32Platform* platform = PlatformOf(context);
-    mwinOutcome outcome = CarryOut(&platform->windows[slot], &context->windows[slot], request);
-    mwinComplete(context, slot, request, outcome);
+    int outcome = CarryOut(&platform->windows[slot], &context->windows[slot], request);
+    if (outcome >= 0)
+    {
+        mwinComplete(context, slot, request, (mwinOutcome)outcome);
+    }
 }

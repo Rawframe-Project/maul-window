@@ -10,6 +10,7 @@
 #include "backend.h"
 #include "core.h"
 #include "win32.h"
+#include "win32_dialog.h"
 #include "win32_drop.h"
 #include "win32_input.h"
 #include "win32_output.h"
@@ -141,6 +142,7 @@ static void Pump(mwinContext* context)
         DispatchMessageW(&message);
     }
     mwinWin32KeepAwake(PlatformOf(context), mwinWantsAwake(context));
+    mwinWin32ShowDialogs(PlatformOf(context));
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinWin32PadsPump(&PlatformOf(context)->pads, mwinWin32Now());
 #endif

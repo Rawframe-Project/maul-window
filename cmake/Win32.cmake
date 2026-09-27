@@ -6,6 +6,7 @@
 set(MWIN_WIN32_SOURCES
     src/backend_win32.c
     src/win32_clipboard.c
+    src/win32_dialog.c
     src/win32_drop.c
     src/win32_ime.c
     src/win32_message_box.c

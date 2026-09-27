@@ -12,6 +12,7 @@
 #include "core.h"
 #include "wayland_api.h"
 #include "xkb_api.h"
+#include "xkb_keyboard.h"
 
 #include <time.h>
 
@@ -110,21 +111,14 @@ typedef struct mwinWaylandOutput
     int32_t scale;
 } mwinWaylandOutput;
 
-// The seat's keyboard: the keymap and state from the compositor, compose
-// sequences from the locale's table, the window with keyboard focus, and
-// key repeat, which a Wayland client does itself.
+// The seat's keyboard: its xkb keyboard, the window with keyboard
+// focus, and key repeat, which a Wayland client does itself.
 typedef struct mwinWaylandKeyboard
 {
     struct wl_keyboard* keyboard;
-    struct xkb_context* context;
-    struct xkb_keymap* keymap;
-    struct xkb_state* state;
-    struct xkb_compose_table* composeTable;
-    struct xkb_compose_state* compose;
+    mwinXkbKeyboard xkb;
     // The window slot with keyboard focus, or -1.
     int32_t focus;
-    mwinModifiers modifiers;
-    uint32_t layout;
     // Keys held since focus came, for the reset when it goes.
     uint32_t held;
     // Repeats per second (0 for none) and the delay before the first.

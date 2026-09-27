@@ -15,11 +15,11 @@ native: core
 queue: core text
 system: core
 text: core
-wayland: core wayland_api xkb_api
+wayland: core wayland_api xkb_api xkb_keyboard
 wayland_api:
 wayland_cursor: core wayland wayland_api
 wayland_frame: core wayland wayland_api wayland_cursor
-wayland_keyboard: core evdev wayland wayland_api xkb_api
+wayland_keyboard: core evdev wayland wayland_api xkb_api xkb_keyboard
 wayland_output: core wayland wayland_api
 wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_seat: core wayland wayland_api wayland_keyboard wayland_pointer wayland_text
@@ -31,3 +31,4 @@ x11_api:
 x11_output: allocator core x11 x11_api
 x11_window: allocator core x11 x11_api x11_output
 xkb_api:
+xkb_keyboard: evdev xkb_api

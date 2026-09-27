@@ -8,20 +8,17 @@
 # is opened at run time; nothing of it is linked.
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(MWIN_WAYLAND QUIET wayland-client>=1.22 wayland-scanner wayland-protocols>=1.32
-    xkbcommon>=1.0)
+pkg_check_modules(MWIN_WAYLAND QUIET wayland-client>=1.22 wayland-scanner wayland-protocols>=1.32)
 if(NOT MWIN_WAYLAND_FOUND)
     message(FATAL_ERROR "The Wayland backend needs the development files of wayland-client "
-        "(1.22 or later), wayland-scanner, wayland-protocols (1.32 or later) and xkbcommon "
-        "(1.0 or later): install them (libwayland-dev, wayland-protocols and "
-        "libxkbcommon-dev on Debian and Ubuntu) or configure "
+        "(1.22 or later), wayland-scanner and wayland-protocols (1.32 or later): install "
+        "them (libwayland-dev and wayland-protocols on Debian and Ubuntu) or configure "
         "with -DMAUL_WINDOW_WAYLAND=OFF.")
 endif()
 pkg_get_variable(MWIN_WAYLAND_SCANNER wayland-scanner wayland_scanner)
 pkg_get_variable(MWIN_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 pkg_get_variable(MWIN_WAYLAND_DATA_DIR wayland-client pkgdatadir)
 pkg_get_variable(MWIN_WAYLAND_INCLUDE_DIR wayland-client includedir)
-pkg_get_variable(MWIN_XKBCOMMON_INCLUDE_DIR xkbcommon includedir)
 
 set(MWIN_PROTOCOL_OUT ${PROJECT_BINARY_DIR}/wayland)
 file(MAKE_DIRECTORY ${MWIN_PROTOCOL_OUT})
@@ -86,10 +83,9 @@ ${MWIN_WAYLAND_NAMES}#endif
 
 # The generated headers and libwayland's own are outside the rules.
 target_include_directories(maul-window SYSTEM PRIVATE ${MWIN_PROTOCOL_OUT}
-    ${MWIN_WAYLAND_INCLUDE_DIR} ${MWIN_XKBCOMMON_INCLUDE_DIR})
+    ${MWIN_WAYLAND_INCLUDE_DIR})
 set(MWIN_WAYLAND_SOURCES
     src/backend_wayland.c
-    src/evdev.c
     src/wayland_api.c
     src/wayland_cursor.c
     src/wayland_frame.c
@@ -98,8 +94,7 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_pointer.c
     src/wayland_seat.c
     src/wayland_text.c
-    src/wayland_window.c
-    src/xkb_api.c)
+    src/wayland_window.c)
 target_sources(maul-window PRIVATE ${MWIN_WAYLAND_SOURCES})
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WAYLAND)
 # poll, clock_gettime and dlopen are POSIX, outside strict C.

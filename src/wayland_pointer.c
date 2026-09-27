@@ -53,7 +53,7 @@ static void PostPointer(mwinWaylandPlatform* platform, mwinEventType type, mwinM
     mwinEvent event = {0};
     event.type = type;
     event.timeNs = timeNs;
-    event.data.pointer = (mwinPointerEvent){pointer->position, platform->keyboard.modifiers,
+    event.data.pointer = (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers,
                                             pointer->buttons, button, pointer->clicks};
     mwinPost(platform->context, (uint32_t)pointer->focus, &event);
 }

@@ -66,7 +66,6 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/context.c
     src/input.c
     src/monitor.c
-    src/monitor.c
     src/queue.c
     src/window.c)
 if(MAUL_WINDOW_TEST_BACKEND)

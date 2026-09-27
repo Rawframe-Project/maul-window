@@ -207,8 +207,7 @@ int main(void)
         status = s_failures == 0 ? 0 : 1;
     }
     FakeStop(&fake);
-    char command[160];
-    (void)snprintf(command, sizeof(command), "/bin/rm -rf %s", s_directory);
-    (void)system(command);
+    FakeClean(s_directory);
+    (void)rmdir(s_directory);
     return status;
 }

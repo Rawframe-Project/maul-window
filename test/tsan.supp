@@ -1,0 +1,6 @@
+# ThreadSanitizer suppressions for the tests (MAUL_WINDOW_TSAN).
+#
+# libdbus-1 takes its bus lock and a connection's lock in one order when
+# it connects and in the other when it closes; within the one thread
+# the Linux services use, that is no deadlock.
+deadlock:libdbus-1.so.3

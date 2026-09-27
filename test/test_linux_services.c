@@ -297,8 +297,11 @@ int main(void)
         (void)setenv("XDG_RUNTIME_DIR", savedRuntime, 1);
     }
     RunWithBus(saved[0] != '\0' && savedRuntime[0] != '\0' ? saved : nullptr);
-    char command[160];
-    (void)snprintf(command, sizeof(command), "/bin/rm -rf %s", s_directory);
-    (void)system(command);
+    char path[128];
+    Path(path, sizeof(path), "xdg-open");
+    (void)remove(path);
+    (void)rmdir(none);
+    FakeClean(s_directory);
+    (void)rmdir(s_directory);
     return s_failures == 0 ? 0 : 1;
 }

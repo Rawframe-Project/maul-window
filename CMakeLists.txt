@@ -198,6 +198,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_linux_awake PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_linux_awake PRIVATE ${CMAKE_DL_LIBS})
         set_tests_properties(linux_services linux_awake PROPERTIES SKIP_RETURN_CODE 77)
+        if(MAUL_WINDOW_TSAN)
+            set_tests_properties(linux_services linux_awake PROPERTIES ENVIRONMENT
+                "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/test/tsan.supp")
+        endif()
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Makes virtual gamepads through uinput: skipped without it or a

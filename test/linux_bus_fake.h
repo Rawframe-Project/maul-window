@@ -291,4 +291,14 @@ static inline void FakeStop(FakeBus* fake)
     (void)unsetenv("DBUS_SESSION_BUS_ADDRESS");
 }
 
+// Removes what the bus left in its directory.
+static inline void FakeClean(const char* directory)
+{
+    char path[256];
+    (void)snprintf(path, sizeof(path), "%s/bus.conf", directory);
+    (void)remove(path);
+    (void)snprintf(path, sizeof(path), "%s/bus", directory);
+    (void)remove(path);
+}
+
 #endif // MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H

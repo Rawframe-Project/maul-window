@@ -55,6 +55,33 @@ typedef struct Program
     bool timedOut;
 } Program;
 
+// The pointer messages the thread took, for a failure's report.
+static int s_pointerMessages = 0;
+
+static LRESULT CALLBACK OnMessage(int code, WPARAM wParam, LPARAM lParam)
+{
+    const MSG* message = (const MSG*)lParam;
+    if (code == HC_ACTION && wParam == PM_REMOVE && message->message >= WM_NCPOINTERUPDATE &&
+        message->message <= WM_POINTERROUTEDRELEASED)
+    {
+        s_pointerMessages += 1;
+        (void)printf("    message 0x%x, pointer %u\n", message->message,
+                     (unsigned)GET_POINTERID_WPARAM(message->wParam));
+    }
+    return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
+// What a gesture brought, for a failure's report.
+static void Dump(const Program* program)
+{
+    (void)printf("  phase %d: %d records, %d pointer messages\n", (int)program->phase,
+                 program->count, s_pointerMessages);
+    for (int i = 0; i < program->count; i++)
+    {
+        (void)printf("    record %d\n", (int)program->records[i].type);
+    }
+}
+
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
@@ -247,11 +274,13 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else if (now - program->startMs > DEADLINE_MS)
     {
         (void)printf("timed out in phase %d\n", (int)program->phase);
+        Dump(program);
         program->timedOut = true;
         return mwin_frameStop;
     }
     else if (program->phase != phaseCreate && now - program->sentMs > RESEND_MS)
     {
+        Dump(program);
         (void)printf("  phase %d: sent again\n", (int)program->phase);
         SendGesture(program);
     }
@@ -288,6 +317,7 @@ int main(void)
     {
         return 77;
     }
+    HHOOK hook = SetWindowsHookExW(WH_GETMESSAGE, OnMessage, nullptr, GetCurrentThreadId());
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
@@ -296,5 +326,6 @@ int main(void)
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
     destroy(program.pen);
+    UnhookWindowsHookEx(hook);
     return s_failures == 0 ? 0 : 1;
 }

@@ -8,17 +8,20 @@
 # is opened at run time; nothing of it is linked.
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(MWIN_WAYLAND QUIET wayland-client>=1.22 wayland-scanner wayland-protocols>=1.32)
+pkg_check_modules(MWIN_WAYLAND QUIET wayland-client>=1.22 wayland-scanner wayland-protocols>=1.32
+    xkbcommon>=1.0)
 if(NOT MWIN_WAYLAND_FOUND)
     message(FATAL_ERROR "The Wayland backend needs the development files of wayland-client "
-        "(1.22 or later), wayland-scanner and wayland-protocols (1.32 or later): install "
-        "them (libwayland-dev and wayland-protocols on Debian and Ubuntu) or configure "
+        "(1.22 or later), wayland-scanner, wayland-protocols (1.32 or later) and xkbcommon "
+        "(1.0 or later): install them (libwayland-dev, wayland-protocols and "
+        "libxkbcommon-dev on Debian and Ubuntu) or configure "
         "with -DMAUL_WINDOW_WAYLAND=OFF.")
 endif()
 pkg_get_variable(MWIN_WAYLAND_SCANNER wayland-scanner wayland_scanner)
 pkg_get_variable(MWIN_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 pkg_get_variable(MWIN_WAYLAND_DATA_DIR wayland-client pkgdatadir)
 pkg_get_variable(MWIN_WAYLAND_INCLUDE_DIR wayland-client includedir)
+pkg_get_variable(MWIN_XKBCOMMON_INCLUDE_DIR xkbcommon includedir)
 
 set(MWIN_PROTOCOL_OUT ${PROJECT_BINARY_DIR}/wayland)
 file(MAKE_DIRECTORY ${MWIN_PROTOCOL_OUT})
@@ -73,16 +76,21 @@ ${MWIN_WAYLAND_NAMES}#endif
 
 # The generated headers and libwayland's own are outside the rules.
 target_include_directories(maul-window SYSTEM PRIVATE ${MWIN_PROTOCOL_OUT}
-    ${MWIN_WAYLAND_INCLUDE_DIR})
-target_sources(maul-window PRIVATE
+    ${MWIN_WAYLAND_INCLUDE_DIR} ${MWIN_XKBCOMMON_INCLUDE_DIR})
+set(MWIN_WAYLAND_SOURCES
     src/backend_wayland.c
+    src/evdev.c
     src/wayland_api.c
+    src/wayland_keyboard.c
     src/wayland_output.c
-    src/wayland_window.c)
+    src/wayland_seat.c
+    src/wayland_window.c
+    src/xkb_api.c)
+target_sources(maul-window PRIVATE ${MWIN_WAYLAND_SOURCES})
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_WAYLAND)
 # poll, clock_gettime and dlopen are POSIX, outside strict C.
-set_source_files_properties(src/backend_wayland.c src/wayland_api.c src/wayland_output.c
-    src/wayland_window.c PROPERTIES COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
+set_source_files_properties(${MWIN_WAYLAND_SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 target_link_libraries(maul-window PRIVATE ${CMAKE_DL_LIBS})
 if(CMAKE_DL_LIBS)
     string(APPEND MAUL_PKG_LIBS_PRIVATE " -l${CMAKE_DL_LIBS}")
@@ -92,3 +100,29 @@ endif()
 if(MAUL_WINDOW_BUILD_SHARED AND NOT MAUL_WINDOW_SANITIZE AND NOT MAUL_WINDOW_TSAN)
     target_link_options(maul-window PRIVATE "LINKER:--no-undefined")
 endif()
+
+# mwin_add_wayland_server_test(name): a test that runs its own
+# compositor (test/wayland_server.h) on libwayland-server, which the
+# test links; skipped (77) where it cannot start one.
+function(mwin_add_wayland_server_test name)
+    pkg_check_modules(MWIN_TEST_SERVER REQUIRED IMPORTED_TARGET wayland-server xkbcommon)
+    set(out ${PROJECT_BINARY_DIR}/wayland-test)
+    set(xml ${MWIN_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml)
+    if(NOT TARGET mwin_wayland_test_protocols)
+        file(MAKE_DIRECTORY ${out})
+        add_custom_command(OUTPUT ${out}/xdg-shell-server-protocol.h ${out}/xdg-shell-server.c
+            COMMAND ${MWIN_WAYLAND_SCANNER} server-header ${xml} ${out}/xdg-shell-server-protocol.h
+            COMMAND ${MWIN_WAYLAND_SCANNER} private-code ${xml} ${out}/xdg-shell-server.c
+            DEPENDS ${xml} VERBATIM)
+        add_library(mwin_wayland_test_protocols STATIC ${out}/xdg-shell-server.c)
+        target_compile_options(mwin_wayland_test_protocols PRIVATE -w)
+        target_link_libraries(mwin_wayland_test_protocols PUBLIC PkgConfig::MWIN_TEST_SERVER)
+        target_include_directories(mwin_wayland_test_protocols SYSTEM PUBLIC ${out})
+    endif()
+    maul_add_test(${name} THREADS)
+    target_sources(test_${name} PRIVATE ${out}/xdg-shell-server-protocol.h)
+    target_link_libraries(test_${name} PRIVATE mwin_wayland_test_protocols)
+    # memfd_create is a GNU extension.
+    target_compile_definitions(test_${name} PRIVATE _GNU_SOURCE)
+    set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
+endfunction()

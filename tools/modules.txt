@@ -4,17 +4,21 @@ base:
 allocator:
 backend:
 backend_test: allocator backend core
-backend_wayland: allocator backend core wayland wayland_api wayland_output wayland_window
+backend_wayland: allocator backend core wayland wayland_api wayland_keyboard wayland_output wayland_seat wayland_window xkb_api
 context: allocator backend core
 core: backend
+evdev:
 input: core
 monitor: core
 native: core
 queue: core text
 system: core
 text: core
-wayland: core wayland_api
+wayland: core wayland_api xkb_api
 wayland_api:
+wayland_keyboard: core evdev wayland wayland_api xkb_api
 wayland_output: core wayland wayland_api
-wayland_window: core wayland wayland_api wayland_output
+wayland_seat: core wayland wayland_api wayland_keyboard
+wayland_window: core wayland wayland_api wayland_keyboard wayland_output
 window: core
+xkb_api:

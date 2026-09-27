@@ -46,6 +46,17 @@ generated the same protocol code would define its interfaces twice.
 - **Monitors:** each `wl_output` is a monitor from its first done
   event. Wayland names no primary output, so none is primary, and it
   reports no work area, which equals the bounds.
+- **Keyboard:** the first seat's keyboard. `libxkbcommon` is opened
+  like `libwayland-client`; without it the windows work and no keyboard
+  is used. The keymap and modifier state come from the compositor.
+  A key's code comes from its evdev code, and its meaning from the
+  keymap's first level in the current layout group. Its text comes
+  through the compose table of the locale (`LC_ALL`, `LC_CTYPE`,
+  `LANG`), so dead keys compose; control characters are not text.
+  Held keys repeat at the compositor's rate from the pump, at most
+  eight per pump after a stall. Keys held when focus comes are not
+  reported; focus that goes while keys are held posts a reset. A new
+  keymap or layout group posts `mwin_eventKeyboardLayoutChanged`.
 - **The pump** never waits: it flushes, reads what has arrived and
   dispatches it. A failed connection stops the loop, and `mwinRun`
   returns `mwin_errorPlatform`.
@@ -53,9 +64,12 @@ generated the same protocol code would define its interfaces twice.
 ## Consequences
 
 Building needs `wayland-scanner`, the `wayland-client` headers (1.22 or
-later) and `wayland-protocols` (1.32 or later); running needs only
-`libwayland-client` 1.20 or later, and only in a Wayland session. The
+later), `wayland-protocols` (1.32 or later) and the `xkbcommon` headers
+(1.0 or later); running needs only `libwayland-client` 1.20 or later
+and `libxkbcommon`, and only in a Wayland session. The
 integration test runs against a headless weston and is skipped without
-`WAYLAND_DISPLAY`. Input (xkbcommon, pointer, touch, text input) and a
+`WAYLAND_DISPLAY`; the input tests run against a small compositor of
+their own on `libwayland-server` (`test/wayland_server.h`), since a
+headless weston has no seat. The pointer, touch, text input and a
 client-side frame for compositors without server-side decorations
 follow in their own changes.

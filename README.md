@@ -32,9 +32,10 @@ web first, then Android, macOS and iOS.
 Requirements: CMake 3.25 and GCC 14 or Clang 19 or newer; on Windows,
 `clang-cl` (the Visual Studio component "C++ Clang tools for Windows").
 On Linux the Wayland backend also needs `wayland-scanner` and the
-development files of `wayland-client` 1.22 and `wayland-protocols`
-1.32 (`libwayland-dev` and `wayland-protocols` on Debian and Ubuntu),
-or `-DMAUL_WINDOW_WAYLAND=OFF`.
+development files of `wayland-client` 1.22, `wayland-protocols` 1.32
+and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and
+`libxkbcommon-dev` on Debian and Ubuntu), or
+`-DMAUL_WINDOW_WAYLAND=OFF`.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release

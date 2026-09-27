@@ -17,8 +17,11 @@
 #include "core.h"
 #include "wayland.h"
 #include "wayland_api.h"
+#include "wayland_keyboard.h"
 #include "wayland_output.h"
+#include "wayland_seat.h"
 #include "wayland_window.h"
+#include "xkb_api.h"
 
 #include <poll.h>
 #include <string.h>
@@ -97,12 +100,17 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
     {
         mwinWaylandBindOutput(platform, name, version);
     }
+    else if (strcmp(interface, wl_seat_interface.name) == 0)
+    {
+        mwinWaylandBindSeat(platform, name, version);
+    }
 }
 
 static void OnGlobalRemove(void* data, struct wl_registry* registry, uint32_t name)
 {
     (void)registry;
     mwinWaylandRemoveOutput(data, name);
+    mwinWaylandRemoveSeat(data, name);
 }
 
 static const struct wl_registry_listener s_registryListener = {
@@ -131,6 +139,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
     const mwinWaylandApi* api = &platform->api;
     if (platform->display != nullptr)
     {
+        mwinWaylandReleaseSeat(platform);
         mwinWaylandReleaseOutputs(platform);
         DestroyGlobal(api, platform->viewporter, WP_VIEWPORTER_DESTROY);
         DestroyGlobal(api, platform->fractionalScale, WP_FRACTIONAL_SCALE_MANAGER_V1_DESTROY);
@@ -142,6 +151,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
         api->displayDisconnect(platform->display);
     }
     mwinUnloadWayland(&platform->api);
+    mwinUnloadXkb(&platform->xkb);
 }
 
 // Connects, binds the globals, and waits for the outputs' first facts.
@@ -152,6 +162,8 @@ static mwinResult Connect(mwinWaylandPlatform* platform)
     {
         return status;
     }
+    // Without libxkbcommon the windows work and no keyboard is used.
+    (void)mwinLoadXkb(&platform->xkb);
     const mwinWaylandApi* api = &platform->api;
     platform->display = api->displayConnect(nullptr);
     if (platform->display == nullptr)
@@ -206,6 +218,7 @@ static mwinResult Start(mwinContext* context)
     storage += context->limits.monitors * sizeof(mwinWaylandOutput);
     platform->title = (char*)storage;
     platform->context = context;
+    platform->keyboard.focus = -1;
     context->backendData = platform;
     mwinResult status = Connect(platform);
     if (status != mwin_success)
@@ -240,6 +253,7 @@ static void Pump(mwinContext* context)
         api->displayCancelRead(display);
     }
     (void)api->displayDispatchPending(display);
+    mwinWaylandRepeatKeys(platform);
     if (api->displayGetError(display) != 0)
     {
         platform->failed = true;
@@ -259,21 +273,15 @@ static uint64_t Now(const mwinContext* context)
     return mwinWaylandNow();
 }
 
-// Without a keyboard yet, every key is its code's name.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    return MWIN_KEY_NAMED | code;
+    return mwinWaylandMapKeyCode(PlatformOf(context), code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {
-    (void)context;
-    (void)buffer;
-    (void)capacity;
-    *lengthOut = 0;
-    return mwin_success;
+    return mwinWaylandKeyboardLayout(PlatformOf(context), buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)

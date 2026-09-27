@@ -55,5 +55,7 @@ format.
   the native backend when `WAYLAND_DISPLAY` is set: `libwayland-client`
   opened at run time, xdg-shell toplevels, server-side decorations,
   fractional scaling through the viewporter, outputs as monitors, and
-  the title, size, size limit and mode requests (mwin-0005). Input
-  follows.
+  the title, size, size limit and mode requests (mwin-0005); the
+  keyboard through `libxkbcommon`, opened at run time: key codes from
+  evdev, their meaning in the current layout, text with compose
+  sequences, modifiers, key repeat, and layout changes.

@@ -123,6 +123,10 @@ The test backend records the addresses and paths it was asked to open
 contract tests cover the refusals, superseding, the awake state, a
 refusal leaving it, and text released with a window or at the context's
 end under the sanitizers. The Linux message box is tested with stand-in
-zenity and kdialog scripts on the path. Each backend's services follow
-in their own change; until then the backends answer
-`mwin_outcomeUnsupported`.
+zenity and kdialog scripts on the path. Each backend is tested against
+the system's own or a stand-in for it: Win32 reads the thread's
+execution state back and has the test stand in for the browser (under
+wine; Windows keeps the user's choice of browser); the web replaces
+`window.open` and the wake lock; Linux runs a stand-in `xdg-open` and a
+bus of its own with stand-ins for the file manager, the screensaver and
+the portal, and the Wayland test compositor counts idle inhibitors.

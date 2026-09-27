@@ -9,6 +9,7 @@
 #ifndef MAUL_WINDOW_SRC_WEB_H
 #define MAUL_WINDOW_SRC_WEB_H
 
+#include "clicks.h"
 #include "core.h"
 
 // A canvas's selector as the native handles give it: "#" and its id.
@@ -26,6 +27,13 @@ typedef struct mwinWebWindow
     mwinPixelSize pixels;
     float scale;
     bool fullscreen;
+    // The cursor the program asked for, the buttons held, the last
+    // press, and the pen's flags at its last record.
+    mwinCursorMode cursorMode;
+    mwinCursorShape cursorShape;
+    uint8_t buttons;
+    mwinClickCounter clicks;
+    mwinPenFlags penFlags;
 } mwinWebWindow;
 
 typedef struct mwinWebPlatform
@@ -59,18 +67,61 @@ typedef enum mwinWebRecordKind
     mwin_webFacts = 7,
     // The preferred languages changed.
     mwin_webLocales = 8,
+    // A key: code its key code, extra the modifiers, x 1 when pressed, y
+    // 1 for a repeat, z what it means (0 for its name).
+    mwin_webKey = 10,
+    // A character typed: code.
+    mwin_webText = 11,
+    // The mouse: code an mwinWebMouse, x, y where, z the button, extra
+    // the modifiers.
+    mwin_webMouse = 12,
+    // The wheel: x, y in detents, right and away from the user.
+    mwin_webWheel = 13,
+    // Locked motion: x, y.
+    mwin_webMotion = 14,
+    // A touch: code an mwinWebContact, extra its id, x, y, z pressure.
+    mwin_webTouch = 15,
+    // A pen: extra its mwinPenFlags, x, y, z pressure, w and v its tilt.
+    mwin_webPen = 16,
+    // The pointer was locked (code 1) or let go.
+    mwin_webLock = 17,
+    // A pointer lock request failed.
+    mwin_webLockFailed = 18,
+    // The keyboard layout changed.
+    mwin_webLayout = 19,
 } mwinWebRecordKind;
 
+typedef enum mwinWebMouse
+{
+    mwin_webMoved = 0,
+    mwin_webEntered = 1,
+    mwin_webLeft = 2,
+    mwin_webPressed = 3,
+    mwin_webReleased = 4,
+} mwinWebMouse;
+
+typedef enum mwinWebContact
+{
+    mwin_webDown = 0,
+    mwin_webMove = 1,
+    mwin_webUp = 2,
+    mwin_webCancel = 3,
+} mwinWebContact;
+
+// A record: its kind, the window's slot or -1, and what the kind says
+// in a code, a second integer and up to six numbers.
 typedef struct mwinWebRecord
 {
     int32_t kind;
     int32_t slot;
     int32_t code;
-    int32_t reserved;
+    int32_t extra;
     float x;
     float y;
     float z;
     float w;
+    float v;
+    float u;
     // The event's time on performance.now(), in milliseconds.
     double timeMs;
 } mwinWebRecord;

@@ -11,7 +11,7 @@
 #include <emscripten/em_js.h>
 #include <stddef.h>
 
-static_assert(offsetof(mwinWebRecord, x) == 16 && offsetof(mwinWebRecord, timeMs) == 32,
+static_assert(offsetof(mwinWebRecord, x) == 16 && offsetof(mwinWebRecord, timeMs) == 40,
               "the page writes records at these offsets");
 
 EM_JS_DEPS(mwin_web_page, "$UTF8ToString,$stringToUTF8,$lengthBytesUTF8");
@@ -30,8 +30,8 @@ EM_JS(void, mwinWebAttach, (const mwinContext* context), {
     const map = Module.mwinWeb || (Module.mwinWeb = new Map());
     const state = {queue: [], canvases: [], listeners: []};
     map.set(context, state);
-    const push = (kind, slot, code = 0, x = 0, y = 0, z = 0, w = 0) =>
-        state.queue.push([kind, slot, code, x, y, z, w, performance.now()]);
+    const push = (kind, slot, code = 0, x = 0, y = 0, z = 0, w = 0, v = 0, u = 0, extra = 0) =>
+        state.queue.push([kind, slot, code, extra, x, y, z, w, v, u, performance.now()]);
     state.push = push;
     const listen = (target, type, handler) => {
         target.addEventListener(type, handler);
@@ -119,9 +119,9 @@ EM_JS(bool, mwinWebNext, (const mwinContext* context, mwinWebRecord* out), {
     if (!record) {
         return false;
     }
-    HEAP32.set(record.slice(0, 3), out >> 2);
-    HEAPF32.set(record.slice(3, 7), (out + 16) >> 2);
-    HEAPF64[(out + 32) >> 3] = record[7];
+    HEAP32.set(record.slice(0, 4), out >> 2);
+    HEAPF32.set(record.slice(4, 10), (out + 16) >> 2);
+    HEAPF64[(out + 40) >> 3] = record[10];
     return true;
 });
 EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const char* selector,

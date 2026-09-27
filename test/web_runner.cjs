@@ -45,16 +45,67 @@ const server = http.createServer((request, response) => {
     fs.createReadStream(file).pipe(response);
 });
 
+// A point of an element, from its top left, in the page.
+async function pointOf(tab, selector, x, y) {
+    const box = await tab.$eval(selector, element => {
+        const rect = element.getBoundingClientRect();
+        return [rect.left + element.clientLeft, rect.top + element.clientTop];
+    });
+    return [box[0] + Number(x), box[1] + Number(y)];
+}
+
+// A touch at a point, down, moved and up, through the DevTools protocol.
+async function touch(tab, x, y) {
+    const session = await tab.createCDPSession();
+    const point = (dx, dy) => [{x: x + dx, y: y + dy, id: 1, force: 0.5, radiusX: 2, radiusY: 2}];
+    await session.send('Input.dispatchTouchEvent', {type: 'touchStart', touchPoints: point(0, 0)});
+    await session.send('Input.dispatchTouchEvent', {type: 'touchMove', touchPoints: point(10, 5)});
+    await session.send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
+}
+
+// A pen hovering with its barrel button held, down, and up with it let go.
+async function pen(tab, x, y) {
+    const session = await tab.createCDPSession();
+    const send = (type, button, buttons, force) => session.send('Input.dispatchMouseEvent', {
+        type, x, y, button, buttons, force, tiltX: 30, tiltY: -15, pointerType: 'pen',
+        clickCount: type === 'mouseMoved' ? 0 : 1});
+    await send('mouseMoved', 'none', 2, 0);
+    await send('mousePressed', 'left', 3, 0.25);
+    await send('mouseReleased', 'left', 0, 0);
+}
+
 // The commands a test may give.
 async function carryOut(tab, command, args) {
     if (command === 'scale') {
         await tab.setViewport({width: 1024, height: 768, deviceScaleFactor: Number(args[0])});
     } else if (command === 'scheme') {
         await tab.emulateMediaFeatures([{name: 'prefers-color-scheme', value: args[0]}]);
+    } else if (command === 'key' || command === 'down' || command === 'up') {
+        await {key: tab.keyboard.press, down: tab.keyboard.down,
+               up: tab.keyboard.up}[command].call(tab.keyboard, args[0]);
+    } else if (command === 'move') {
+        const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
+        await tab.mouse.move(x, y);
+    } else if (command === 'press' || command === 'release') {
+        await tab.mouse[command === 'press' ? 'down' : 'up']({button: args[0]});
+    } else if (command === 'click') {
+        const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
+        await tab.mouse.click(x, y);
+    } else if (command === 'wheel') {
+        await tab.mouse.wheel({deltaX: Number(args[0]), deltaY: Number(args[1])});
+    } else if (command === 'touch') {
+        const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
+        await touch(tab, x, y);
+    } else if (command === 'pen') {
+        const [x, y] = await pointOf(tab, args[0], args[1], args[2]);
+        await pen(tab, x, y);
     } else {
         throw new Error('unknown command ' + command);
     }
 }
+
+// Commands run one after another, in the order the test gave them.
+let queue = Promise.resolve();
 
 async function main() {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -76,7 +127,8 @@ async function main() {
                 if (match[1] === 'exit') {
                     resolve(Number(match[2]));
                 } else {
-                    carryOut(tab, match[1], match[2].split(' ')).catch(reject);
+                    queue = queue.then(() => carryOut(tab, match[1], match[2].split(' ')))
+                                 .catch(reject);
                 }
             });
         });

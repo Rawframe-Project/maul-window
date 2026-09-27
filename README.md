@@ -26,7 +26,8 @@ Not released. The contract and a headless test backend are in place;
 the Wayland and X11 backends are complete for it, and the Win32
 backend has windows, monitors, the keyboard, the mouse, cursors,
 touch, pen and input methods; the web backend has canvases, the
-screen and the facts, its input following. Backends are planned for Win32, Wayland, X11 and the
+screen, the facts, the keyboard, the pointer and cursors, input
+methods following. Backends are planned for Win32, Wayland, X11 and the
 web first, then Android, macOS and iOS.
 
 ## Building

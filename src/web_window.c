@@ -5,6 +5,7 @@
 
 #include "web_window.h"
 
+#include "web_input.h"
 #include "web_page.h"
 
 #include <emscripten/emscripten.h>
@@ -81,6 +82,7 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
         return;
     }
     window->selectorLength = (uint32_t)length;
+    mwinWebWatchCanvas(context, slot);
     uint64_t now = mwinWebNanoseconds(emscripten_get_now());
     PostType(platform, slot, mwin_eventWindowCreated, now);
     if (platform->monitor >= 0)
@@ -148,6 +150,13 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwinWebFocus(context, slot) ? mwin_outcomeDone : mwin_outcomeDenied;
     case mwin_requestOpacity:
         mwinWebSetOpacity(context, slot, request->value.opacity);
+        return mwin_outcomeDone;
+    case mwin_requestCursorMode:
+        return mwinWebSetCursorMode(PlatformOf(context), slot, request->value.code);
+    case mwin_requestCursorShape:
+        return mwinWebSetCursorShape(PlatformOf(context), slot, request->value.code);
+    case mwin_requestTextInput:
+        // Keys type text whether asked or not; input methods come later.
         return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;

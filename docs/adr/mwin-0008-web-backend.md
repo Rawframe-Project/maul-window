@@ -55,6 +55,31 @@ gesture; and every browser API is JavaScript.
   limits: those requests are unsupported.
 - **The monitor:** the screen, one monitor, in device pixels, at the
   page's ratio; the browser tells no refresh rate.
+- **Keys** are known by `KeyboardEvent.code`, whose names are the
+  key code enum's own, so a code names the same key on every layout.
+  What a key means with no modifier comes from the Keyboard API's
+  layout map where the browser has one (Chrome), and otherwise from
+  the event's `key`, a letter in lower case, which is right for
+  letters and not always for the rest under Shift. Text comes from
+  keys that type one character, alone or with AltGr. Keys go to the
+  program, the page's default actions stopped, except the browser's
+  shortcuts: with Control or Meta, and F5, F11 and F12. A page is told
+  no layout's name.
+- **The pointer** comes as pointer events, so the mouse, touches and
+  pens arrive apart and none is made of another. The mouse is
+  captured to its canvas while a button is held; a button pressed or
+  let go while another is held, which the DOM reports as a move, is a
+  button record. Clicks are counted as on Wayland and X11. The wheel's
+  pixels are detents of 100, its lines of 3. A pen's down and up are
+  its tip's: a barrel button pressed while it hovers is a
+  `pointerdown` in the DOM and a button record here.
+- **Cursors:** shapes are CSS cursors and a hidden cursor is `none`. A
+  captured cursor is a pointer lock, asked for without the system's
+  acceleration where the browser can, which the browser grants only
+  after a user's gesture; its motion comes as raw deltas and no cursor
+  records. The user can end a lock with Escape; the window's mode is
+  then what the program asked for until it asks again. A page cannot
+  confine the pointer: confined modes are unsupported.
 - **Facts:** the color scheme and reduced motion from media queries,
   the preferred languages from `navigator.languages`, each read again
   when the page says it changed. The accent, the text scale and power
@@ -64,7 +89,8 @@ gesture; and every browser API is JavaScript.
 
 The web tests run in headless Chrome through puppeteer
 (`test/web_runner.cjs`), which serves the build, gives the page a
-canvas of its own, and carries out what the test asks, such as a new
-device pixel ratio or color scheme. The keyboard, the pointer, pointer
-lock, touch and pen, input methods, the lifecycle, the clipboard and
-gamepads follow in their own changes.
+canvas of its own, and carries out what the test asks: a new device
+pixel ratio or color scheme, keys, the mouse and the wheel through
+puppeteer, and touches and a pen through the DevTools protocol. Input
+methods, the lifecycle, the clipboard and gamepads follow in their own
+changes.

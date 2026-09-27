@@ -11,6 +11,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "web.h"
+#include "web_input.h"
 #include "web_page.h"
 #include "web_window.h"
 
@@ -100,6 +101,7 @@ static mwinResult Start(mwinContext* context)
     platform->scale = mwinWebScale();
     context->backendData = platform;
     mwinWebAttach(context);
+    mwinWebAttachInput(context);
     ReadScreen(platform);
     ReadFacts(platform);
     return mwin_success;
@@ -158,8 +160,22 @@ static void Pump(mwinContext* context)
         case mwin_webLocales:
             ReadFacts(platform);
             break;
+        case mwin_webLayout:
+        {
+            mwinEvent event = {.type = mwin_eventKeyboardLayoutChanged, .timeNs = timeNs};
+            mwinPostGlobal(context, &event);
+            break;
+        }
         default:
-            if (record.slot >= 0 && context->windows[record.slot].status == mwin_slotLive)
+            if (record.slot < 0 || context->windows[record.slot].status != mwin_slotLive)
+            {
+                break;
+            }
+            if (record.kind >= mwin_webKey)
+            {
+                mwinWebHandleInputRecord(platform, &record);
+            }
+            else
             {
                 mwinWebHandleWindowRecord(platform, &record);
             }
@@ -197,13 +213,12 @@ static uint64_t Now(const mwinContext* context)
     return NowNs();
 }
 
-// Until the keyboard comes, every key is its code's name.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    return MWIN_KEY_NAMED | code;
+    return mwinWebMapKeyCode(context, code);
 }
 
+// A page is told no layout's name.
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {

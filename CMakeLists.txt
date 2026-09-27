@@ -145,7 +145,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(web MANUAL)
         add_test(NAME web COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                  $<TARGET_FILE:test_web>)
-        set_tests_properties(web PROPERTIES SKIP_RETURN_CODE 77)
+        maul_add_test(web_input MANUAL)
+        add_test(NAME web_input COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
+                 $<TARGET_FILE:test_web_input>)
+        set_tests_properties(web web_input PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

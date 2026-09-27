@@ -93,4 +93,7 @@ format.
   devicePixelRatio as the scale, fullscreen through the Fullscreen API,
   the screen as the monitor, the color scheme, reduced motion and
   navigator.languages, and a loop the browser drives (mwin-0008). A
-  window def names a page's canvas by its selector. Input follows.
+  window def names a page's canvas by its selector. The keyboard by
+  KeyboardEvent.code with meanings from the layout map, text, the
+  mouse, the wheel, touch and pen from pointer events, CSS cursors,
+  and a captured cursor through pointer lock with raw motion.

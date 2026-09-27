@@ -8,6 +8,7 @@
 #include "maul-unicode/encoding.h"
 
 #include <dwmapi.h>
+#include <string.h>
 
 #define PERSONALIZE   L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"
 #define DWM           L"Software\\Microsoft\\Windows\\DWM"
@@ -91,6 +92,23 @@ static void ReadLocales(mwinWin32Platform* platform)
     }
 }
 
+// Windows 11, whose builds start at 22000, shows snap layouts over a
+// maximize button. RtlGetVersion tells the version GetVersionEx hides
+// from programs without a manifest naming it.
+static bool HasSnapLayouts(void)
+{
+    LONG(WINAPI * get)(OSVERSIONINFOW*) = nullptr;
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (ntdll != nullptr)
+    {
+        FARPROC found = GetProcAddress(ntdll, "RtlGetVersion");
+        memcpy((void*)&get, (const void*)&found, sizeof(get));
+    }
+    OSVERSIONINFOW version = {.dwOSVersionInfoSize = sizeof(version)};
+    return get != nullptr && get(&version) == 0 && version.dwMajorVersion >= 10 &&
+           version.dwBuildNumber >= 22000;
+}
+
 void mwinWin32ApplyTheme(const mwinWin32Window* window)
 {
     BOOL dark = window->platform->context->facts.theme == mwin_themeDark;
@@ -105,6 +123,7 @@ void mwinWin32ReadSystem(mwinWin32Platform* platform)
     mwinSystemFacts facts = {.textScale = 1.0f};
     ReadLook(&facts);
     ReadPower(&facts);
+    facts.snapLayouts = HasSnapLayouts();
     mwinSetSystemFacts(context, &facts, mwinWin32Now());
     ReadLocales(platform);
     for (uint32_t i = 0; i < context->limits.windows && facts.theme != theme; i++)

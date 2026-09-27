@@ -172,16 +172,60 @@ static void PostPointer(mwinWin32Window* window, mwinEventType type, mwinPositio
     Post(window, &event);
 }
 
-static void OnMouseMove(mwinWin32Window* window, LPARAM place)
+// Windows tracks the pointer's leaving of the client area and of the
+// frame apart; over custom chrome, hit regions of the client area are
+// frame to Windows, and both are the window's to the program.
+static void OnMouseMove(mwinWin32Window* window, LPARAM place, bool frame)
 {
     mwinPosition position = PositionOf(window, place);
-    if (!window->tracking)
+    if (!window->tracking || window->trackingFrame != frame)
     {
-        TRACKMOUSEEVENT track = {sizeof(track), TME_LEAVE, window->hwnd, 0};
+        TRACKMOUSEEVENT track = {sizeof(track), TME_LEAVE | (frame ? TME_NONCLIENT : 0u),
+                                 window->hwnd, 0};
         window->tracking = TrackMouseEvent(&track) != 0;
+        window->trackingFrame = frame;
+    }
+    if (!window->pointerInside)
+    {
+        window->pointerInside = true;
         PostPointer(window, mwin_eventCursorEntered, position, 0);
     }
     PostPointer(window, mwin_eventCursorMoved, position, 0);
+}
+
+// A point of the desktop in the client area's pixels, as a message
+// carries it, or false outside the client area.
+static bool ClientPlace(const mwinWin32Window* window, POINT point, LPARAM* place)
+{
+    RECT client;
+    GetClientRect(window->hwnd, &client);
+    ScreenToClient(window->hwnd, &point);
+    *place = MAKELPARAM((WORD)(int16_t)point.x, (WORD)(int16_t)point.y);
+    return PtInRect(&client, point) != 0;
+}
+
+static POINT PointOf(LPARAM place)
+{
+    return (POINT){(int16_t)LOWORD(place), (int16_t)HIWORD(place)};
+}
+
+// The pointer left what Windows tracked: from the client area into a
+// hit region or back, still over the client area, it did not leave.
+static void OnLeave(mwinWin32Window* window)
+{
+    window->tracking = false;
+    POINT cursor;
+    LPARAM place = 0;
+    if (GetCursorPos(&cursor) && WindowFromPoint(cursor) == window->hwnd &&
+        ClientPlace(window, cursor, &place))
+    {
+        return;
+    }
+    if (window->pointerInside)
+    {
+        window->pointerInside = false;
+        PostPointer(window, mwin_eventCursorLeft, (mwinPosition){0}, 0);
+    }
 }
 
 static mwinMouseButton ButtonOf(UINT message, WPARAM wParam)
@@ -231,6 +275,23 @@ static void OnButton(mwinWin32Window* window, UINT message, WPARAM wParam, LPARA
         }
     }
     PostPointer(window, down ? mwin_eventButtonDown : mwin_eventButtonUp, position, button);
+}
+
+// A press or release over a maximize button in the client area, which
+// Windows sends as the frame's: the program's, as any of the client
+// area. Windows' own handling would maximize the window.
+static bool OnFrameButton(mwinWin32Window* window, UINT message, WPARAM hit, LPARAM screen)
+{
+    LPARAM place = 0;
+    if (hit != HTMAXBUTTON || !ClientPlace(window, PointOf(screen), &place))
+    {
+        return false;
+    }
+    UINT client = message - WM_NCLBUTTONDOWN + WM_LBUTTONDOWN;
+    // The frame's double clicks are presses: the program counts clicks.
+    client -= (client - WM_LBUTTONDOWN) % 3 == 2 ? 2 : 0;
+    OnButton(window, client, 0, place);
+    return true;
 }
 
 static void OnWheel(mwinWin32Window* window, UINT message, WPARAM wParam)
@@ -313,12 +374,32 @@ bool mwinWin32HandleInput(mwinWin32Window* window, UINT message, WPARAM wParam, 
     switch (message)
     {
     case WM_MOUSEMOVE:
-        OnMouseMove(window, lParam);
+        OnMouseMove(window, lParam, false);
         return true;
+    case WM_NCMOUSEMOVE:
+    {
+        LPARAM place = 0;
+        if (ClientPlace(window, PointOf(lParam), &place))
+        {
+            OnMouseMove(window, place, true);
+        }
+        // Windows goes on with the frame's own, as snap layouts need.
+        return false;
+    }
     case WM_MOUSELEAVE:
-        window->tracking = false;
-        PostPointer(window, mwin_eventCursorLeft, (mwinPosition){0}, 0);
-        return true;
+    case WM_NCMOUSELEAVE:
+        OnLeave(window);
+        return message == WM_MOUSELEAVE;
+    case WM_NCLBUTTONDOWN:
+    case WM_NCLBUTTONUP:
+    case WM_NCLBUTTONDBLCLK:
+    case WM_NCRBUTTONDOWN:
+    case WM_NCRBUTTONUP:
+    case WM_NCRBUTTONDBLCLK:
+    case WM_NCMBUTTONDOWN:
+    case WM_NCMBUTTONUP:
+    case WM_NCMBUTTONDBLCLK:
+        return OnFrameButton(window, message, wParam, lParam);
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
     case WM_RBUTTONDOWN:

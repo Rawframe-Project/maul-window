@@ -79,6 +79,7 @@ struct mwinWin32Window
     // The pointer is over the window (a leave is asked for), the
     // buttons held, and the last press.
     bool tracking;
+    bool trackingFrame;
     uint8_t buttons;
     mwinClickCounter clicks;
     // The first half of a character outside the BMP, 0 for none.
@@ -96,6 +97,11 @@ struct mwinWin32Window
     HICON icons[2];
     // A popup's place from its owner's client area, in pixels.
     POINT offset;
+    // The program draws the frame: the client area is the whole window.
+    bool customChrome;
+    // The program was told the pointer is over the window; over the
+    // regions Windows handles its records still come.
+    bool pointerInside;
 };
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.

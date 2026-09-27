@@ -5,6 +5,7 @@
 
 #include "win32_window.h"
 
+#include "chrome.h"
 #include "win32_clipboard.h"
 #include "win32_dialog.h"
 #include "win32_drop.h"
@@ -18,6 +19,7 @@
 
 #include "maul-unicode/encoding.h"
 
+#include <dwmapi.h>
 #include <limits.h>
 #include <math.h>
 #include <string.h>
@@ -46,7 +48,9 @@ static void PostType(mwinWin32Window* window, mwinEventType type)
     Post(window, (mwinEvent){.type = type});
 }
 
-// The window styles of a window style and mode.
+// The window styles of a window style and mode. Custom chrome keeps a
+// caption's styles, with which Windows snaps, animates and shadows the
+// window, and draws none of it.
 static DWORD StyleOf(mwinWindowStyle style, bool fullscreen)
 {
     if (fullscreen)
@@ -54,6 +58,10 @@ static DWORD StyleOf(mwinWindowStyle style, bool fullscreen)
         return WS_POPUP;
     }
     DWORD resizable = (style & mwin_styleResizable) != 0 ? WS_THICKFRAME | WS_MAXIMIZEBOX : 0;
+    if ((style & mwin_styleCustomChrome) != 0)
+    {
+        return WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | resizable;
+    }
     return (style & mwin_styleDecorated) != 0 ? WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | resizable
                                               : WS_POPUP | resizable;
 }
@@ -75,6 +83,13 @@ static uint32_t ToPixels(float logical, uint32_t dpi)
 static DWORD CurrentStyle(const mwinWin32Window* window)
 {
     return (DWORD)GetWindowLongPtrW(window->hwnd, GWL_STYLE);
+}
+
+// The styles whose frame surrounds the client area: none for custom
+// chrome, whose client area is the whole window (WM_NCCALCSIZE).
+static DWORD FramedStyle(const mwinWin32Window* window, DWORD style)
+{
+    return window->customChrome ? WS_POPUP : style;
 }
 
 static void PostSize(mwinWin32Window* window)
@@ -234,7 +249,7 @@ static void OnDpiChanged(mwinWin32Window* window, WPARAM dpi, const RECT* sugges
 // Bounds the window's size by the limits the program set.
 static void OnMinMax(const mwinWin32Window* window, MINMAXINFO* info)
 {
-    DWORD style = CurrentStyle(window);
+    DWORD style = FramedStyle(window, CurrentStyle(window));
     if (window->minimum.width > 0.0f || window->minimum.height > 0.0f)
     {
         SIZE frame = FrameSize(style, ToPixels(window->minimum.width, window->dpi),
@@ -258,7 +273,7 @@ static void OnSizing(const mwinWin32Window* window, WPARAM edge, RECT* rect)
     {
         return;
     }
-    SIZE frame = FrameSize(CurrentStyle(window), 0, 0, window->dpi);
+    SIZE frame = FrameSize(FramedStyle(window, CurrentStyle(window)), 0, 0, window->dpi);
     double ratio = (double)window->aspectWidth / (double)window->aspectHeight;
     LONG width = rect->right - rect->left - frame.cx;
     LONG height = rect->bottom - rect->top - frame.cy;
@@ -275,6 +290,61 @@ static void OnSizing(const mwinWin32Window* window, WPARAM edge, RECT* rect)
     {
         rect->right = rect->left + frame.cx + (LONG)lround((double)height * ratio);
     }
+}
+
+// A custom chrome window keeps a line of the frame DWM draws, which
+// keeps its shadow; the program draws over it.
+static void ExtendFrame(const mwinWin32Window* window)
+{
+    MARGINS margins = {0, 0, window->customChrome ? 1 : 0, 0};
+    (void)DwmExtendFrameIntoClientArea(window->hwnd, &margins);
+}
+
+// Custom chrome's client area is the whole window; maximized, Windows
+// puts the frame it would have drawn past the monitor's edges, which the
+// client area leaves out.
+static bool OnCalcSize(const mwinWin32Window* window, WPARAM whole, NCCALCSIZE_PARAMS* params)
+{
+    if (!window->customChrome || !whole || window->fullscreen)
+    {
+        return false;
+    }
+    if (IsZoomed(window->hwnd))
+    {
+        int padding = GetSystemMetricsForDpi(SM_CXPADDEDBORDER, window->dpi);
+        int x = GetSystemMetricsForDpi(SM_CXFRAME, window->dpi) + padding;
+        int y = GetSystemMetricsForDpi(SM_CYFRAME, window->dpi) + padding;
+        params->rgrc[0].left += x;
+        params->rgrc[0].right -= x;
+        params->rgrc[0].top += y;
+        params->rgrc[0].bottom -= y;
+    }
+    return true;
+}
+
+// What Windows makes of a point of the client area from the program's
+// hit regions. Edges a window cannot be resized from, and a maximize
+// button it cannot use, are a border and the client.
+static LRESULT HitTest(const mwinWin32Window* window, LPARAM place)
+{
+    static const LRESULT codes[] = {
+        HTCLIENT,   HTCAPTION,    HTLEFT,        HTRIGHT,  HTTOP,       HTBOTTOM, HTTOPLEFT,
+        HTTOPRIGHT, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTMAXBUTTON, HTCLIENT,
+    };
+    POINT point = {(int16_t)LOWORD(place), (int16_t)HIWORD(place)};
+    ScreenToClient(window->hwnd, &point);
+    float scale = ScaleOf(window);
+    mwinHitKind kind = mwinHitAt(CoreOf(window), (float)point.x / scale, (float)point.y / scale);
+    bool sizable = (CurrentStyle(window) & WS_THICKFRAME) != 0 && !IsZoomed(window->hwnd);
+    if (kind >= mwin_hitLeft && kind <= mwin_hitBottomRight && !sizable)
+    {
+        return HTBORDER;
+    }
+    if (kind == mwin_hitMaximize && (CurrentStyle(window) & WS_MAXIMIZEBOX) == 0)
+    {
+        return HTCLIENT;
+    }
+    return codes[kind];
 }
 
 // The messages about the window as a whole: true when handled, with
@@ -322,6 +392,21 @@ static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wP
     case WM_ERASEBKGND:
         // The renderer draws every pixel; erasing would flicker.
         *result = 1;
+        return true;
+    case WM_NCCALCSIZE:
+        return OnCalcSize(window, wParam, mwinWin32Pointer(lParam));
+    case WM_NCHITTEST:
+        *result = DefWindowProcW(window->hwnd, message, wParam, lParam);
+        *result = *result == HTCLIENT ? HitTest(window, lParam) : *result;
+        return true;
+    case WM_NCACTIVATE:
+        if (!window->customChrome)
+        {
+            return false;
+        }
+        // Nothing of the frame shows to be painted as the activation
+        // changes.
+        *result = DefWindowProcW(window->hwnd, message, wParam, -1);
         return true;
     default:
         return false;
@@ -441,7 +526,7 @@ static HWND Make(mwinWin32Window* window, const mwinWindow* core, DWORD style)
 {
     mwinWin32Platform* platform = window->platform;
     const mwinWin32Window* owner = OwnerOf(window);
-    SIZE frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
+    SIZE frame = FrameSize(FramedStyle(window, style), ToPixels(core->def.size.width, window->dpi),
                            ToPixels(core->def.size.height, window->dpi), window->dpi);
     POINT origin = {CW_USEDEFAULT, CW_USEDEFAULT};
     DWORD extended = owner != nullptr ? 0 : WS_EX_APPWINDOW;
@@ -467,6 +552,7 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     *window = (mwinWin32Window){.platform = platform, .slot = slot, .monitor = -1};
     window->dpi = GetDpiForSystem();
     DWORD style = IsPopup(window) ? WS_POPUP : StyleOf(core->def.style, false);
+    window->customChrome = (core->def.style & mwin_styleCustomChrome) != 0 && !IsPopup(window);
     HWND hwnd = Make(window, core, style);
     int32_t request =
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
@@ -477,11 +563,18 @@ void mwinWin32CreateWindow(mwinContext* context, uint32_t slot)
     }
     // Windows opened it on a monitor of its choice, maybe of another DPI.
     window->dpi = GetDpiForWindow(hwnd);
-    SIZE frame = FrameSize(style, ToPixels(core->def.size.width, window->dpi),
+    SIZE frame = FrameSize(FramedStyle(window, style), ToPixels(core->def.size.width, window->dpi),
                            ToPixels(core->def.size.height, window->dpi), window->dpi);
     SetWindowPos(hwnd, nullptr, 0, 0, frame.cx, frame.cy,
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     window->hwnd = hwnd;
+    if (window->customChrome)
+    {
+        // Windows sized the frame before the window was the program's.
+        ExtendFrame(window);
+        SetWindowPos(hwnd, nullptr, 0, 0, frame.cx, frame.cy,
+                     SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
     mwinWin32AttachDrop(window);
     mwinWin32StartIme(window);
     mwinWin32ApplyTheme(window);
@@ -585,8 +678,9 @@ static mwinOutcome SetSize(mwinWin32Window* window, mwinSize size)
     {
         return mwin_outcomeDenied;
     }
-    SIZE frame = FrameSize(CurrentStyle(window), ToPixels(size.width, window->dpi),
-                           ToPixels(size.height, window->dpi), window->dpi);
+    SIZE frame =
+        FrameSize(FramedStyle(window, CurrentStyle(window)), ToPixels(size.width, window->dpi),
+                  ToPixels(size.height, window->dpi), window->dpi);
     SetWindowPos(window->hwnd, nullptr, 0, 0, frame.cx, frame.cy,
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     return mwin_outcomeDone;
@@ -608,7 +702,8 @@ static mwinOutcome SetPosition(mwinWin32Window* window, mwinPosition position)
     }
     float scale = ScaleOf(window);
     RECT rect = {0, 0, 0, 0};
-    AdjustWindowRectExForDpi(&rect, CurrentStyle(window), FALSE, 0, window->dpi);
+    AdjustWindowRectExForDpi(&rect, FramedStyle(window, CurrentStyle(window)), FALSE, 0,
+                             window->dpi);
     SetWindowPos(window->hwnd, nullptr, (int)lroundf(position.x * scale) + rect.left,
                  (int)lroundf(position.y * scale) + rect.top, 0, 0,
                  SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -622,8 +717,11 @@ static mwinOutcome SetStyle(mwinWin32Window* window, mwinWindowStyle style)
     {
         DWORD visible = CurrentStyle(window) & (WS_VISIBLE | WS_MAXIMIZE | WS_MINIMIZE);
         DWORD next = StyleOf(style, false);
+        window->customChrome = (style & mwin_styleCustomChrome) != 0 && !IsPopup(window);
+        ExtendFrame(window);
         SetWindowLongPtrW(window->hwnd, GWL_STYLE, (LONG_PTR)(next | visible));
-        SIZE frame = FrameSize(next, window->width, window->height, window->dpi);
+        SIZE frame =
+            FrameSize(FramedStyle(window, next), window->width, window->height, window->dpi);
         SetWindowPos(window->hwnd, nullptr, 0, 0, frame.cx, frame.cy,
                      SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     }

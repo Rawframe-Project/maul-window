@@ -64,6 +64,8 @@ extern "C"
         uint16_t localeBytes;
         // Gamepads connected at once; 0 for none.
         uint16_t gamepads;
+        // Bytes of clipboard text, written or read.
+        uint32_t clipboardBytes;
     } mwinLimits;
 
     // How a context is made. Build it with mwinDefaultContextDef.
@@ -103,8 +105,8 @@ extern "C"
     /// Returns the default context def: the default limits (8 windows; per
     /// window 32 requests, 256 notifications, 256 input records per class
     /// and 4,096 bytes of text; 1,024 title bytes; 16 monitors; 256 bytes
-    /// of locales; 8 gamepads), the C library's allocator and the native
-    /// backend.
+    /// of locales; 8 gamepads; 1 MiB of clipboard text), the C library's
+    /// allocator and the native backend.
     ///
     /// @return The def, with a valid cookie.
     /// @par Thread safety

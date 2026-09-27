@@ -44,6 +44,7 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.monitors = 16;
     def.limits.localeBytes = 256;
     def.limits.gamepads = 8;
+    def.limits.clipboardBytes = 1u << 20;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -227,6 +228,7 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
 
 static void DestroyContext(mwinContext* context)
 {
+    mwinReleaseClipboard(context);
     mwinAllocator allocator = context->allocator;
     mwinRelease(&allocator, context, context->memorySize, alignof(max_align_t));
 }

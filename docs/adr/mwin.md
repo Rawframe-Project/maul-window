@@ -14,3 +14,4 @@ are listed in [README.md](README.md).
 | [mwin-0007](mwin-0007-win32-backend.md) | The Win32 backend | Accepted |
 | [mwin-0008](mwin-0008-web-backend.md) | The web backend | Accepted |
 | [mwin-0009](mwin-0009-gamepads.md) | Gamepads | Accepted |
+| [mwin-0010](mwin-0010-clipboard.md) | The clipboard | Accepted |

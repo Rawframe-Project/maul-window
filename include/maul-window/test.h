@@ -267,6 +267,51 @@ extern "C"
                                                          float* highOut, uint32_t* durationMsOut,
                                                          uint32_t* countOut);
 
+    /// Puts bytes on the test platform's clipboard, at once, as another
+    /// program would: they need not be UTF-8.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param bytes    The bytes. May be NULL when length is 0.
+    /// @param length   Their number.
+    /// @return `mwin_success`; `mwin_errorCapacity` when the allocator has
+    ///         no room; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL context, or NULL
+    ///         bytes with a length.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes,
+                                                            size_t length);
+
+    /// Puts UTF-16 on the test platform's clipboard, as Windows keeps it:
+    /// it need not be well-formed.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param units    The code units. May be NULL when length is 0.
+    /// @param length   Their number.
+    /// @return As mwinTestSetClipboard.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboardUtf16(mwinContext* context,
+                                                                 const uint16_t* units,
+                                                                 size_t length);
+
+    /// Reads the test platform's clipboard as bytes: what the program last
+    /// wrote, or what mwinTestSetClipboard put there.
+    ///
+    /// @param context    A context of the test backend.
+    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes buffer holds.
+    /// @param lengthOut  Receives their number.
+    /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit
+    ///         (the bytes that fit are written); `mwin_errorUnsupported`
+    ///         for a context of another backend; `mwin_errorInvalid` for a
+    ///         NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetClipboard(const mwinContext* context,
+                                                            char* buffer, size_t capacity,
+                                                            size_t* lengthOut);
+
 #ifdef __cplusplus
 }
 #endif

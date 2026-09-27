@@ -111,5 +111,11 @@ format.
   through force feedback. Win32 gamepads through XInput, with rumble
   stopped when its duration runs out. Web gamepads through the Gamepad
   API, the standard mapping mapped, with dual-rumble.
+- The clipboard (mwin-0010): UTF-8 text written and read through
+  requests of a window (`mwinRequestClipboardWrite`,
+  `mwinRequestClipboardRead`), the text read copied out with
+  `mwinGetClipboardText`, ill-formed text repaired, the
+  `clipboardBytes` limit and `mwin_outcomeTooLarge`; the test backend's
+  clipboard and the contract tests.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

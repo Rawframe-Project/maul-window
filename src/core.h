@@ -172,6 +172,12 @@ struct mwinContext
     mwinSystemFacts facts;
     char* locales;
     uint16_t localeLength;
+    // The text last written to the clipboard and the text the last read
+    // found, each in a block of its own length from the allocator.
+    char* clipboardOffer;
+    uint32_t clipboardOfferLength;
+    char* clipboardFound;
+    uint32_t clipboardFoundLength;
     // Lifecycle and surface notifications, which come before all others,
     // and the context's own notifications.
     mwinRing critical;
@@ -266,6 +272,16 @@ void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs);
 // Answers a request of the window in a slot; a request that is no
 // longer active (superseded, cancelled) is left alone.
 void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOutcome outcome);
+
+// Holds what a clipboard read found, the platform's bytes as UTF-8 or
+// UTF-16: ill-formed sequences replaced, then checked against the
+// clipboardBytes limit. The outcome to complete the read with: done,
+// too large, or failed when the allocator has no room.
+mwinOutcome mwinTakeClipboardText(mwinContext* context, const char* bytes, size_t length);
+mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length);
+
+// Frees the clipboard's text; the context's end calls it.
+void mwinReleaseClipboard(mwinContext* context);
 
 // Frees the slot of an answered request whose completion was drained.
 void mwinReleaseRequest(mwinContext* context, mwinRequestId request);

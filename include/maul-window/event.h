@@ -184,6 +184,8 @@ extern "C"
         mwin_requestAspectRatio = 12,
         mwin_requestStyle = 13,
         mwin_requestOpacity = 14,
+        mwin_requestClipboardWrite = 15,
+        mwin_requestClipboardRead = 16,
     };
 
     // How a request ended.
@@ -204,6 +206,9 @@ extern "C"
         mwin_outcomeCancelled = 4,
         // The platform failed.
         mwin_outcomeFailed = 5,
+        // What the platform gave did not fit its limit: a clipboard read
+        // past clipboardBytes.
+        mwin_outcomeTooLarge = 6,
     };
 
     // The answer to a request.

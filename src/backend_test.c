@@ -18,7 +18,7 @@
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestOpacity + 1)
+#define KINDS (mwin_requestClipboardRead + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -58,6 +58,11 @@ typedef struct TestPlatform
     mwinPreeditSegment reportSegments[MAX_REPORT_SEGMENTS];
     uint32_t reportSegmentsUsed;
     mwinOutcome answers[KINDS];
+    // The platform's clipboard: bytes, or UTF-16 units when utf16 is set,
+    // in a block of their own from the allocator.
+    void* clipboard;
+    size_t clipboardBytes;
+    bool utf16;
     bool hold;
     uint64_t timeNs;
     float scale;
@@ -96,8 +101,40 @@ static mwinResult Start(mwinContext* context)
     return mwin_success;
 }
 
+static void ReleaseClipboard(const mwinContext* context, TestPlatform* platform)
+{
+    if (platform->clipboard != nullptr)
+    {
+        mwinRelease(&context->allocator, platform->clipboard, platform->clipboardBytes,
+                    alignof(uint16_t));
+    }
+    platform->clipboard = nullptr;
+    platform->clipboardBytes = 0;
+}
+
+// Puts bytes on the platform's clipboard; false when there is no room.
+static bool SetClipboard(const mwinContext* context, const void* data, size_t bytes, bool utf16)
+{
+    TestPlatform* platform = PlatformOf(context);
+    void* copy = bytes > 0 ? mwinAllocate(&context->allocator, bytes, alignof(uint16_t)) : nullptr;
+    if (bytes > 0 && copy == nullptr)
+    {
+        return false;
+    }
+    if (bytes > 0)
+    {
+        memcpy(copy, data, bytes);
+    }
+    ReleaseClipboard(context, platform);
+    platform->clipboard = copy;
+    platform->clipboardBytes = bytes;
+    platform->utf16 = utf16;
+    return true;
+}
+
 static void Stop(mwinContext* context)
 {
+    ReleaseClipboard(context, PlatformOf(context));
     mwinRelease(&context->allocator, context->backendData, PlatformBytes(context),
                 alignof(max_align_t));
     context->backendData = nullptr;
@@ -239,8 +276,24 @@ static void Focus(mwinContext* context, uint32_t slot)
     PostType(context, slot, mwin_eventFocusGained);
 }
 
-// Carries out a request the answers say to do.
-static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* request)
+// Uses the clipboard as a platform would: a write replaces its text, a
+// read takes it.
+static mwinOutcome UseClipboard(mwinContext* context, mwinRequestKind kind)
+{
+    const TestPlatform* platform = PlatformOf(context);
+    if (kind == mwin_requestClipboardWrite)
+    {
+        return SetClipboard(context, context->clipboardOffer, context->clipboardOfferLength, false)
+                   ? mwin_outcomeDone
+                   : mwin_outcomeFailed;
+    }
+    return platform->utf16
+               ? mwinTakeClipboardUtf16(context, platform->clipboard, platform->clipboardBytes / 2)
+               : mwinTakeClipboardText(context, platform->clipboard, platform->clipboardBytes);
+}
+
+// Carries out a request the answers say to do, and says how it ended.
+static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* request)
 {
     mwinWindow* window = &context->windows[slot];
     switch (request->kind)
@@ -298,9 +351,13 @@ static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* req
         mwinPost(context, slot, &event);
         break;
     }
+    case mwin_requestClipboardWrite:
+    case mwin_requestClipboardRead:
+        return UseClipboard(context, request->kind);
     default:
         break; // the cursor changes on screen, with nothing to report
     }
+    return mwin_outcomeDone;
 }
 
 static bool IsLifecycle(mwinEventType type)
@@ -357,7 +414,7 @@ static void Pump(mwinContext* context)
         mwinOutcome outcome = platform->answers[request->kind];
         if (outcome == mwin_outcomeDone)
         {
-            CarryOut(context, pending.slot, request);
+            outcome = CarryOut(context, pending.slot, request);
         }
         mwinComplete(context, pending.slot, pending.request, outcome);
     }
@@ -793,4 +850,51 @@ mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, 
         *countOut = rumble->count;
     }
     return status;
+}
+
+mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length)
+{
+    if (context == nullptr || (bytes == nullptr && length != 0))
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    return SetClipboard(context, bytes, length, false) ? mwin_success : mwin_errorCapacity;
+}
+
+mwinResult mwinTestSetClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length)
+{
+    if (context == nullptr || (units == nullptr && length != 0))
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    return SetClipboard(context, units, length * 2, true) ? mwin_success : mwin_errorCapacity;
+}
+
+mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t capacity,
+                                size_t* lengthOut)
+{
+    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
+    {
+        return mwin_errorInvalid;
+    }
+    const TestPlatform* platform = PlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    size_t length = platform->clipboardBytes;
+    if (length > 0 && capacity > 0)
+    {
+        memcpy(buffer, platform->clipboard, length < capacity ? length : capacity);
+    }
+    *lengthOut = length;
+    return length > capacity ? mwin_errorCapacity : mwin_success;
 }

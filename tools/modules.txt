@@ -9,6 +9,7 @@ backend_win32: allocator backend core win32 win32_input win32_output win32_pad w
 backend_x11: allocator backend core x11 x11_api x11_cursor x11_input x11_output x11_window
 base:
 clicks:
+clipboard: allocator core
 context: allocator backend core
 core: backend
 evdev:

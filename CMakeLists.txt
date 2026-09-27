@@ -74,6 +74,7 @@ endif()
 add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/allocator.c
     src/base.c
+    src/clipboard.c
     src/context.c
     src/input.c
     src/monitor.c
@@ -127,6 +128,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(system)
         maul_add_test(ime)
         maul_add_test(properties)
+        maul_add_test(clipboard)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
         endif()

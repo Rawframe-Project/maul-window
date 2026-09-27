@@ -3,13 +3,15 @@
 //
 // The web backend's services in headless Chrome, against stand-ins for
 // window.open and the wake lock: an address opened in a new tab cut
-// from the page, a blocked popup denied, a file never revealed; the
-// screen kept awake while the window shows, let go while it is hidden,
-// asked for again after the page released it (before the lock came, and
-// after), let go when the window no longer asks and at the page's end.
+// from the page, a blocked popup denied, a file never revealed, no file
+// dialogs; the screen kept awake while the window shows, let go while
+// it is hidden, asked for again after the page released it (before the
+// lock came, and after), let go when the window no longer asks and at
+// the page's end.
 
 #include "test_harness.h"
 
+#include "maul-window/dialog.h"
 #include "maul-window/event.h"
 #include "maul-window/services.h"
 
@@ -162,6 +164,11 @@ static void CheckOpen(mwinContext* context, Program* program)
         Now(context, program, mwinRequestRevealFile(context, window, "/a", 2, &program->request)) ==
             mwin_outcomeUnsupported,
         "a file never revealed");
+    mwinFileDialogDef dialog = mwinDefaultFileDialogDef();
+    CHECK(
+        Now(context, program, mwinRequestFileDialog(context, window, &dialog, &program->request)) ==
+            mwin_outcomeUnsupported,
+        "no file dialogs, a page naming no files");
     StandInWakeLock();
     CHECK(Now(context, program, mwinRequestKeepAwake(context, window, true, &program->request)) ==
               mwin_outcomeDone,

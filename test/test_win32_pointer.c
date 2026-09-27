@@ -57,6 +57,22 @@ typedef struct Program
     bool timedOut;
 } Program;
 
+// The pointer and mouse messages the thread took, for a timeout's report.
+static int s_pointerMessages = 0;
+static int s_mouseMessages = 0;
+
+static LRESULT CALLBACK OnMessage(int code, WPARAM wParam, LPARAM lParam)
+{
+    const MSG* message = (const MSG*)lParam;
+    if (code == HC_ACTION && wParam == PM_REMOVE)
+    {
+        s_pointerMessages +=
+            message->message >= WM_NCPOINTERUPDATE && message->message <= WM_POINTERROUTEDRELEASED;
+        s_mouseMessages += message->message >= WM_MOUSEFIRST && message->message <= WM_MOUSELAST;
+    }
+    return CallNextHookEx(nullptr, code, wParam, lParam);
+}
+
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
@@ -257,7 +273,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {
-        (void)printf("timed out in phase %d\n", (int)program->phase);
+        (void)printf("timed out in phase %d: %d pointer and %d mouse messages\n",
+                     (int)program->phase, s_pointerMessages, s_mouseMessages);
+        for (int i = 0; i < program->count; i++)
+        {
+            (void)printf("  record type %d\n", (int)program->records[i].type);
+        }
         program->timedOut = true;
         return mwin_frameStop;
     }
@@ -294,6 +315,7 @@ int main(void)
     {
         return 77;
     }
+    HHOOK hook = SetWindowsHookExW(WH_GETMESSAGE, OnMessage, nullptr, GetCurrentThreadId());
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
@@ -302,5 +324,6 @@ int main(void)
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
     destroy(program.pen);
+    UnhookWindowsHookEx(hook);
     return s_failures == 0 ? 0 : 1;
 }

@@ -32,6 +32,13 @@ the physical key and the character it types as separate facts.
 - **Text** is validated UTF-8, copied into the window's text storage,
   and valid until the frame that drained it returns: drained text is
   reclaimed only when the next pump begins.
+- **Input methods.** A composition is `mwin_eventImePreedit`, a
+  discrete record whose newer value replaces one still waiting; its
+  segments are copied into the text storage before its text. A commit
+  is `mwin_eventTextInput`. While a window composes, a key record whose
+  key types a character and goes down is left out, and so is the
+  release of that key, so no press or release arrives alone; keys that
+  type nothing pass.
 - **The test backend** delivers what a test reports at the next pump,
   as a platform's messages arrive.
 

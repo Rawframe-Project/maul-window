@@ -24,6 +24,14 @@
 // there is not; samples says how many a record stands for.
 //
 // Text in a record stays valid until the frame that drained it returns.
+//
+// An input method composes text in place before it commits it. While a
+// window accepts text (mwinRequestTextInput), mwin_eventImePreedit
+// reports the text being composed, with its caret, its selection and
+// styled segments; an empty preedit ends the composition. Committed text
+// arrives as mwin_eventTextInput. While a composition runs, the keys it
+// consumes produce no key records: a key that types a character and goes
+// down during a composition is left out, and so is its release.
 
 #ifndef MAUL_WINDOW_EVENT_H
 #define MAUL_WINDOW_EVENT_H
@@ -133,6 +141,8 @@ extern "C"
         // The keyboard layout changed (mwinGetKeyboardLayout,
         // mwinMapKeyCode).
         mwin_eventKeyboardLayoutChanged = 51,
+        // An input method's composition changed (data.preedit).
+        mwin_eventImePreedit = 52,
     };
 
     // The kind of a request.
@@ -150,6 +160,7 @@ extern "C"
         mwin_requestCursorMode = 7,
         mwin_requestCursorShape = 8,
         mwin_requestVirtualKeyboard = 9,
+        mwin_requestTextInput = 10,
     };
 
     // How a request ended.
@@ -204,6 +215,45 @@ extern "C"
         const char* text;
         uint32_t length;
     } mwinTextEvent;
+
+    // The most segments a composition may have.
+#define MWIN_MAX_PREEDIT_SEGMENTS 32
+
+    // How a segment of a composition is shown.
+    typedef uint8_t mwinPreeditStyle;
+
+    enum
+    {
+        mwin_preeditPlain = 0,
+        // Underlined: text still to convert.
+        mwin_preeditUnderline = 1,
+        // Highlighted: the part a conversion works on now.
+        mwin_preeditTarget = 2,
+        // Converted but not yet committed.
+        mwin_preeditConverted = 3,
+    };
+
+    // A styled part of a composition, in bytes of its text.
+    typedef struct mwinPreeditSegment
+    {
+        uint32_t start;
+        uint32_t length;
+        mwinPreeditStyle style;
+    } mwinPreeditSegment;
+
+    // An input method's composition. The text, its segments and the
+    // offsets are in bytes; the caret is -1 where the method hides it.
+    // Valid until the frame that drained it returns.
+    typedef struct mwinPreeditEvent
+    {
+        const char* text;
+        uint32_t length;
+        int32_t caret;
+        uint32_t selectionStart;
+        uint32_t selectionEnd;
+        const mwinPreeditSegment* segments;
+        uint32_t segmentCount;
+    } mwinPreeditEvent;
 
     // The cursor: where it is, the buttons held, and for a button record
     // the button that changed and the count of quick clicks it completes.
@@ -299,6 +349,7 @@ extern "C"
             mwinMonitorId monitor;
             mwinInsets insets;
             mwinRect rect;
+            mwinPreeditEvent preedit;
         } data;
     } mwinEvent;
 

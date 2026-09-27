@@ -18,7 +18,7 @@
 #include <math.h>
 #include <string.h>
 
-#define KINDS (mwin_requestVirtualKeyboard + 1)
+#define KINDS (mwin_requestTextInput + 1)
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
@@ -31,8 +31,9 @@ typedef struct Pending
 } Pending;
 
 // Reports and their text waiting for the next pump.
-#define MAX_REPORTS     1024
-#define MAX_REPORT_TEXT 65536
+#define MAX_REPORTS         1024
+#define MAX_REPORT_TEXT     65536
+#define MAX_REPORT_SEGMENTS 1024
 
 typedef struct TestPlatform
 {
@@ -43,6 +44,8 @@ typedef struct TestPlatform
     uint32_t reportCount;
     char reportText[MAX_REPORT_TEXT];
     uint32_t reportTextUsed;
+    mwinPreeditSegment reportSegments[MAX_REPORT_SEGMENTS];
+    uint32_t reportSegmentsUsed;
     mwinOutcome answers[KINDS];
     bool hold;
     uint64_t timeNs;
@@ -257,6 +260,17 @@ static void CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* req
     case mwin_requestFocus:
         Focus(context, slot);
         break;
+    case mwin_requestTextInput:
+        if (!request->value.textInput.enabled && window->state.composing)
+        {
+            // Leaving text input ends the composition.
+            mwinEvent end = {0};
+            end.type = mwin_eventImePreedit;
+            end.timeNs = Now(context);
+            end.data.preedit.caret = -1;
+            mwinPost(context, slot, &end);
+        }
+        break;
     case mwin_requestVirtualKeyboard:
     {
         // The keyboard covers the lower two fifths of the window.
@@ -311,6 +325,7 @@ static void Pump(mwinContext* context)
     }
     platform->reportCount = 0;
     platform->reportTextUsed = 0;
+    platform->reportSegmentsUsed = 0;
     if (platform->hold)
     {
         return;
@@ -416,12 +431,74 @@ mwinResult mwinTestHold(mwinContext* context, bool hold)
     return mwin_success;
 }
 
+// Whether a record type is one a test may report: not the core's own,
+// and not what the mwinTest setters report.
+static bool IsReportable(mwinEventType type)
+{
+    return type != mwin_eventNone && type != mwin_eventWindowCreated &&
+           type != mwin_eventWindowDestroyed && type != mwin_eventRequestCompleted &&
+           type != mwin_eventInputStateReset && type <= mwin_eventImePreedit &&
+           !(type >= mwin_eventMonitorAdded && type <= mwin_eventMonitorChanged) &&
+           !(type >= mwin_eventThemeChanged && type <= mwin_eventLocaleChanged);
+}
+
+static bool HasText(mwinEventType type)
+{
+    return type == mwin_eventTextInput || type == mwin_eventImePreedit;
+}
+
+// Whether a report's text and segments are well formed.
+static bool IsTextValid(const mwinEvent* event)
+{
+    if (!HasText(event->type))
+    {
+        return true;
+    }
+    const mwinPreeditEvent* preedit = &event->data.preedit;
+    bool segmentsValid = event->type != mwin_eventImePreedit ||
+                         (preedit->segmentCount <= MWIN_MAX_PREEDIT_SEGMENTS &&
+                          (preedit->segments != nullptr || preedit->segmentCount == 0));
+    return segmentsValid && (preedit->text != nullptr || preedit->length == 0) &&
+           muniValidateUtf8(preedit->text, preedit->length).status == muni_success;
+}
+
+// Copies a report, its text and its segments into the platform's queue.
+static mwinResult QueueReport(TestPlatform* platform, const mwinEvent* event)
+{
+    uint32_t length = HasText(event->type) ? event->data.text.length : 0;
+    uint32_t segments = event->type == mwin_eventImePreedit ? event->data.preedit.segmentCount : 0;
+    if (platform->reportCount == MAX_REPORTS ||
+        MAX_REPORT_TEXT - platform->reportTextUsed < length ||
+        MAX_REPORT_SEGMENTS - platform->reportSegmentsUsed < segments)
+    {
+        return mwin_errorCapacity;
+    }
+    mwinEvent* record = &platform->reports[platform->reportCount++];
+    *record = *event;
+    record->timeNs = platform->timeNs;
+    if (HasText(event->type))
+    {
+        char* copy = platform->reportText + platform->reportTextUsed;
+        if (length > 0)
+        {
+            memcpy(copy, event->data.text.text, length);
+        }
+        record->data.text.text = copy;
+        platform->reportTextUsed += length;
+    }
+    if (segments > 0)
+    {
+        mwinPreeditSegment* copy = platform->reportSegments + platform->reportSegmentsUsed;
+        memcpy(copy, event->data.preedit.segments, segments * sizeof(mwinPreeditSegment));
+        record->data.preedit.segments = copy;
+        platform->reportSegmentsUsed += segments;
+    }
+    return mwin_success;
+}
+
 mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 {
-    if (context == nullptr || event == nullptr || event->type == mwin_eventNone ||
-        event->type == mwin_eventWindowCreated || event->type == mwin_eventWindowDestroyed ||
-        event->type == mwin_eventRequestCompleted || event->type == mwin_eventInputStateReset ||
-        event->type > mwin_eventKeyboardLayoutChanged)
+    if (context == nullptr || event == nullptr || !IsReportable(event->type) || !IsTextValid(event))
     {
         return mwin_errorInvalid;
     }
@@ -430,45 +507,13 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
     {
         return mwin_errorUnsupported;
     }
-    if ((event->type >= mwin_eventMonitorAdded && event->type <= mwin_eventMonitorChanged) ||
-        (event->type >= mwin_eventThemeChanged && event->type <= mwin_eventLocaleChanged))
-    {
-        return mwin_errorInvalid; // these go through the mwinTest functions that set them
-    }
-    if (!IsGlobal(event->type) && mwinFindWindow(context, event->window) == nullptr)
+    if ((!IsGlobal(event->type) && mwinFindWindow(context, event->window) == nullptr) ||
+        (event->type == mwin_eventDisplayChanged &&
+         mwinFindMonitor(context, event->data.monitor) < 0))
     {
         return mwin_errorStale;
     }
-    if (event->type == mwin_eventDisplayChanged &&
-        mwinFindMonitor(context, event->data.monitor) < 0)
-    {
-        return mwin_errorStale;
-    }
-    if (event->type == mwin_eventTextInput &&
-        ((event->data.text.text == nullptr && event->data.text.length != 0) ||
-         muniValidateUtf8(event->data.text.text, event->data.text.length).status != muni_success))
-    {
-        return mwin_errorInvalid;
-    }
-    uint32_t length = event->type == mwin_eventTextInput ? event->data.text.length : 0;
-    if (platform->reportCount == MAX_REPORTS || MAX_REPORT_TEXT - platform->reportTextUsed < length)
-    {
-        return mwin_errorCapacity;
-    }
-    mwinEvent* record = &platform->reports[platform->reportCount++];
-    *record = *event;
-    record->timeNs = platform->timeNs;
-    if (event->type == mwin_eventTextInput)
-    {
-        char* text = platform->reportText + platform->reportTextUsed;
-        if (length > 0)
-        {
-            memcpy(text, event->data.text.text, length);
-        }
-        record->data.text.text = text;
-        platform->reportTextUsed += length;
-    }
-    return mwin_success;
+    return QueueReport(platform, event);
 }
 
 mwinResult mwinTestSetTime(mwinContext* context, uint64_t timeNs)

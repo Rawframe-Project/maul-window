@@ -7,6 +7,8 @@
 
 #include "core.h"
 
+#include <math.h>
+
 mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window, bool visible,
                                       mwinInputPurpose purpose, mwinRequestId* requestOut)
 {
@@ -23,6 +25,27 @@ mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window,
         // The purpose in the low bits, the high bit set to show.
         context->windows[slot].requests[request].value.code =
             (uint8_t)(purpose | (visible ? 0x80u : 0u));
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinRequestTextInput(mwinContext* context, mwinWindowId window, bool enabled,
+                                mwinRect caret, mwinRequestId* requestOut)
+{
+    if (!isfinite(caret.x) || !isfinite(caret.y) || !isfinite(caret.width) ||
+        !isfinite(caret.height) || caret.width < 0.0f || caret.height < 0.0f)
+    {
+        return mwin_errorInvalid;
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestTextInput, &slot, &request);
+    if (status == mwin_success)
+    {
+        mwinRequest* entry = &context->windows[slot].requests[request];
+        entry->value.textInput.enabled = enabled;
+        entry->value.textInput.caret = caret;
         mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;

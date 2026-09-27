@@ -259,6 +259,25 @@ extern "C"
                                                                   mwinInputPurpose purpose,
                                                                   mwinRequestId* requestOut);
 
+    /// Asks a window to accept text, or to stop: while it does, input
+    /// methods compose into it and mwin_eventImePreedit reports their
+    /// compositions, and the caret rectangle tells the platform where to
+    /// place the candidate window. Ask again to move the caret.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
+    /// @param enabled     true to accept text, false to stop.
+    /// @param caret       Where the caret is, in the window's logical units.
+    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a caret
+    ///         that is not finite or has a negative size.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequestTextInput(mwinContext* context,
+                                                            mwinWindowId window, bool enabled,
+                                                            mwinRect caret,
+                                                            mwinRequestId* requestOut);
+
     /// Asks for a cursor mode over a window.
     ///
     /// @param context     The context.

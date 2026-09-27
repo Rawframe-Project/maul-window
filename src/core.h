@@ -80,6 +80,11 @@ typedef struct mwinRequest
         bool visible;
         // A cursor mode or shape.
         uint8_t code;
+        struct
+        {
+            bool enabled;
+            mwinRect caret;
+        } textInput;
     } value;
 } mwinRequest;
 
@@ -99,6 +104,9 @@ typedef struct mwinWindow
     mwinWindowDef def;
     mwinRing rings[MWIN_CLASSES];
     mwinTextRing text;
+    // One bit per key code whose press a composition consumed, so its
+    // release goes too.
+    uint8_t consumedKeys[32];
     mwinRequest* requests;
     char* title;
     char* pendingTitle;

@@ -71,6 +71,10 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
         return;
     }
     entry->status = mwin_requestAnswered;
+    if (entry->kind == mwin_requestTextInput && outcome == mwin_outcomeDone)
+    {
+        context->windows[slot].state.textInput = entry->value.textInput.enabled;
+    }
     mwinEvent event = {0};
     event.type = mwin_eventRequestCompleted;
     event.timeNs = context->backend->now(context);

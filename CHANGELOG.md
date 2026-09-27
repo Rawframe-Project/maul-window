@@ -39,6 +39,10 @@ format.
   (`mwinGetPreferredLocales`), their change records and the keyboard
   layout's; a window's safe area, and the on-screen keyboard with
   `mwinRequestVirtualKeyboard` and the part it covers.
+- Input methods: `mwinRequestTextInput` with the caret rectangle,
+  compositions with their caret, selection and styled segments
+  (`mwin_eventImePreedit`), commits as text, and the character keys a
+  composition consumes left out with their releases.
 - The headless test backend (`MAUL_WINDOW_TEST_BACKEND`, `test.h`) and
   the contract tests against it.
 - Maul Unicode 0.2.0 as a dependency, found installed or fetched

@@ -15,6 +15,7 @@
 // the newest waiting record of their kind when their ring is full.
 
 #include "core.h"
+#include "text.h"
 
 #include "maul-unicode/encoding.h"
 
@@ -73,6 +74,8 @@ static int CoalesceClass(mwinEventType type)
         return 19;
     case mwin_eventKeyboardLayoutChanged:
         return 20;
+    case mwin_eventImePreedit:
+        return 21;
     default:
         return 0;
     }
@@ -105,8 +108,10 @@ static int ClassOf(mwinEventType type)
     case mwin_eventWheel:
         return mwin_classWheel;
     default:
-        return type < mwin_eventKeyDown || type > mwin_eventPenButtonUp ? mwin_classNotification
-                                                                        : mwin_classDiscrete;
+        return (type >= mwin_eventKeyDown && type <= mwin_eventPenButtonUp) ||
+                       type == mwin_eventImePreedit
+                   ? mwin_classDiscrete
+                   : mwin_classNotification;
     }
 }
 
@@ -214,6 +219,9 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
     case mwin_eventVirtualKeyboardChanged:
         state->virtualKeyboard = event->data.rect;
         break;
+    case mwin_eventImePreedit:
+        state->composing = event->data.preedit.length > 0;
+        break;
     default:
         break;
     }
@@ -256,58 +264,6 @@ static bool Merge(mwinRing* ring, const mwinEvent* event)
     return false;
 }
 
-// Copies a text into the window's text ring; NULL when it does not fit.
-static const char* PlaceText(mwinTextRing* ring, const char* text, uint32_t length)
-{
-    if (ring->busy == 0)
-    {
-        ring->head = 0;
-        ring->tail = 0;
-    }
-    if (ring->busy == ring->capacity)
-    {
-        return nullptr;
-    }
-    uint32_t start = ring->tail;
-    uint32_t skipped = 0;
-    if (ring->tail < ring->head)
-    {
-        if (ring->head - ring->tail < length)
-        {
-            return nullptr;
-        }
-    }
-    else if (ring->capacity - ring->tail < length)
-    {
-        // The free space at the start, before head, must take it whole.
-        if (ring->busy == 0 || ring->head < length)
-        {
-            return nullptr;
-        }
-        skipped = ring->capacity - ring->tail;
-        start = 0;
-    }
-    memcpy(ring->bytes + start, text, length);
-    ring->tail = start + length;
-    ring->busy += skipped + length;
-    return ring->bytes + start;
-}
-
-// Marks a drained record's text for reclaiming at the next pump, with
-// any end of the buffer skipped before it.
-static void Drained(mwinTextRing* ring, const mwinEvent* event)
-{
-    if (event->data.text.length == 0)
-    {
-        return;
-    }
-    uint32_t start = (uint32_t)(event->data.text.text - ring->bytes);
-    uint32_t end = start + event->data.text.length;
-    uint32_t from = ring->reclaimBytes > 0 ? ring->reclaimHead : ring->head;
-    ring->reclaimBytes += start >= from ? end - from : ring->capacity - from + end;
-    ring->reclaimHead = end;
-}
-
 static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
     mwinEvent reset = {0};
@@ -318,24 +274,92 @@ static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
     (void)Append(context, &context->windows[slot].rings[mwin_classNotification], &reset);
 }
 
-// Moves a text record's text into the window's storage; false when the
-// record is lost.
+// Whether a composition's offsets and segments lie within its text.
+static bool IsPreeditValid(const mwinPreeditEvent* preedit)
+{
+    if (preedit->caret < -1 || preedit->caret > (int64_t)preedit->length ||
+        preedit->selectionStart > preedit->selectionEnd ||
+        preedit->selectionEnd > preedit->length ||
+        preedit->segmentCount > MWIN_MAX_PREEDIT_SEGMENTS ||
+        (preedit->segments == nullptr && preedit->segmentCount != 0))
+    {
+        return false;
+    }
+    for (uint32_t i = 0; i < preedit->segmentCount; i++)
+    {
+        const mwinPreeditSegment* segment = &preedit->segments[i];
+        if (segment->start > preedit->length || preedit->length - segment->start < segment->length)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Moves a record's text, and a composition's segments before it, into
+// the window's storage; false when the record is lost. The text is
+// validated here once more, though backends repair what they receive.
 static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 {
     const char* text = record->data.text.text;
     uint32_t length = record->data.text.length;
-    if ((text == nullptr && length != 0) || muniValidateUtf8(text, length).status != muni_success)
+    bool preedit = record->type == mwin_eventImePreedit;
+    uint32_t segments = preedit ? record->data.preedit.segmentCount : 0;
+    if ((text == nullptr && length != 0) || muniValidateUtf8(text, length).status != muni_success ||
+        (preedit && !IsPreeditValid(&record->data.preedit)))
     {
-        return false; // backends repair platform text; this never happens
+        return false;
     }
-    record->data.text.text =
-        length == 0 ? "" : PlaceText(&context->windows[slot].text, text, length);
-    if (record->data.text.text == nullptr)
+    uint32_t segmentBytes = segments * (uint32_t)sizeof(mwinPreeditSegment);
+    if (length + segmentBytes == 0)
+    {
+        record->data.text.text = "";
+        return true;
+    }
+    unsigned char* block = mwinReserveText(&context->windows[slot].text, segmentBytes + length,
+                                           alignof(mwinPreeditSegment));
+    if (block == nullptr)
     {
         PostReset(context, slot, record->timeNs);
         return false;
     }
+    if (segments > 0)
+    {
+        memcpy(block, record->data.preedit.segments, segmentBytes);
+        record->data.preedit.segments = (const mwinPreeditSegment*)block;
+    }
+    if (length > 0)
+    {
+        memcpy(block + segmentBytes, text, length);
+    }
+    record->data.text.text = (const char*)block + segmentBytes;
     return true;
+}
+
+// Whether a key record goes, because a composition consumes its key: a
+// character key that goes down while one runs, and its release.
+static bool Consumed(mwinWindow* window, const mwinEvent* record)
+{
+    if ((record->type != mwin_eventKeyDown && record->type != mwin_eventKeyUp) ||
+        record->data.key.code >= 256)
+    {
+        return false;
+    }
+    uint8_t bit = (uint8_t)(1u << (record->data.key.code & 7u));
+    uint8_t* held = &window->consumedKeys[record->data.key.code >> 3];
+    if (record->type == mwin_eventKeyUp)
+    {
+        bool consumed = (*held & bit) != 0;
+        *held = (uint8_t)(*held & ~bit);
+        return consumed;
+    }
+    mwinKey key = record->data.key.key;
+    if (window->state.composing && key != 0 && key < MWIN_KEY_NAMED)
+    {
+        *held = (uint8_t)(*held | bit);
+        return true;
+    }
+    return false;
 }
 
 void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
@@ -347,7 +371,8 @@ void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
     }
     mwinEvent record = *event;
     record.window = mwinWindowIdOf(context, slot);
-    if (record.type == mwin_eventTextInput && !TakeText(context, slot, &record))
+    bool text = record.type == mwin_eventTextInput || record.type == mwin_eventImePreedit;
+    if ((text && !TakeText(context, slot, &record)) || Consumed(window, &record))
     {
         return;
     }
@@ -397,8 +422,8 @@ void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
     {
         window->rings[kind].count = 0;
     }
-    window->text.reclaimHead = window->text.tail;
-    window->text.reclaimBytes = window->text.busy;
+    mwinDropText(&window->text);
+    memset(window->consumedKeys, 0, sizeof(window->consumedKeys));
     // Completions stay: every request is answered, even a cancelled one.
     mwinRing* ring = &window->rings[mwin_classNotification];
     for (uint16_t i = ring->count; i > 0; i--)
@@ -419,13 +444,7 @@ void mwinBeginPump(mwinContext* context)
 {
     for (uint32_t i = 0; i < context->limits.windows; i++)
     {
-        mwinTextRing* text = &context->windows[i].text;
-        if (text->reclaimBytes > 0)
-        {
-            text->head = text->reclaimHead;
-            text->busy -= text->reclaimBytes;
-            text->reclaimBytes = 0;
-        }
+        mwinReclaimText(&context->windows[i].text);
     }
 }
 
@@ -472,9 +491,17 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
     *eventOut = oldest->events[oldest->head];
     oldest->head = (uint16_t)((oldest->head + 1) % oldest->capacity);
     oldest->count -= 1;
-    if (window != nullptr && eventOut->type == mwin_eventTextInput)
+    if (window != nullptr &&
+        (eventOut->type == mwin_eventTextInput || eventOut->type == mwin_eventImePreedit))
     {
-        Drained(&window->text, eventOut);
+        // A composition's segments come before its text.
+        const mwinPreeditEvent* preedit = &eventOut->data.preedit;
+        bool segments = eventOut->type == mwin_eventImePreedit && preedit->segmentCount > 0;
+        const void* start = segments ? (const void*)preedit->segments : preedit->text;
+        if (preedit->length > 0 || segments)
+        {
+            mwinDrainText(&window->text, start, preedit->text + preedit->length);
+        }
     }
     if (window != nullptr && window->status == mwin_slotDestroyed &&
         eventOut->type == mwin_eventWindowDestroyed)

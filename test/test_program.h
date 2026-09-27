@@ -40,7 +40,7 @@ static inline mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     program->step(program, context, program->frame++);
-    return program->done || program->frame > 50 ? mwin_frameStop : mwin_frameContinue;
+    return program->done || program->frame > 100 ? mwin_frameStop : mwin_frameContinue;
 }
 
 static inline void Quit(mwinContext* context, mwinResult status, void* user)

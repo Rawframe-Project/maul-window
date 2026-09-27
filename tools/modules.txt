@@ -8,6 +8,7 @@ context: allocator backend core
 core: backend
 input: core
 monitor: core
-queue: core
+queue: core text
 system: core
+text: core
 window: core

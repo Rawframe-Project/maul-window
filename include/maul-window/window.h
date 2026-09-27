@@ -118,6 +118,10 @@ extern "C"
         // The part of the window an on-screen keyboard covers, empty while
         // none shows.
         mwinRect virtualKeyboard;
+        // The window accepts text (mwinRequestTextInput answered done).
+        bool textInput;
+        // An input method composes (a preedit that is not empty).
+        bool composing;
     } mwinWindowState;
 
     /// Returns the default window def: 1,280 by 720 logical units,

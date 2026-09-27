@@ -27,6 +27,10 @@
 // three records per monitor (its addition, a change, its removal).
 #define GLOBAL_CLASSES 4
 
+// The context's own notifications a gamepad can have waiting: its
+// addition, a change, a reset and its removal.
+#define GAMEPAD_RECORDS 4
+
 mwinContextDef mwinDefaultContextDef(void)
 {
     mwinContextDef def = {0};
@@ -39,6 +43,7 @@ mwinContextDef mwinDefaultContextDef(void)
     def.limits.textBytesPerWindow = 4096;
     def.limits.monitors = 16;
     def.limits.localeBytes = 256;
+    def.limits.gamepads = 8;
     def.backend = mwin_backendNative;
     return def;
 }
@@ -59,7 +64,8 @@ static bool IsDefValid(const mwinAppDef* def)
            context->cookie == CONTEXT_DEF_COOKIE && mwinIsAllocatorValid(&context->allocator) &&
            limits->windows > 0 && limits->requestsPerWindow > 0 && limits->titleBytes > 0 &&
            limits->inputPerWindow > 0 && limits->textBytesPerWindow > 0 && limits->monitors > 0 &&
-           limits->notificationsPerWindow >= 3 * limits->monitors + GLOBAL_CLASSES &&
+           limits->notificationsPerWindow >=
+               3 * limits->monitors + GAMEPAD_RECORDS * limits->gamepads + GLOBAL_CLASSES &&
            limits->notificationsPerWindow >= limits->requestsPerWindow + FIXED_RECORDS &&
            context->backend <= mwin_backendTest;
 }
@@ -185,8 +191,9 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
 {
     const mwinLimits* limits = &def->context.limits;
     size_t rings = RingBytes(CriticalRecords(limits)) + RingBytes(limits->notificationsPerWindow);
-    size_t header = RoundUp(sizeof(mwinContext)) + rings + RoundUp(limits->localeBytes) +
-                    RoundUp(limits->monitors * sizeof(mwinMonitor)) +
+    size_t header = RoundUp(sizeof(mwinContext)) + rings + 2 * RingBytes(limits->inputPerWindow) +
+                    RoundUp(limits->localeBytes) + RoundUp(limits->monitors * sizeof(mwinMonitor)) +
+                    RoundUp(limits->gamepads * sizeof(mwinGamepad)) +
                     RoundUp(limits->windows * sizeof(mwinWindow));
     size_t size = header + limits->windows * WindowBytes(limits);
     unsigned char* block = mwinAllocate(&def->context.allocator, size, alignof(max_align_t));
@@ -203,11 +210,15 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     unsigned char* storage = block + RoundUp(sizeof(mwinContext));
     storage = LayRing(&context->critical, storage, CriticalRecords(limits));
     storage = LayRing(&context->global, storage, limits->notificationsPerWindow);
+    storage = LayRing(&context->gamepadRings[mwin_padRingButtons], storage, limits->inputPerWindow);
+    storage = LayRing(&context->gamepadRings[mwin_padRingAxes], storage, limits->inputPerWindow);
     context->locales = (char*)storage;
     storage += RoundUp(limits->localeBytes);
     context->facts.textScale = 1.0f;
     context->monitors = (mwinMonitor*)storage;
     storage += RoundUp(limits->monitors * sizeof(mwinMonitor));
+    context->gamepads = (mwinGamepad*)storage;
+    storage += RoundUp(limits->gamepads * sizeof(mwinGamepad));
     context->windows = (mwinWindow*)storage;
     Lay(context, block + header);
     *contextOut = context;

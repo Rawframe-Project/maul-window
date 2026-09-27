@@ -164,7 +164,20 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.win32.hinstance = platform->instance;
 }
 
+// No gamepad of this backend's has motors yet.
+static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
+                         uint32_t durationMs)
+{
+    (void)context;
+    (void)slot;
+    (void)low;
+    (void)high;
+    (void)durationMs;
+    return mwin_errorUnsupported;
+}
+
 const mwinBackendOps mwinWin32Backend = {
     Start,           Stop, Run,        mwinWin32CreateWindow, mwinWin32DestroyWindow,
     mwinWin32Submit, Now,  MapKeyCode, KeyboardLayout,        NativeHandles,
+    Rumble,
 };

@@ -33,6 +33,7 @@ option(MAUL_WINDOW_WAYLAND "Build the Wayland backend" ${MAUL_WINDOW_LINUX})
 option(MAUL_WINDOW_X11 "Build the X11 backend" ${MAUL_WINDOW_LINUX})
 option(MAUL_WINDOW_WIN32 "Build the Win32 backend" ${WIN32})
 option(MAUL_WINDOW_WEB "Build the web backend" ${EMSCRIPTEN})
+option(MAUL_WINDOW_GAMEPAD "Build the gamepad component" ON)
 
 # Maul Unicode validates every string that crosses the library: the
 # installed package when there is one, otherwise the pinned release,
@@ -77,6 +78,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/input.c
     src/monitor.c
     src/native.c
+    src/pad.c
     src/queue.c
     src/system.c
     src/text.c
@@ -84,6 +86,11 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
 if(MAUL_WINDOW_TEST_BACKEND)
     target_sources(maul-window PRIVATE src/backend_test.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
+endif()
+# The gamepad component: its functions, and the backends' gamepad code.
+if(MAUL_WINDOW_GAMEPAD)
+    target_sources(maul-window PRIVATE src/gamepad.c)
+    target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_GAMEPAD)
 endif()
 maul_configure_library(maul-window)
 target_link_libraries(maul-window PRIVATE maul-unicode::maul-unicode)
@@ -120,6 +127,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(system)
         maul_add_test(ime)
         maul_add_test(properties)
+        if(MAUL_WINDOW_GAMEPAD)
+            maul_add_test(gamepad)
+        endif()
     endif()
     if(MAUL_WINDOW_WAYLAND)
         # Needs a compositor: skipped without WAYLAND_DISPLAY.

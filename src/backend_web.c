@@ -282,7 +282,20 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.web.selectorLength = window->selectorLength;
 }
 
+// No gamepad of this backend's has motors yet.
+static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
+                         uint32_t durationMs)
+{
+    (void)context;
+    (void)slot;
+    (void)low;
+    (void)high;
+    (void)durationMs;
+    return mwin_errorUnsupported;
+}
+
 const mwinBackendOps mwinWebBackend = {
     Start,         Stop, Run,        mwinWebCreateWindow, mwinWebDestroyWindow,
     mwinWebSubmit, Now,  MapKeyCode, KeyboardLayout,      NativeHandles,
+    Rumble,
 };

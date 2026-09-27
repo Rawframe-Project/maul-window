@@ -134,6 +134,23 @@ typedef struct mwinMonitor
     mwinMonitorInfo info;
 } mwinMonitor;
 
+typedef struct mwinGamepad
+{
+    uint32_t generation;
+    uint8_t status;
+    // The order it came in, for listing.
+    uint64_t arrival;
+    mwinGamepadInfo info;
+    mwinGamepadState state;
+} mwinGamepad;
+
+// The rings of the gamepads' records: buttons, and axes.
+enum
+{
+    mwin_padRingButtons = 0,
+    mwin_padRingAxes = 1,
+};
+
 struct mwinContext
 {
     mwinAllocator allocator;
@@ -147,6 +164,11 @@ struct mwinContext
     // Slots like the windows': free, live, or removed with its record
     // still waiting.
     mwinMonitor* monitors;
+    // One per gamepad slot, the rings of their records, and the arrivals
+    // counted.
+    mwinGamepad* gamepads;
+    mwinRing gamepadRings[2];
+    uint64_t arrivals;
     mwinSystemFacts facts;
     char* locales;
     uint16_t localeLength;
@@ -199,6 +221,27 @@ void mwinSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts, uint
 // The preferred locales as the platform reports them; false for a list
 // that is not UTF-8 or past the localeBytes limit.
 bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, uint64_t timeNs);
+
+// Gamepads as the backend reports them: a new one's slot (-1 when every
+// slot is taken), a change of its facts, its removal; its buttons and
+// axes, posted only when they change. The slot of a removed gamepad is
+// freed once its record is drained.
+int32_t mwinAddGamepad(mwinContext* context, const mwinGamepadInfo* info, uint64_t timeNs);
+void mwinChangeGamepad(mwinContext* context, uint32_t slot, const mwinGamepadInfo* info,
+                       uint64_t timeNs);
+void mwinRemoveGamepad(mwinContext* context, uint32_t slot, uint64_t timeNs);
+void mwinPostGamepadButton(mwinContext* context, uint32_t slot, uint8_t button, bool down,
+                           uint64_t timeNs);
+void mwinPostGamepadAxis(mwinContext* context, uint32_t slot, uint8_t axis, float value,
+                         uint64_t timeNs);
+mwinGamepadId mwinGamepadIdOf(const mwinContext* context, uint32_t slot);
+int32_t mwinFindGamepad(const mwinContext* context, mwinGamepadId gamepad);
+void mwinReleaseGamepad(mwinContext* context, mwinGamepadId gamepad);
+
+// Queues a gamepad's record: a button's never merges, and when its ring
+// is full the gamepad gets a reset; an axis's merges into the newest of
+// its axis waiting.
+void mwinPostGamepadRecord(mwinContext* context, const mwinEvent* event);
 
 // The id of the monitor in a slot, and the slot of a live id or -1.
 mwinMonitorId mwinMonitorIdOf(const mwinContext* context, uint32_t slot);

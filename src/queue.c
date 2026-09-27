@@ -76,6 +76,8 @@ static int CoalesceClass(mwinEventType type)
         return 20;
     case mwin_eventImePreedit:
         return 21;
+    case mwin_eventGamepadChanged:
+        return 22;
     default:
         return 0;
     }
@@ -136,14 +138,23 @@ static bool SameWindow(mwinWindowId a, mwinWindowId b)
     return a.index1 == b.index1 && a.generation == b.generation;
 }
 
+static bool SameGamepad(mwinGamepadId a, mwinGamepadId b)
+{
+    return a.index1 == b.index1 && a.generation == b.generation;
+}
+
 // Whether a waiting notification is about the same thing as a new one of
-// its class: the same window, and for a monitor's change the same monitor.
+// its class: the same window, for a monitor's change the same monitor,
+// and for a gamepad's change or reset the same gamepad.
 static bool SameSubject(const mwinEvent* a, const mwinEvent* b)
 {
+    bool gamepad = a->type == mwin_eventGamepadChanged ||
+                   (a->type == mwin_eventInputStateReset && a->window.index1 == 0);
     return SameWindow(a->window, b->window) &&
            (a->type != mwin_eventMonitorChanged ||
             (a->data.monitor.index1 == b->data.monitor.index1 &&
-             a->data.monitor.generation == b->data.monitor.generation));
+             a->data.monitor.generation == b->data.monitor.generation)) &&
+           (!gamepad || SameGamepad(a->data.gamepad, b->data.gamepad));
 }
 
 // Appends a record; false when the ring is full.
@@ -234,8 +245,12 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
 // Whether two input records are of one kind, so one can absorb the other.
 static bool SameKind(const mwinEvent* a, const mwinEvent* b)
 {
+    const mwinGamepadAxisEvent* axis = &a->data.gamepadAxis;
     return a->type == b->type &&
-           (a->type != mwin_eventTouchMoved || a->data.touch.id == b->data.touch.id);
+           (a->type != mwin_eventTouchMoved || a->data.touch.id == b->data.touch.id) &&
+           (a->type != mwin_eventGamepadAxisMoved ||
+            (SameGamepad(axis->gamepad, b->data.gamepadAxis.gamepad) &&
+             axis->axis == b->data.gamepadAxis.axis && axis->raw == b->data.gamepadAxis.raw));
 }
 
 // Merges a record into the newest waiting one of its kind: the newer
@@ -408,6 +423,21 @@ void mwinPostGlobal(mwinContext* context, const mwinEvent* event)
     }
 }
 
+void mwinPostGamepadRecord(mwinContext* context, const mwinEvent* event)
+{
+    bool axis = event->type == mwin_eventGamepadAxisMoved;
+    mwinRing* ring = &context->gamepadRings[axis ? mwin_padRingAxes : mwin_padRingButtons];
+    if (Append(context, ring, event) || (axis && Merge(ring, event)))
+    {
+        return;
+    }
+    // The program cannot follow the gamepad from its records: it reads
+    // the state again.
+    mwinEvent reset = {.type = mwin_eventInputStateReset, .timeNs = event->timeNs};
+    reset.data.gamepad = axis ? event->data.gamepadAxis.gamepad : event->data.gamepadButton.gamepad;
+    (void)Append(context, &context->global, &reset);
+}
+
 // Frees everything a slot's rings hold but its completions, and queues
 // its destroyed record.
 void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
@@ -464,6 +494,15 @@ static mwinRing* FindOldest(mwinContext* context, mwinWindow** windowOut)
     }
     mwinRing* oldest = context->global.count > 0 ? &context->global : nullptr;
     uint64_t oldestSequence = oldest != nullptr ? oldest->sequences[oldest->head] : UINT64_MAX;
+    for (int kind = mwin_padRingButtons; kind <= mwin_padRingAxes; kind++)
+    {
+        mwinRing* ring = &context->gamepadRings[kind];
+        if (ring->count > 0 && ring->sequences[ring->head] < oldestSequence)
+        {
+            oldest = ring;
+            oldestSequence = ring->sequences[ring->head];
+        }
+    }
     for (uint32_t i = 0; i < context->limits.windows; i++)
     {
         for (int kind = 0; kind < MWIN_CLASSES; kind++)
@@ -519,6 +558,10 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
     if (eventOut->type == mwin_eventMonitorRemoved)
     {
         mwinReleaseMonitor(context, eventOut->data.monitor);
+    }
+    if (eventOut->type == mwin_eventGamepadRemoved)
+    {
+        mwinReleaseGamepad(context, eventOut->data.gamepad);
     }
     return mwin_success;
 }

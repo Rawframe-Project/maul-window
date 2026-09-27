@@ -183,6 +183,90 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinTestSetLocales(mwinContext* context, const char* locales,
                                                           size_t length);
 
+    /// Connects a gamepad to the test platform, at once: its
+    /// mwin_eventGamepadAdded waits in the stream when this returns.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param info        The gamepad's facts.
+    /// @param gamepadOut  Receives its id.
+    /// @return `mwin_success`; `mwin_errorCapacity` when the context has
+    ///         its limit of gamepads; `mwin_errorUnsupported` for a context
+    ///         of another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestAddGamepad(mwinContext* context,
+                                                          const mwinGamepadInfo* info,
+                                                          mwinGamepadId* gamepadOut);
+
+    /// Changes a connected gamepad's facts, at once.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param gamepad  The gamepad.
+    /// @param info     Its new facts.
+    /// @return `mwin_success`; `mwin_errorStale` for a gamepad no longer
+    ///         connected; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestChangeGamepad(mwinContext* context,
+                                                             mwinGamepadId gamepad,
+                                                             const mwinGamepadInfo* info);
+
+    /// Disconnects a gamepad, at once.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param gamepad  The gamepad.
+    /// @return As mwinTestChangeGamepad, with `mwin_errorInvalid` for a
+    ///         NULL context.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestRemoveGamepad(mwinContext* context,
+                                                             mwinGamepadId gamepad);
+
+    /// Presses or lets go a gamepad's button, at once; a button already so
+    /// posts nothing.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param gamepad  The gamepad.
+    /// @param button   An mwinGamepadButton, or a raw button's number.
+    /// @param down     true to press it.
+    /// @return As mwinTestRemoveGamepad.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGamepadButton(mwinContext* context,
+                                                             mwinGamepadId gamepad, uint8_t button,
+                                                             bool down);
+
+    /// Moves a gamepad's axis, at once; a value it has already posts
+    /// nothing.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param gamepad  The gamepad.
+    /// @param axis     An mwinGamepadAxis, or a raw axis's number.
+    /// @param value    Where it is.
+    /// @return As mwinTestRemoveGamepad.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGamepadAxis(mwinContext* context,
+                                                           mwinGamepadId gamepad, uint8_t axis,
+                                                           float value);
+
+    /// Reads the last rumble a gamepad of the test platform was given.
+    ///
+    /// @param context        A context of the test backend.
+    /// @param gamepad        The gamepad.
+    /// @param lowOut         Receives the low frequency motor's strength.
+    /// @param highOut        Receives the high frequency motor's strength.
+    /// @param durationMsOut  Receives the duration.
+    /// @param countOut       Receives how many rumbles it was given.
+    /// @return As mwinTestChangeGamepad.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetRumble(const mwinContext* context,
+                                                         mwinGamepadId gamepad, float* lowOut,
+                                                         float* highOut, uint32_t* durationMsOut,
+                                                         uint32_t* countOut);
+
 #ifdef __cplusplus
 }
 #endif

@@ -35,6 +35,9 @@ typedef struct mwinBackendOps
                                  size_t* lengthOut);
     // The handles of the surface of the window in a slot, which has one.
     void (*nativeHandles)(const mwinContext* context, uint32_t slot, mwinNativeHandles* out);
+    // Runs the motors of the gamepad in a slot, which has mwin_padRumble.
+    mwinResult (*rumble)(mwinContext* context, uint32_t slot, float low, float high,
+                         uint32_t durationMs);
 } mwinBackendOps;
 
 // The loop of a backend that pumps: init, then pump and frame until a

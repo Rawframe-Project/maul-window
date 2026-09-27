@@ -101,5 +101,11 @@ format.
   the lifecycle from page visibility, the back-forward cache and
   freezing, with the program's frame run inside the browser's event,
   and surfaces lost with a canvas out of the document.
+- The gamepad contract (`MAUL_WINDOW_GAMEPAD`, on by default,
+  mwin-0009): mapped gamepads by the standard location model and raw
+  ones by number, hotplug and battery records, button and axis records
+  in the stream, the state as last reported, and rumble; the test
+  backend's gamepads and the contract tests. The platforms' gamepads
+  follow.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

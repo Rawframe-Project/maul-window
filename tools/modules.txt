@@ -14,7 +14,9 @@ core: backend
 evdev:
 input: core
 monotonic:
+gamepad: core
 monitor: core
+pad: core
 native: core
 queue: core text
 system: core

@@ -25,6 +25,11 @@
 //
 // Text in a record stays valid until the frame that drained it returns.
 //
+// Gamepads' records are the context's, in storage of their own: their
+// buttons never merge, and a gamepad whose button records were lost
+// gets mwin_eventInputStateReset; an axis moving when its storage is
+// full merges into the newest waiting record of that axis.
+//
 // An input method composes text in place before it commits it. While a
 // window accepts text (mwinRequestTextInput), mwin_eventImePreedit
 // reports the text being composed, with its caret, its selection and
@@ -36,6 +41,7 @@
 #ifndef MAUL_WINDOW_EVENT_H
 #define MAUL_WINDOW_EVENT_H
 
+#include "maul-window/gamepad.h"
 #include "maul-window/input.h"
 
 #ifdef __cplusplus
@@ -76,6 +82,8 @@ extern "C"
         // A request was answered (data.completion).
         mwin_eventRequestCompleted = 15,
         // Forget every key and button held: focus was lost or input was.
+        // About a gamepad (the null window, data.gamepad), read its state
+        // again (mwinGetGamepadState).
         mwin_eventInputStateReset = 16,
         // A key went down or up (data.key).
         mwin_eventKeyDown = 17,
@@ -144,6 +152,16 @@ extern "C"
         mwin_eventKeyboardLayoutChanged = 51,
         // An input method's composition changed (data.preedit).
         mwin_eventImePreedit = 52,
+        // A gamepad was connected, was disconnected, or its facts changed
+        // (data.gamepad).
+        mwin_eventGamepadAdded = 53,
+        mwin_eventGamepadRemoved = 54,
+        mwin_eventGamepadChanged = 55,
+        // A gamepad's button was pressed or let go (data.gamepadButton).
+        mwin_eventGamepadButtonDown = 56,
+        mwin_eventGamepadButtonUp = 57,
+        // A gamepad's axis moved (data.gamepadAxis).
+        mwin_eventGamepadAxisMoved = 58,
     };
 
     // The kind of a request.
@@ -355,6 +373,9 @@ extern "C"
             mwinInsets insets;
             mwinRect rect;
             mwinPreeditEvent preedit;
+            mwinGamepadId gamepad;
+            mwinGamepadButtonEvent gamepadButton;
+            mwinGamepadAxisEvent gamepadAxis;
         } data;
     } mwinEvent;
 

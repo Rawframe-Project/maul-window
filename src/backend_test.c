@@ -35,9 +35,20 @@ typedef struct Pending
 #define MAX_REPORT_TEXT     65536
 #define MAX_REPORT_SEGMENTS 1024
 
+// A gamepad's last rumble, and how many there were.
+typedef struct Rumble
+{
+    float low;
+    float high;
+    uint32_t durationMs;
+    uint32_t count;
+} Rumble;
+
 typedef struct TestPlatform
 {
     Pending* pending;
+    // One per gamepad slot.
+    Rumble* rumbles;
     uint32_t pendingCount;
     uint32_t pendingCapacity;
     mwinEvent reports[MAX_REPORTS];
@@ -62,7 +73,8 @@ static TestPlatform* PlatformOf(const mwinContext* context)
 static size_t PlatformBytes(const mwinContext* context)
 {
     return sizeof(TestPlatform) +
-           (size_t)context->limits.windows * context->limits.requestsPerWindow * sizeof(Pending);
+           (size_t)context->limits.windows * context->limits.requestsPerWindow * sizeof(Pending) +
+           (size_t)context->limits.gamepads * sizeof(Rumble);
 }
 
 static mwinResult Start(mwinContext* context)
@@ -78,6 +90,7 @@ static mwinResult Start(mwinContext* context)
     platform->pending = (Pending*)(block + sizeof(TestPlatform));
     platform->pendingCapacity =
         (uint32_t)context->limits.windows * context->limits.requestsPerWindow;
+    platform->rumbles = (Rumble*)(platform->pending + platform->pendingCapacity);
     platform->scale = 1.0f;
     context->backendData = platform;
     return mwin_success;
@@ -403,9 +416,17 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->platform = mwin_platformTest;
 }
 
+static mwinResult RumbleGamepad(mwinContext* context, uint32_t slot, float low, float high,
+                                uint32_t durationMs)
+{
+    Rumble* rumble = &PlatformOf(context)->rumbles[slot];
+    *rumble = (Rumble){low, high, durationMs, rumble->count + 1};
+    return mwin_success;
+}
+
 const mwinBackendOps mwinTestBackend = {
-    Start,  Stop, Run,        CreateWindow,   DestroyWindow,
-    Submit, Now,  MapKeyCode, KeyboardLayout, NativeHandles,
+    Start,      Stop,           Run,           CreateWindow,  DestroyWindow, Submit, Now,
+    MapKeyCode, KeyboardLayout, NativeHandles, RumbleGamepad,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
@@ -668,4 +689,108 @@ mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t 
     }
     return mwinSetLocales(context, locales, length, Now(context)) ? mwin_success
                                                                   : mwin_errorInvalid;
+}
+
+// The slot of a gamepad of a test context, or why there is none.
+static mwinResult FindTestGamepad(const mwinContext* context, mwinGamepadId gamepad,
+                                  int32_t* slotOut)
+{
+    if (context == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    *slotOut = mwinFindGamepad(context, gamepad);
+    return *slotOut < 0 ? mwin_errorStale : mwin_success;
+}
+
+mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
+                              mwinGamepadId* gamepadOut)
+{
+    if (context == nullptr || info == nullptr || gamepadOut == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (PlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    int32_t slot = mwinAddGamepad(context, info, Now(context));
+    if (slot < 0)
+    {
+        return mwin_errorCapacity;
+    }
+    PlatformOf(context)->rumbles[slot] = (Rumble){0};
+    *gamepadOut = mwinGamepadIdOf(context, (uint32_t)slot);
+    return mwin_success;
+}
+
+mwinResult mwinTestChangeGamepad(mwinContext* context, mwinGamepadId gamepad,
+                                 const mwinGamepadInfo* info)
+{
+    int32_t slot = -1;
+    mwinResult status =
+        info != nullptr ? FindTestGamepad(context, gamepad, &slot) : mwin_errorInvalid;
+    if (status == mwin_success)
+    {
+        mwinChangeGamepad(context, (uint32_t)slot, info, Now(context));
+    }
+    return status;
+}
+
+mwinResult mwinTestRemoveGamepad(mwinContext* context, mwinGamepadId gamepad)
+{
+    int32_t slot = -1;
+    mwinResult status = FindTestGamepad(context, gamepad, &slot);
+    if (status == mwin_success)
+    {
+        mwinRemoveGamepad(context, (uint32_t)slot, Now(context));
+    }
+    return status;
+}
+
+mwinResult mwinTestGamepadButton(mwinContext* context, mwinGamepadId gamepad, uint8_t button,
+                                 bool down)
+{
+    int32_t slot = -1;
+    mwinResult status = FindTestGamepad(context, gamepad, &slot);
+    if (status == mwin_success)
+    {
+        mwinPostGamepadButton(context, (uint32_t)slot, button, down, Now(context));
+    }
+    return status;
+}
+
+mwinResult mwinTestGamepadAxis(mwinContext* context, mwinGamepadId gamepad, uint8_t axis,
+                               float value)
+{
+    int32_t slot = -1;
+    mwinResult status = FindTestGamepad(context, gamepad, &slot);
+    if (status == mwin_success)
+    {
+        mwinPostGamepadAxis(context, (uint32_t)slot, axis, value, Now(context));
+    }
+    return status;
+}
+
+mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, float* lowOut,
+                             float* highOut, uint32_t* durationMsOut, uint32_t* countOut)
+{
+    int32_t slot = -1;
+    mwinResult status =
+        lowOut != nullptr && highOut != nullptr && durationMsOut != nullptr && countOut != nullptr
+            ? FindTestGamepad(context, gamepad, &slot)
+            : mwin_errorInvalid;
+    if (status == mwin_success)
+    {
+        const Rumble* rumble = &PlatformOf(context)->rumbles[slot];
+        *lowOut = rumble->low;
+        *highOut = rumble->high;
+        *durationMsOut = rumble->durationMs;
+        *countOut = rumble->count;
+    }
+    return status;
 }

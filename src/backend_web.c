@@ -16,6 +16,7 @@
 #include "web_input.h"
 #include "web_pad.h"
 #include "web_page.h"
+#include "web_services.h"
 #include "web_text.h"
 #include "web_window.h"
 
@@ -191,6 +192,7 @@ static void Pump(mwinContext* context)
 {
     mwinWebPlatform* platform = PlatformOf(context);
     mwinWebCheckScale(context);
+    mwinWebKeepAwake(platform, mwinWantsAwake(context));
     mwinWebRecord record;
     while (mwinWebNext(context, &record))
     {

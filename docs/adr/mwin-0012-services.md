@@ -56,6 +56,15 @@ at all (a page reveals no files).
   display is held by the thread's execution state
   (`ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED`), set
   only when the wish changes.
+- **Web:** an address opens in a new tab through `window.open`, whose
+  `opener` is cut before the tab loads, so the page it opens cannot
+  reach this one; `noopener` would do the same but hide whether a
+  popup blocker stopped the tab, which is answered as denied. A page
+  never names files, so revealing one is unsupported. The screen is
+  held by a wake lock (`navigator.wakeLock`), and keeping awake is
+  unsupported without one. The browser releases a lock when the page
+  is hidden, so the backend asks for one again when the page shows,
+  and again at once for a lock that came already released.
 - **Message boxes** need no context: `mwinShowMessageBox` shows a
   modal box with a title, a message, a kind (information, warning,
   error) and buttons (OK, OK and Cancel, Yes and No), waits for the

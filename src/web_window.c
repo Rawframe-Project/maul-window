@@ -9,6 +9,7 @@
 #include "web_drop.h"
 #include "web_input.h"
 #include "web_page.h"
+#include "web_services.h"
 #include "web_text.h"
 
 #include <emscripten/emscripten.h>
@@ -166,6 +167,11 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwinWebWriteClipboard(context, slot);
     case mwin_requestClipboardRead:
         return mwinWebReadClipboard(context, slot);
+    case mwin_requestOpenUrl:
+        return mwinWebOpenUrl(request);
+    case mwin_requestKeepAwake:
+        // The pump keeps the screen awake from the windows' state.
+        return mwinWebCanKeepAwake();
     case mwin_requestVirtualKeyboard:
         // The purpose in the low bits, the high bit set to show.
         return mwinWebSetVirtualKeyboard(PlatformOf(context), slot,

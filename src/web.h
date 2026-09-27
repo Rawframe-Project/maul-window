@@ -51,6 +51,8 @@ typedef struct mwinWebPlatform
     char* text;
     // The page went away (hidden, frozen or left) and has not come back.
     bool suspended;
+    // The page keeps the screen awake (web_services.c).
+    bool awake;
     // The gamepads, with the gamepad component.
     mwinWebPads pads;
 } mwinWebPlatform;

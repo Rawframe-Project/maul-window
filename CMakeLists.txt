@@ -215,6 +215,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         add_test(NAME web_clipboard COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                  $<TARGET_FILE:test_web_clipboard>)
         set_tests_properties(web_clipboard PROPERTIES SKIP_RETURN_CODE 77)
+        maul_add_test(web_services MANUAL)
+        add_test(NAME web_services COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
+                 $<TARGET_FILE:test_web_services>)
+        set_tests_properties(web_services PROPERTIES SKIP_RETURN_CODE 77)
         maul_add_test(web_drop MANUAL)
         add_test(NAME web_drop COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                  $<TARGET_FILE:test_web_drop>)

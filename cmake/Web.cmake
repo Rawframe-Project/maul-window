@@ -9,6 +9,7 @@ set(MWIN_WEB_SOURCES
     src/web_input.c
     src/web_message_box.c
     src/web_page.c
+    src/web_services.c
     src/web_text.c
     src/web_window.c)
 if(MAUL_WINDOW_GAMEPAD)

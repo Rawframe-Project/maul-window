@@ -6,6 +6,7 @@
 #include "x11_window.h"
 
 #include "allocator.h"
+#include "x11_chrome.h"
 #include "x11_clipboard.h"
 #include "x11_cursor.h"
 #include "x11_icon.h"
@@ -131,6 +132,13 @@ static void SetNormalHints(const mwinX11Platform* platform, const mwinX11Window*
 }
 
 // Asks the window manager for decorations or none.
+// The window manager decorates a decorated window, and none of custom
+// chrome, whose frame the program draws.
+static bool IsDecorated(mwinWindowStyle style)
+{
+    return (style & mwin_styleDecorated) != 0 && (style & mwin_styleCustomChrome) == 0;
+}
+
 static void SetDecorated(const mwinX11Platform* platform, xcb_window_t window, bool decorated)
 {
     // flags (decorations), functions, decorations, input mode, status.
@@ -139,28 +147,11 @@ static void SetDecorated(const mwinX11Platform* platform, xcb_window_t window, b
     SetProperty(platform, window, atom, atom, 32, 5, hints);
 }
 
-// Sends a client message to the root window, where the window manager
-// listens.
-static void SendToRoot(const mwinX11Platform* platform, xcb_window_t window, xcb_atom_t type,
-                       const uint32_t data[5])
-{
-    xcb_client_message_event_t message = {0};
-    message.response_type = XCB_CLIENT_MESSAGE;
-    message.format = 32;
-    message.window = window;
-    message.type = type;
-    memcpy(message.data.data32, data, sizeof(message.data.data32));
-    platform->api.sendEvent(platform->connection, 0, platform->screen->root,
-                            XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY |
-                                XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
-                            (const char*)&message);
-}
-
 static void ChangeState(const mwinX11Platform* platform, xcb_window_t window, uint32_t action,
                         xcb_atom_t first, xcb_atom_t second)
 {
     const uint32_t data[5] = {action, first, second, 1, 0};
-    SendToRoot(platform, window, platform->atoms[mwin_atomNetWmState], data);
+    mwinX11SendToRoot(platform, window, platform->atoms[mwin_atomNetWmState], data);
 }
 
 // The _NET_WM_STATE atoms of a mode, before a window is mapped.
@@ -230,7 +221,7 @@ static void SetInitialProperties(const mwinX11Platform* platform, const mwinWind
     SetTitle(platform, window->window, core->title, core->titleLength);
     SetOwnership(platform, core, window);
     SetNormalHints(platform, window, core->def.style);
-    if ((core->def.style & mwin_styleDecorated) == 0)
+    if (!IsDecorated(core->def.style))
     {
         SetDecorated(platform, window->window, false);
     }
@@ -353,7 +344,7 @@ static int RequestMode(mwinX11Platform* platform, mwinX11Window* window, uint32_
     {
         // ICCCM's IconicState.
         const uint32_t data[5] = {3, 0, 0, 0, 0};
-        SendToRoot(platform, window->window, atoms[mwin_atomWmChangeState], data);
+        mwinX11SendToRoot(platform, window->window, atoms[mwin_atomWmChangeState], data);
     }
     else
     {
@@ -383,7 +374,8 @@ static void Focus(const mwinX11Platform* platform, const mwinX11Window* window)
     if (platform->windowManager && !IsPopup(platform, window->slot))
     {
         const uint32_t data[5] = {1, XCB_CURRENT_TIME, 0, 0, 0};
-        SendToRoot(platform, window->window, platform->atoms[mwin_atomNetActiveWindow], data);
+        mwinX11SendToRoot(platform, window->window, platform->atoms[mwin_atomNetActiveWindow],
+                          data);
         return;
     }
     platform->api.setInputFocus(platform->connection, XCB_INPUT_FOCUS_POINTER_ROOT, window->window,
@@ -404,7 +396,7 @@ static void SetOpacity(const mwinX11Platform* platform, const mwinX11Window* win
 
 static void SetStyle(mwinX11Platform* platform, mwinX11Window* window, mwinWindowStyle style)
 {
-    SetDecorated(platform, window->window, (style & mwin_styleDecorated) != 0);
+    SetDecorated(platform, window->window, IsDecorated(style));
     SetNormalHints(platform, window, style);
     ChangeState(platform, window->window,
                 (style & mwin_styleAlwaysOnTop) != 0 ? stateAdd : stateRemove,
@@ -517,6 +509,9 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         return mwinLinuxCanKeepAwake(&platform->services);
     case mwin_requestIcon:
         return mwinX11SetIcon(platform, window->window, request);
+    case mwin_requestHitRegions:
+        // Presses read them (x11_chrome.c).
+        return mwin_outcomeDone;
     case mwin_requestFileDialog:
     {
         char parent[24];

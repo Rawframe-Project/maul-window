@@ -66,6 +66,7 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "_NET_WM_WINDOW_TYPE_DIALOG",
     "_NET_WM_WINDOW_TYPE_POPUP_MENU",
     "_NET_WM_WINDOW_TYPE_TOOLTIP",
+    "_NET_WM_MOVERESIZE",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)

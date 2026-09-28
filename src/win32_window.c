@@ -821,6 +821,9 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         return mwinWin32AskDialog(window);
     case mwin_requestIcon:
         return mwinWin32SetIcon(window, request);
+    case mwin_requestHitRegions:
+        // WM_NCHITTEST reads them.
+        return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
     }

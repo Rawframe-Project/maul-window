@@ -60,6 +60,7 @@ enum
     mwin_atomNetWmWindowTypeDialog,
     mwin_atomNetWmWindowTypePopupMenu,
     mwin_atomNetWmWindowTypeTooltip,
+    mwin_atomNetWmMoveresize,
     MWIN_X11_ATOMS,
 };
 

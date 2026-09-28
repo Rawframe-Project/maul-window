@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "evdev.h"
+#include "x11_chrome.h"
 #include "xkb_keyboard.h"
 
 // X11 key codes are evdev codes plus 8.
@@ -217,8 +218,18 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (pressed)
     {
-        (void)mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        uint8_t clicks = mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        if (button == mwin_buttonLeft &&
+            mwinX11PressChrome(platform, (uint32_t)slot, event, pointer->position, clicks))
+        {
+            return;
+        }
         pointer->buttons |= bit;
+    }
+    else if ((pointer->buttons & bit) == 0)
+    {
+        // The release of a press the window manager took.
+        return;
     }
     else
     {

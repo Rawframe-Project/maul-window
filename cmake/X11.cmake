@@ -18,6 +18,7 @@ set(MWIN_X11_SOURCES
     src/x11_clipboard.c
     src/x11_cursor.c
     src/x11_drop.c
+    src/x11_chrome.c
     src/x11_icon.c
     src/x11_input.c
     src/x11_output.c

@@ -84,12 +84,13 @@ win32_window: chrome core win32 win32_clipboard win32_dialog win32_drop win32_ic
 window: core
 x11: clicks core linux_pad linux_services monotonic x11_api xkb_api xkb_keyboard
 x11_api:
+x11_chrome: chrome core x11 x11_api
 x11_clipboard: allocator core monotonic x11 x11_api
 x11_cursor: allocator core x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
 x11_icon: allocator core icon x11 x11_api
-x11_input: allocator core evdev x11 x11_api xkb_api xkb_keyboard
+x11_input: allocator core evdev x11 x11_api x11_chrome xkb_api xkb_keyboard
 x11_output: allocator core x11 x11_api
-x11_window: allocator core x11 x11_api x11_clipboard x11_cursor x11_icon x11_input x11_output
+x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_icon x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api

@@ -251,7 +251,9 @@ static mwinResult Init(mwinContext* context, void* user)
 static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
-    if (!program->done && Outcome(context, program) >= 0)
+    int outcome = program->done ? -1 : Outcome(context, program);
+    CHECK(outcome < 0 || outcome == mwin_outcomeDone, "every request done");
+    if (outcome >= 0)
     {
         Next(context, program);
     }

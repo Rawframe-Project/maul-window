@@ -12,7 +12,7 @@
 
 #include "maul-window/services.h"
 
-#define MWIN_TEST_KINDS (mwin_requestHitRegions + 1)
+#define MWIN_TEST_KINDS (mwin_requestAccessibilityRoot + 1)
 
 // The bytes of the paths a dialog chooses, and of the last dialog's
 // description.

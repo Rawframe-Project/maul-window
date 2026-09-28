@@ -112,6 +112,8 @@ typedef struct mwinRequest
         // An icon's images, given back when the request is answered
         // (icon.h).
         struct mwinIconCopy* icon;
+        // An accessibility root (accessibility.h).
+        void* root;
     } value;
 } mwinRequest;
 
@@ -142,6 +144,10 @@ typedef struct mwinWindow
     // The hit regions the program declared (chrome.c).
     mwinHitRegion regions[MWIN_HIT_REGIONS];
     uint8_t regionCount;
+    // The accessibility root the platform took, and whether a client has
+    // asked for the tree (accessibility.c).
+    void* accessibilityRoot;
+    bool accessibilityAsked;
     // The backend's own data for the window.
     void* platform;
 } mwinWindow;

@@ -401,6 +401,20 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinTestGetIcon(const mwinContext* context,
                                                        uint32_t* countOut, uint64_t* checksumOut);
 
+    /// Plays an accessibility client asking the window for its tree, as a
+    /// screen reader would: the first time, mwin_eventAccessibilityRequested
+    /// follows.
+    ///
+    /// @param context A context of the test backend.
+    /// @param window  The window.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no longer
+    ///         exists; `mwin_errorUnsupported` for a context of another
+    ///         backend; `mwin_errorInvalid` for a NULL context.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestAskAccessibility(mwinContext* context,
+                                                                mwinWindowId window);
+
 #ifdef __cplusplus
 }
 #endif

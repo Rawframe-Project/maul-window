@@ -83,6 +83,9 @@ static void Carried(mwinWindow* window, const mwinRequest* request)
     case mwin_requestOpacity:
         window->state.opacity = request->value.opacity;
         break;
+    case mwin_requestAccessibilityRoot:
+        window->accessibilityRoot = request->value.root;
+        break;
     case mwin_requestKeepAwake:
         window->state.awake = request->value.awake;
         break;
@@ -224,6 +227,8 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
     window->generation += 1;
     window->state = (mwinWindowState){0};
     window->regionCount = 0;
+    window->accessibilityRoot = nullptr;
+    window->accessibilityAsked = false;
     window->def = *def;
     window->def.title = nullptr;
     window->titleLength = (uint16_t)def->titleLength;

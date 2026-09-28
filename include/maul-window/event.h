@@ -170,6 +170,10 @@ extern "C"
         // Something was dropped on the window (data.drop):
         // mwinGetDroppedFiles and mwinGetDroppedText have it.
         mwin_eventDropped = 62,
+        // An accessibility client asked the window for its tree for the
+        // first time: the program's adapter may start its updates. Once
+        // a window.
+        mwin_eventAccessibilityRequested = 63,
     };
 
     // The kind of a request.
@@ -200,6 +204,7 @@ extern "C"
         mwin_requestFileDialog = 20,
         mwin_requestIcon = 21,
         mwin_requestHitRegions = 22,
+        mwin_requestAccessibilityRoot = 23,
     };
 
     // How a request ended.

@@ -4,6 +4,7 @@
 // The services the test platform plays: its clipboard, drops, and the
 // addresses it opens and paths it reveals.
 
+#include "accessibility.h"
 #include "allocator.h"
 #include "backend_test.h"
 #include "dialog.h"
@@ -301,5 +302,23 @@ mwinResult mwinTestGetIcon(const mwinContext* context, uint32_t* countOut, uint6
     }
     *countOut = platform->iconCount;
     *checksumOut = platform->iconChecksum;
+    return mwin_success;
+}
+
+mwinResult mwinTestAskAccessibility(mwinContext* context, mwinWindowId window)
+{
+    if (context == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    if (mwinTestPlatformOf(context) == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    if (mwinFindWindow(context, window) == nullptr)
+    {
+        return mwin_errorStale;
+    }
+    mwinNoteAccessibilityAsked(context, window.index1 - 1);
     return mwin_success;
 }

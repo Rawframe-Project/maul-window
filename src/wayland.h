@@ -72,6 +72,9 @@ typedef struct mwinWaylandWindow
     struct wp_viewport* viewport;
     // Keeps the display awake while the surface shows, while asked.
     struct zwp_idle_inhibitor_v1* inhibitor;
+    // The token of a focus request, while it comes, and the request.
+    struct xdg_activation_token_v1* activation;
+    uint32_t activationRequest;
     // The proposal of the open configure sequence: a size of 0 leaves the
     // size to the window.
     int32_t proposedWidth;
@@ -296,6 +299,8 @@ struct mwinWaylandPlatform
     struct wl_shm* shm;
     struct wl_subcompositor* subcompositor;
     struct zwp_text_input_manager_v3* textInputs;
+    // Without it, focus requests are unsupported.
+    struct xdg_activation_v1* activation;
     mwinWaylandCursorTheme cursorTheme;
     // The first seat, its registry name, and its keyboard. libxkbcommon
     // loads with the context; without it there is no keyboard.

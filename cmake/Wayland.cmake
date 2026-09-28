@@ -74,6 +74,8 @@ mwin_wayland_protocol(text-input-unstable-v3
     ${MWIN_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml)
 mwin_wayland_protocol(idle-inhibit-unstable-v1
     ${MWIN_PROTOCOLS_DIR}/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml)
+mwin_wayland_protocol(xdg-activation-v1
+    ${MWIN_PROTOCOLS_DIR}/staging/xdg-activation/xdg-activation-v1.xml)
 # Newer than the wayland-protocols of the distributions supported, so
 # vendored (protocols/README.md).
 mwin_wayland_protocol(xdg-toplevel-icon-v1 ${PROJECT_SOURCE_DIR}/protocols/xdg-toplevel-icon-v1.xml)
@@ -91,6 +93,7 @@ target_include_directories(maul-window SYSTEM PRIVATE ${MWIN_PROTOCOL_OUT}
     ${MWIN_WAYLAND_INCLUDE_DIR})
 set(MWIN_WAYLAND_SOURCES
     src/backend_wayland.c
+    src/wayland_activation.c
     src/wayland_api.c
     src/wayland_clipboard.c
     src/wayland_cursor.c
@@ -141,6 +144,7 @@ function(mwin_add_wayland_server_test name)
                 unstable/text-input/text-input-unstable-v3
                 unstable/idle-inhibit/idle-inhibit-unstable-v1
                 unstable/xdg-decoration/xdg-decoration-unstable-v1
+                staging/xdg-activation/xdg-activation-v1
                 ${PROJECT_SOURCE_DIR}/protocols/xdg-toplevel-icon-v1)
             get_filename_component(stem ${protocol} NAME)
             set(xml ${MWIN_PROTOCOLS_DIR}/${protocol}.xml)

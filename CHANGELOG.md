@@ -15,6 +15,8 @@ format.
 - Linux look and motion from the desktop portal's settings (theme,
   accent, reduced motion, text scale), and power from the portal and
   UPower (low power, on battery), followed as they change (mwin-0018).
+- Wayland focus requests through xdg-activation, and the launcher's
+  activation token for the first window shown (mwin-0019).
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.

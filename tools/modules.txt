@@ -47,6 +47,7 @@ text: core
 uri_list: core
 utf8:
 wayland: clicks core linux_pad linux_services monotonic wayland_api wayland_pipe xkb_api xkb_keyboard
+wayland_activation: core wayland wayland_api
 wayland_api:
 wayland_clipboard: core monotonic wayland wayland_api wayland_drop wayland_pipe
 wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
@@ -60,7 +61,7 @@ wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_popup: core wayland wayland_api wayland_frame
 wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard wayland_pointer wayland_text
 wayland_text: core wayland wayland_api
-wayland_window: core wayland wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_text
+wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_text
 web: clicks core web_pad
 web_clipboard: allocator core web
 web_drop: allocator core web

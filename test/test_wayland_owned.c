@@ -8,7 +8,8 @@
 // geometry by its place and its owner's caption, grabbing the seat with
 // the latest input's serial, without a frame, and reported where the
 // compositor put it; a tooltip grabbing nothing; a menu placed again
-// through a reposition, a configure to the same place no move;
+// through a reposition, a configure to the same place no move; focus
+// denied to a tooltip, and unsupported without xdg-activation;
 // popup_done a close request; and the popups gone
 // before their owner. Skipped (exit status 77) without XDG_RUNTIME_DIR
 // or xkb data.
@@ -70,6 +71,9 @@ typedef struct Program
     int menuMoves;
     mwinPosition menuPlace;
     bool menuClose;
+    // The requests answered denied and unsupported.
+    int denied;
+    int unsupported;
     bool done;
 } Program;
 
@@ -337,6 +341,10 @@ static void Collect(mwinContext* context, Program* program)
         program->created += event.type == mwin_eventRequestCompleted &&
                             event.data.completion.outcome == mwin_outcomeDone;
         program->pressed = program->pressed || event.type == mwin_eventButtonDown;
+        bool completed = event.type == mwin_eventRequestCompleted;
+        program->denied += completed && event.data.completion.outcome == mwin_outcomeDenied;
+        program->unsupported +=
+            completed && event.data.completion.outcome == mwin_outcomeUnsupported;
         if (event.type == mwin_eventMoved && Same(event.window, program->ids[2]))
         {
             program->menuMoves += 1;
@@ -429,13 +437,19 @@ static void Next(mwinContext* context, Program* program)
     case 2:
         CheckMade(program);
         CHECK(mwinRequestPosition(context, program->ids[2], (mwinPosition){5, 6}, nullptr) ==
-                  mwin_success,
-              "place the menu");
+                      mwin_success &&
+                  mwinRequestFocus(context, program->ids[3], nullptr) == mwin_success &&
+                  mwinRequestFocus(context, owner, nullptr) == mwin_success,
+              "place the menu, and focus a tooltip and the owner");
+        program->denied = 0;
+        program->unsupported = 0;
         break;
     case 3:
         CHECK(mwinGetWindowState(context, program->ids[2], &state) == mwin_success &&
                   state.position.x == 6.0f && state.position.y == 6.0f && program->menuMoves == 2,
               "a menu placed again, reported where the compositor put it");
+        CHECK(program->denied == 1 && program->unsupported == 1,
+              "focus denied to a tooltip, and unsupported without xdg-activation");
         pthread_mutex_lock(&s_server.lock);
         // The same place again, which is no move.
         ConfigurePopup(&s_roles[2]);

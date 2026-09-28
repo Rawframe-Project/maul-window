@@ -43,6 +43,7 @@
 #define RELATIVE_VERSION         1
 #define SHM_VERSION              1
 #define TEXT_INPUT_VERSION       1
+#define ACTIVATION_VERSION       1
 #define SUBCOMPOSITOR_VERSION    1
 
 static mwinWaylandPlatform* PlatformOf(const mwinContext* context)
@@ -79,22 +80,12 @@ static void* Bind(mwinWaylandPlatform* platform, uint32_t name,
                                            nullptr);
 }
 
-static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, const char* interface,
-                     uint32_t version)
+// Binds a protocol extension the backend uses: false for another
+// interface.
+static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name, const char* interface,
+                          uint32_t version)
 {
-    (void)registry;
-    mwinWaylandPlatform* platform = data;
-    if (strcmp(interface, wl_compositor_interface.name) == 0 && platform->compositor == nullptr)
-    {
-        platform->compositor =
-            Bind(platform, name, &wl_compositor_interface, version, COMPOSITOR_VERSION);
-    }
-    else if (strcmp(interface, xdg_wm_base_interface.name) == 0 && platform->wmBase == nullptr)
-    {
-        platform->wmBase = Bind(platform, name, &xdg_wm_base_interface, version, WM_BASE_VERSION);
-        mwinWlListen(&platform->api, platform->wmBase, &s_wmBaseListener, platform);
-    }
-    else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
+    if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
     {
         platform->decorations = Bind(platform, name, &zxdg_decoration_manager_v1_interface, version,
                                      DECORATION_VERSION);
@@ -124,6 +115,11 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
         platform->relativePointers = Bind(
             platform, name, &zwp_relative_pointer_manager_v1_interface, version, RELATIVE_VERSION);
     }
+    else if (strcmp(interface, xdg_activation_v1_interface.name) == 0)
+    {
+        platform->activation =
+            Bind(platform, name, &xdg_activation_v1_interface, version, ACTIVATION_VERSION);
+    }
     else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0)
     {
         platform->textInputs =
@@ -138,6 +134,32 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
     {
         platform->toplevelIcons = Bind(platform, name, &xdg_toplevel_icon_manager_v1_interface,
                                        version, TOPLEVEL_ICON_VERSION);
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, const char* interface,
+                     uint32_t version)
+{
+    (void)registry;
+    mwinWaylandPlatform* platform = data;
+    if (BindExtension(platform, name, interface, version))
+    {
+        return;
+    }
+    if (strcmp(interface, wl_compositor_interface.name) == 0 && platform->compositor == nullptr)
+    {
+        platform->compositor =
+            Bind(platform, name, &wl_compositor_interface, version, COMPOSITOR_VERSION);
+    }
+    else if (strcmp(interface, xdg_wm_base_interface.name) == 0 && platform->wmBase == nullptr)
+    {
+        platform->wmBase = Bind(platform, name, &xdg_wm_base_interface, version, WM_BASE_VERSION);
+        mwinWlListen(&platform->api, platform->wmBase, &s_wmBaseListener, platform);
     }
     else if (strcmp(interface, wl_subcompositor_interface.name) == 0)
     {
@@ -205,6 +227,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
         DestroyGlobal(api, platform->idleInhibits, ZWP_IDLE_INHIBIT_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->toplevelIcons, XDG_TOPLEVEL_ICON_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->textInputs, ZWP_TEXT_INPUT_MANAGER_V3_DESTROY);
+        DestroyGlobal(api, platform->activation, XDG_ACTIVATION_V1_DESTROY);
         DestroyGlobal(api, platform->relativePointers, ZWP_RELATIVE_POINTER_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->constraints, ZWP_POINTER_CONSTRAINTS_V1_DESTROY);
         DestroyGlobal(api, platform->cursorShapes, WP_CURSOR_SHAPE_MANAGER_V1_DESTROY);

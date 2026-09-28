@@ -5,6 +5,7 @@
 
 #include "wayland_window.h"
 
+#include "wayland_activation.h"
 #include "wayland_clipboard.h"
 #include "wayland_cursor.h"
 #include "wayland_frame.h"
@@ -251,6 +252,7 @@ static void Establish(mwinWaylandWindow* window)
     if (core->def.visible)
     {
         PostType(window, mwin_eventShown);
+        mwinWaylandActivateAtStart(window);
     }
     int32_t request =
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
@@ -490,6 +492,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     mwinWaylandDropCursor(platform, slot);
     mwinWaylandForgetTextFocus(platform, slot);
     mwinWaylandDestroyFrame(platform, slot);
+    mwinWaylandDropActivation(window);
     if (window->viewport != nullptr)
     {
         (void)mwinWlRequest(api, window->viewport, WP_VIEWPORT_DESTROY, nullptr,
@@ -656,13 +659,15 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
     case mwin_requestHitRegions:
         // Presses read them (wayland_frame.c).
         return mwin_outcomeDone;
+    case mwin_requestFocus:
+        return mwinWaylandRequestFocus(window, index);
     case mwin_requestFileDialog:
         // The portal places dialogs over a Wayland window only through an
         // exported handle (xdg-foreign), which the backend does not make.
         return mwinDialogsOpen(&window->platform->services.dialogs, window->slot, index, "");
     default:
-        // Positions, visibility, focus without an activation token, and
-        // the rest have no request in the protocols bound.
+        // Positions, visibility and the rest have no request in the
+        // protocols bound.
         return mwin_outcomeUnsupported;
     }
 }

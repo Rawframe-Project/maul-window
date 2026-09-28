@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The session bus for the Linux services: a private connection of the
-// context's own, made the first time a service needs it, and method
+// The session and system buses for the Linux services: private
+// connections of the context's own, made the first time a service needs
+// one, and method
 // calls answered later, read without blocking at each pump. The
 // library's own timeouts need a main loop the program does not have,
 // so each call has a deadline of its own.
 //
-// The bus is the one DBUS_SESSION_BUS_ADDRESS names, else the user's
-// bus in XDG_RUNTIME_DIR; with neither there is none, and the library
-// is never let start a bus of its own.
+// The session bus is the one DBUS_SESSION_BUS_ADDRESS names, else the
+// user's bus in XDG_RUNTIME_DIR; the system bus the one
+// DBUS_SYSTEM_BUS_ADDRESS names, else the socket in /run/dbus. With
+// neither there is none, and the library is never let start a bus of
+// its own.
 
 #ifndef MAUL_WINDOW_SRC_LINUX_BUS_H
 #define MAUL_WINDOW_SRC_LINUX_BUS_H
@@ -23,6 +26,8 @@ typedef struct mwinLinuxBus
 {
     mwinDBusApi api;
     DBusConnection* connection;
+    // The system bus, else the session bus; set before it connects.
+    bool system;
     // A connection was tried, whether or not there is one.
     bool tried;
 } mwinLinuxBus;

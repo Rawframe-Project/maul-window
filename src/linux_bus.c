@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The session bus for the Linux services.
+// The session and system buses for the Linux services.
 
 #include "linux_bus.h"
 
@@ -9,20 +9,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-// The user's bus when no address is named: a socket in the runtime
-// directory. Anything else would have the library start a bus.
-static DBusConnection* OpenUserBus(const mwinDBusApi* api)
+static DBusConnection* Open(const mwinDBusApi* api, const char* address)
 {
-    const char* runtime = getenv("XDG_RUNTIME_DIR");
-    char address[512];
-    struct stat status;
-    int length =
-        runtime != nullptr ? snprintf(address, sizeof(address), "unix:path=%s/bus", runtime) : -1;
-    if (length <= 0 || (size_t)length >= sizeof(address) ||
-        stat(address + sizeof("unix:path=") - 1, &status) != 0 || !S_ISSOCK(status.st_mode))
-    {
-        return nullptr;
-    }
     DBusConnection* connection = api->openPrivate(address, nullptr);
     if (connection != nullptr && !api->busRegister(connection, nullptr))
     {
@@ -31,6 +19,39 @@ static DBusConnection* OpenUserBus(const mwinDBusApi* api)
         return nullptr;
     }
     return connection;
+}
+
+// A bus at a socket, where there is one: the user's bus in the runtime
+// directory, or the system's. Anything else would have the library
+// start a bus.
+static DBusConnection* OpenSocket(const mwinDBusApi* api, const char* directory, const char* name)
+{
+    char address[512];
+    struct stat status;
+    int length = directory != nullptr
+                     ? snprintf(address, sizeof(address), "unix:path=%s/%s", directory, name)
+                     : -1;
+    if (length <= 0 || (size_t)length >= sizeof(address) ||
+        stat(address + sizeof("unix:path=") - 1, &status) != 0 || !S_ISSOCK(status.st_mode))
+    {
+        return nullptr;
+    }
+    return Open(api, address);
+}
+
+static DBusConnection* OpenBus(const mwinLinuxBus* bus)
+{
+    if (bus->system)
+    {
+        const char* named = getenv("DBUS_SYSTEM_BUS_ADDRESS");
+        return named != nullptr && named[0] != '\0'
+                   ? Open(&bus->api, named)
+                   : OpenSocket(&bus->api, "/run/dbus", "system_bus_socket");
+    }
+    const char* named = getenv("DBUS_SESSION_BUS_ADDRESS");
+    return named != nullptr && named[0] != '\0'
+               ? bus->api.busGetPrivate(mwin_dbusSession, nullptr)
+               : OpenSocket(&bus->api, getenv("XDG_RUNTIME_DIR"), "bus");
 }
 
 bool mwinBusConnect(mwinLinuxBus* bus)
@@ -42,10 +63,7 @@ bool mwinBusConnect(mwinLinuxBus* bus)
         {
             return false;
         }
-        const char* named = getenv("DBUS_SESSION_BUS_ADDRESS");
-        bus->connection = named != nullptr && named[0] != '\0'
-                              ? bus->api.busGetPrivate(mwin_dbusSession, nullptr)
-                              : OpenUserBus(&bus->api);
+        bus->connection = OpenBus(bus);
         if (bus->connection == nullptr)
         {
             mwinUnloadDBus(&bus->api);

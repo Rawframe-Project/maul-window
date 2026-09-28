@@ -13,7 +13,8 @@
 // its folder is opened by xdg-open. The display is kept awake over the
 // bus too, where the backend has no way of its own (linux_inhibit.h).
 // The preferred locales come from the environment (linux_locale.h), the
-// look and motion from the desktop portal (linux_settings.h).
+// look and motion from the desktop portal (linux_settings.h), the power
+// from the portal and UPower (linux_power.h).
 
 #ifndef MAUL_WINDOW_SRC_LINUX_SERVICES_H
 #define MAUL_WINDOW_SRC_LINUX_SERVICES_H
@@ -23,6 +24,7 @@
 #include "linux_bus.h"
 #include "linux_dialog.h"
 #include "linux_inhibit.h"
+#include "linux_power.h"
 #include "linux_settings.h"
 
 #include <sys/types.h>
@@ -57,6 +59,7 @@ typedef struct mwinLinuxServices
     mwinLinuxInhibit inhibit;
     mwinLinuxDialogs dialogs;
     mwinLinuxSettings settings;
+    mwinLinuxPower power;
 } mwinLinuxServices;
 
 void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context);

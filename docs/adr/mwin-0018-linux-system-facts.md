@@ -36,17 +36,27 @@ research note record the sources.
   - The text scale is GNOME's `text-scaling-factor`, else 1.
   - A value of another type than the key's is left alone.
   - Changes post `mwin_eventThemeChanged` through the core.
+- **Power:**
+  - Low power is the portal's `power-saver-enabled`
+    (`org.freedesktop.portal.PowerProfileMonitor`).
+  - On battery is UPower's `OnBattery`, on the system bus, which the
+    backend opens by its address (`DBUS_SYSTEM_BUS_ADDRESS`, else
+    `/run/dbus/system_bus_socket`).
+  - Each is read with `Properties.Get` at the start, taken at a later
+    pump, and followed through `PropertiesChanged` of its own interface.
+    Other interfaces, keys and types are left alone.
+  - Changes post `mwin_eventPowerChanged`.
 - **No bus or no portal:** the facts stay as they were, and nothing is
   started to answer.
 
 ## Consequences
 
-Every Linux program now connects to the session bus at the start,
-where there is one, as GTK and Qt programs do. A program sees unknown
-facts for its first frames, then one change event as the answer comes.
-
-Power (`power-saver-enabled` and UPower's `OnBattery`) is still
-unknown on Linux and follows in its own slice.
+Every Linux program now connects to the session bus and the system
+bus at the start, where they are, as GTK and Qt programs do. A program
+sees unknown facts for its first frames, then a change event as each
+answer comes. Inside a Flatpak sandbox, the system bus needs the
+program's permission to talk to UPower; without it, on battery stays
+unknown.
 
 The tests:
 
@@ -57,3 +67,8 @@ The tests:
   - each kind of change;
   - a value of the wrong type;
   - no answer.
+- `linux_power` runs it against a portal and UPower of its own, on a
+  session and a system bus:
+  - both facts at the start and as they change;
+  - changes of other interfaces, keys and types;
+  - a refusal and no system bus.

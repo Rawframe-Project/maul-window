@@ -8,8 +8,9 @@
 // and the desktop portal (Inhibit, FileChooser's OpenFile and SaveFile
 // answered by a Response when the test says, Close on a request, and
 // Settings' ReadAll answered with a desktop's settings when the test
-// says, and SettingChanged), each writing down what it was asked and
-// answering, or refusing as told.
+// says, and SettingChanged; PowerProfileMonitor's power-saver-enabled),
+// each writing down what it was asked and answering, or refusing as
+// told. Started as a system bus, it plays UPower (OnBattery) instead.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -37,6 +38,8 @@ typedef struct FakeBus
     void* library;
     void* connection;
     void* (*busGet)(int type, void* error);
+    void* (*openPrivate)(const char* address, void* error);
+    unsigned (*busRegister)(void* connection, void* error);
     int (*requestName)(void* connection, const char* name, unsigned flags, void* error);
     unsigned (*readWrite)(void* connection, int timeout);
     void* (*pop)(void* connection);
@@ -92,6 +95,11 @@ typedef struct FakeBus
     // for no answer), and how often it was asked.
     int desktop;
     int readAlls;
+    // The power: power-saver-enabled and OnBattery, -1 to refuse Get.
+    int saver;
+    int battery;
+    // Started as the system bus.
+    bool system;
 } FakeBus;
 
 enum
@@ -112,6 +120,8 @@ static inline bool FakeLoad(FakeBus* fake)
     fake->library = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
     void* symbol = nullptr;
     return fake->library != nullptr && FAKE_FIND(busGet, dbus_bus_get_private) &&
+           FAKE_FIND(openPrivate, dbus_connection_open_private) &&
+           FAKE_FIND(busRegister, dbus_bus_register) &&
            FAKE_FIND(requestName, dbus_bus_request_name) &&
            FAKE_FIND(readWrite, dbus_connection_read_write) &&
            FAKE_FIND(pop, dbus_connection_pop_message) &&
@@ -138,9 +148,9 @@ static inline bool FakeLoad(FakeBus* fake)
            FAKE_FIND(getFixedArray, dbus_message_iter_get_fixed_array);
 }
 
-// Starts the bus in a directory, names it in DBUS_SESSION_BUS_ADDRESS,
-// and takes the services' names: false where there is no dbus-daemon or
-// libdbus-1.
+// Starts the bus in a directory, names it in DBUS_SESSION_BUS_ADDRESS
+// (DBUS_SYSTEM_BUS_ADDRESS for fake->system), and takes the services'
+// names: false where there is no dbus-daemon or libdbus-1.
 static inline bool FakeStart(FakeBus* fake, const char* directory)
 {
     char path[256];
@@ -179,14 +189,23 @@ static inline bool FakeStart(FakeBus* fake, const char* directory)
         (void)nanosleep(&pause, nullptr);
     }
     (void)snprintf(config, sizeof(config), "unix:path=%s", path);
-    (void)setenv("DBUS_SESSION_BUS_ADDRESS", config, 1);
-    fake->connection = FakeLoad(fake) ? fake->busGet(0, nullptr) : nullptr;
-    if (fake->connection == nullptr)
+    (void)setenv(fake->system ? "DBUS_SYSTEM_BUS_ADDRESS" : "DBUS_SESSION_BUS_ADDRESS", config, 1);
+    // libdbus keeps the addresses it saw first for its buses, so the
+    // system bus is opened by its address.
+    fake->connection = !FakeLoad(fake) ? nullptr
+                       : fake->system  ? fake->openPrivate(config, nullptr)
+                                       : fake->busGet(0, nullptr);
+    if (fake->connection == nullptr ||
+        (fake->system && !fake->busRegister(fake->connection, nullptr)))
     {
         return false;
     }
     fake->setExit(fake->connection, 0);
     // 4: do not queue; 1: the primary owner.
+    if (fake->system)
+    {
+        return fake->requestName(fake->connection, "org.freedesktop.UPower", 4, nullptr) == 1;
+    }
     return fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) == 1 &&
            fake->requestName(fake->connection, "org.freedesktop.ScreenSaver", 4, nullptr) == 1 &&
            fake->requestName(fake->connection, "org.freedesktop.portal.Desktop", 4, nullptr) == 1;
@@ -530,8 +549,60 @@ static inline void FakeSettingChanged(FakeBus* fake, const char* space, const ch
     fake->flush(fake->connection);
 }
 
+// Properties.Get of power-saver-enabled or OnBattery: a boolean, or
+// a refusal as told.
+static inline void* FakeGet(FakeBus* fake, void* message)
+{
+    void* iter[16];
+    char interface[64] = "";
+    char name[64] = "";
+    if (fake->iterInit(message, iter))
+    {
+        FakeString(fake, iter, interface, sizeof(interface));
+        FakeString(fake, iter, name, sizeof(name));
+    }
+    bool saver = strcmp(interface, "org.freedesktop.portal.PowerProfileMonitor") == 0 &&
+                 strcmp(name, "power-saver-enabled") == 0;
+    bool battery =
+        strcmp(interface, "org.freedesktop.UPower") == 0 && strcmp(name, "OnBattery") == 0;
+    int value = saver ? fake->saver : battery ? fake->battery : -1;
+    if (value < 0)
+    {
+        return fake->newError(message, "org.freedesktop.DBus.Error.UnknownProperty", "none");
+    }
+    void* reply = fake->newReturn(message);
+    unsigned boolean = (unsigned)value;
+    fake->initAppend(reply, iter);
+    FakeVariant(fake, iter, 'b', &boolean);
+    return reply;
+}
+
+// Tells every listener of a boolean property's change.
+static inline void FakePropertyChanged(FakeBus* fake, const char* path, const char* interface,
+                                       const char* name, int type, const void* value)
+{
+    void* message = fake->newSignal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    void* iter[16];
+    void* changed[16];
+    void* invalidated[16];
+    fake->initAppend(message, iter);
+    (void)fake->appendBasic(iter, 's', (const void*)&interface);
+    (void)fake->openContainer(iter, 'a', "{sv}", changed);
+    FakeSetting(fake, changed, name, type, value);
+    (void)fake->closeContainer(iter, changed);
+    (void)fake->openContainer(iter, 'a', "s", invalidated);
+    (void)fake->closeContainer(iter, invalidated);
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
+}
+
 static inline void* FakeAnswer(FakeBus* fake, void* message)
 {
+    if (fake->isCall(message, "org.freedesktop.DBus.Properties", "Get"))
+    {
+        return FakeGet(fake, message);
+    }
     if (fake->isCall(message, "org.freedesktop.portal.Settings", "ReadAll"))
     {
         return FakeReadAll(fake, message);
@@ -604,7 +675,7 @@ static inline void FakeStop(FakeBus* fake)
         (void)kill(fake->daemon, SIGTERM);
         (void)waitpid(fake->daemon, nullptr, 0);
     }
-    (void)unsetenv("DBUS_SESSION_BUS_ADDRESS");
+    (void)unsetenv(fake->system ? "DBUS_SYSTEM_BUS_ADDRESS" : "DBUS_SESSION_BUS_ADDRESS");
 }
 
 // Removes what the bus left in its directory.

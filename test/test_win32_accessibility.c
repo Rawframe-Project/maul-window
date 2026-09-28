@@ -18,13 +18,16 @@
 #include "maul-window/native.h"
 
 #include <string.h>
+#include <wchar.h>
 
 #define COBJMACROS
 #define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+// COM's declarations, which lean Windows headers leave out, before UI
+// Automation's.
+#include <ole2.h>
 #include <uiautomationclient.h>
 #include <uiautomationcore.h>
-#include <wchar.h>
-#include <windows.h>
 
 #define DEADLINE_MS 10000u
 // UiaRootObjectId of uiautomationcoreapi.h.

@@ -3,13 +3,13 @@
 //
 // The Win32 backend's accessibility root, with a provider of the test's
 // own:
-// - WM_GETOBJECT for other objects is left to Windows and tells nothing;
+// - WM_GETOBJECT for an object of the program's is left to Windows and
+//   tells nothing;
 // - a UI Automation client asking tells the program once, and before a
 //   root gets Windows' own answer;
-// - with a root, the client gets it through UI Automation: an answer it
-//   can take the object from, holding the provider until it lets go.
-// UI Automation keeps no provider that raised no event, so letting go
-// of a destroyed window's is not seen here.
+// - with a root, a UI Automation client on another thread reads the
+//   window's name from the provider;
+// - once the window is gone, UI Automation holds the provider no more.
 
 #include "test_harness.h"
 
@@ -17,20 +17,27 @@
 #include "maul-window/event.h"
 #include "maul-window/native.h"
 
+#include <string.h>
+
 #define COBJMACROS
 #define WIN32_LEAN_AND_MEAN
-#include <oleacc.h>
+#include <uiautomationclient.h>
 #include <uiautomationcore.h>
+#include <wchar.h>
 #include <windows.h>
 
 #define DEADLINE_MS 10000u
 // UiaRootObjectId of uiautomationcoreapi.h.
 #define ROOT_OBJECT_ID (-25)
+// An object id of the program's own, which Windows knows nothing of.
+#define OWN_OBJECT_ID 1
+#define NAME          L"maul root"
 
 typedef struct Provider
 {
     IRawElementProviderSimple iface;
     LONG refs;
+    HWND hwnd;
 } Provider;
 
 static const GUID s_iidProvider = {
@@ -85,17 +92,26 @@ static HRESULT STDMETHODCALLTYPE Property(IRawElementProviderSimple* iface, PROP
                                           VARIANT* out)
 {
     (void)iface;
-    (void)property;
     VariantInit(out);
+    if (property == UIA_NamePropertyId)
+    {
+        out->vt = VT_BSTR;
+        out->bstrVal = SysAllocString(NAME);
+    }
     return S_OK;
 }
 
+// The window's own provider, as a root is to give it; loaded as the
+// backend loads UI Automation, which MinGW has no import library of.
 static HRESULT STDMETHODCALLTYPE Host(IRawElementProviderSimple* iface,
                                       IRawElementProviderSimple** out)
 {
-    (void)iface;
+    HRESULT(WINAPI * host)(HWND, IRawElementProviderSimple**) = nullptr;
+    FARPROC found =
+        GetProcAddress(LoadLibraryW(L"uiautomationcore.dll"), "UiaHostProviderFromHwnd");
+    memcpy((void*)&host, (const void*)&found, sizeof(host));
     *out = nullptr;
-    return S_OK;
+    return host != nullptr ? host(Of(iface)->hwnd, out) : S_OK;
 }
 
 static IRawElementProviderSimpleVtbl s_vtbl = {QueryInterface, AddRef,   Release, Options,
@@ -109,6 +125,10 @@ typedef struct Program
     int step;
     int asked;
     Provider provider;
+    HANDLE client;
+    // Set by the client thread once it read the name: 1 for the root's,
+    // 2 for another.
+    volatile LONG named;
     bool done;
 } Program;
 
@@ -138,40 +158,74 @@ static HWND Handle(mwinContext* context, mwinWindowId window)
                : nullptr;
 }
 
+// A UI Automation client, which may not run on the window's thread.
+static DWORD WINAPI Client(void* user)
+{
+    Program* program = user;
+    LONG named = 2;
+    IUIAutomation* automation = nullptr;
+    IUIAutomationElement* element = nullptr;
+    BSTR name = nullptr;
+    if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+    {
+        if (SUCCEEDED(CoCreateInstance(&CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
+                                       &IID_IUIAutomation, (void**)&automation)) &&
+            SUCCEEDED(
+                IUIAutomation_ElementFromHandle(automation, program->provider.hwnd, &element)) &&
+            SUCCEEDED(IUIAutomationElement_get_CurrentName(element, &name)) && name != nullptr &&
+            wcscmp(name, NAME) == 0)
+        {
+            named = 1;
+        }
+        SysFreeString(name);
+        if (element != nullptr)
+        {
+            IUIAutomationElement_Release(element);
+        }
+        if (automation != nullptr)
+        {
+            IUIAutomation_Release(automation);
+        }
+        CoUninitialize();
+    }
+    InterlockedExchange(&program->named, named);
+    return 0;
+}
+
 static void Next(mwinContext* context, Program* program, int outcome)
 {
     HWND hwnd = Handle(context, program->window);
     if (program->step == 0)
     {
-        LRESULT client = SendMessageW(hwnd, WM_GETOBJECT, 0, (LPARAM)OBJID_CLIENT);
+        int before = program->asked;
+        (void)SendMessageW(hwnd, WM_GETOBJECT, 0, OWN_OBJECT_ID);
         (void)Outcome(context, program);
-        bool quiet = program->asked == 0;
+        bool quiet = program->asked == before;
         LRESULT none = SendMessageW(hwnd, WM_GETOBJECT, 0, ROOT_OBJECT_ID);
         (void)SendMessageW(hwnd, WM_GETOBJECT, 0, ROOT_OBJECT_ID);
         (void)Outcome(context, program);
-        (void)client;
-        CHECK(quiet, "other objects left to Windows, telling nothing");
+        CHECK(quiet, "an object of the program's left to Windows, telling nothing");
         CHECK(program->asked == 1 && none == 0,
               "a UI Automation client asking tells once, and gets no root before one");
+        program->provider.hwnd = hwnd;
         CHECK(mwinRequestAccessibilityRoot(context, program->window, &program->provider.iface,
                                            &program->request) == mwin_success,
               "a root");
     }
-    else
+    else if (program->step == 1)
     {
         CHECK(outcome == mwin_outcomeDone, "the root taken");
-        LRESULT given = SendMessageW(hwnd, WM_GETOBJECT, 0, ROOT_OBJECT_ID);
-        LONG held = program->provider.refs;
-        IUnknown* taken = nullptr;
-        bool took = given != 0 && held > 1 &&
-                    SUCCEEDED(ObjectFromLresult(given, &IID_IUnknown, 0, (void**)&taken));
-        if (taken != nullptr)
-        {
-            IUnknown_Release(taken);
-        }
-        CHECK(took && program->provider.refs == 1,
-              "the client takes the root from the answer, held until it lets go");
-        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroy");
+        program->client = CreateThread(nullptr, 0, Client, program, 0, nullptr);
+        CHECK(program->client != nullptr, "a client");
+    }
+    else
+    {
+        CHECK(program->named == 1, "a UI Automation client reads the root's name");
+        WaitForSingleObject(program->client, INFINITE);
+        CloseHandle(program->client);
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success &&
+                  program->provider.refs == 1,
+              "the window gone, UI Automation holds the root no more");
         program->done = true;
     }
     program->step += 1;
@@ -190,7 +244,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     int outcome = program->done ? -1 : Outcome(context, program);
-    if (outcome >= 0)
+    if (outcome >= 0 || (program->step == 2 && program->named != 0))
     {
         Next(context, program, outcome);
     }
@@ -206,5 +260,11 @@ int main(void)
     def.frame = Frame;
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success && program.done, "the program runs");
+    // A client still waiting on a window that is gone ends with the
+    // process.
+    if (program.client != nullptr && !program.done)
+    {
+        (void)WaitForSingleObject(program.client, 1000);
+    }
     return s_failures == 0 ? 0 : 1;
 }

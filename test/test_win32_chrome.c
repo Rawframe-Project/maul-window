@@ -9,7 +9,8 @@
 // - A maximize button's frame messages reach the program as the client
 //   area's would, and do not maximize the window.
 // - A leave from the client area into a hit region is none, and a leave
-//   from the window is one.
+//   from the window is one, where the desktop lets the test place the
+//   pointer.
 // - Maximized, the client area stays on the monitor.
 // - Without resizing, edges are borders and the maximize button is the
 //   client's.
@@ -151,21 +152,42 @@ static void CheckButton(mwinContext* context, Program* program, HWND hwnd)
     SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
     CHECK(pressed && again && !IsZoomed(hwnd),
           "presses of a maximize button, the second a double click, the program's, not Windows'");
-    program->seen = 0;
+}
+
+// Places the pointer at a point of the desktop, and tells whether it is
+// there and over the window or not as asked. A desktop that is not the
+// input one, as on some test machines, does not let a test place it.
+static bool PointerAt(HWND hwnd, POINT point, bool over)
+{
+    POINT cursor;
+    return SetCursorPos(point.x, point.y) && GetCursorPos(&cursor) && cursor.x == point.x &&
+           cursor.y == point.y && (WindowFromPoint(point) == hwnd) == over;
+}
+
+static void CheckLeaves(mwinContext* context, Program* program, HWND hwnd)
+{
     POINT inside = {0, 0};
     ClientToScreen(hwnd, &inside);
-    SetCursorPos(inside.x + 20, inside.y + 50);
-    SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
-    SendMessageW(hwnd, WM_NCMOUSELEAVE, 0, 0);
-    (void)Outcome(context, program);
-    bool stayed = (program->seen & (1ull << mwin_eventCursorLeft)) == 0;
+    inside.x += 20;
+    inside.y += 50;
     RECT frame;
     GetWindowRect(hwnd, &frame);
-    SetCursorPos(frame.right + 50, frame.bottom + 50);
-    SendMessageW(hwnd, WM_NCMOUSELEAVE, 0, 0);
-    (void)Outcome(context, program);
-    CHECK(stayed && (program->seen & (1ull << mwin_eventCursorLeft)) != 0,
-          "a leave into a hit region none, a leave from the window one");
+    POINT outside = {frame.right + 50, frame.bottom + 50};
+    program->seen = 0;
+    if (PointerAt(hwnd, inside, true))
+    {
+        SendMessageW(hwnd, WM_MOUSELEAVE, 0, 0);
+        SendMessageW(hwnd, WM_NCMOUSELEAVE, 0, 0);
+        (void)Outcome(context, program);
+        CHECK((program->seen & (1ull << mwin_eventCursorLeft)) == 0,
+              "a leave into a hit region none");
+    }
+    if (PointerAt(hwnd, outside, false))
+    {
+        SendMessageW(hwnd, WM_NCMOUSELEAVE, 0, 0);
+        (void)Outcome(context, program);
+        CHECK((program->seen & (1ull << mwin_eventCursorLeft)) != 0, "a leave from the window one");
+    }
 }
 
 static void Ask(Program* program, mwinResult status)
@@ -193,6 +215,7 @@ static void Next(mwinContext* context, Program* program)
     case 1:
         CheckHits(hwnd);
         CheckButton(context, program, hwnd);
+        CheckLeaves(context, program, hwnd);
         Ask(program,
             mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request));
         break;

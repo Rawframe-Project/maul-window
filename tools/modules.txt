@@ -24,7 +24,7 @@ gamepad: core
 icon: allocator core
 input: core
 linux_bus: dbus_api
-linux_pad: allocator core monotonic pad_db
+linux_pad: allocator core monotonic pad_db pad_map
 linux_dialog: core dialog linux_answer linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
 linux_locale:
@@ -39,6 +39,7 @@ monotonic:
 native: core
 pad: core
 pad_db:
+pad_map: core pad_db
 posix_message_box: message_box
 queue: core text
 services: allocator core

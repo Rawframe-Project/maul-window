@@ -74,43 +74,44 @@ static bool IsGamepad(const Bits* bits)
 // BTN_JOYSTICK up, then those below it; axes in code order, hats apart.
 static void Number(mwinLinuxPad* pad, int fd, const Bits* bits)
 {
-    pad->buttonCount = 0;
+    pad->controls.buttonCount = 0;
     for (unsigned pass = 0; pass < 2; pass++)
     {
         unsigned first = pass == 0 ? BTN_JOYSTICK : 0;
         unsigned last = pass == 0 ? KEY_MAX : BTN_JOYSTICK;
-        for (unsigned code = first; code < last && pad->buttonCount < MWIN_LINUX_PAD_BUTTONS;
-             code++)
+        for (unsigned code = first;
+             code < last && pad->controls.buttonCount < MWIN_LINUX_PAD_BUTTONS; code++)
         {
             if (Has(bits->keys, code))
             {
-                pad->buttonCodes[pad->buttonCount++] = (uint16_t)code;
+                pad->buttonCodes[pad->controls.buttonCount++] = (uint16_t)code;
             }
         }
     }
     memset(pad->axisOf, 0, sizeof(pad->axisOf));
-    pad->axisCount = 0;
-    for (unsigned code = 0; code < ABS_HAT0X && pad->axisCount < MWIN_LINUX_PAD_AXES; code++)
+    pad->controls.axisCount = 0;
+    for (unsigned code = 0; code < ABS_HAT0X && pad->controls.axisCount < MWIN_LINUX_PAD_AXES;
+         code++)
     {
         struct input_absinfo info;
         if (Has(bits->axes, code) && ioctl(fd, EVIOCGABS(code), &info) == 0)
         {
-            pad->minimum[pad->axisCount] = info.minimum;
-            pad->maximum[pad->axisCount] = info.maximum;
-            pad->axisOf[code] = ++pad->axisCount;
+            pad->minimum[pad->controls.axisCount] = info.minimum;
+            pad->maximum[pad->controls.axisCount] = info.maximum;
+            pad->axisOf[code] = ++pad->controls.axisCount;
         }
     }
-    pad->hatCount = 0;
+    pad->controls.hatCount = 0;
     for (unsigned hat = 0; hat < MWIN_LINUX_PAD_HATS; hat++)
     {
         bool present = Has(bits->axes, ABS_HAT0X + 2 * hat) || Has(bits->axes, ABS_HAT0Y + 2 * hat);
-        pad->hatNumbers[hat] = present ? ++pad->hatCount : 0;
+        pad->hatNumbers[hat] = present ? ++pad->controls.hatCount : 0;
     }
 }
 
 static mwinPadSource ButtonSource(const mwinLinuxPad* pad, unsigned code)
 {
-    for (uint8_t i = 0; i < pad->buttonCount; i++)
+    for (uint8_t i = 0; i < pad->controls.buttonCount; i++)
     {
         if (pad->buttonCodes[i] == code)
         {
@@ -158,112 +159,8 @@ static void MakeKernelMapping(mwinLinuxPad* pad)
         mwinPadSource* trigger = &own->sources[MWIN_GAMEPAD_BUTTONS + mwin_padTriggerLeft + i];
         *trigger = *trigger != 0 ? *trigger : ButtonSource(pad, i == 0 ? BTN_TL2 : BTN_TR2);
     }
-    pad->mapping = own;
-    pad->halves = nullptr;
-}
-
-static bool IsPressed(const mwinLinuxPad* pad, mwinPadSource source)
-{
-    uint8_t index = mwinPadSourceIndex(source);
-    switch (mwinPadSourceKind(source))
-    {
-    case mwin_padSourceButton:
-        return index < pad->buttonCount && pad->buttons[index];
-    case mwin_padSourceAxis:
-    {
-        float value = index < pad->axisCount ? pad->axes[index] : 0.0f;
-        value = mwinPadSourceInverted(source) ? -value : value;
-        return mwinPadSourceHalf(source) == 2 ? value < -0.5f : value > 0.5f;
-    }
-    case mwin_padSourceHat:
-        return (pad->hats[index] & mwinPadSourceMask(source)) != 0;
-    default:
-        return false;
-    }
-}
-
-// An axis control's value from its source: a stick's from -1 to 1, a
-// trigger's from 0 to 1.
-static float AxisValue(const mwinLinuxPad* pad, mwinPadSource source, bool trigger)
-{
-    if (mwinPadSourceKind(source) != mwin_padSourceAxis)
-    {
-        return IsPressed(pad, source) ? 1.0f : 0.0f;
-    }
-    uint8_t index = mwinPadSourceIndex(source);
-    float value = index < pad->axisCount ? pad->axes[index] : 0.0f;
-    value = mwinPadSourceInverted(source) ? -value : value;
-    int half = mwinPadSourceHalf(source);
-    if (half == 0)
-    {
-        return trigger ? (value + 1.0f) / 2.0f : value;
-    }
-    float part = half == 1 ? (value > 0.0f ? value : 0.0f) : (value < 0.0f ? -value : 0.0f);
-    return trigger ? part : part * 2.0f - 1.0f;
-}
-
-// Posts a raw gamepad's controls: its buttons, its axes, and each hat as
-// two axes after the others.
-static void FlushRaw(mwinLinuxPads* pads, const mwinLinuxPad* pad, uint64_t timeNs)
-{
-    mwinContext* context = pads->context;
-    for (uint8_t i = 0; i < pad->buttonCount && i < MWIN_GAMEPAD_RAW_BUTTONS; i++)
-    {
-        mwinPostGamepadButton(context, pad->slot, i, pad->buttons[i], timeNs);
-    }
-    for (uint8_t i = 0; i < pad->axisCount; i++)
-    {
-        mwinPostGamepadAxis(context, pad->slot, i, pad->axes[i], timeNs);
-    }
-    for (uint8_t i = 0; i < pad->hatCount; i++)
-    {
-        uint8_t hat = pad->hats[i];
-        float x = (hat & 2) != 0 ? 1.0f : ((hat & 8) != 0 ? -1.0f : 0.0f);
-        float y = (hat & 4) != 0 ? 1.0f : ((hat & 1) != 0 ? -1.0f : 0.0f);
-        uint8_t first = (uint8_t)(pad->axisCount + 2 * i);
-        mwinPostGamepadAxis(context, pad->slot, first, x, timeNs);
-        mwinPostGamepadAxis(context, pad->slot, (uint8_t)(first + 1), y, timeNs);
-    }
-}
-
-// Posts what a mapped gamepad's controls mean now.
-static void Flush(mwinLinuxPads* pads, mwinLinuxPad* pad, uint64_t timeNs)
-{
-    mwinContext* context = pads->context;
-    if (pad->mapping == nullptr)
-    {
-        FlushRaw(pads, pad, timeNs);
-        return;
-    }
-    const mwinPadSource* sources = pad->mapping->sources;
-    for (uint8_t i = 0; i < MWIN_GAMEPAD_BUTTONS; i++)
-    {
-        mwinPostGamepadButton(context, pad->slot, i, IsPressed(pad, sources[i]), timeNs);
-    }
-    for (uint8_t i = 0; i < MWIN_GAMEPAD_AXES; i++)
-    {
-        mwinPadSource source = sources[MWIN_GAMEPAD_BUTTONS + i];
-        float value = source != 0 ? AxisValue(pad, source, i >= mwin_padTriggerLeft) : 0.0f;
-        // A stick's halves driven by buttons or a hat.
-        if (i < mwin_padTriggerLeft && pad->halves != nullptr)
-        {
-            value += (IsPressed(pad, pad->halves[2 * i + 1]) ? 1.0f : 0.0f) -
-                     (IsPressed(pad, pad->halves[2 * i]) ? 1.0f : 0.0f);
-        }
-        mwinPostGamepadAxis(context, pad->slot, i, value, timeNs);
-    }
-}
-
-static float Normalize(const mwinLinuxPad* pad, uint8_t axis, int32_t value)
-{
-    int32_t minimum = pad->minimum[axis];
-    int32_t maximum = pad->maximum[axis];
-    if (maximum <= minimum)
-    {
-        return 0.0f;
-    }
-    float normal = (float)((double)(value - minimum) * 2.0 / (double)(maximum - minimum) - 1.0);
-    return normal < -1.0f ? -1.0f : (normal > 1.0f ? 1.0f : normal);
+    pad->controls.mapping = own;
+    pad->controls.halves = nullptr;
 }
 
 // Takes an absolute axis's new value: a hat's direction, or an axis.
@@ -276,7 +173,7 @@ static void OnAxis(mwinLinuxPad* pad, unsigned code, int32_t value)
         {
             return;
         }
-        uint8_t* bits = &pad->hats[pad->hatNumbers[hat] - 1];
+        uint8_t* bits = &pad->controls.hats[pad->hatNumbers[hat] - 1];
         bool vertical = ((code - ABS_HAT0X) & 1u) != 0;
         uint8_t negative = vertical ? 1 : 8;
         uint8_t positive = vertical ? 4 : 2;
@@ -287,17 +184,17 @@ static void OnAxis(mwinLinuxPad* pad, unsigned code, int32_t value)
     if (code < sizeof(pad->axisOf) && pad->axisOf[code] != 0)
     {
         uint8_t axis = (uint8_t)(pad->axisOf[code] - 1);
-        pad->axes[axis] = Normalize(pad, axis, value);
+        pad->controls.axes[axis] = mwinPadNormalize(value, pad->minimum[axis], pad->maximum[axis]);
     }
 }
 
 static void OnKey(mwinLinuxPad* pad, unsigned code, int32_t value)
 {
-    for (uint8_t i = 0; i < pad->buttonCount; i++)
+    for (uint8_t i = 0; i < pad->controls.buttonCount; i++)
     {
         if (pad->buttonCodes[i] == code)
         {
-            pad->buttons[i] = value != 0;
+            pad->controls.buttons[i] = value != 0;
             return;
         }
     }
@@ -308,9 +205,9 @@ static void Resync(mwinLinuxPad* pad)
 {
     unsigned long keys[LONGS(KEY_CNT)] = {0};
     (void)ioctl(pad->fd, EVIOCGKEY(sizeof(keys)), keys);
-    for (uint8_t i = 0; i < pad->buttonCount; i++)
+    for (uint8_t i = 0; i < pad->controls.buttonCount; i++)
     {
-        pad->buttons[i] = Has(keys, pad->buttonCodes[i]);
+        pad->controls.buttons[i] = Has(keys, pad->buttonCodes[i]);
     }
     for (unsigned code = 0; code <= ABS_HAT3Y; code++)
     {
@@ -367,17 +264,17 @@ static void Open(mwinLinuxPads* pads, int node)
     mwinGamepadInfo info = {.vendor = id.vendor, .product = id.product, .battery = -1};
     int named = ioctl(fd, EVIOCGNAME(sizeof(info.name)), info.name);
     info.nameLength = named > 0 ? (uint32_t)strnlen(info.name, sizeof(info.name)) : 0;
-    pad->mapping =
+    pad->controls.mapping =
         mwinFindPadMapping(&mwinLinuxPadDatabase, id.bustype, id.vendor, id.product, id.version);
-    uint8_t halves = pad->mapping != nullptr ? pad->mapping->halves : 0;
-    pad->halves = halves != 0 ? mwinLinuxPadDatabase.halves[halves - 1] : nullptr;
-    if (pad->mapping == nullptr && Has(bits.keys, BTN_GAMEPAD))
+    uint8_t halves = pad->controls.mapping != nullptr ? pad->controls.mapping->halves : 0;
+    pad->controls.halves = halves != 0 ? mwinLinuxPadDatabase.halves[halves - 1] : nullptr;
+    if (pad->controls.mapping == nullptr && Has(bits.keys, BTN_GAMEPAD))
     {
         MakeKernelMapping(pad);
     }
-    info.mapped = pad->mapping != nullptr;
-    info.rawButtons = pad->buttonCount;
-    info.rawAxes = (uint8_t)(pad->axisCount + 2 * pad->hatCount);
+    info.mapped = pad->controls.mapping != nullptr;
+    info.rawButtons = pad->controls.buttonCount;
+    info.rawAxes = (uint8_t)(pad->controls.axisCount + 2 * pad->controls.hatCount);
     info.capabilities = writable && Has(bits.effects, FF_RUMBLE) ? mwin_padRumble : 0;
     int32_t slot = mwinAddGamepad(pads->context, &info, mwinMonotonicNow());
     if (slot < 0)
@@ -388,7 +285,7 @@ static void Open(mwinLinuxPads* pads, int node)
     }
     pad->slot = (uint32_t)slot;
     Resync(pad);
-    Flush(pads, pad, mwinMonotonicNow());
+    mwinPostPadControls(pads->context, pad->slot, &pad->controls, mwinMonotonicNow());
 }
 
 static void Close(mwinLinuxPads* pads, mwinLinuxPad* pad)
@@ -436,7 +333,7 @@ static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
             }
             else if (event->type == EV_SYN && event->code == SYN_REPORT)
             {
-                Flush(pads, pad, timeNs);
+                mwinPostPadControls(pads->context, pad->slot, &pad->controls, timeNs);
             }
         }
     }

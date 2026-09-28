@@ -30,6 +30,7 @@ if(MAUL_WINDOW_GAMEPAD)
     set(MWIN_LINUX_PAD_SOURCES
         src/linux_pad.c
         src/pad_db.c
+        src/pad_map.c
         src/generated/pad_linux.c)
     target_sources(maul-window PRIVATE ${MWIN_LINUX_PAD_SOURCES})
     # inotify and the event clock are Linux's, outside strict C.

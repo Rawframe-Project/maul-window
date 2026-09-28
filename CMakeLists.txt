@@ -252,6 +252,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         endif()
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
+        # Numbered controls through their mapping.
+        maul_add_test(pad_map WHITEBOX)
         # Makes virtual gamepads through uinput: skipped without it or a
         # display.
         maul_add_test(linux_gamepad POSIX)

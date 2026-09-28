@@ -14,11 +14,12 @@
 
 #include "core.h"
 #include "pad_db.h"
+#include "pad_map.h"
 
 // The buttons, axes and hats of a device as SDL numbers them.
-#define MWIN_LINUX_PAD_BUTTONS 64
-#define MWIN_LINUX_PAD_AXES    16
-#define MWIN_LINUX_PAD_HATS    4
+#define MWIN_LINUX_PAD_BUTTONS MWIN_PAD_NUMBERED_BUTTONS
+#define MWIN_LINUX_PAD_AXES    MWIN_PAD_NUMBERED_AXES
+#define MWIN_LINUX_PAD_HATS    MWIN_PAD_NUMBERED_HATS
 
 typedef struct mwinLinuxPad
 {
@@ -27,27 +28,19 @@ typedef struct mwinLinuxPad
     int node;
     // The core's gamepad slot.
     uint32_t slot;
-    // Its mapping, from the database or made from the kernel's layout;
-    // NULL for a raw gamepad.
-    const mwinPadMapping* mapping;
-    const mwinPadSource* halves;
+    // Its controls; the mapping from the database or made from the
+    // kernel's layout (own), or none for a raw gamepad.
+    mwinPadControls controls;
     mwinPadMapping own;
     // Key codes of the buttons in SDL's order; for each absolute axis
     // code, its axis number plus 1, or 0.
     uint16_t buttonCodes[MWIN_LINUX_PAD_BUTTONS];
-    uint8_t buttonCount;
     uint8_t axisOf[64];
-    uint8_t axisCount;
     // The hats present (bit per hat) and SDL's number of each.
     uint8_t hatNumbers[MWIN_LINUX_PAD_HATS];
-    uint8_t hatCount;
-    // The ranges of the axes, and what the device says now.
+    // The ranges of the axes.
     int32_t minimum[MWIN_LINUX_PAD_AXES];
     int32_t maximum[MWIN_LINUX_PAD_AXES];
-    bool buttons[MWIN_LINUX_PAD_BUTTONS];
-    float axes[MWIN_LINUX_PAD_AXES];
-    // Each hat's direction bits (1 up, 2 right, 4 down, 8 left).
-    uint8_t hats[MWIN_LINUX_PAD_HATS];
     // The rumble effect uploaded, or -1.
     int16_t effect;
 } mwinLinuxPad;

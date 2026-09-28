@@ -4,13 +4,14 @@
 // The web backend's services in headless Chrome, against stand-ins for
 // window.open and the wake lock: an address opened in a new tab cut
 // from the page, a blocked popup denied, a file never revealed, no file
-// dialogs, icons, popup windows or hit regions; the screen kept awake
-// while the window shows, let go while it is hidden, asked for again
-// after the page released it (before the lock came, and after), let go
-// when the window no longer asks and at the page's end.
+// dialogs, icons, popup windows, hit regions or accessibility roots; the
+// screen kept awake while the window shows, let go while it is hidden,
+// asked for again after the page released it (before the lock came, and
+// after), let go when the window no longer asks and at the page's end.
 
 #include "test_harness.h"
 
+#include "maul-window/accessibility.h"
 #include "maul-window/dialog.h"
 #include "maul-window/event.h"
 #include "maul-window/services.h"
@@ -185,6 +186,10 @@ static void CheckOpen(mwinContext* context, Program* program)
               mwinRequestHitRegions(context, window, &caption, 1, &program->request)) ==
               mwin_outcomeUnsupported,
           "no hit regions, a page's canvas having no frame to drag");
+    CHECK(Now(context, program,
+              mwinRequestAccessibilityRoot(context, window, &caption, &program->request)) ==
+              mwin_outcomeUnsupported,
+          "no accessibility root, the page's elements being the tree");
     StandInWakeLock();
     CHECK(Now(context, program, mwinRequestKeepAwake(context, window, true, &program->request)) ==
               mwin_outcomeDone,

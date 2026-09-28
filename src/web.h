@@ -24,6 +24,10 @@ typedef struct mwinWebWindow
 {
     char selector[MWIN_WEB_SELECTOR_BYTES];
     uint32_t selectorLength;
+    // The selector of the host of the program's accessibility elements:
+    // the canvas's and "-accessibility" (web_page.c).
+    char host[MWIN_WEB_SELECTOR_BYTES];
+    uint32_t hostLength;
     // The page opened the window's canvas: a failed or unsupported
     // creation leaves nothing to close.
     bool open;

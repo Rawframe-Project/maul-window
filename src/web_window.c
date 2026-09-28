@@ -92,6 +92,10 @@ void mwinWebCreateWindow(mwinContext* context, uint32_t slot)
         return;
     }
     window->selectorLength = (uint32_t)length;
+    static const char suffix[] = "-accessibility";
+    memcpy(window->host, window->selector, (size_t)length);
+    memcpy(window->host + length, suffix, sizeof(suffix) - 1);
+    window->hostLength = (uint32_t)length + (uint32_t)sizeof(suffix) - 1;
     window->open = true;
     mwinWebWatchCanvas(context, slot);
     mwinWebWatchDrops(context, slot);

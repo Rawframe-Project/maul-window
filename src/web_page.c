@@ -80,6 +80,7 @@ EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
             entry.canvas.height = pixelHeight;
             push(1, slot, 0, width, height, pixelWidth, pixelHeight);
         }
+        entry.place();
     };
     state.checkScale = () => {
         if (devicePixelRatio !== state.ratio) {
@@ -99,6 +100,7 @@ EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
     };
     watchScale();
     listen(window, 'resize', state.checkScale);
+    listen(window, 'resize', () => state.canvases.forEach(entry => entry && entry.place()));
     // A canvas taken out of the document has no surface until it is back.
     const surfaces = new MutationObserver(() => state.canvases.forEach((entry, slot) => {
         if (entry && entry.canvas.isConnected === entry.lost) {
@@ -114,6 +116,7 @@ EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
         const entry = state.canvases[slot];
         entry.observer.disconnect();
         entry.listeners.forEach(remove => remove());
+        entry.host.remove();
         if (entry.made) {
             entry.canvas.remove();
         } else {
@@ -160,7 +163,8 @@ EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const 
         canvas.id = 'mwin-' + context + '-' + slot;
     }
     const name = '#' + CSS.escape(canvas.id);
-    if (lengthBytesUTF8(name) + 1 > capacity) {
+    const suffix = '-accessibility';
+    if (lengthBytesUTF8(name + suffix) + 1 > capacity) {
         return -1;
     }
     if (made) {
@@ -177,6 +181,23 @@ EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const 
     if (!visible) {
         canvas.style.display = 'none';
     }
+    // The host of the program's accessibility elements (accessibility.h):
+    // over the canvas, letting the pointer through to it, gone with it.
+    // Its selector is the canvas's and the suffix.
+    const host = document.createElement('div');
+    host.id = canvas.id + suffix;
+    host.style.cssText = 'position:absolute;overflow:hidden;pointer-events:none;margin:0;' +
+                         'padding:0;border:0';
+    canvas.after(host);
+    entry.host = host;
+    entry.place = () => {
+        host.style.left = canvas.offsetLeft + 'px';
+        host.style.top = canvas.offsetTop + 'px';
+        host.style.width = canvas.offsetWidth + 'px';
+        host.style.height = canvas.offsetHeight + 'px';
+        host.style.display = canvas.style.display === 'none' ? 'none' : 'block';
+    };
+    entry.place();
     // The canvas and its text field (web_text.c) have the focus as one.
     const mine = target => target !== null && (target === canvas || target === entry.textarea);
     entry.focusIn = e => mine(e.relatedTarget) || state.push(3, slot, 1);
@@ -230,7 +251,9 @@ EM_JS(void, mwinWebSetSize, (const mwinContext* context, uint32_t slot, float wi
 });
 
 EM_JS(void, mwinWebSetVisible, (const mwinContext* context, uint32_t slot, bool visible), {
-    Module.mwinWeb.get(context).canvases[slot].canvas.style.display = visible ? 'block' : 'none';
+    const entry = Module.mwinWeb.get(context).canvases[slot];
+    entry.canvas.style.display = visible ? 'block' : 'none';
+    entry.place();
 });
 
 EM_JS(void, mwinWebSetOpacity, (const mwinContext* context, uint32_t slot, float opacity), {

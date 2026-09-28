@@ -300,6 +300,8 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->platform = mwin_platformWeb;
     out->handles.web.selector = window->selector;
     out->handles.web.selectorLength = window->selectorLength;
+    out->handles.web.accessibility = window->host;
+    out->handles.web.accessibilityLength = window->hostLength;
 }
 
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,

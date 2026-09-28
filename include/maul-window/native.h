@@ -71,11 +71,15 @@ extern "C"
                 void* view;
                 void* layer;
             } apple;
-            // The canvas's CSS selector, UTF-8, not NUL-terminated.
+            // The canvas's CSS selector, and that of the element over it
+            // for the program's accessibility elements
+            // (maul-window/accessibility.h), UTF-8, not NUL-terminated.
             struct
             {
                 const char* selector;
                 uint32_t selectorLength;
+                const char* accessibility;
+                uint32_t accessibilityLength;
             } web;
         } handles;
     } mwinNativeHandles;

@@ -176,5 +176,16 @@ format.
     `_NET_WM_MOVERESIZE`, and Wayland `xdg_toplevel.move` and `resize`
     with client-side decorations. On the web, hit regions are
     unsupported.
+- Accessibility hooks (mwin-0017), for the program's adapters, which
+  own the tree:
+  - `mwinRequestAccessibilityRoot` hands the platform the root. On
+    Win32 it is an `IRawElementProviderSimple*`, answered to
+    `WM_GETOBJECT` through UI Automation.
+  - `mwin_eventAccessibilityRequested` comes when a client first asks
+    for a window's tree.
+  - On the web, a host element over the canvas takes the ARIA
+    elements; its selector is in `mwinNativeHandles`.
+  - The test backend's `mwinTestAskAccessibility` plays a client
+    asking.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

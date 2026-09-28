@@ -6,6 +6,9 @@
 // pixels at the page's ratio and after it changes, a size, a title,
 // focus, fullscreen refused without a user's gesture, hiding, the facts
 // and locales, and closing: the page's canvas stays, the library's goes.
+// With each canvas, the host of the program's accessibility elements:
+// right after it, over it as it resizes, letting the pointer through,
+// hidden with it and gone with the window.
 
 #include "test_harness.h"
 
@@ -41,6 +44,7 @@ typedef struct Program
     mwinWindowId made;
     mwinWindowId page;
     char madeSelector[128];
+    char madeHost[160];
     mwinEvent records[MAX_RECORDS];
     int count;
     bool timedOut;
@@ -102,6 +106,21 @@ EM_JS(bool, Finds, (const char* selector), {
     return document.querySelector(UTF8ToString(selector)) !== null;
 });
 
+// Whether the host is the canvas's next element, over it, and lets the
+// pointer through.
+EM_JS(bool, HostOver, (const char* hostSelector, const char* canvasSelector), {
+    const host = document.querySelector(UTF8ToString(hostSelector));
+    const canvas = document.querySelector(UTF8ToString(canvasSelector));
+    if (host === null || canvas === null || canvas.nextElementSibling !== host) {
+        return false;
+    }
+    const a = host.getBoundingClientRect();
+    const b = canvas.getBoundingClientRect();
+    return getComputedStyle(host).pointerEvents === 'none' && Math.abs(a.left - b.left) < 1 &&
+           Math.abs(a.top - b.top) < 1 && Math.abs(a.width - b.width) < 1 &&
+           Math.abs(a.height - b.height) < 1;
+});
+
 EM_JS(bool, IsHidden, (const char* selector), {
     return document.querySelector(UTF8ToString(selector)).style.display === 'none';
 });
@@ -161,6 +180,18 @@ static void CheckCreated(Program* program, mwinContext* context)
     memcpy(program->madeSelector, handles.handles.web.selector, handles.handles.web.selectorLength);
     program->madeSelector[handles.handles.web.selectorLength] = '\0';
     CHECK(Finds(program->madeSelector), "the selector finds the canvas");
+    CHECK(mwinGetNativeHandles(context, program->page, &handles) == mwin_success &&
+              handles.handles.web.accessibilityLength == 26 &&
+              memcmp(handles.handles.web.accessibility, "#page-canvas-accessibility", 26) == 0 &&
+              HostOver("#page-canvas-accessibility", "#page-canvas"),
+          "the page canvas's accessibility host, over it");
+    CHECK(mwinGetNativeHandles(context, program->made, &handles) == mwin_success &&
+              handles.handles.web.accessibilityLength < sizeof(program->madeHost),
+          "the made canvas's accessibility host");
+    memcpy(program->madeHost, handles.handles.web.accessibility,
+           handles.handles.web.accessibilityLength);
+    program->madeHost[handles.handles.web.accessibilityLength] = '\0';
+    CHECK(HostOver(program->madeHost, program->madeSelector), "over the made canvas");
     mwinSystemFacts facts;
     CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.reducedMotion &&
               facts.theme == mwin_themeLight,
@@ -193,7 +224,8 @@ static void AdvanceLate(Program* program, mwinContext* context)
         CHECK(mwinRequestVisible(context, program->made, false, nullptr) == mwin_success, "hide");
         break;
     case phaseHide:
-        CHECK(IsHidden(program->madeSelector), "hidden");
+        CHECK(IsHidden(program->madeSelector) && IsHidden(program->madeHost),
+              "hidden, with its accessibility host");
         CHECK(mwinDestroyWindow(context, program->page) == mwin_success &&
                   mwinDestroyWindow(context, program->made) == mwin_success,
               "destroy both");
@@ -201,6 +233,8 @@ static void AdvanceLate(Program* program, mwinContext* context)
     default:
         CHECK(Finds("#page-canvas") && !Finds(program->madeSelector),
               "the page's canvas stays, the made one goes");
+        CHECK(!Finds("#page-canvas-accessibility") && !Finds(program->madeHost),
+              "both accessibility hosts go");
         break;
     }
 }
@@ -227,6 +261,8 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseTitle:
         CHECK(TitleIs("Retitled"), "the page's title");
+        CHECK(HostOver(program->madeHost, program->madeSelector),
+              "the accessibility host over the resized canvas");
         CHECK(mwinRequestFocus(context, program->made, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:

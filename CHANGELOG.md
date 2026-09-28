@@ -165,5 +165,16 @@ format.
     `WM_TRANSIENT_FOR` and override-redirect popups. Wayland uses
     `set_parent`, and `xdg_popup` with a positioner, a grab and
     reposition. On the web, popups are unsupported.
+- Custom chrome (mwin-0016): the `mwin_styleCustomChrome` style and
+  `mwinRequestHitRegions`, whose typed regions (caption, edges and
+  corners, buttons) the core hit-tests:
+  - A press on a caption or an edge moves or resizes the window
+    through the platform, and a double click on a caption maximizes it.
+  - Windows 11 snap layouts appear over a maximize region
+    (`mwinSystemFacts.snapLayouts`).
+  - Win32 uses `WM_NCCALCSIZE` and `WM_NCHITTEST`, X11
+    `_NET_WM_MOVERESIZE`, and Wayland `xdg_toplevel.move` and `resize`
+    with client-side decorations. On the web, hit regions are
+    unsupported.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.

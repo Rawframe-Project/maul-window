@@ -20,3 +20,4 @@ are listed in [README.md](README.md).
 | [mwin-0013](mwin-0013-file-dialogs.md) | File dialogs | Accepted |
 | [mwin-0014](mwin-0014-window-icons.md) | Window icons | Accepted |
 | [mwin-0015](mwin-0015-owned-and-popup-windows.md) | Owned and popup windows | Accepted |
+| [mwin-0016](mwin-0016-custom-chrome.md) | Custom chrome | Accepted |

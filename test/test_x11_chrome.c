@@ -112,6 +112,16 @@ static void Click(const Program* program, int16_t x, int16_t y)
     int16_t rootY = (int16_t)(program->origin.y + y);
     xcb_test_fake_input(connection, XCB_MOTION_NOTIFY, 0, XCB_CURRENT_TIME, program->root, rootX,
                         rootY, 0);
+    // A press the X server takes before the pointer got there would go
+    // where it was.
+    bool there = false;
+    for (int tries = 0; tries < 1000 && !there; tries++)
+    {
+        xcb_query_pointer_reply_t* pointer = xcb_query_pointer_reply(
+            connection, xcb_query_pointer(connection, program->root), nullptr);
+        there = pointer != nullptr && pointer->root_x == rootX && pointer->root_y == rootY;
+        free(pointer);
+    }
     xcb_test_fake_input(connection, XCB_BUTTON_PRESS, 1, XCB_CURRENT_TIME, program->root, 0, 0, 0);
     xcb_test_fake_input(connection, XCB_BUTTON_RELEASE, 1, XCB_CURRENT_TIME, program->root, 0, 0,
                         0);

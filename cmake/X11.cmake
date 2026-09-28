@@ -22,6 +22,7 @@ set(MWIN_X11_SOURCES
     src/x11_icon.c
     src/x11_input.c
     src/x11_output.c
+    src/x11_scroll.c
     src/x11_window.c)
 target_sources(maul-window PRIVATE ${MWIN_X11_SOURCES})
 target_include_directories(maul-window SYSTEM PRIVATE ${MWIN_XCB_INCLUDE_DIRS})

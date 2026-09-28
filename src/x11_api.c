@@ -116,7 +116,18 @@ static bool FindXinput(mwinX11Api* api)
                 xcb_input_raw_button_press_valuator_mask_length) &&
            FIND(xinputLibrary, rawAxisValues, xcb_input_raw_button_press_axisvalues_raw) &&
            FIND(xinputLibrary, rawAxisValuesLength,
-                xcb_input_raw_button_press_axisvalues_raw_length);
+                xcb_input_raw_button_press_axisvalues_raw_length) &&
+           FIND(xinputLibrary, valuatorMask, xcb_input_button_press_valuator_mask) &&
+           FIND(xinputLibrary, valuatorMaskLength, xcb_input_button_press_valuator_mask_length) &&
+           FIND(xinputLibrary, axisValues, xcb_input_button_press_axisvalues) &&
+           FIND(xinputLibrary, axisValuesLength, xcb_input_button_press_axisvalues_length) &&
+           FIND(xinputLibrary, xiQueryDevice, xcb_input_xi_query_device) &&
+           FIND(xinputLibrary, xiQueryDeviceReply, xcb_input_xi_query_device_reply) &&
+           FIND(xinputLibrary, deviceInfos, xcb_input_xi_query_device_infos_iterator) &&
+           FIND(xinputLibrary, deviceInfoNext, xcb_input_xi_device_info_next) &&
+           FIND(xinputLibrary, deviceClasses, xcb_input_xi_device_info_classes_iterator) &&
+           FIND(xinputLibrary, deviceClassNext, xcb_input_device_class_next) &&
+           FIND(xinputLibrary, xiUngrabDevice, xcb_input_xi_ungrab_device);
 }
 
 // Opens an optional library, or leaves it NULL when it or one of its

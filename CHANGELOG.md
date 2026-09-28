@@ -17,6 +17,8 @@ format.
   UPower (low power, on battery), followed as they change (mwin-0018).
 - Wayland focus requests through xdg-activation, and the launcher's
   activation token for the first window shown (mwin-0019).
+- X11 smooth scrolling from XI 2.1 scroll valuators, with the pointer
+  read through XI2 (mwin-0020).
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.

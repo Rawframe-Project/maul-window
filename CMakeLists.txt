@@ -209,6 +209,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_chrome POSIX)
         target_compile_definitions(test_x11_chrome PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_chrome PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # The wheel movement of scroll valuators.
+        maul_add_test(x11_scroll WHITEBOX)
         # The tests that move the X server's focus or pointer take turns.
         set_tests_properties(x11 x11_input x11_clipboard x11_icon x11_drop x11_owned x11_chrome
                              PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK x11-focus)

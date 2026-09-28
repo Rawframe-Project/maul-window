@@ -310,6 +310,7 @@ void mwinX11CreateWindow(mwinContext* context, uint32_t slot)
         return;
     }
     SetInitialProperties(platform, core, window);
+    mwinX11SelectPointer(platform, window->window);
     Establish(platform, window);
     if (core->def.visible)
     {

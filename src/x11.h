@@ -14,6 +14,7 @@
 #include "linux_services.h"
 #include "monotonic.h"
 #include "x11_api.h"
+#include "x11_scroll.h"
 #include "xkb_keyboard.h"
 
 // The atoms the backend interns at start, in the order of s_atomNames
@@ -111,13 +112,15 @@ typedef struct mwinX11Keyboard
 } mwinX11Keyboard;
 
 // The core pointer: the window it is over, or -1, where, the buttons
-// held and the last press.
+// held and the last press, and the XI2 device of the event read, 0 for
+// a core event.
 typedef struct mwinX11Pointer
 {
     int32_t focus;
     mwinPosition position;
     uint8_t buttons;
     mwinClickCounter clicks;
+    uint16_t device;
 } mwinX11Pointer;
 
 // The cursors the backend made: an empty one that hides the pointer,
@@ -202,6 +205,10 @@ struct mwinX11Platform
     // opcode, 0 without XInput 2 raw motion.
     uint8_t randrEvent;
     uint8_t xinputOpcode;
+    // XI 2.1: windows read the pointer through XI2, with the scroll
+    // valuators of its devices (x11_scroll.h).
+    bool smoothScroll;
+    mwinX11Scroll scroll;
     // libxkbcommon, and the keyboard, where both load.
     mwinXkbApi xkbApi;
     mwinX11Keyboard keyboard;

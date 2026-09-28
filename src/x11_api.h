@@ -103,6 +103,17 @@ typedef struct mwinX11Api
     typeof(xcb_input_raw_button_press_valuator_mask_length)* rawValuatorMaskLength;
     typeof(xcb_input_raw_button_press_axisvalues_raw)* rawAxisValues;
     typeof(xcb_input_raw_button_press_axisvalues_raw_length)* rawAxisValuesLength;
+    typeof(xcb_input_button_press_valuator_mask)* valuatorMask;
+    typeof(xcb_input_button_press_valuator_mask_length)* valuatorMaskLength;
+    typeof(xcb_input_button_press_axisvalues)* axisValues;
+    typeof(xcb_input_button_press_axisvalues_length)* axisValuesLength;
+    typeof(xcb_input_xi_query_device)* xiQueryDevice;
+    typeof(xcb_input_xi_query_device_reply)* xiQueryDeviceReply;
+    typeof(xcb_input_xi_query_device_infos_iterator)* deviceInfos;
+    typeof(xcb_input_xi_device_info_next)* deviceInfoNext;
+    typeof(xcb_input_xi_device_info_classes_iterator)* deviceClasses;
+    typeof(xcb_input_device_class_next)* deviceClassNext;
+    typeof(xcb_input_xi_ungrab_device)* xiUngrabDevice;
 } mwinX11Api;
 
 // Opens libxcb and fills the table: mwin_errorUnsupported when it or a

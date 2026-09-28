@@ -182,15 +182,20 @@ static mwinPosition PositionOf(const mwinX11Platform* platform, int16_t x, int16
     return (mwinPosition){(float)x / platform->scale, (float)y / platform->scale};
 }
 
-// The wheel turned: X11's buttons 4 to 7, a detent each.
-static void Turn(mwinX11Platform* platform, uint32_t slot, uint8_t button, uint64_t timeNs)
+static void PostWheel(mwinX11Platform* platform, uint32_t slot, float x, float y, uint64_t timeNs)
 {
     mwinEvent event = {0};
     event.type = mwin_eventWheel;
     event.timeNs = timeNs;
-    event.data.wheel = (mwinWheelEvent){button == 6 ? -1.0f : (button == 7 ? 1.0f : 0.0f),
-                                        button == 4 ? 1.0f : (button == 5 ? -1.0f : 0.0f)};
+    event.data.wheel = (mwinWheelEvent){x, y};
     mwinPost(platform->context, slot, &event);
+}
+
+// The wheel turned: X11's buttons 4 to 7, a detent each.
+static void Turn(mwinX11Platform* platform, uint32_t slot, uint8_t button, uint64_t timeNs)
+{
+    PostWheel(platform, slot, button == 6 ? -1.0f : (button == 7 ? 1.0f : 0.0f),
+              button == 4 ? 1.0f : (button == 5 ? -1.0f : 0.0f), timeNs);
 }
 
 static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* event, bool pressed)
@@ -265,12 +270,45 @@ static void OnCrossing(mwinX11Platform* platform, const xcb_enter_notify_event_t
     pointer->position = PositionOf(platform, event->event_x, event->event_y);
     if (entered)
     {
+        // The scroll valuators counted on while the pointer was away.
+        mwinX11RestartScroll(&platform->scroll);
         pointer->focus = slot;
         PostPointer(platform, (uint32_t)slot, mwin_eventCursorEntered, 0, timeNs);
         return;
     }
     PostPointer(platform, (uint32_t)slot, mwin_eventCursorLeft, 0, timeNs);
     pointer->focus = -1;
+}
+
+// The scroll valuators of every pointer device, read anew.
+static void ReadScrollAxes(mwinX11Platform* platform)
+{
+    const mwinX11Api* api = &platform->api;
+    platform->scroll = (mwinX11Scroll){0};
+    xcb_input_xi_query_device_reply_t* reply = api->xiQueryDeviceReply(
+        platform->connection, api->xiQueryDevice(platform->connection, XCB_INPUT_DEVICE_ALL),
+        nullptr);
+    if (reply == nullptr)
+    {
+        return;
+    }
+    for (xcb_input_xi_device_info_iterator_t info = api->deviceInfos(reply); info.rem > 0;
+         api->deviceInfoNext(&info))
+    {
+        for (xcb_input_device_class_iterator_t item = api->deviceClasses(info.data);
+             info.data->type == XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER && item.rem > 0;
+             api->deviceClassNext(&item))
+        {
+            const xcb_input_scroll_class_t* scroll = (const xcb_input_scroll_class_t*)item.data;
+            if (item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL)
+            {
+                mwinX11AddScrollAxis(&platform->scroll, info.data->deviceid, scroll->number,
+                                     scroll->scroll_type == XCB_INPUT_SCROLL_TYPE_HORIZONTAL,
+                                     scroll->increment);
+            }
+        }
+    }
+    mwinReleaseSystemMemory(reply);
 }
 
 void mwinX11StartRawMotion(mwinX11Platform* platform)
@@ -287,20 +325,48 @@ void mwinX11StartRawMotion(mwinX11Platform* platform)
         return;
     }
     xcb_input_xi_query_version_reply_t* version = api->xiQueryVersionReply(
-        platform->connection, api->xiQueryVersion(platform->connection, 2, 0), nullptr);
+        platform->connection, api->xiQueryVersion(platform->connection, 2, 1), nullptr);
     bool recent = version != nullptr && version->major_version >= 2;
+    platform->smoothScroll = recent && (version->major_version > 2 || version->minor_version >= 1);
     mwinReleaseSystemMemory(version);
     if (!recent)
     {
         return;
     }
-    struct
+    // Raw motion from the master devices, and the changes of every
+    // device.
+    const struct
     {
         xcb_input_event_mask_t head;
         uint32_t mask;
-    } select = {{XCB_INPUT_DEVICE_ALL_MASTER, 1}, XCB_INPUT_XI_EVENT_MASK_RAW_MOTION};
-    api->xiSelectEvents(platform->connection, platform->screen->root, 1, &select.head);
+    } select[2] = {
+        {{XCB_INPUT_DEVICE_ALL_MASTER, 1}, XCB_INPUT_XI_EVENT_MASK_RAW_MOTION},
+        {{XCB_INPUT_DEVICE_ALL, 1},
+         XCB_INPUT_XI_EVENT_MASK_DEVICE_CHANGED | XCB_INPUT_XI_EVENT_MASK_HIERARCHY},
+    };
+    api->xiSelectEvents(platform->connection, platform->screen->root,
+                        platform->smoothScroll ? 2 : 1, &select[0].head);
     platform->xinputOpcode = extension->major_opcode;
+    if (platform->smoothScroll)
+    {
+        ReadScrollAxes(platform);
+    }
+}
+
+void mwinX11SelectPointer(const mwinX11Platform* platform, xcb_window_t window)
+{
+    if (!platform->smoothScroll)
+    {
+        return;
+    }
+    const struct
+    {
+        xcb_input_event_mask_t head;
+        uint32_t mask;
+    } select = {{XCB_INPUT_DEVICE_ALL_MASTER, 1},
+                XCB_INPUT_XI_EVENT_MASK_BUTTON_PRESS | XCB_INPUT_XI_EVENT_MASK_BUTTON_RELEASE |
+                    XCB_INPUT_XI_EVENT_MASK_MOTION};
+    platform->api.xiSelectEvents(platform->connection, window, 1, &select.head);
 }
 
 // The window whose cursor is captured and that has focus, or -1.
@@ -357,6 +423,114 @@ static void OnRawMotion(mwinX11Platform* platform, const xcb_input_raw_motion_ev
     mwinPost(platform->context, (uint32_t)slot, &record);
 }
 
+// An XI2 pointer event's fixed point place as the core one's pixel.
+static int16_t Pixel(xcb_input_fp1616_t value)
+{
+    return (int16_t)(value >> 16);
+}
+
+// An XI2 motion: the wheel's movement where it carries scroll
+// valuators, and the pointer's where it moved.
+static void OnXiMotion(mwinX11Platform* platform, const xcb_input_motion_event_t* event)
+{
+    const mwinX11Api* api = &platform->api;
+    int32_t slot = mwinX11SlotOf(platform, event->event);
+    float x = 0.0f;
+    float y = 0.0f;
+    bool scrolled = mwinX11Scrolled(&platform->scroll, event->sourceid, api->valuatorMask(event),
+                                    api->valuatorMaskLength(event), api->axisValues(event),
+                                    api->axisValuesLength(event), &x, &y);
+    if (slot >= 0 && (x != 0.0f || y != 0.0f))
+    {
+        PostWheel(platform, (uint32_t)slot, x, y, mwinMonotonicFromMilliseconds(event->time));
+    }
+    mwinPosition position = PositionOf(platform, Pixel(event->event_x), Pixel(event->event_y));
+    if (scrolled && position.x == platform->pointer.position.x &&
+        position.y == platform->pointer.position.y)
+    {
+        return;
+    }
+    const xcb_motion_notify_event_t core = {
+        .response_type = XCB_MOTION_NOTIFY,
+        .time = event->time,
+        .root = event->root,
+        .event = event->event,
+        .child = event->child,
+        .root_x = Pixel(event->root_x),
+        .root_y = Pixel(event->root_y),
+        .event_x = Pixel(event->event_x),
+        .event_y = Pixel(event->event_y),
+        .state = (uint16_t)event->mods.effective,
+        .same_screen = 1,
+    };
+    OnMotion(platform, &core);
+}
+
+// An XI2 press or release, read as the core one; the wheel's buttons the
+// server made from scroll valuators are dropped.
+static void OnXiButton(mwinX11Platform* platform, const xcb_input_button_press_event_t* event,
+                       bool pressed)
+{
+    if ((event->flags & XCB_INPUT_POINTER_EVENT_FLAGS_POINTER_EMULATED) != 0 ||
+        event->detail > UINT8_MAX)
+    {
+        return;
+    }
+    const xcb_button_press_event_t core = {
+        .response_type = pressed ? XCB_BUTTON_PRESS : XCB_BUTTON_RELEASE,
+        .detail = (uint8_t)event->detail,
+        .time = event->time,
+        .root = event->root,
+        .event = event->event,
+        .child = event->child,
+        .root_x = Pixel(event->root_x),
+        .root_y = Pixel(event->root_y),
+        .event_x = Pixel(event->event_x),
+        .event_y = Pixel(event->event_y),
+        .state = (uint16_t)event->mods.effective,
+        .same_screen = 1,
+    };
+    platform->pointer.device = event->deviceid;
+    OnButton(platform, &core, pressed);
+    platform->pointer.device = 0;
+}
+
+// An XInput event: raw motion, the pointer through XI2, or a change of
+// the devices.
+static void OnXi(mwinX11Platform* platform, const xcb_ge_generic_event_t* event)
+{
+    switch (event->event_type)
+    {
+    case XCB_INPUT_RAW_MOTION:
+        OnRawMotion(platform, (const xcb_input_raw_motion_event_t*)event);
+        break;
+    case XCB_INPUT_MOTION:
+        OnXiMotion(platform, (const xcb_input_motion_event_t*)event);
+        break;
+    case XCB_INPUT_BUTTON_PRESS:
+    case XCB_INPUT_BUTTON_RELEASE:
+        OnXiButton(platform, (const xcb_input_button_press_event_t*)event,
+                   event->event_type == XCB_INPUT_BUTTON_PRESS);
+        break;
+    case XCB_INPUT_DEVICE_CHANGED:
+        // A master switched devices, whose valuators count from anew, or
+        // a device's classes changed.
+        if (((const xcb_input_device_changed_event_t*)event)->reason ==
+            XCB_INPUT_CHANGE_REASON_SLAVE_SWITCH)
+        {
+            mwinX11RestartScroll(&platform->scroll);
+            break;
+        }
+        ReadScrollAxes(platform);
+        break;
+    case XCB_INPUT_HIERARCHY:
+        ReadScrollAxes(platform);
+        break;
+    default:
+        break;
+    }
+}
+
 bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
     uint8_t type = event->response_type & 0x7F;
@@ -368,10 +542,9 @@ bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_
     if (type == XCB_GE_GENERIC && platform->xinputOpcode != 0)
     {
         const xcb_ge_generic_event_t* generic = (const xcb_ge_generic_event_t*)event;
-        if (generic->extension == platform->xinputOpcode &&
-            generic->event_type == XCB_INPUT_RAW_MOTION)
+        if (generic->extension == platform->xinputOpcode)
         {
-            OnRawMotion(platform, (const xcb_input_raw_motion_event_t*)event);
+            OnXi(platform, generic);
         }
         return true;
     }

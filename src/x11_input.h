@@ -22,8 +22,13 @@
 void mwinX11StartKeyboard(mwinX11Platform* platform);
 void mwinX11StopKeyboard(mwinX11Platform* platform);
 
-// Asks for XInput 2's raw motion, where the X server has XInput 2.
+// Asks for XInput 2's raw motion, where the X server has XInput 2; and
+// from XI 2.1, reads the devices' scroll valuators and follows their
+// changes.
 void mwinX11StartRawMotion(mwinX11Platform* platform);
+
+// Has a window's pointer events come through XI2, from XI 2.1.
+void mwinX11SelectPointer(const mwinX11Platform* platform, xcb_window_t window);
 
 // Handles a keyboard, pointer, XKB or XInput event: false for another
 // kind.

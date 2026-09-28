@@ -48,8 +48,14 @@ bool mwinX11PressChrome(const mwinX11Platform* platform, uint32_t slot,
         return true;
     }
     // The window manager grabs the pointer itself, which the X server's
-    // grab for the press would refuse.
+    // grab for the press would refuse; a press read through XI2 grabbed
+    // its device.
     platform->api.ungrabPointer(platform->connection, XCB_CURRENT_TIME);
+    if (platform->pointer.device != 0)
+    {
+        platform->api.xiUngrabDevice(platform->connection, XCB_CURRENT_TIME,
+                                     platform->pointer.device);
+    }
     const uint32_t data[5] = {(uint32_t)event->root_x, (uint32_t)event->root_y,
                               s_directions[kind - mwin_hitCaption], XCB_BUTTON_INDEX_1, 1};
     mwinX11SendToRoot(platform, window, atoms[mwin_atomNetWmMoveresize], data);

@@ -39,4 +39,13 @@ void mwinWaylandFrameButton(mwinWaylandPlatform* platform, uint32_t serial, uint
                             bool pressed, uint64_t timeNs);
 void mwinWaylandFrameLeave(mwinWaylandPlatform* platform);
 
+// A press on a toplevel's content at a point in logical units, and its
+// click count: true when a hit region of custom chrome gave it to the
+// compositor, and the program is not told of it. On a caption, the left
+// button moves the window, or maximizes or restores it on a second
+// click, and the right button opens the window menu; on an edge, the
+// left button resizes it.
+bool mwinWaylandPressChrome(mwinWaylandPlatform* platform, uint32_t slot, uint32_t serial,
+                            uint32_t button, mwinPosition at, uint8_t clicks);
+
 #endif // MAUL_WINDOW_SRC_WAYLAND_FRAME_H

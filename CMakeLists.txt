@@ -169,6 +169,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_wayland_server_test(wayland_services)
         mwin_add_wayland_server_test(wayland_icon)
         mwin_add_wayland_server_test(wayland_owned)
+        mwin_add_wayland_server_test(wayland_chrome)
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.

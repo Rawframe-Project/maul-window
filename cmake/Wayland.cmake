@@ -140,6 +140,7 @@ function(mwin_add_wayland_server_test name)
                 unstable/relative-pointer/relative-pointer-unstable-v1
                 unstable/text-input/text-input-unstable-v3
                 unstable/idle-inhibit/idle-inhibit-unstable-v1
+                unstable/xdg-decoration/xdg-decoration-unstable-v1
                 ${PROJECT_SOURCE_DIR}/protocols/xdg-toplevel-icon-v1)
             get_filename_component(stem ${protocol} NAME)
             set(xml ${MWIN_PROTOCOLS_DIR}/${protocol}.xml)

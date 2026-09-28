@@ -5,6 +5,7 @@
 
 #include "wayland_frame.h"
 
+#include "chrome.h"
 #include "wayland_cursor.h"
 
 #include <linux/input-event-codes.h>
@@ -62,8 +63,10 @@ int32_t mwinWaylandCaptionOf(const mwinWaylandPlatform* platform, const mwinWayl
     bool serverSide = platform->decorations != nullptr &&
                       window->decorationMode != ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
     bool drawable = platform->subcompositor != nullptr && platform->shm != nullptr;
-    return core->def.kind == mwin_windowNormal && (core->state.style & mwin_styleDecorated) != 0 &&
-                   !serverSide && drawable && mode != mwin_modeBorderlessFullscreen
+    mwinWindowStyle style = core->state.style;
+    bool drawn = (style & mwin_styleDecorated) != 0 && (style & mwin_styleCustomChrome) == 0;
+    return core->def.kind == mwin_windowNormal && drawn && !serverSide && drawable &&
+                   mode != mwin_modeBorderlessFullscreen
                ? MWIN_FRAME_CAPTION
                : 0;
 }
@@ -596,6 +599,49 @@ static void PressCaption(mwinWaylandPlatform* platform, mwinWaylandWindow* windo
     window->frame.captionPressNs = timeNs;
     api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_MOVE, nullptr, version, 0, platform->seat,
                            serial);
+}
+
+bool mwinWaylandPressChrome(mwinWaylandPlatform* platform, uint32_t slot, uint32_t serial,
+                            uint32_t button, mwinPosition at, uint8_t clicks)
+{
+    static const uint32_t edges[] = {
+        XDG_TOPLEVEL_RESIZE_EDGE_LEFT,        XDG_TOPLEVEL_RESIZE_EDGE_RIGHT,
+        XDG_TOPLEVEL_RESIZE_EDGE_TOP,         XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM,
+        XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT,    XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT,
+        XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT, XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT,
+    };
+    const mwinWaylandWindow* window = &platform->windows[slot];
+    mwinHitKind kind = mwinHitAt(&platform->context->windows[slot], at.x, at.y);
+    bool caption = kind == mwin_hitCaption;
+    if (!mwinHitMoves(kind) || window->toplevel == nullptr || platform->seat == nullptr ||
+        !(button == BTN_LEFT || (caption && button == BTN_RIGHT)))
+    {
+        return false;
+    }
+    const mwinWaylandApi* api = &platform->api;
+    struct wl_proxy* toplevel = (struct wl_proxy*)window->toplevel;
+    uint32_t version = mwinWlVersion(api, toplevel);
+    if (caption && button == BTN_RIGHT)
+    {
+        api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_SHOW_WINDOW_MENU, nullptr, version, 0,
+                               platform->seat, serial, (int32_t)lroundf(at.x),
+                               (int32_t)lroundf(at.y));
+    }
+    else if (caption && clicks == 2)
+    {
+        ToggleMaximized(platform, window);
+    }
+    else if (caption)
+    {
+        api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_MOVE, nullptr, version, 0, platform->seat,
+                               serial);
+    }
+    else
+    {
+        api->proxyMarshalFlags(toplevel, XDG_TOPLEVEL_RESIZE, nullptr, version, 0, platform->seat,
+                               serial, edges[kind - mwin_hitLeft]);
+    }
+    return true;
 }
 
 void mwinWaylandFrameButton(mwinWaylandPlatform* platform, uint32_t serial, uint32_t button,

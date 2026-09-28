@@ -400,9 +400,10 @@ static void AddExtensions(mwinWaylandWindow* window, mwinWindowStyle style)
             api, platform->decorations, ZXDG_DECORATION_MANAGER_V1_GET_TOPLEVEL_DECORATION,
             &zxdg_toplevel_decoration_v1_interface, window->toplevel);
         mwinWlListen(api, window->decoration, &s_decorationListener, window);
-        uint32_t mode = (style & mwin_styleDecorated) != 0
-                            ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
-                            : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
+        bool decorated =
+            (style & mwin_styleDecorated) != 0 && (style & mwin_styleCustomChrome) == 0;
+        uint32_t mode = decorated ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
+                                  : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
         api->proxyMarshalFlags((struct wl_proxy*)window->decoration,
                                ZXDG_TOPLEVEL_DECORATION_V1_SET_MODE, nullptr,
                                mwinWlVersion(api, window->decoration), 0, mode);
@@ -652,6 +653,9 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return KeepAwake(window, request->value.awake);
     case mwin_requestIcon:
         return mwinWaylandSetIcon(window, request);
+    case mwin_requestHitRegions:
+        // Presses read them (wayland_frame.c).
+        return mwin_outcomeDone;
     case mwin_requestFileDialog:
         // The portal places dialogs over a Wayland window only through an
         // exported handle (xdg-foreign), which the backend does not make.

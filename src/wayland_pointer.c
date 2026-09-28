@@ -209,9 +209,19 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (state == WL_POINTER_BUTTON_STATE_PRESSED)
     {
-        (void)mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        uint8_t clicks = mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        if (mwinWaylandPressChrome(platform, (uint32_t)pointer->focus, serial, evdev,
+                                   pointer->position, clicks))
+        {
+            return;
+        }
         pointer->buttons |= bit;
         PostPointer(platform, mwin_eventButtonDown, button, timeNs);
+    }
+    else if ((pointer->buttons & bit) == 0)
+    {
+        // The release of a press the compositor took.
+        return;
     }
     else
     {

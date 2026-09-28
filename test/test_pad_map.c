@@ -4,7 +4,7 @@
 // Numbered gamepad controls through their mapping:
 // - buttons from buttons, hat directions and axis halves;
 // - sticks from axes, inverted, from an axis's half, and from buttons
-//   driving their halves;
+//   driving their halves, held to -1 and 1 with an axis too;
 // - triggers from a whole axis and from a half;
 // - a raw gamepad's buttons, axes, and hats as two axes after them;
 // - a device's range as an axis's, held to -1 and 1, and an empty one 0.
@@ -57,6 +57,8 @@ static void PostMapped(mwinContext* context)
     // positive half.
     halves[2 * mwin_padStickRightX] = Button(1);
     halves[2 * mwin_padStickRightX + 1] = Button(2);
+    // The left stick's y has an axis and a half from a button both.
+    halves[2 * mwin_padStickLeftY] = Button(2);
     mapping.halves = 1;
     mwinPadControls controls = {.mapping = &mapping,
                                 .halves = halves,
@@ -89,9 +91,10 @@ static void CheckMapped(const mwinContext* context)
     uint32_t expected = 1u << mwin_padDpadUp | 1u << mwin_padFaceSouth | 1u << mwin_padFaceEast;
     CHECK(state.buttons == expected,
           "buttons from a button, a hat direction and an axis half, the rest up");
-    CHECK(Near(state.axes[mwin_padStickLeftX], 0.25f) &&
-              Near(state.axes[mwin_padStickLeftY], -0.5f),
+    CHECK(Near(state.axes[mwin_padStickLeftX], 0.25f),
           "sticks from axes, inverted where the mapping says");
+    CHECK(Near(state.axes[mwin_padStickLeftY], -1.0f),
+          "a stick from an axis and a half from a button held to -1");
     CHECK(Near(state.axes[mwin_padStickRightX], 1.0f), "a stick's half from a button");
     CHECK(Near(state.axes[mwin_padStickRightY], 0.6f), "a stick from an axis's half");
     CHECK(Near(state.axes[mwin_padTriggerLeft], 0.5f) &&

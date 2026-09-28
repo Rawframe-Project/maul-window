@@ -229,22 +229,19 @@ static void Read(mwinZenity* zenity, const mwinContext* context)
     }
 }
 
-// Gathers the paths it wrote: split by the separator, the last line's
-// end left out.
-static void Gather(const mwinZenity* zenity, mwinContext* context)
+void mwinZenityGather(mwinContext* context, const char* output, size_t length)
 {
     mwinBeginDialog(context);
-    size_t length = zenity->length;
-    while (length > 0 && zenity->output[length - 1] == '\n')
+    while (length > 0 && output[length - 1] == '\n')
     {
         length--;
     }
     size_t start = 0;
     while (start < length)
     {
-        const char* end = memchr(zenity->output + start, SEPARATOR, length - start);
-        size_t size = (end != nullptr ? (size_t)(end - zenity->output) : length) - start;
-        mwinAddDialogFile(context, zenity->output + start, size);
+        const char* end = memchr(output + start, SEPARATOR, length - start);
+        size_t size = (end != nullptr ? (size_t)(end - output) : length) - start;
+        mwinAddDialogFile(context, output + start, size);
         start += size + 1;
     }
 }
@@ -270,7 +267,7 @@ int mwinZenityPump(mwinZenity* zenity, mwinContext* context)
     {
         return mwin_outcomeTooLarge;
     }
-    Gather(zenity, context);
+    mwinZenityGather(context, zenity->output, zenity->length);
     return mwin_outcomeDone;
 }
 

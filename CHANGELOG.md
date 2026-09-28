@@ -21,6 +21,11 @@ format.
   read through XI2 (mwin-0020).
 - Windows generic gamepads through Raw Input and the HID parser, mapped
   by SDL_GameControllerDB's Windows entries (mwin-0021).
+- Fuzz targets (`-DMAUL_WINDOW_FUZZ=ON`) for the bytes other programs
+  and devices hand the library: drop and clipboard payloads, URI lists,
+  zenity's output, the environment's locales, scroll valuators and
+  gamepad controls, run in CI. The first run found a stick driven by an
+  axis and a button at once going past its range; it is now held to it.
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.

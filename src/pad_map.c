@@ -86,11 +86,13 @@ void mwinPostPadControls(mwinContext* context, uint32_t slot, const mwinPadContr
     {
         mwinPadSource source = sources[MWIN_GAMEPAD_BUTTONS + i];
         float value = source != 0 ? AxisValue(pad, source, i >= mwin_padTriggerLeft) : 0.0f;
-        // A stick's halves driven by buttons or a hat.
+        // A stick's halves driven by buttons or a hat, on top of an axis
+        // where the mapping gives both, held to the stick's range.
         if (i < mwin_padTriggerLeft && pad->halves != nullptr)
         {
             value += (IsPressed(pad, pad->halves[2 * i + 1]) ? 1.0f : 0.0f) -
                      (IsPressed(pad, pad->halves[2 * i]) ? 1.0f : 0.0f);
+            value = value < -1.0f ? -1.0f : (value > 1.0f ? 1.0f : value);
         }
         mwinPostGamepadAxis(context, slot, i, value, timeNs);
     }

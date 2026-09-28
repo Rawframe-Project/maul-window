@@ -109,6 +109,31 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  # Each fuzz target runs for one minute on every push, over the parsers
+  # of bytes other programs and devices hand the library.
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compilers
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q clang-20 ninja-build libwayland-dev wayland-protocols \
+            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
+            libxcb-xinput-dev libxkbcommon-x11-dev
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
+            -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
+          cmake --build build
+      - name: Run
+        run: |
+          for target in build/fuzz_*; do
+            mkdir -p "corpus-$(basename $target)"
+            "$target" -max_total_time=60 -max_len=256 "corpus-$(basename $target)"
+          done
+
   windows-clang-cl:
     name: windows-clang-cl
     runs-on: windows-latest

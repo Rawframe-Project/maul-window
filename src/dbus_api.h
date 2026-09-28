@@ -42,6 +42,7 @@ enum
     mwin_dbusTypeArray = 'a',
     mwin_dbusTypeBoolean = 'b',
     mwin_dbusTypeByte = 'y',
+    mwin_dbusTypeDouble = 'd',
     mwin_dbusTypeStruct = 'r',
     mwin_dbusTypeDictEntry = 'e',
     mwin_dbusTypeObjectPath = 'o',

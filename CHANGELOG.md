@@ -12,6 +12,9 @@ format.
 
 - Linux preferred locales from the environment (`LANGUAGE`, then the
   messages locale), as BCP 47 tags, on X11 and Wayland.
+- Linux look and motion from the desktop portal's settings (theme,
+  accent, reduced motion, text scale), followed as they change
+  (mwin-0018).
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.

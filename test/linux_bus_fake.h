@@ -6,9 +6,10 @@
 // connection through libdbus, stand-ins for the file manager
 // (FileManager1's ShowItems), the screensaver (Inhibit and UnInhibit)
 // and the desktop portal (Inhibit, FileChooser's OpenFile and SaveFile
-// answered by a Response when the test says, and Close on a request),
-// each writing down what it was asked and answering, or refusing as
-// told.
+// answered by a Response when the test says, Close on a request, and
+// Settings' ReadAll answered with a desktop's settings when the test
+// says, and SettingChanged), each writing down what it was asked and
+// answering, or refusing as told.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -87,7 +88,18 @@ typedef struct FakeBus
     int chosen;
     bool closed;
     bool refuseChooser;
+    // The settings: which desktop's ReadAll answers with (fakeNoSettings
+    // for no answer), and how often it was asked.
+    int desktop;
+    int readAlls;
 } FakeBus;
+
+enum
+{
+    fakeNoSettings,
+    fakeGnome,
+    fakeKde,
+};
 
 #define FAKE_FIND(field, name)                                                                     \
     (symbol = dlsym(fake->library, #name),                                                         \
@@ -410,8 +422,120 @@ static inline void FakeRespond(FakeBus* fake, uint32_t code, const char* const* 
     fake->flush(fake->connection);
 }
 
+// A variant of a basic type, or of three doubles for type 'r'.
+static inline void FakeVariant(FakeBus* fake, void* iter, int type, const void* value)
+{
+    void* variant[16];
+    void* channels[16];
+    char signature[2] = {(char)type, '\0'};
+    (void)fake->openContainer(iter, 'v', type == 'r' ? "(ddd)" : signature, variant);
+    if (type == 'r')
+    {
+        (void)fake->openContainer(variant, 'r', nullptr, channels);
+        for (int i = 0; i < 3; i++)
+        {
+            (void)fake->appendBasic(channels, 'd', (const void*)&((const double*)value)[i]);
+        }
+        (void)fake->closeContainer(variant, channels);
+    }
+    else
+    {
+        (void)fake->appendBasic(variant, type, value);
+    }
+    (void)fake->closeContainer(iter, variant);
+}
+
+// A namespace's key and value, in its a{sv}.
+static inline void FakeSetting(FakeBus* fake, void* keys, const char* key, int type,
+                               const void* value)
+{
+    void* entry[16];
+    (void)fake->openContainer(keys, 'e', nullptr, entry);
+    (void)fake->appendBasic(entry, 's', (const void*)&key);
+    FakeVariant(fake, entry, type, value);
+    (void)fake->closeContainer(keys, entry);
+}
+
+static inline void FakeSpace(FakeBus* fake, void* spaces, const char* name, void* space, void* keys)
+{
+    (void)fake->openContainer(spaces, 'e', nullptr, space);
+    (void)fake->appendBasic(space, 's', (const void*)&name);
+    (void)fake->openContainer(space, 'a', "{sv}", keys);
+}
+
+static inline void FakeSpaceEnd(FakeBus* fake, void* spaces, void* space, void* keys)
+{
+    (void)fake->closeContainer(space, keys);
+    (void)fake->closeContainer(spaces, space);
+}
+
+// ReadAll: GNOME's dark style, an accent, animations off and large
+// text; or KDE's no preference and animations off, its factor as text.
+static inline void* FakeReadAll(FakeBus* fake, void* message)
+{
+    fake->readAlls += 1;
+    if (fake->desktop == fakeNoSettings)
+    {
+        return nullptr;
+    }
+    void* reply = fake->newReturn(message);
+    void* iter[16];
+    void* spaces[16];
+    void* space[16];
+    void* keys[16];
+    bool gnome = fake->desktop == fakeGnome;
+    uint32_t scheme = gnome ? 1u : 0u;
+    const double accent[3] = {0.5, 0.25, 1.0};
+    unsigned animations = 0;
+    const double scale = 1.25;
+    const char* factor = "0.0";
+    fake->initAppend(reply, iter);
+    (void)fake->openContainer(iter, 'a', "{sa{sv}}", spaces);
+    FakeSpace(fake, spaces, "org.freedesktop.appearance", space, keys);
+    FakeSetting(fake, keys, "color-scheme", 'u', &scheme);
+    if (gnome)
+    {
+        FakeSetting(fake, keys, "accent-color", 'r', accent);
+    }
+    FakeSpaceEnd(fake, spaces, space, keys);
+    FakeSpace(fake, spaces, gnome ? "org.gnome.desktop.interface" : "org.kde.kdeglobals.KDE", space,
+              keys);
+    if (gnome)
+    {
+        FakeSetting(fake, keys, "enable-animations", 'b', &animations);
+        FakeSetting(fake, keys, "text-scaling-factor", 'd', &scale);
+    }
+    else
+    {
+        FakeSetting(fake, keys, "AnimationDurationFactor", 's', (const void*)&factor);
+    }
+    FakeSpaceEnd(fake, spaces, space, keys);
+    (void)fake->closeContainer(iter, spaces);
+    return reply;
+}
+
+// Tells every listener of a setting's change.
+static inline void FakeSettingChanged(FakeBus* fake, const char* space, const char* key, int type,
+                                      const void* value)
+{
+    void* message = fake->newSignal("/org/freedesktop/portal/desktop",
+                                    "org.freedesktop.portal.Settings", "SettingChanged");
+    void* iter[16];
+    fake->initAppend(message, iter);
+    (void)fake->appendBasic(iter, 's', (const void*)&space);
+    (void)fake->appendBasic(iter, 's', (const void*)&key);
+    FakeVariant(fake, iter, type, value);
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
+}
+
 static inline void* FakeAnswer(FakeBus* fake, void* message)
 {
+    if (fake->isCall(message, "org.freedesktop.portal.Settings", "ReadAll"))
+    {
+        return FakeReadAll(fake, message);
+    }
     if (fake->isCall(message, "org.freedesktop.portal.FileChooser", "OpenFile") ||
         fake->isCall(message, "org.freedesktop.portal.FileChooser", "SaveFile"))
     {

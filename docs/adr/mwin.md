@@ -22,3 +22,4 @@ are listed in [README.md](README.md).
 | [mwin-0015](mwin-0015-owned-and-popup-windows.md) | Owned and popup windows | Accepted |
 | [mwin-0016](mwin-0016-custom-chrome.md) | Custom chrome | Accepted |
 | [mwin-0017](mwin-0017-accessibility-hooks.md) | Accessibility hooks | Accepted |
+| [mwin-0018](mwin-0018-linux-system-facts.md) | System facts and locales on Linux | Accepted |

@@ -29,7 +29,8 @@ linux_dialog: core dialog linux_answer linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
 linux_locale:
 linux_answer: core
-linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_locale monotonic
+linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_locale linux_settings monotonic
+linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 message_box:
 monitor: core

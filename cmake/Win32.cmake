@@ -8,6 +8,7 @@ set(MWIN_WIN32_SOURCES
     src/win32_clipboard.c
     src/win32_dialog.c
     src/win32_drop.c
+    src/win32_accessibility.c
     src/win32_icon.c
     src/win32_ime.c
     src/win32_message_box.c

@@ -99,6 +99,8 @@ struct mwinWin32Window
     POINT offset;
     // The program draws the frame: the client area is the whole window.
     bool customChrome;
+    // The window handed its accessibility root to UI Automation.
+    bool uiaAnswered;
     // The program was told the pointer is over the window; over the
     // regions Windows handles its records still come.
     bool pointerInside;
@@ -148,6 +150,10 @@ struct mwinWin32Platform
     uint32_t dialogGeneration;
     // The gamepads, with the gamepad component.
     mwinWin32Pads pads;
+    // UiaReturnRawElementProvider, once loaded, and whether loading was
+    // tried (win32_accessibility.c).
+    LRESULT(WINAPI* uiaReturn)(HWND, WPARAM, LPARAM, void*);
+    bool uiaTried;
 };
 
 // The pointer a message parameter or window long carries. Win32 passes

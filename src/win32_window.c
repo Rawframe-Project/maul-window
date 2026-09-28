@@ -6,6 +6,7 @@
 #include "win32_window.h"
 
 #include "chrome.h"
+#include "win32_accessibility.h"
 #include "win32_clipboard.h"
 #include "win32_dialog.h"
 #include "win32_drop.h"
@@ -399,6 +400,8 @@ static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wP
         *result = DefWindowProcW(window->hwnd, message, wParam, lParam);
         *result = *result == HTCLIENT ? HitTest(window, lParam) : *result;
         return true;
+    case WM_GETOBJECT:
+        return mwinWin32AnswerObject(window, wParam, lParam, result);
     case WM_NCACTIVATE:
         if (!window->customChrome)
         {
@@ -606,6 +609,7 @@ void mwinWin32DestroyWindow(mwinContext* context, uint32_t slot)
     if (hwnd != nullptr)
     {
         mwinWin32DetachDrop(window);
+        mwinWin32ForgetObject(window);
     }
     // The window's last messages find no window of the program's; its
     // icons go after it, which shows them until then.
@@ -823,6 +827,9 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         return mwinWin32SetIcon(window, request);
     case mwin_requestHitRegions:
         // WM_NCHITTEST reads them.
+        return mwin_outcomeDone;
+    case mwin_requestAccessibilityRoot:
+        // WM_GETOBJECT reads it (win32_accessibility.c).
         return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;

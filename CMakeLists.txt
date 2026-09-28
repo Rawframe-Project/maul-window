@@ -322,6 +322,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Custom chrome and hit regions read back from Windows.
         maul_add_test(win32_chrome)
         target_link_libraries(test_win32_chrome PRIVATE user32)
+        # The accessibility root handed to UI Automation.
+        maul_add_test(win32_accessibility)
+        target_link_libraries(test_win32_accessibility PRIVATE user32 ole32 oleaut32 oleacc uuid)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
                              win32_clipboard win32_drop win32_services win32_dialog win32_owned
                              win32_chrome

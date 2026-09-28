@@ -308,6 +308,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(MAUL_WINDOW_GAMEPAD AND MAUL_WINDOW_TEST_BACKEND)
             # The XInput gamepads against a stand-in for XInput.
             maul_add_test(win32_gamepad WHITEBOX)
+            # Generic gamepads against a stand-in for Raw Input and the HID
+            # parser.
+            maul_add_test(win32_hid WHITEBOX)
         endif()
         # Composes through the input context: skipped with no input method.
         maul_add_test(win32_ime)

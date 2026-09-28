@@ -7,12 +7,15 @@
 // each pump; the free player slots are looked at every half second, as
 // asking about a slot with no pad costs time. XInput has no durations,
 // so a rumble is stopped at the pump after its time runs out. The
-// functions are a table, so a test can stand in for XInput.
+// functions are a table, so a test can stand in for XInput. The other
+// gamepads come through Raw Input (win32_hid.h), to a message-only
+// window of the pads' own.
 
 #ifndef MAUL_WINDOW_SRC_WIN32_PAD_H
 #define MAUL_WINDOW_SRC_WIN32_PAD_H
 
 #include "core.h"
+#include "win32_hid.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -53,6 +56,9 @@ typedef struct mwinWin32Pads
     mwinWin32Pad pads[MWIN_WIN32_PADS];
     // When the free player slots were last looked at.
     uint64_t searchedNs;
+    // The generic gamepads, and the window Raw Input brings them to.
+    mwinWin32Hid hid;
+    HWND listener;
 } mwinWin32Pads;
 
 // Loads XInput; without it there are no gamepads, and no error.

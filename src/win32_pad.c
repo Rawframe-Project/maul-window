@@ -5,6 +5,8 @@
 
 #include "win32_pad.h"
 
+#include "win32_base.h"
+
 #include <string.h>
 
 #define SEARCH_NS 500000000u
@@ -37,9 +39,80 @@ static void Load(HMODULE library, const char* name, void* function, size_t size)
     memcpy(function, (const void*)&found, size);
 }
 
+// Raw Input's arrivals, removals and reports of generic gamepads.
+static LRESULT CALLBACK Listen(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    mwinWin32Hid* hid = mwinWin32Pointer(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (hid != nullptr && message == WM_INPUT_DEVICE_CHANGE)
+    {
+        (wParam == GIDC_ARRIVAL ? mwinWin32HidArrive : mwinWin32HidRemove)(
+            hid, mwinWin32Pointer(lParam), mwinWin32Now());
+        return 0;
+    }
+    if (hid != nullptr && message == WM_INPUT)
+    {
+        mwinWin32HidInput(hid, mwinWin32Pointer(lParam), mwinWin32Now());
+    }
+    // WM_INPUT's own cleanup is the default procedure's.
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+}
+
+static const RAWINPUTDEVICE s_usages[3] = {
+    {HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_JOYSTICK, 0, nullptr},
+    {HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_GAMEPAD, 0, nullptr},
+    {HID_USAGE_PAGE_GENERIC, MWIN_HID_MULTI_AXIS, 0, nullptr},
+};
+
+// A message-only window that takes the generic gamepads' Raw Input, in
+// the background too, with their arrivals and removals.
+static void StartListening(mwinWin32Pads* pads)
+{
+    HINSTANCE instance = GetModuleHandleW(nullptr);
+    WNDCLASSEXW type = {.cbSize = sizeof(type),
+                        .lpfnWndProc = Listen,
+                        .hInstance = instance,
+                        .lpszClassName = L"mwinPads"};
+    // Registered by an earlier context, or now.
+    (void)RegisterClassExW(&type);
+    pads->listener = CreateWindowExW(0, L"mwinPads", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
+                                     instance, nullptr);
+    if (pads->listener == nullptr)
+    {
+        return;
+    }
+    SetWindowLongPtrW(pads->listener, GWLP_USERDATA, (LONG_PTR)&pads->hid);
+    RAWINPUTDEVICE usages[3];
+    for (size_t i = 0; i < 3; i++)
+    {
+        usages[i] = s_usages[i];
+        usages[i].dwFlags = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY;
+        usages[i].hwndTarget = pads->listener;
+    }
+    (void)RegisterRawInputDevices(usages, 3, sizeof(RAWINPUTDEVICE));
+}
+
+static void StopListening(mwinWin32Pads* pads)
+{
+    if (pads->listener == nullptr)
+    {
+        return;
+    }
+    RAWINPUTDEVICE usages[3];
+    for (size_t i = 0; i < 3; i++)
+    {
+        usages[i] = s_usages[i];
+        usages[i].dwFlags = RIDEV_REMOVE;
+    }
+    (void)RegisterRawInputDevices(usages, 3, sizeof(RAWINPUTDEVICE));
+    DestroyWindow(pads->listener);
+    pads->listener = nullptr;
+}
+
 void mwinWin32PadsStart(mwinWin32Pads* pads, mwinContext* context)
 {
     *pads = (mwinWin32Pads){.context = context};
+    StartListening(pads);
+    mwinWin32HidStart(&pads->hid, context, mwinWin32Now());
     static const LPCWSTR libraries[] = {L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
     for (size_t i = 0; i < 3 && pads->api.library == nullptr; i++)
     {
@@ -71,6 +144,8 @@ void mwinWin32PadsStop(mwinWin32Pads* pads)
     {
         FreeLibrary(pads->api.library);
     }
+    StopListening(pads);
+    mwinWin32HidStop(&pads->hid);
     *pads = (mwinWin32Pads){0};
 }
 

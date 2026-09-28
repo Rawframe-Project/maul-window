@@ -25,3 +25,4 @@ are listed in [README.md](README.md).
 | [mwin-0018](mwin-0018-linux-system-facts.md) | System facts and locales on Linux | Accepted |
 | [mwin-0019](mwin-0019-wayland-focus.md) | Focus requests on Wayland | Accepted |
 | [mwin-0020](mwin-0020-x11-smooth-scrolling.md) | Smooth scrolling on X11 | Accepted |
+| [mwin-0021](mwin-0021-windows-hid-gamepads.md) | Generic gamepads on Windows | Accepted |

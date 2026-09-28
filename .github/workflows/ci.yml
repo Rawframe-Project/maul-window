@@ -40,6 +40,8 @@ jobs:
         run: |
           python3 tools/gen_gamepad_db.py Linux /tmp/pad_linux.c
           diff -u src/generated/pad_linux.c /tmp/pad_linux.c
+          python3 tools/gen_gamepad_db.py Windows /tmp/pad_windows.c
+          diff -u src/generated/pad_windows.c /tmp/pad_windows.c
       - name: clang-tidy
         run: |
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \

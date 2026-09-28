@@ -8,7 +8,7 @@
 # GUID) are left out: the backends read devices as the platform gives
 # them. As SDL does, a later entry for a device replaces an earlier one.
 #
-# usage: gen_gamepad_db.py <platform> <output.c>   (platform: Linux)
+# usage: gen_gamepad_db.py <platform> <output.c>   (platform: Linux or Windows)
 
 import os
 import re

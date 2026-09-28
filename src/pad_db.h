@@ -95,4 +95,7 @@ const mwinPadMapping* mwinFindPadMapping(const mwinPadDatabase* database, uint16
 // The Linux mappings (evdev).
 extern const mwinPadDatabase mwinLinuxPadDatabase;
 
+// The Windows mappings (DirectInput's numbering).
+extern const mwinPadDatabase mwinWindowsPadDatabase;
+
 #endif // MAUL_WINDOW_SRC_PAD_DB_H

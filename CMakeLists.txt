@@ -99,7 +99,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
 # POSIX.
 if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
     set(MWIN_POSIX_SOURCES src/dbus_api.c src/linux_bus.c src/linux_dialog.c src/linux_inhibit.c
-        src/linux_services.c src/linux_zenity.c src/posix_message_box.c)
+        src/linux_locale.c src/linux_services.c src/linux_zenity.c src/posix_message_box.c)
     target_sources(maul-window PRIVATE ${MWIN_POSIX_SOURCES})
     set_source_files_properties(${MWIN_POSIX_SOURCES} PROPERTIES
         COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
@@ -215,6 +215,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Stand-ins for zenity and kdialog on PATH.
         maul_add_test(message_box POSIX)
         target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
+        # The preferred locales the environment names.
+        maul_add_test(linux_locale WHITEBOX)
     endif()
     if(MAUL_WINDOW_X11)
         # xdg-open on PATH and a session bus of the test's own; X11, and

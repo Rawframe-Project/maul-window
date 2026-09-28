@@ -10,6 +10,8 @@ format.
 
 ### Added
 
+- Linux preferred locales from the environment (`LANGUAGE`, then the
+  messages locale), as BCP 47 tags, on X11 and Wayland.
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.

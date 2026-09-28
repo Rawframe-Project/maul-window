@@ -5,6 +5,7 @@
 
 #include "linux_services.h"
 
+#include "linux_locale.h"
 #include "monotonic.h"
 
 #include "maul-window/services.h"
@@ -27,6 +28,11 @@ void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context)
 {
     *services = (mwinLinuxServices){.context = context};
     mwinDialogsStart(&services->dialogs, context, &services->bus);
+    char locales[MWIN_LINUX_LOCALE_BYTES];
+    size_t capacity = context->limits.localeBytes;
+    size_t length =
+        mwinLinuxLocales(locales, capacity < sizeof(locales) ? capacity : sizeof(locales));
+    (void)mwinSetLocales(context, locales, length, mwinMonotonicNow());
 }
 
 // Runs xdg-open on a target, followed until it ends: -1, or the outcome

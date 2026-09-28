@@ -27,8 +27,9 @@ linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db
 linux_dialog: core dialog linux_answer linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
+linux_locale:
 linux_answer: core
-linux_services: core linux_answer linux_bus linux_dialog linux_inhibit monotonic
+linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_locale monotonic
 linux_zenity: allocator core dialog
 message_box:
 monitor: core

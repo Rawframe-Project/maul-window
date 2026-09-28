@@ -12,6 +12,7 @@
 // (org.freedesktop.FileManager1's ShowItems, which selects it), else
 // its folder is opened by xdg-open. The display is kept awake over the
 // bus too, where the backend has no way of its own (linux_inhibit.h).
+// The preferred locales come from the environment (linux_locale.h).
 
 #ifndef MAUL_WINDOW_SRC_LINUX_SERVICES_H
 #define MAUL_WINDOW_SRC_LINUX_SERVICES_H
@@ -27,6 +28,8 @@
 // The xdg-open runs followed at once, and the file manager's calls.
 #define MWIN_LINUX_OPENERS 8
 #define MWIN_LINUX_REVEALS 4
+// The most of the environment's locales kept, in bytes.
+#define MWIN_LINUX_LOCALE_BYTES 256
 
 // An xdg-open run: 0 for none. It is followed until it ends, after its
 // answer too, so none is left unreaped.

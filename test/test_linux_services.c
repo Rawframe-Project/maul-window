@@ -9,13 +9,15 @@
 // the bus, on Wayland where there is one: a file shown by the file
 // manager as a file URI, never by xdg-open; its folder opened when the
 // file manager refuses; and a reveal superseded while the file manager
-// answers, whose answer goes to no one.
+// answers, whose answer goes to no one. Either way, the preferred
+// locales are the environment's.
 
 #include "linux_bus_fake.h"
 #include "test_harness.h"
 
 #include "maul-window/event.h"
 #include "maul-window/services.h"
+#include "maul-window/system.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +59,9 @@ typedef struct Program
     int supersededOutcome;
     uint64_t startNs;
     FakeBus* fake;
+    // The preferred locales at the start.
+    char locales[32];
+    size_t localeLength;
     bool done;
 } Program;
 
@@ -180,6 +185,9 @@ static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
     program->startNs = NowNs();
+    CHECK(mwinGetPreferredLocales(context, program->locales, sizeof(program->locales),
+                                  &program->localeLength) == mwin_success,
+          "locales");
     mwinWindowDef def = mwinDefaultWindowDef();
     def.size = (mwinSize){200.0f, 100.0f};
     return mwinCreateWindow(context, &def, &program->window, &program->create);
@@ -210,6 +218,8 @@ static void Run(const Step* steps, int count, FakeBus* fake, const char* what)
     def.frame = Frame;
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success && program.done, what);
+    CHECK(program.localeLength == 8 && memcmp(program.locales, "de-DE,en", 8) == 0,
+          "the preferred locales the environment's");
     if (program.superseded.index1 != 0)
     {
         CHECK(program.supersededOutcome == mwin_outcomeSuperseded && fake->shown >= 2,
@@ -283,6 +293,10 @@ int main(void)
     char none[128];
     Path(none, sizeof(none), "none");
     (void)mkdir(none, 0700);
+    (void)unsetenv("LC_ALL");
+    (void)unsetenv("LC_MESSAGES");
+    (void)setenv("LANG", "de_DE.UTF-8", 1);
+    (void)setenv("LANGUAGE", "de_DE:en", 1);
     // No bus, and X11.
     (void)unsetenv("DBUS_SESSION_BUS_ADDRESS");
     (void)setenv("XDG_RUNTIME_DIR", s_directory, 1);

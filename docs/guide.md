@@ -202,9 +202,12 @@ axes. Nothing is filtered, so dead zones are the program's.
 `mwinSetGamepadRumble` drives the motors where
 `mwinGetGamepadInfo` says there are some; the latest call wins.
 
-On Linux gamepads are evdev devices. On Windows they are XInput's pads,
-and other pads through Raw Input and the HID parser. On the web they
-come through the Gamepad API.
+On Linux gamepads are evdev devices. On Windows, Xbox pads come through
+Windows.Gaming.Input, any number of them with their names and
+batteries, or through XInput's four players where the runtime is
+missing; the runtime may give a program in the background no input.
+Other pads come through Raw Input and the HID parser. On
+the web they come through the Gamepad API.
 
 ## 7. Clipboard, drag and drop
 
@@ -270,7 +273,7 @@ arrives with `mwin_eventSurfaceRestored`.
 
 | Backend | Platform API | Built when |
 | --- | --- | --- |
-| Win32 | user32, Raw Input, IMM32, OLE drag and drop, XInput | Windows |
+| Win32 | user32, Raw Input, IMM32, OLE drag and drop, Windows.Gaming.Input, XInput | Windows |
 | Wayland | xdg-shell and its extensions, the desktop portal, evdev | Linux (`MAUL_WINDOW_WAYLAND`) |
 | X11 | XCB, XInput 2.1, XKB, XDND, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
 | Web | an HTML canvas and the browser's APIs | Emscripten, or wasm32-wasi |

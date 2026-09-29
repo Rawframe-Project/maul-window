@@ -33,9 +33,9 @@ backends, Win32, Wayland, X11 and the web, and a headless test backend:
    the platform's loop, owned by the program or by the platform.
 2. The keyboard, text input and input methods, the mouse, touch and
    pen, cursors and pointer capture.
-3. Gamepads with rumble, mapped by SDL_GameControllerDB: XInput and
-   generic HID pads on Windows, evdev on Linux, the Gamepad API on the
-   web.
+3. Gamepads with rumble, mapped by SDL_GameControllerDB: Xbox pads
+   through Windows.Gaming.Input (XInput before Windows 10) and generic
+   HID pads on Windows, evdev on Linux, the Gamepad API on the web.
 4. The clipboard, drag and drop, file dialogs, message boxes, opening
    addresses, revealing files and keeping the display awake.
 5. Owned windows, popups and custom chrome, and the hooks for

@@ -18,6 +18,10 @@ format.
   def rather than the caller's. A toolchain file,
   `cmake/wasm32-wasi.cmake`, and a CI job run every test that way, the
   browser tests included.
+- Xbox gamepads on Windows through Windows.Gaming.Input, where the
+  system has it: any number of pads, with their names, USB ids and
+  batteries, and a battery's change posted (mwin-0023). XInput reads
+  them where the runtime is missing.
 
 ### Changed
 

@@ -84,7 +84,9 @@ win32_ime: core win32
 win32_input: core win32
 win32_message_box: message_box
 win32_output: core win32
-win32_pad: core win32_base win32_hid
+win32_pad: core win32_base win32_hid win32_wgi win32_xbox
+win32_wgi: core
+win32_xbox: core win32_wgi
 win32_hid: allocator core pad_db pad_map
 win32_base:
 win32_pointer: core win32

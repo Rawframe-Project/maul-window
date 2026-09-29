@@ -7,7 +7,12 @@
 // The test ends by printing "mwin-test: exit <status>". Puppeteer comes
 // from MWIN_NODE_MODULES; without it the test is skipped (status 77).
 //
-// usage: node web_runner.cjs <test.js>
+// A test built without Emscripten (a .wasm, mwin-0022) is a reactor: the
+// page gives it a minimal WASI (standard output to the console, the
+// clocks, random bytes) and the imports written beside it
+// (<test>.mjs), then calls its main.
+//
+// usage: node web_runner.cjs <test.js | test.wasm>
 
 const http = require('http');
 const fs = require('fs');
@@ -24,15 +29,79 @@ try {
 
 const script = path.resolve(process.argv[2]);
 const root = path.dirname(script);
+const wasi = script.endsWith('.wasm');
+const loader = wasi ? '<script type="module" src="/__wasi.mjs"></script>'
+                    : `<script src="${path.basename(script)}"></script>`;
 const page = `<!doctype html><html><head><meta charset="utf-8"></head><body>
 <canvas id="page-canvas" style="width:200px;height:100px"></canvas>
-<script src="${path.basename(script)}"></script></body></html>`;
-const types = {'.js': 'text/javascript', '.wasm': 'application/wasm'};
+${loader}</body></html>`;
+const types = {'.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm'};
+
+// The page of a test without Emscripten: the calls of WASI a test makes,
+// the rest answered ENOSYS.
+const name = path.basename(script, '.wasm');
+const wasiPage = `import {maulWindowImports} from './${name}.mjs';
+let instance = null;
+const memory = () => instance.exports.memory.buffer;
+const view = () => new DataView(memory());
+const decoder = new TextDecoder();
+let line = '';
+const system = {
+    fd_write(fd, vectors, count, written) {
+        let total = 0;
+        for (let i = 0; i < count; i++) {
+            const at = view().getUint32(vectors + 8 * i, true);
+            const length = view().getUint32(vectors + 8 * i + 4, true);
+            line += decoder.decode(new Uint8Array(memory(), at, length));
+            total += length;
+        }
+        for (let end = line.indexOf('\\n'); end >= 0; end = line.indexOf('\\n')) {
+            console.log(line.slice(0, end));
+            line = line.slice(end + 1);
+        }
+        view().setUint32(written, total, true);
+        return 0;
+    },
+    fd_fdstat_get(fd, out) {
+        view().setUint8(out, 2);
+        view().setUint16(out + 2, 0, true);
+        view().setBigUint64(out + 8, 0n, true);
+        view().setBigUint64(out + 16, 0n, true);
+        return 0;
+    },
+    fd_close: () => 0,
+    fd_seek: () => 70,
+    clock_time_get(id, precision, out) {
+        view().setBigUint64(out, BigInt(Math.round(performance.now() * 1e6)), true);
+        return 0;
+    },
+    random_get(at, length) {
+        crypto.getRandomValues(new Uint8Array(memory(), at, length));
+        return 0;
+    },
+    proc_exit(status) {
+        throw new Error('exit ' + status);
+    },
+};
+const wasiImports = new Proxy(system, {get: (target, key) => target[key] || (() => 52)});
+const bytes = await (await fetch('./${name}.wasm')).arrayBuffer();
+({instance} = await WebAssembly.instantiate(bytes, {
+    env: maulWindowImports(() => instance.exports),
+    wasi_snapshot_preview1: wasiImports,
+}));
+instance.exports._initialize();
+instance.exports.main();
+`;
 
 const server = http.createServer((request, response) => {
     if (request.url === '/') {
         response.writeHead(200, {'Content-Type': 'text/html'});
         response.end(page);
+        return;
+    }
+    if (wasi && request.url === '/__wasi.mjs') {
+        response.writeHead(200, {'Content-Type': 'text/javascript'});
+        response.end(wasiPage);
         return;
     }
     const file = path.join(root, path.normalize(decodeURIComponent(request.url)));

@@ -6,7 +6,7 @@ backend:
 backend_test: allocator backend core
 backend_test_services: accessibility allocator backend backend_test core dialog icon
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
-backend_web: allocator backend core web web_clipboard web_drop web_input web_page web_pad web_services web_text web_window
+backend_web: allocator backend core web web_clipboard web_drop web_input web_js web_pad web_page web_services web_text web_window
 backend_win32: allocator backend core win32 win32_dialog win32_drop win32_input win32_output win32_pad win32_services win32_system win32_window
 backend_x11: allocator backend core monotonic x11 x11_api x11_clipboard x11_drop x11_cursor x11_input x11_output x11_window
 base:
@@ -64,15 +64,16 @@ wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard waylan
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_text
 web: clicks core web_pad
-web_clipboard: allocator core web
-web_drop: allocator core web
-web_input: clicks core web
-web_message_box: message_box
-web_page: core web
-web_pad: core
-web_services: core web
-web_text: core web
-web_window: core web web_clipboard web_drop web_input web_page web_services web_text
+web_clipboard: allocator core web web_js
+web_drop: allocator core web web_js
+web_input: clicks core web web_js
+web_js:
+web_message_box: message_box web_js
+web_page: core web web_js
+web_pad: core web_js
+web_services: core web web_js
+web_text: core web web_js
+web_window: core web web_clipboard web_drop web_input web_js web_page web_services web_text
 win32: clicks core win32_base win32_pad
 win32_accessibility: accessibility core win32
 win32_clipboard: core win32

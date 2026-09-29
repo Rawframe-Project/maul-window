@@ -8,6 +8,22 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- The web backend without Emscripten: a wasm32-wasi build imports the
+  backend's JavaScript, which the build writes to `maul-window.mjs` from
+  the same `EM_JS` functions (`tools/gen_web_glue.py`), and `mwinRun`
+  returns once init has succeeded while the page's frames run the
+  program (mwin-0022), so the context keeps a copy of the application
+  def rather than the caller's. A toolchain file,
+  `cmake/wasm32-wasi.cmake`, and a CI job run every test that way, the
+  browser tests included.
+
+### Changed
+
+- The page's JavaScript functions all carry the library's prefix, so
+  they meet no program's own in the module they share.
+
 ## [0.1.0] - 2026-09-29
 
 The first release: the whole contract on the Win32, Wayland, X11 and

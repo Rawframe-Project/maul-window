@@ -11,12 +11,11 @@
 // between two frames, and one gone.
 
 #include "test_harness.h"
+#include "web_js.h"
 
 #include "maul-window/event.h"
 #include "maul-window/gamepad.h"
 
-#include <emscripten/em_js.h>
-#include <emscripten/emscripten.h>
 #include <string.h>
 
 #define MAX_RECORDS 64
@@ -263,7 +262,13 @@ int main(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
-    CHECK(mwinRun(&def) == mwin_success, "the program runs");
+    // With Emscripten mwinRun returns only when init failed; without it,
+    // it returns once init succeeded and the page's frames run the program
+    // on (mwin-0022). Either way quit reports.
+    if (mwinRun(&def) == mwin_success)
+    {
+        return 0;
+    }
     (void)printf("mwin-test: exit 1\n");
     return 1;
 }

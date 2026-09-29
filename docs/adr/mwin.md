@@ -26,3 +26,4 @@ are listed in [README.md](README.md).
 | [mwin-0019](mwin-0019-wayland-focus.md) | Focus requests on Wayland | Accepted |
 | [mwin-0020](mwin-0020-x11-smooth-scrolling.md) | Smooth scrolling on X11 | Accepted |
 | [mwin-0021](mwin-0021-windows-hid-gamepads.md) | Generic gamepads on Windows | Accepted |
+| [mwin-0022](mwin-0022-web-without-emscripten.md) | The web without Emscripten | Accepted |

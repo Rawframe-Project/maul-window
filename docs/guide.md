@@ -273,13 +273,22 @@ arrives with `mwin_eventSurfaceRestored`.
 | Win32 | user32, Raw Input, IMM32, OLE drag and drop, XInput | Windows |
 | Wayland | xdg-shell and its extensions, the desktop portal, evdev | Linux (`MAUL_WINDOW_WAYLAND`) |
 | X11 | XCB, XInput 2.1, XKB, XDND, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
-| Web | an HTML canvas and the browser's APIs | Emscripten |
+| Web | an HTML canvas and the browser's APIs | Emscripten, or wasm32-wasi |
 
 On Linux one build carries both. At run time Wayland is chosen where
 `WAYLAND_DISPLAY` names a compositor, else X11. The Linux system
 libraries (libwayland, libxcb, libxkbcommon, libdbus) are loaded when a
 context starts, so a program runs where they are missing, without that
 backend. The build options are in the [README](../README.md).
+
+On the web without Emscripten (a wasm32-wasi build), the backend's
+JavaScript comes as imports. The build writes `maul-window.mjs` beside
+the library (its target property `MAUL_WINDOW_WEB_GLUE` names it); the
+page loads it, puts what `maulWindowImports(() => instance.exports)`
+returns among the instance's `env` imports, and the program links with
+`-Wl,--export-table`. There `mwinRun` returns `mwin_success` once init
+has succeeded, and the page's animation frames run the program on;
+quit still ends it.
 
 ## 12. Testing a program
 

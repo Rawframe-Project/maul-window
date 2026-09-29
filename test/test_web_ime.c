@@ -10,12 +10,11 @@
 // an on-screen keyboard's purpose.
 
 #include "test_harness.h"
+#include "web_js.h"
 
 #include "maul-window/event.h"
 #include "maul-window/native.h"
 
-#include <emscripten/em_js.h>
-#include <emscripten/emscripten.h>
 #include <string.h>
 
 #define DEADLINE_MS 10000.0
@@ -201,7 +200,7 @@ static void Advance(Program* program, mwinContext* context)
     program->phase += 1;
     program->count = 0;
     program->textLength = 0;
-    program->startMs = emscripten_get_now();
+    program->startMs = mwinWebNow();
 }
 
 static mwinResult Init(mwinContext* context, void* user)
@@ -209,7 +208,7 @@ static mwinResult Init(mwinContext* context, void* user)
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
     def.size = (mwinSize){320.0f, 200.0f};
-    program->startMs = emscripten_get_now();
+    program->startMs = mwinWebNow();
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
 
@@ -221,7 +220,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
-    else if (emscripten_get_now() - program->startMs > DEADLINE_MS)
+    else if (mwinWebNow() - program->startMs > DEADLINE_MS)
     {
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
@@ -251,7 +250,13 @@ int main(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
-    CHECK(mwinRun(&def) == mwin_success, "the program runs");
+    // With Emscripten mwinRun returns only when init failed; without it,
+    // it returns once init succeeded and the page's frames run the program
+    // on (mwin-0022). Either way quit reports.
+    if (mwinRun(&def) == mwin_success)
+    {
+        return 0;
+    }
     (void)printf("mwin-test: exit 1\n");
     return 1;
 }

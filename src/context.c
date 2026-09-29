@@ -211,7 +211,8 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     context->allocator = def->context.allocator;
     context->memorySize = size;
     context->limits = *limits;
-    // A copy: the def may be the caller's, gone before the program is.
+    // A copy: without Emscripten mwinRun returns while the program runs
+    // on, and the def may have been the caller's local (mwin-0022).
     context->app = *def;
     unsigned char* storage = block + RoundUp(sizeof(mwinContext));
     storage = LayRing(&context->critical, storage, CriticalRecords(limits));
@@ -272,6 +273,10 @@ mwinResult mwinRun(const mwinAppDef* def)
         if (status == mwin_success)
         {
             status = backends[i]->run(context);
+            if (context->loopOutlivesRun)
+            {
+                return status;
+            }
             backends[i]->stop(context);
             DestroyContext(context);
             return status;

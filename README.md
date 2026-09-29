@@ -59,9 +59,12 @@ files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-xinput` and
 `xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`, `libxcb-xkb-dev`,
 `libxcb-cursor-dev`, `libxcb-xinput-dev` and `libxkbcommon-x11-dev`),
 or
-`-DMAUL_WINDOW_X11=OFF`. For the web, Emscripten (`emcmake cmake`);
-its browser tests run in headless Chrome through puppeteer, found
-through `MWIN_NODE_MODULES`, and are skipped without it.
+`-DMAUL_WINDOW_X11=OFF`. For the web, Emscripten (`emcmake cmake`), or
+Clang's wasm32-wasi with wasi-libc
+(`-DCMAKE_TOOLCHAIN_FILE=cmake/wasm32-wasi.cmake`), whose build writes
+`maul-window.mjs` for the page (see the guide, section 11). The browser
+tests run in headless Chrome through puppeteer, found through
+`MWIN_NODE_MODULES`, and are skipped without it.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release

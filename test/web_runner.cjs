@@ -7,12 +7,12 @@
 // The test ends by printing "mwin-test: exit <status>". Puppeteer comes
 // from MWIN_NODE_MODULES; without it the test is skipped (status 77).
 //
-// A test built without Emscripten (a .wasm, mwin-0022) is a reactor: the
+// A test built without Emscripten (a module, mwin-0022) is a reactor: the
 // page gives it a minimal WASI (standard output to the console, the
 // clocks, random bytes) and the imports written beside it
 // (<test>.mjs), then calls its main.
 //
-// usage: node web_runner.cjs <test.js | test.wasm>
+// usage: node web_runner.cjs <test.js | test module>
 
 const http = require('http');
 const fs = require('fs');
@@ -29,7 +29,9 @@ try {
 
 const script = path.resolve(process.argv[2]);
 const root = path.dirname(script);
-const wasi = script.endsWith('.wasm');
+// A WebAssembly module, by its first bytes: CMake names one with or
+// without .wasm, as its version's WASI platform does.
+const wasi = fs.readFileSync(script).subarray(0, 4).equals(Buffer.from([0, 0x61, 0x73, 0x6d]));
 // A script that does not parse fails with no stack; where it failed is
 // what says why.
 const where = `<script>addEventListener('error', e => console.log(
@@ -43,6 +45,7 @@ const types = {'.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'ap
 
 // The page of a test without Emscripten: the calls of WASI a test makes,
 // the rest answered ENOSYS.
+const moduleFile = path.basename(script);
 const name = path.basename(script, '.wasm');
 const wasiPage = `import {maulWindowImports} from './${name}.mjs';
 let instance = null;
@@ -88,7 +91,7 @@ const system = {
     },
 };
 const wasiImports = new Proxy(system, {get: (target, key) => target[key] || (() => 52)});
-const bytes = await (await fetch('./${name}.wasm')).arrayBuffer();
+const bytes = await (await fetch('./${moduleFile}')).arrayBuffer();
 ({instance} = await WebAssembly.instantiate(bytes, {
     env: maulWindowImports(() => instance.exports),
     wasi_snapshot_preview1: wasiImports,

@@ -30,8 +30,12 @@ try {
 const script = path.resolve(process.argv[2]);
 const root = path.dirname(script);
 const wasi = script.endsWith('.wasm');
-const loader = wasi ? '<script type="module" src="/__wasi.mjs"></script>'
-                    : `<script src="${path.basename(script)}"></script>`;
+// A script that does not parse fails with no stack; where it failed is
+// what says why.
+const where = `<script>addEventListener('error', e => console.log(
+    'page error at ' + e.filename + ':' + e.lineno + ':' + e.colno + ': ' + e.message));</script>`;
+const loader = where + (wasi ? '<script type="module" src="/__wasi.mjs"></script>'
+                             : `<script src="${path.basename(script)}"></script>`);
 const page = `<!doctype html><html><head><meta charset="utf-8"></head><body>
 <canvas id="page-canvas" style="width:200px;height:100px"></canvas>
 ${loader}</body></html>`;

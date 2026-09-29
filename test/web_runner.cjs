@@ -194,7 +194,10 @@ async function main() {
         await tab.setViewport({width: 1024, height: 768, deviceScaleFactor: 2});
         await tab.emulateMediaFeatures([{name: 'prefers-reduced-motion', value: 'reduce'}]);
         const done = new Promise((resolve, reject) => {
-            tab.on('pageerror', error => reject(error));
+            tab.on('pageerror', error => {
+                console.log('page error: ' + (error.stack || error.message));
+                reject(error);
+            });
             tab.on('console', message => {
                 const text = message.text();
                 console.log(text);
@@ -210,6 +213,9 @@ async function main() {
                 }
             });
         });
+        // An error while the page loads is reported where done is awaited,
+        // not as a rejection nothing handles yet.
+        done.catch(() => {});
         const origin = `http://127.0.0.1:${server.address().port}`;
         // The clipboard asks the user first; the test is the user.
         await browser.defaultBrowserContext().overridePermissions(

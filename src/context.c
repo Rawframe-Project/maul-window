@@ -211,7 +211,8 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     context->allocator = def->context.allocator;
     context->memorySize = size;
     context->limits = *limits;
-    context->app = def;
+    // A copy: the def may be the caller's, gone before the program is.
+    context->app = *def;
     unsigned char* storage = block + RoundUp(sizeof(mwinContext));
     storage = LayRing(&context->critical, storage, CriticalRecords(limits));
     storage = LayRing(&context->global, storage, limits->notificationsPerWindow);
@@ -286,7 +287,7 @@ mwinResult mwinRun(const mwinAppDef* def)
 
 bool mwinStartProgram(mwinContext* context)
 {
-    const mwinAppDef* app = context->app;
+    const mwinAppDef* app = &context->app;
     context->inProgram = true;
     context->status = app->init(context, app->user);
     context->inProgram = false;
@@ -306,7 +307,7 @@ bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
     {
         return false; // a critical frame asked to stop
     }
-    const mwinAppDef* app = context->app;
+    const mwinAppDef* app = &context->app;
     context->inProgram = true;
     mwinFrameResult result = app->frame(context, app->user);
     context->inProgram = false;
@@ -316,7 +317,7 @@ bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
 
 mwinResult mwinEndProgram(mwinContext* context)
 {
-    const mwinAppDef* app = context->app;
+    const mwinAppDef* app = &context->app;
     context->running = false;
     if (app->quit != nullptr)
     {
@@ -350,7 +351,7 @@ void mwinRunCriticalFrame(mwinContext* context)
     {
         return;
     }
-    const mwinAppDef* app = context->app;
+    const mwinAppDef* app = &context->app;
     context->inProgram = true;
     mwinFrameResult result = app->frame(context, app->user);
     context->inProgram = false;

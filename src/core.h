@@ -193,7 +193,7 @@ struct mwinContext
     mwinLimits limits;
     const mwinBackendOps* backend;
     void* backendData;
-    const mwinAppDef* app;
+    mwinAppDef app;
     uint64_t sequence;
     mwinWindow* windows;
     // Slots like the windows': free, live, or removed with its record

@@ -8,24 +8,13 @@ format.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-29
+
+The first release: the whole contract on the Win32, Wayland, X11 and
+web backends, with a headless test backend for programs' own tests.
+
 ### Added
 
-- Linux preferred locales from the environment (`LANGUAGE`, then the
-  messages locale), as BCP 47 tags, on X11 and Wayland.
-- Linux look and motion from the desktop portal's settings (theme,
-  accent, reduced motion, text scale), and power from the portal and
-  UPower (low power, on battery), followed as they change (mwin-0018).
-- Wayland focus requests through xdg-activation, and the launcher's
-  activation token for the first window shown (mwin-0019).
-- X11 smooth scrolling from XI 2.1 scroll valuators, with the pointer
-  read through XI2 (mwin-0020).
-- Windows generic gamepads through Raw Input and the HID parser, mapped
-  by SDL_GameControllerDB's Windows entries (mwin-0021).
-- Fuzz targets (`-DMAUL_WINDOW_FUZZ=ON`) for the bytes other programs
-  and devices hand the library: drop and clipboard payloads, URI lists,
-  zenity's output, the environment's locales, scroll valuators and
-  gamepad controls, run in CI. The first run found a stick driven by an
-  axis and a button at once going past its range; it is now held to it.
 - The library skeleton: the build, the family rules and tools, the
   version and result API (`mwinGetVersion`, `mwinResultName`) and the
   library profile.
@@ -205,3 +194,19 @@ format.
     asking.
 - A sample (`samples/window.c`): one window and what the platform says
   of it, fullscreen, text input with input methods, and a clean end.
+- Linux preferred locales from the environment (`LANGUAGE`, then the
+  messages locale), as BCP 47 tags, on X11 and Wayland.
+- Linux look and motion from the desktop portal's settings (theme,
+  accent, reduced motion, text scale), and power from the portal and
+  UPower (low power, on battery), followed as they change (mwin-0018).
+- Wayland focus requests through xdg-activation, and the launcher's
+  activation token for the first window shown (mwin-0019).
+- X11 smooth scrolling from XI 2.1 scroll valuators, with the pointer
+  read through XI2 (mwin-0020).
+- Windows generic gamepads through Raw Input and the HID parser, mapped
+  by SDL_GameControllerDB's Windows entries (mwin-0021).
+- Fuzz targets (`-DMAUL_WINDOW_FUZZ=ON`) for the bytes other programs
+  and devices hand the library: drop and clipboard payloads, URI lists,
+  zenity's output, the environment's locales, scroll valuators and
+  gamepad controls, run in CI. The first run found a stick driven by an
+  axis and a button at once going past its range; it is now held to it.

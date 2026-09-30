@@ -181,6 +181,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_wayland_server_test(wayland_owned)
         mwin_add_wayland_server_test(wayland_chrome)
         mwin_add_wayland_server_test(wayland_focus)
+        # The pipes other clients write into, read against their limits.
+        maul_add_test(wayland_pipe WHITEBOX POSIX)
+        if(TARGET test_wayland_pipe)
+            target_compile_definitions(test_wayland_pipe PRIVATE _POSIX_C_SOURCE=200809L)
+        endif()
     endif()
     if(MAUL_WINDOW_X11)
         # Needs an X server: skipped without DISPLAY.

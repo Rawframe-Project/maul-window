@@ -20,28 +20,53 @@
 #include <math.h>
 #include <string.h>
 
+// Where the platform block's parts lie, laid out with checked
+// arithmetic: the platform, a pending answer per request slot of every
+// window, and a rumble per gamepad.
+typedef struct PlatformParts
+{
+    mwinLayout layout;
+    size_t pending;
+    size_t rumbles;
+} PlatformParts;
+
+static uint32_t PendingCapacity(const mwinLimits* limits)
+{
+    return (uint32_t)limits->windows * limits->requestsPerWindow;
+}
+
+static PlatformParts PartsOf(const mwinLimits* limits)
+{
+    PlatformParts parts = {0};
+    (void)mwinLayoutAdd(&parts.layout, 1, sizeof(mwinTestPlatform), alignof(mwinTestPlatform));
+    parts.pending = mwinLayoutAdd(&parts.layout, PendingCapacity(limits), sizeof(mwinTestPending),
+                                  alignof(mwinTestPending));
+    parts.rumbles = mwinLayoutAdd(&parts.layout, limits->gamepads, sizeof(mwinTestRumble),
+                                  alignof(mwinTestRumble));
+    return parts;
+}
+
 static size_t PlatformBytes(const mwinContext* context)
 {
-    return sizeof(mwinTestPlatform) +
-           (size_t)context->limits.windows * context->limits.requestsPerWindow *
-               sizeof(mwinTestPending) +
-           (size_t)context->limits.gamepads * sizeof(mwinTestRumble);
+    return PartsOf(&context->limits).layout.size;
 }
 
 static mwinResult Start(mwinContext* context)
 {
+    PlatformParts parts = PartsOf(&context->limits);
     unsigned char* block =
-        mwinAllocate(&context->allocator, PlatformBytes(context), alignof(max_align_t));
+        parts.layout.overflow
+            ? nullptr
+            : mwinAllocate(&context->allocator, parts.layout.size, alignof(max_align_t));
     if (block == nullptr)
     {
         return mwin_errorCapacity;
     }
-    memset(block, 0, PlatformBytes(context));
+    memset(block, 0, parts.layout.size);
     mwinTestPlatform* platform = (mwinTestPlatform*)block;
-    platform->pending = (mwinTestPending*)(block + sizeof(mwinTestPlatform));
-    platform->pendingCapacity =
-        (uint32_t)context->limits.windows * context->limits.requestsPerWindow;
-    platform->rumbles = (mwinTestRumble*)(platform->pending + platform->pendingCapacity);
+    platform->pending = (mwinTestPending*)(block + parts.pending);
+    platform->pendingCapacity = PendingCapacity(&context->limits);
+    platform->rumbles = (mwinTestRumble*)(block + parts.rumbles);
     platform->scale = 1.0f;
     context->backendData = platform;
     return mwin_success;

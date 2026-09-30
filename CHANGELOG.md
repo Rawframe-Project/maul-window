@@ -30,6 +30,18 @@ format.
 
 - The page's JavaScript functions all carry the library's prefix, so
   they meet no program's own in the module they share.
+- The context's block, each backend's platform block and every
+  allocation sized from a count are laid out with checked arithmetic,
+  as the family's conventions require; a size past `size_t`, which the
+  32-bit web build can reach with large limits, is refused with
+  `mwin_errorCapacity`.
+
+### Fixed
+
+- The critical ring's capacity was 16 bits and wrapped to 0 at 65535
+  windows; ring capacities are 32-bit.
+- A Wayland clipboard or drop read under a limit of `UINT32_MAX`
+  wrapped its growth bound to 0 and read nothing.
 
 ## [0.1.0] - 2026-09-29
 

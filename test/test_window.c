@@ -425,6 +425,20 @@ static void TestRunAndMemory(void)
           "every byte returned");
     counter = (Counter){.failAfter = 0};
     CHECK(RunWith(&program, def) == mwin_errorCapacity, "no memory, no context");
+    // Limits near their most: past size_t on 32-bit targets, where the
+    // layout refuses before asking the allocator, and past any allocator
+    // elsewhere.
+    counter = (Counter){.failAfter = 0};
+    def.limits.windows = UINT16_MAX;
+    def.limits.notificationsPerWindow = UINT16_MAX;
+    def.limits.inputPerWindow = UINT16_MAX;
+    def.limits.titleBytes = UINT16_MAX;
+    def.limits.textBytesPerWindow = UINT16_MAX;
+    def.limits.localeBytes = UINT16_MAX;
+    CHECK(RunWith(&program, def) == mwin_errorCapacity &&
+              (sizeof(size_t) > 4 || counter.calls == 0),
+          "limits past memory");
+    def.limits = mwinDefaultContextDef().limits;
     def = mwinDefaultContextDef();
     def.limits.notificationsPerWindow = 20;
     CHECK(RunWith(&program, def) == mwin_errorInvalid, "limits below the bound");

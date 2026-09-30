@@ -53,9 +53,9 @@ typedef struct mwinRing
 {
     mwinEvent* events;
     uint64_t* sequences;
-    uint16_t head;
-    uint16_t count;
-    uint16_t capacity;
+    uint32_t head;
+    uint32_t count;
+    uint32_t capacity;
 } mwinRing;
 
 // A request slot is free, active (the backend has it), or answered (its

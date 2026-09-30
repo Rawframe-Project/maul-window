@@ -5,13 +5,14 @@
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
 // shown there; what drives the program's frames; the keyboard's layout,
-// the cursors and the pen. Objects are held with manual retain and release. Included by
-// the backend's Objective-C files only.
+// the cursors, the pen and the gamepads. Objects are held with manual retain and release. Included
+// by the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
 #define MAUL_WINDOW_SRC_MACOS_H
 
 #include "core.h"
+#include "pad_tracker.h"
 
 #import <AppKit/AppKit.h>
 #import <QuartzCore/CADisplayLink.h>
@@ -75,6 +76,13 @@ struct mwinMacPlatform
     uint32_t captured;
     // Whether the pen near the tablet shows its eraser end.
     bool penEraser;
+    // GameController's pads, what tells of their connections, whether
+    // one came or went since they were looked for, and whether they are
+    // watched at all (from macOS 11.3).
+    mwinPadTracker pads;
+    id padObservers[2];
+    bool padsChanged;
+    bool padsStarted;
 };
 
 // The platform of a context whose backend is macOS.
@@ -148,6 +156,13 @@ void mwinMacForgetCursors(mwinMacPlatform* platform);
 // (macos_pen.m). Notes which end of the pen came near the tablet.
 bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
 void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
+
+// Watches GameController's pads from the start of the backend to its
+// stop, and reads them at each pump (macos_pad.m, with the gamepad
+// component).
+void mwinMacStartPads(mwinMacPlatform* platform);
+void mwinMacStopPads(mwinMacPlatform* platform);
+void mwinMacPumpPads(mwinMacPlatform* platform, uint64_t nowNs);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

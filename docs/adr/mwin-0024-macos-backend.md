@@ -120,6 +120,25 @@ the loop for platforms that own it (the web's, mwin-0022), through
     which tablet drivers give to their own commands, is left out.
   - Proximity events tell which end is near the tablet: the eraser's
     sets `mwin_penEraser` until the pen leaves.
+- **Gamepads** come through GameController:
+  - Every controller with an extended gamepad profile, which
+    GameController maps by place, so each is mapped: its face buttons
+    by place, Menu as start, Options as select, Home as guide, the
+    sticks' y turned so down is positive.
+  - Their tracking is Windows.Gaming.Input's (mwin-0023), shared as the
+    pad tracker: pads looked for when GameController says one came or
+    went, and every half second; read at each pump, posted only when
+    the profile's last event time moves; batteries read when looked
+    for.
+  - The name is the vendor name; GameController gives no USB ids, so
+    they are 0. The battery is its reported charge, -1 while its state
+    is unknown, as a wired pad's is.
+  - Pads are read whether or not the program is in front
+    (`shouldMonitorBackgroundEvents`), as on the other desktop
+    platforms. They need GameController of macOS 11.3; before it no
+    pad is found.
+  - The motors follow in a later slice; until then no pad has
+    `mwin_padRumble`.
 - **Wheel:** precise scrolling (touchpads, Magic Mouse) comes in points,
   ten to a detent, as the Wayland backend's continuous scrolling does; a
   wheel's comes in lines, one to a detent. Its sign is what the user's
@@ -129,8 +148,9 @@ the loop for platforms that own it (the web's, mwin-0022), through
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
-  cursors and capture; the fourth the pen. Gamepads, the clipboard, dialogs and the rest follow, and are
-  unsupported until then.
+  cursors and capture; the fourth the pen; the fifth gamepads, their
+  motors after them. The clipboard, dialogs and the rest follow, and
+  are unsupported until then.
 
 ## Consequences
 
@@ -159,6 +179,10 @@ AppKit's events as well, since both run on the main thread.
   tip's down with pressure and tilt, a drag, the barrel's press and
   release, lifting, and the eraser end; no mouse record comes of them.
   Such events have no window, so their places are not checked.
+- `macos_gamepad` runs a program with GameController watched for half
+  a second and lists its pads, each mapped and named. No pad is
+  attached to the runner; the tracking runs against a stand-in in
+  `pad_tracker` on every platform.
 - `macos_ime` calls the view's text input client as an input method
   would: no input context before text input is on and one after, the
   caret the candidate window goes by, two clauses with the target and

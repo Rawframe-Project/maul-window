@@ -24,6 +24,10 @@ format.
   while the window has focus; confinement is unsupported (mwin-0024).
 - macOS pens: a tablet's pen as pen records rather than the mouse, with
   pressure, tilt, the barrel button and the eraser end (mwin-0024).
+- macOS gamepads through GameController: every extended gamepad,
+  mapped, with its name and battery, read in the background too; no
+  motors yet (mwin-0024). Its tracking is Windows.Gaming.Input's, now
+  shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30
 

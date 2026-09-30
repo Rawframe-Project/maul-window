@@ -34,10 +34,11 @@ linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_loc
 linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
-macos: core
+macos: core pad_tracker
 macos_cursor: core macos
 macos_keys: core macos
 macos_output: core macos
+macos_pad: core macos pad_tracker
 macos_pen: core macos
 macos_text: core macos
 macos_view: core macos
@@ -49,6 +50,7 @@ native: core
 pad: core
 pad_db:
 pad_map: core pad_db
+pad_tracker: core
 posix_message_box: message_box
 queue: core text
 services: allocator core
@@ -93,9 +95,8 @@ win32_ime: core win32
 win32_input: core win32
 win32_message_box: message_box
 win32_output: core win32
-win32_pad: core win32_base win32_hid win32_wgi win32_xbox
-win32_wgi: core
-win32_xbox: core win32_wgi
+win32_pad: core pad_tracker win32_base win32_hid win32_wgi
+win32_wgi: core pad_tracker
 win32_hid: allocator core pad_db pad_map
 win32_base:
 win32_pointer: core win32

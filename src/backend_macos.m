@@ -57,9 +57,15 @@ uint64_t mwinMacNow(void)
     return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 }
 
+// Platform events come to their objects between frames; the pads are
+// read.
 static void Pump(mwinContext* context)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinMacPumpPads(mwinMacPlatformOf(context), mwinMacNow());
+#else
     (void)context;
+#endif
 }
 
 // Stops the frames and the application, whose run then returns once it
@@ -141,6 +147,9 @@ static void Stop(mwinContext* context)
             [platform->screensObserver release];
         }
         [platform->stepper release];
+#ifdef MAUL_WINDOW_GAMEPAD
+        mwinMacStopPads(platform);
+#endif
         mwinMacUnwatchKeyboard(platform);
         mwinMacForgetCursors(platform);
         mwinMacForgetScreens(platform);
@@ -184,6 +193,9 @@ static mwinResult Start(mwinContext* context)
                     }] retain];
         mwinMacReadScreens(platform, mwinMacNow());
         mwinMacWatchKeyboard(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+        mwinMacStartPads(platform);
+#endif
     }
     return mwin_success;
 }
@@ -231,7 +243,7 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.apple.layer = (void*)window->layer;
 }
 
-// Gamepads come in a later slice.
+// The pads' motors come in a later slice: no pad says it has them.
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {

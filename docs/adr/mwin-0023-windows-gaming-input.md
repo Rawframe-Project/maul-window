@@ -68,7 +68,9 @@ program whose windows are all in the background should not count on
 its Xbox pads. None of the machines the tests run on has a pad to show
 which.
 
-- `win32_xbox` runs against the stand-in:
+- `pad_tracker` runs against the stand-in, on every platform (the
+  tracking moved there when the macOS backend came to share it,
+  mwin-0024):
   - a pad found at once when the runtime says so, and otherwise not
     sooner than every half second;
   - six pads, more than XInput's four;
@@ -76,5 +78,12 @@ which.
     triggers, posted only when the reading's time moves;
   - rumble stopped when its time runs out;
   - a removal, and every reference the stand-in gave let go.
-- The real runtime runs in the same test on Windows, and under wine,
-  which has the class, with no pad attached.
+  - values past their ranges kept in them.
+- `win32_wgi` runs the real runtime on Windows, and under wine, which
+  has the class, with no pad attached.
+
+Amended 2026-09-30: the tracking (looking for pads, reading them when
+their time moves, batteries, stopping rumbles) is now the pad tracker,
+which the macOS backend's GameController pads share. The runtime's
+table gives readings in the contract's terms, so View as select, Menu
+as start and the sticks' turned y are this backend's mapping.

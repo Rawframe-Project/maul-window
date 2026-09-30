@@ -126,6 +126,11 @@ endif()
 if(MAUL_WINDOW_GAMEPAD)
     target_sources(maul-window PRIVATE src/gamepad.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_GAMEPAD)
+    # The pads a runtime lists and reads: Windows.Gaming.Input's and
+    # GameController's, and a test's stand-in on every platform.
+    if(MAUL_WINDOW_WIN32 OR MAUL_WINDOW_MACOS OR MAUL_WINDOW_TEST_BACKEND)
+        target_sources(maul-window PRIVATE src/pad_tracker.c)
+    endif()
 endif()
 maul_configure_library(maul-window)
 target_link_libraries(maul-window PRIVATE maul-unicode::maul-unicode)
@@ -175,6 +180,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(accessibility WHITEBOX)
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
+            # The runtime pads' tracking against a stand-in runtime.
+            maul_add_test(pad_tracker WHITEBOX)
         endif()
     endif()
     if(MAUL_WINDOW_WAYLAND)
@@ -312,6 +319,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_MACOS)
         # Needs the session's window server, which CI's macOS runners have.
         maul_add_test(macos)
+        if(MAUL_WINDOW_GAMEPAD)
+            maul_add_test(macos_gamepad)
+        endif()
         # Objective-C, to make the NSEvents AppKit would deliver and call
         # the view as an input method would.
         foreach(name macos_input macos_ime macos_pen)
@@ -325,6 +335,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             add_test(NAME ${name} COMMAND test_${name})
         endforeach()
         set_tests_properties(macos macos_input macos_ime macos_pen PROPERTIES TIMEOUT 60)
+        if(MAUL_WINDOW_GAMEPAD)
+            set_tests_properties(macos_gamepad PROPERTIES TIMEOUT 60)
+        endif()
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)
@@ -342,10 +355,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             # Generic gamepads against a stand-in for Raw Input and the HID
             # parser.
             maul_add_test(win32_hid WHITEBOX)
-            # Xbox gamepads against a stand-in for Windows.Gaming.Input, then
-            # the runtime itself where the system has it.
-            maul_add_test(win32_xbox WHITEBOX)
-            target_link_libraries(test_win32_xbox PRIVATE ole32)
+            # Windows.Gaming.Input itself, where the system has it.
+            maul_add_test(win32_wgi WHITEBOX)
+            target_link_libraries(test_win32_wgi PRIVATE ole32)
         endif()
         # Composes through the input context: skipped with no input method.
         maul_add_test(win32_ime)

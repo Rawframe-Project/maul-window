@@ -142,6 +142,8 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
     mwinContext* context = platform->context;
     platform->suspended = !running;
     platform->link.paused = !running;
+    // Suspending resets the input state: keys held are forgotten.
+    memset(platform->held, 0, sizeof(platform->held));
     PostLifecycle(context, running ? mwin_eventResuming : mwin_eventSuspending);
     mwinRunCriticalFrame(context);
     if (context->stopping)
@@ -293,6 +295,7 @@ static void Stop(mwinContext* context)
             }
         }
         [platform->waitingScene release];
+        mwinIOSUnwatchKeyboard(platform);
         mwinIOSForgetScreens(platform);
     }
     mwinRelease(&context->allocator, platform, PartsOf(&context->limits).layout.size,
@@ -327,6 +330,7 @@ static mwinResult Start(mwinContext* context)
     MwinIOSStepper* stepper = [[MwinIOSStepper alloc] init];
     stepper->context = context;
     platform->stepper = stepper;
+    mwinIOSWatchKeyboard(platform);
     return mwin_success;
 }
 
@@ -349,19 +353,13 @@ static uint64_t Now(const mwinContext* context)
 
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    (void)code;
-    return 0;
+    return mwinIOSMapKeyCode(mwinIOSPlatformOf(context), code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {
-    (void)context;
-    (void)buffer;
-    (void)capacity;
-    *lengthOut = 0;
-    return mwin_success;
+    return mwinIOSKeyboardLayout(mwinIOSPlatformOf(context), buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)

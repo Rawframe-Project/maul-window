@@ -369,8 +369,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input
-        # hands the view touches and recognizers as UIKit would.
-        foreach(name ios ios_input)
+        # and ios_keys hand the view touches, recognizers, presses and text as
+        # UIKit would.
+        foreach(name ios ios_input ios_keys)
             string(REPLACE "_" "-" bundle ${name})
             add_executable(test_${name} MACOSX_BUNDLE test/test_${name}.m)
             target_link_libraries(test_${name} PRIVATE maul-window "-framework UIKit")

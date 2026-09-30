@@ -8,15 +8,18 @@
 // then posts what changed. The status bar is hidden, the window being
 // the program's to draw; the safe area says what the system still
 // covers. Touches, the pointer's hover and its scrolling come to the
-// view (ios_pointer.m).
+// view (ios_pointer.m); text is typed into it, and a hardware keyboard's
+// presses pass through it to the controller (ios_keys.m).
 
 #include "ios.h"
 
-@interface MwinIOSView : UIView
+@interface MwinIOSView : UIView <UIKeyInput>
 {
   @public
     mwinIOSPlatform* platform;
     uint32_t slot;
+    // The input view that keeps the on-screen keyboard away.
+    UIView* noKeyboard;
 }
 @end
 
@@ -70,6 +73,86 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
     Touches(self, touches, event, mwin_iosTouchCancelled);
 }
 
+// The text input client: text typed into the view, whatever its
+// window's state (ios_keys.m).
+- (BOOL)canBecomeFirstResponder
+{
+    return YES;
+}
+
+- (BOOL)hasText
+{
+    return YES;
+}
+
+- (void)insertText:(NSString*)text
+{
+    if (platform != nullptr)
+    {
+        mwinIOSInsertText(platform, slot, text);
+    }
+}
+
+- (void)deleteBackward
+{
+    if (platform != nullptr)
+    {
+        mwinIOSDeleteBackward(platform, slot);
+    }
+}
+
+- (UIView*)inputView
+{
+    return platform != nullptr && platform->windows[slot].keyboard ? nil : noKeyboard;
+}
+
+- (UIKeyboardType)keyboardType
+{
+    return platform != nullptr ? mwinIOSKeyboardTypeOf(platform->windows[slot].purpose)
+                               : UIKeyboardTypeDefault;
+}
+
+- (BOOL)isSecureTextEntry
+{
+    return platform != nullptr && platform->windows[slot].purpose == mwin_purposePassword;
+}
+
+- (UITextAutocorrectionType)autocorrectionType
+{
+    return UITextAutocorrectionTypeNo;
+}
+
+- (UITextAutocapitalizationType)autocapitalizationType
+{
+    return UITextAutocapitalizationTypeNone;
+}
+
+- (UITextSpellCheckingType)spellCheckingType
+{
+    return UITextSpellCheckingTypeNo;
+}
+
+- (UITextSmartQuotesType)smartQuotesType
+{
+    return UITextSmartQuotesTypeNo;
+}
+
+- (UITextSmartDashesType)smartDashesType
+{
+    return UITextSmartDashesTypeNo;
+}
+
+- (UITextSmartInsertDeleteType)smartInsertDeleteType
+{
+    return UITextSmartInsertDeleteTypeNo;
+}
+
+- (void)dealloc
+{
+    [noKeyboard release];
+    [super dealloc];
+}
+
 // The recognizers' actions.
 - (void)mwinHover:(UIHoverGestureRecognizer*)hover
 {
@@ -97,13 +180,46 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
 }
 @end
 
+// The controller takes a hardware keyboard's presses, which come to it
+// from the view, and hands them on.
 @interface MwinIOSController : UIViewController
+{
+  @public
+    mwinIOSPlatform* platform;
+    uint32_t slot;
+}
 @end
 
 @implementation MwinIOSController
 - (BOOL)prefersStatusBarHidden
 {
     return YES;
+}
+
+static void Presses(MwinIOSController* controller, NSSet<UIPress*>* presses, bool down)
+{
+    if (controller->platform != nullptr)
+    {
+        mwinIOSPresses(controller->platform, controller->slot, presses, down);
+    }
+}
+
+- (void)pressesBegan:(NSSet<UIPress*>*)presses withEvent:(UIPressesEvent*)event
+{
+    Presses(self, presses, true);
+    [super pressesBegan:presses withEvent:event];
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses withEvent:(UIPressesEvent*)event
+{
+    Presses(self, presses, false);
+    [super pressesEnded:presses withEvent:event];
+}
+
+- (void)pressesCancelled:(NSSet<UIPress*>*)presses withEvent:(UIPressesEvent*)event
+{
+    Presses(self, presses, false);
+    [super pressesCancelled:presses withEvent:event];
 }
 @end
 
@@ -114,6 +230,10 @@ UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame
     view->slot = slot;
     view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     view.multipleTouchEnabled = YES;
+    view->noKeyboard = [[UIView alloc] initWithFrame:CGRectZero];
+    // No shortcuts bar over a hardware keyboard.
+    view.inputAssistantItem.leadingBarButtonGroups = @[];
+    view.inputAssistantItem.trailingBarButtonGroups = @[];
     // The pointer's motion without a button, and its scrolling alone; the
     // touches still reach the view.
     UIHoverGestureRecognizer* hover =
@@ -132,14 +252,18 @@ UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame
     return view;
 }
 
-UIViewController* mwinIOSCreateController(UIView* view)
+UIViewController* mwinIOSCreateController(mwinIOSPlatform* platform, uint32_t slot, UIView* view)
 {
     MwinIOSController* controller = [[MwinIOSController alloc] init];
+    controller->platform = platform;
+    controller->slot = slot;
     controller.view = view;
     return controller;
 }
 
 void mwinIOSForgetView(UIView* view)
 {
+    [view resignFirstResponder];
     ((MwinIOSView*)view)->platform = nullptr;
+    ((MwinIOSController*)view.nextResponder)->platform = nullptr;
 }

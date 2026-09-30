@@ -18,6 +18,9 @@ format.
   test runs.
 - iOS touches, the Pencil as a pen, and an iPad's mouse or trackpad as
   the cursor, its buttons, hover and scrolling (mwin-0025).
+- iOS keys from a hardware keyboard, typed text, and the on-screen
+  keyboard with its purpose and the part of the window it covers
+  (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

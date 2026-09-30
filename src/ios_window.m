@@ -167,6 +167,8 @@ static void Show(mwinIOSPlatform* platform, uint32_t slot, bool visible)
     if (visible)
     {
         [window makeKeyAndVisible];
+        // Text and a hardware keyboard's presses come to the view.
+        [platform->windows[slot].view becomeFirstResponder];
     }
     else
     {
@@ -198,7 +200,7 @@ void mwinIOSCreateWindow(mwinContext* context, uint32_t slot)
         window->window = made;
         window->view = view;
         window->layer = (CAMetalLayer*)view.layer;
-        window->controller = mwinIOSCreateController(view);
+        window->controller = mwinIOSCreateController(platform, slot, view);
         made.rootViewController = window->controller;
         scene.title = StringOf(core->title, core->titleLength);
         view.contentScaleFactor = scene.screen.scale;
@@ -255,7 +257,15 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
         return mwin_outcomeDone;
     case mwin_requestFocus:
         [window->window makeKeyWindow];
+        [window->view becomeFirstResponder];
         return mwin_outcomeDone;
+    case mwin_requestTextInput:
+        return mwinIOSSetTextInput(platform, slot, request->value.textInput.enabled,
+                                   request->value.textInput.caret);
+    case mwin_requestVirtualKeyboard:
+        // The purpose in the low bits, the high bit set to show.
+        return mwinIOSSetVirtualKeyboard(platform, slot, (request->value.code & 0x80u) != 0,
+                                         (mwinInputPurpose)(request->value.code & 0x7Fu));
     default:
         return mwin_outcomeUnsupported;
     }

@@ -19,6 +19,10 @@
 
 typedef struct mwinIOSPlatform mwinIOSPlatform;
 
+// The key codes a UIKey gives that the backend keeps a state of: the
+// HID usages of the keyboard page up to the right Meta key.
+#define MWIN_IOS_KEY_CODES 256
+
 // A window: nil objects in a free slot. Its size in pixels, its scale,
 // its place in logical units on its screen, its safe area, its monitor
 // slot (-1 before the first) and its mode, as last posted.
@@ -38,6 +42,14 @@ typedef struct mwinIOSWindow
     mwinWindowMode mode;
     // The pointer's buttons held over the view (bit b - 1 for button b).
     uint8_t buttons;
+    // Whether the window accepts text and where its caret is; whether
+    // the program asked for the on-screen keyboard, for what; the part of
+    // the window the keyboard covers, as last posted.
+    bool textInput;
+    mwinRect caret;
+    bool keyboard;
+    mwinInputPurpose purpose;
+    mwinRect covered;
 } mwinIOSWindow;
 
 // Where a touch is in its life, as UIKit's touch methods tell.
@@ -66,6 +78,12 @@ struct mwinIOSPlatform
     id stepper;
     // Whether the program was told the application stopped running.
     bool suspended;
+    // What each printing key typed when last pressed under the current
+    // layout (0 before), the keys held, and what tells of the on-screen
+    // keyboard's frame and of the input mode's changes.
+    mwinKey meanings[MWIN_IOS_KEY_CODES];
+    uint8_t held[MWIN_IOS_KEY_CODES / 8];
+    id keyboardObservers[2];
 };
 
 // The platform of a context whose backend is iOS.
@@ -87,7 +105,7 @@ int32_t mwinIOSMonitorOf(const mwinIOSPlatform* platform, UIScreen* screen);
 // A window's view, made retained, whose layer is a CAMetalLayer, and the
 // controller that shows it (ios_view.m).
 UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame);
-UIViewController* mwinIOSCreateController(UIView* view);
+UIViewController* mwinIOSCreateController(mwinIOSPlatform* platform, uint32_t slot, UIView* view);
 
 // Unties a destroyed window's view, which UIKit may still lay out.
 void mwinIOSForgetView(UIView* view);
@@ -101,6 +119,24 @@ void mwinIOSTouches(mwinIOSPlatform* platform, uint32_t slot, NSSet<UITouch*>* t
                     UIEvent* event, mwinIOSTouchPhase phase);
 void mwinIOSHover(mwinIOSPlatform* platform, uint32_t slot, UIHoverGestureRecognizer* hover);
 void mwinIOSScroll(mwinIOSPlatform* platform, uint32_t slot, UIPanGestureRecognizer* pan);
+
+// Keys, text and the on-screen keyboard (ios_keys.m): a hardware
+// keyboard's presses; text typed into the view and a deletion; what a
+// key means, the input mode's language, and what tells of changes;
+// text input and the on-screen keyboard's requests.
+void mwinIOSPresses(mwinIOSPlatform* platform, uint32_t slot, NSSet<UIPress*>* presses, bool down);
+void mwinIOSInsertText(mwinIOSPlatform* platform, uint32_t slot, NSString* text);
+void mwinIOSDeleteBackward(mwinIOSPlatform* platform, uint32_t slot);
+mwinKey mwinIOSMapKeyCode(const mwinIOSPlatform* platform, mwinKeyCode code);
+mwinResult mwinIOSKeyboardLayout(const mwinIOSPlatform* platform, char* buffer, size_t capacity,
+                                 size_t* lengthOut);
+void mwinIOSWatchKeyboard(mwinIOSPlatform* platform);
+void mwinIOSUnwatchKeyboard(mwinIOSPlatform* platform);
+UIKeyboardType mwinIOSKeyboardTypeOf(mwinInputPurpose purpose);
+mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool enabled,
+                                mwinRect caret);
+mwinOutcome mwinIOSSetVirtualKeyboard(mwinIOSPlatform* platform, uint32_t slot, bool visible,
+                                      mwinInputPurpose purpose);
 
 // Posts what changed of a window's scale, size, mode, place, safe area
 // and monitor, after UIKit laid it out (ios_window.m).

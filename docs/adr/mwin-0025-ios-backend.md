@@ -82,6 +82,30 @@ mwin-0022).
     through a hover recognizer taking the pointer only, entering and
     leaving; its scrolling through a pan recognizer taking scroll events
     only, ten points to a detent, with macOS's signs.
+- **Keys, text and the on-screen keyboard:**
+  - A hardware keyboard's presses reach the view controller (iOS 13.4),
+    which passes them on to UIKit after posting them. A UIKey's code is
+    the USB HID usage, the contract's key code; its meaning the
+    character it types without modifiers, lower-cased, or
+    `MWIN_KEY_NAMED` with the code. UIKit repeats no press. iOS cannot
+    be asked what a layout's key types, so a printing key's meaning is
+    known once pressed under the current layout (0 before), and the
+    input mode's change forgets them and posts the layout's change.
+    The layout's name is the input mode's primary language.
+  - The view is a `UIKeyInput` client and the first responder while its
+    window shows, so text is typed into it whether or not the window
+    accepts text, as on the other platforms. A newline, a tab and a
+    deletion that come without a press (the on-screen keyboard's) are
+    the Enter, Tab and Backspace keys' press and release; one after a
+    hardware key's press is not posted twice.
+  - The on-screen keyboard shows while the program asks for it: the
+    view's input view is otherwise an empty view, which keeps it away.
+    The purpose sets its type (a decimal pad for numbers, the e-mail and
+    URL keyboards) and secure entry for passwords; nothing is
+    corrected, capitalized or completed, and a hardware keyboard shows
+    no shortcuts bar. The part of each window it covers is posted when
+    its frame changes.
+  - Input methods' compositions (`UITextInput`) come in a later slice.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -101,7 +125,8 @@ mwin-0022).
   first, a new device's first launch taking minutes.
 - **Slices:** the first the loop, scenes, windows, screens, the life
   cycle and native handles; the second touch, the Pencil, hardware
-  keys, text and the on-screen keyboard, the pointer; the third
+  keys, text and the on-screen keyboard, the pointer, then input
+  methods; the third
   gamepads; the fourth the clipboard, drops, the document picker,
   alerts, addresses and keeping the display awake; the fifth system
   facts, locales and accessibility.
@@ -130,5 +155,12 @@ one window.
   toward x, the pointer's double click with Shift and a second button;
   its own recognizers for the pointer's hover and scrolling, through the
   actions the view gives them.
+- `ios_keys` hands the controller a hardware keyboard's presses, Shift
+  and A, the left arrow, Return with the newline UIKit then types; types
+  into the view as the on-screen keyboard would, text with a tab, and a
+  deletion; asks for the keyboard for a number and tells the view of its
+  frame, then hides it. The press path from a real keyboard through
+  UIKit's text system, and the keyboard itself, are not seen: the
+  simulator on CI has neither.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

@@ -26,8 +26,9 @@ generated from the headers.
 
 ## Status
 
-0.1.0 is the current release. It has the whole contract on four
-backends, Win32, Wayland, X11 and the web, and a headless test backend:
+0.2.0 is the current release. It has the whole contract on four
+backends, Win32, Wayland, X11 and the web (with Emscripten or as plain
+wasm32-wasi), and a headless test backend:
 
 1. Windows, their modes and styles, monitors and per-monitor scale, and
    the platform's loop, owned by the program or by the platform.
@@ -42,6 +43,8 @@ backends, Win32, Wayland, X11 and the web, and a headless test backend:
    accessibility adapters.
 6. System facts (theme, accent, motion, text scale, power) and the
    preferred locales.
+7. A misuse count per context, and every size taken from a count
+   checked before it is allocated.
 
 Android, macOS and iOS backends come later; the contract already
 builds and passes its tests on macOS.

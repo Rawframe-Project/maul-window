@@ -8,6 +8,12 @@ format.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-30
+
+The web backend without Emscripten, Xbox gamepads through
+Windows.Gaming.Input, a misuse count per context, and checked sizes
+throughout.
+
 ### Added
 
 - The web backend without Emscripten: a wasm32-wasi build imports the

@@ -87,6 +87,9 @@ whose object is gone, `mwin_errorCapacity`, `mwin_errorUnsupported`,
 `mwin_errorPlatform`). `mwinResultName` names each. Windows, monitors,
 gamepads and requests are ids with a generation: an id outlives its
 object harmlessly, and using it afterwards answers `mwin_errorStale`.
+Each `mwin_errorInvalid` a live context returns also counts one
+misuse, which `mwinGetContextMisuse` reads: a release build can watch
+it to catch a program's bugs, while stale ids count nothing.
 
 Defs (`mwinWindowDef`, `mwinFileDialogDef`, `mwinMessageBoxDef`) carry a
 cookie. Build them with their `mwinDefault...` function and change

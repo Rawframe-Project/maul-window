@@ -5,8 +5,7 @@ Status: Accepted
 ## Context
 
 A Linux binary must run on a system with only X11 or only Wayland, so
-the backends open their system libraries at run time (W7 in the design
-notes). The protocol headers that `wayland-scanner` writes call
+the backends open their system libraries at run time. The protocol headers that `wayland-scanner` writes call
 `libwayland-client` by name from inline functions, and the usual way
 around that (GLFW, SDL) redirects those names to a process-wide table
 of function pointers. The family allows no global mutable state
@@ -90,7 +89,7 @@ twice.
   its own in the protocol: `mwinRequestVirtualKeyboard` is answered
   unsupported, and a compositor shows its keyboard when text input is
   enabled.
-- **Frame (W4):** a decorated window gets a frame of the backend's own
+- **Frame:** a decorated window gets a frame of the backend's own
   where the compositor has no xdg-decoration or chooses client-side
   decorations. Five subsurfaces, committing on their own so the frame
   shows without the renderer: a 28-unit caption above the content,

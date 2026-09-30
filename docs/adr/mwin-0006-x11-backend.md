@@ -6,7 +6,7 @@ Status: Accepted
 
 X11 remains the window system of many Linux desktops and of every
 remote and virtual display (Xvfb, VNC, SSH forwarding), and the same
-binary must run there as on Wayland (W7 in the design notes).
+binary must run there as on Wayland.
 
 ## Decision
 

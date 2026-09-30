@@ -20,7 +20,7 @@ in their own changes.
   code; the header, the record types and the core's storage are always
   there, so a build without it fails to link a call, as muni-0013 has
   it.
-- **Ids** are generation-checked, as windows' and monitors' (F17): one
+- **Ids** are generation-checked, as windows' and monitors' (family 0016): one
   per connection, stale once the gamepad is disconnected, its slot
   free for another only after mwin_eventGamepadRemoved is drained. The
   `gamepads` limit (8 by default, 0 for none) bounds them.
@@ -47,14 +47,14 @@ in their own changes.
   reported them, which may be ahead of the records not yet drained; it
   is what a program reads after a reset, and what a program that polls
   reads each frame.
-- **Rumble** is a plain call, not a request (F19 is for answers that
+- **Rumble** is a plain call, not a request (family 0018 is for answers that
   come later): the backend runs the motors at once and returns, the
   latest call wins, a duration of 0 stops them. A gamepad says it has
   motors in its capabilities; one without answers
   `mwin_errorUnsupported`.
 
 - **The mapping data:** SDL_GameControllerDB is kept as published in
-  `tools/gamepaddb/` (F15), and `tools/gen_gamepad_db.py` compiles one
+  `tools/gamepaddb/`, and `tools/gen_gamepad_db.py` compiles one
   platform's entries into `src/generated/`: each device by bus, vendor,
   product and version, and the distinct mappings they share, where each
   of the 21 controls comes from among the device's numbered buttons,

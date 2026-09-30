@@ -8,8 +8,7 @@ The Wayland backend answered focus requests with unsupported. Core
 Wayland lets no client move focus, which prevents focus stealing. The
 xdg-activation protocol lets a client pass the compositor proof of the
 user's action: a token made from an input event's serial. A launcher
-hands its token on through `XDG_ACTIVATION_TOKEN`. Window decision W10
-and its research note record the protocol.
+hands its token on through `XDG_ACTIVATION_TOKEN`.
 
 ## Decision
 

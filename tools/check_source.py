@@ -5,7 +5,8 @@
 # The source rules of docs/conventions.md that neither the compiler nor
 # clang-format checks:
 #
-# - every C file starts with its SPDX line; comments are // or ///;
+# - every C file, Objective-C (.m) included, starts with its SPDX line;
+#   comments are // or ///;
 # - comments carry no development history and no TODO or FIXME;
 # - no file in the repository contains an em dash;
 # - src/ calls no function the family bans (memory goes through the
@@ -28,16 +29,20 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 C_DIRS = ["include", "src", "test", "bench", "samples", "testbed", "tools"]
 SKIP_DIRS = {".git", "build", "_site", "out"}
-TEXT_SUFFIXES = (".c", ".h", ".md", ".txt", ".py", ".cmake", ".in", ".yml", ".yaml", ".json")
+TEXT_SUFFIXES = (".c", ".h", ".m", ".md", ".txt", ".py", ".cmake", ".in", ".yml", ".yaml", ".json")
 
 MARKERS = re.compile(
     r"(?<![\w.#/~])\d+[a-df-z]?-\d+[a-z]?(?![\w.-])"  # slice codes like 2b-9 or 6-3
     r"|\bR\d+-\d+\b|\bS-\d+[a-z]?\b|\btopic-\d+|\bslice \d+|\brev \d+|\btask \d+"
     r"|\bADR-\d+|\bRT\d-[A-Z]+|\bF-T\d+|\bV-[A-Z]{3,}\b|\bD\d\b|\bv\d{2}\b|\bpre-\d+\b"
     r"|(?<![\w{])#\d{3}\b(?!\d)|(?<![\w/.'])[ABDMS]\d{1,2}(?![\w.'])"
-    r"|\([FU]\d{1,2}\)|\b(?:decision|record|item) [FU]\d{1,2}\b"
+    r"|\([FRUW]\d{1,2}\b|\b[FRUW]\d{1,2}'s\b|\b(?:decisions?|records?|items?) [FRUW]\d{1,2}\b"
     r"|\bregistry [A-Z]\d|\b[Pp]hase \d\b|\b[Rr]ound \d+\b"
     r"|\bintegration audit|\baudit [A-Z]\d|\bred[- ]team|\blesson\b|\bledger\b"
+)
+# The private decision ids, which public Markdown must not cite either.
+PRIVATE_IDS = re.compile(
+    r"\([FRUW]\d{1,2}\b|\b[FRUW]\d{1,2}'s\b|\b(?:decisions?|records?|items?) [FRUW]\d{1,2}\b"
 )
 TODO = re.compile(r"\b(TODO|FIXME|XXX)\b")
 EM_DASH = "\u2014"
@@ -81,7 +86,7 @@ THREAD_LOCAL = re.compile(r"\b(_Thread_local|thread_local|__thread)\b|__declspec
 FILE_SCOPE_STATE = re.compile(r"^static\s+(?!const\b)(?!inline\b)(?![^(=;]*\()[^=;]*[=;]")
 ASSIGN_IN_CONDITION = re.compile(
     r"\b(?:if|while)\s*\((?:[^()]|\([^()]*\))*?[^=!<>+\-*/%&|^]=(?!=)")
-SNAKE_CASE = re.compile(r"^[a-z0-9_]+\.[ch]$")
+SNAKE_CASE = re.compile(r"^[a-z0-9_]+\.[chm]$")
 
 
 def code_text(line):
@@ -180,7 +185,7 @@ def main():
     bans = dict(FAMILY_BANS)
     bans.update(library_bans())
     for top in C_DIRS:
-        for path in walk(top, (".c", ".h")):
+        for path in walk(top, (".c", ".h", ".m")):
             rel = os.path.relpath(path, ROOT)
             check_c_file(path, rel, rel.startswith("src" + os.sep), bans, findings)
     for path in walk(".", TEXT_SUFFIXES):
@@ -188,6 +193,8 @@ def main():
         for number, line in enumerate(open(path, encoding="utf-8", errors="replace"), 1):
             if EM_DASH in line:
                 findings.append(f"{rel}:{number}: em dash")
+            if path.endswith(".md") and PRIVATE_IDS.search(line):
+                findings.append(f"{rel}:{number}: private decision id: {line.strip()}")
     for finding in findings:
         print(finding)
     if findings:

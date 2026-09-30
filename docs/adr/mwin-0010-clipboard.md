@@ -17,7 +17,7 @@ named limit (section 11).
 ## Decision
 
 - **Requests:** `mwinRequestClipboardWrite` and
-  `mwinRequestClipboardRead` are requests of a window (F19), answered
+  `mwinRequestClipboardRead` are requests of a window (family 0018), answered
   by one completion each, superseded by a later request of their kind
   on the same window and cancelled with it, as every request is. The
   window is the one whose focus the platform checks.

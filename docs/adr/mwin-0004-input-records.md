@@ -16,7 +16,7 @@ the physical key and the character it types as separate facts.
   on every layout. The key is what the current layout makes of it: the
   code point it types unmodified, or `MWIN_KEY_NAMED` with the code for
   a key that types nothing. `mwinMapKeyCode` and `mwinGetKeyboardLayout`
-  answer from the platform; no layout data ships (W5).
+  answer from the platform; no layout data ships (mwin-0009).
 - **Classes.** Each window stores input in four rings with the limit
   `inputPerWindow` each: discrete (keys, text, buttons, touches and pen
   contacts beginning or ending), motion (cursor, touch and pen), raw

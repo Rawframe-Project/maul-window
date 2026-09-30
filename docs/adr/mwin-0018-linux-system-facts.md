@@ -7,8 +7,7 @@ Status: Accepted
 The X11 and Wayland backends reported no system facts and no preferred
 locales. Linux has no one system call for either. Programs take their
 languages from the environment, and desktops serve their look and
-motion through the Settings portal. Window decision W9 and its
-research note record the sources.
+motion through the Settings portal.
 
 ## Decision
 

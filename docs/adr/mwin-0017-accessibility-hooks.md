@@ -12,9 +12,6 @@ through typed hooks that know nothing of the tree:
 - exposing the view's accessibility children on macOS;
 - hosting a DOM subtree next to the canvas on the web.
 
-Window decision W8 and its research note record what each platform
-asks of a window.
-
 ## Decision
 
 - **The root:**

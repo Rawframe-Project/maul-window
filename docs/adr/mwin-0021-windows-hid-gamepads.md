@@ -8,8 +8,7 @@ The Win32 backend read gamepads through XInput alone (mwin-0009), so
 DirectInput and generic HID pads were not seen at all. That covers
 PlayStation and Switch pads over USB, arcade sticks and most third-party
 pads. SDL_GameControllerDB has hundreds of Windows entries for them,
-numbered as SDL numbers DirectInput's controls. Window decision W12 and
-its research note record how they are read.
+numbered as SDL numbers DirectInput's controls.
 
 ## Decision
 

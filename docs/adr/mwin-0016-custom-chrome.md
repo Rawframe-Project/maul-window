@@ -7,7 +7,7 @@ Status: Accepted
 The requirements (section 4) ask for undecorated windows whose chrome
 the program draws. The program declares typed hit regions (caption,
 each edge and corner, client), which the platform uses for dragging and
-resizing. The regions are data and never a synchronous callback (F19).
+resizing. The regions are data and never a synchronous callback (family 0018).
 Windows 11 snap layouts over a custom maximize button are a named
 optional capability.
 

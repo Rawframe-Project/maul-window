@@ -56,7 +56,7 @@ mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window, const mwin
     }
     if (!valid)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinIconCopy* icon = Copy(context, images, count);
     if (icon == nullptr)

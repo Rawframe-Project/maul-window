@@ -431,7 +431,7 @@ mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOut
     if (context == nullptr || kind >= MWIN_TEST_KINDS || outcome == mwin_outcomeSuperseded ||
         cancelled || outcome > mwin_outcomeFailed)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
@@ -446,7 +446,7 @@ mwinResult mwinTestHold(mwinContext* context, bool hold)
 {
     if (context == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
@@ -528,7 +528,7 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 {
     if (context == nullptr || event == nullptr || !IsReportable(event->type) || !IsTextValid(event))
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
@@ -549,7 +549,7 @@ mwinResult mwinTestSetTime(mwinContext* context, uint64_t timeNs)
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (context == nullptr || (platform != nullptr && timeNs < platform->timeNs))
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (platform == nullptr)
     {
@@ -563,7 +563,7 @@ mwinResult mwinTestSetScale(mwinContext* context, float scale)
 {
     if (context == nullptr || !isfinite(scale) || scale <= 0.0f)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)
@@ -579,7 +579,7 @@ mwinResult mwinTestGetTitle(const mwinContext* context, mwinWindowId window, cha
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -604,7 +604,7 @@ mwinResult mwinTestAddMonitor(mwinContext* context, const mwinMonitorInfo* info,
 {
     if (context == nullptr || info == nullptr || monitorOut == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -624,7 +624,7 @@ mwinResult mwinTestChangeMonitor(mwinContext* context, mwinMonitorId monitor,
 {
     if (context == nullptr || info == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -643,7 +643,7 @@ mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
 {
     if (context == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -662,7 +662,7 @@ mwinResult mwinTestSetSystemFacts(mwinContext* context, const mwinSystemFacts* f
 {
     if (context == nullptr || facts == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -676,7 +676,7 @@ mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t 
 {
     if (context == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -687,7 +687,7 @@ mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t 
         return mwin_errorCapacity;
     }
     return mwinSetLocales(context, locales, length, Now(context)) ? mwin_success
-                                                                  : mwin_errorInvalid;
+                                                                  : mwinMisuse(context);
 }
 
 // The slot of a gamepad of a test context, or why there is none.
@@ -696,7 +696,7 @@ static mwinResult FindTestGamepad(const mwinContext* context, mwinGamepadId game
 {
     if (context == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -711,7 +711,7 @@ mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
 {
     if (context == nullptr || info == nullptr || gamepadOut == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
@@ -732,7 +732,7 @@ mwinResult mwinTestChangeGamepad(mwinContext* context, mwinGamepadId gamepad,
 {
     int32_t slot = -1;
     mwinResult status =
-        info != nullptr ? FindTestGamepad(context, gamepad, &slot) : mwin_errorInvalid;
+        info != nullptr ? FindTestGamepad(context, gamepad, &slot) : mwinMisuse(context);
     if (status == mwin_success)
     {
         mwinChangeGamepad(context, (uint32_t)slot, info, Now(context));
@@ -778,11 +778,12 @@ mwinResult mwinTestGamepadAxis(mwinContext* context, mwinGamepadId gamepad, uint
 mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, float* lowOut,
                              float* highOut, uint32_t* durationMsOut, uint32_t* countOut)
 {
+    if (lowOut == nullptr || highOut == nullptr || durationMsOut == nullptr || countOut == nullptr)
+    {
+        return mwinMisuse(context);
+    }
     int32_t slot = -1;
-    mwinResult status =
-        lowOut != nullptr && highOut != nullptr && durationMsOut != nullptr && countOut != nullptr
-            ? FindTestGamepad(context, gamepad, &slot)
-            : mwin_errorInvalid;
+    mwinResult status = FindTestGamepad(context, gamepad, &slot);
     if (status == mwin_success)
     {
         const mwinTestRumble* rumble = &mwinTestPlatformOf(context)->rumbles[slot];

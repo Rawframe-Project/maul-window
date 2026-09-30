@@ -210,6 +210,7 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     mwinContext* context = (mwinContext*)block;
     context->allocator = def->context.allocator;
     context->memorySize = size;
+    context->misuse = &context->misuseCount;
     context->limits = *limits;
     // A copy: without Emscripten mwinRun returns while the program runs
     // on, and the def may have been the caller's local (mwin-0022).
@@ -247,6 +248,11 @@ static void DestroyContext(mwinContext* context)
     }
     mwinAllocator allocator = context->allocator;
     mwinRelease(&allocator, context, context->memorySize, alignof(max_align_t));
+}
+
+uint64_t mwinGetContextMisuse(const mwinContext* context)
+{
+    return context != nullptr ? *context->misuse : 0;
 }
 
 mwinResult mwinRun(const mwinAppDef* def)

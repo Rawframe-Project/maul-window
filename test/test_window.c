@@ -319,6 +319,8 @@ static void TestOrderAndCoalescing(void)
 static void RefusalStep(Program* program, mwinContext* context, int step)
 {
     (void)step;
+    CHECK(mwinGetContextMisuse(context) == 0 && mwinGetContextMisuse(nullptr) == 0,
+          "no misuse yet");
     mwinWindowDef def = mwinDefaultWindowDef();
     mwinWindowId window = {0};
     def.cookie = 0;
@@ -358,8 +360,13 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     mwinEvent event = {.type = mwin_eventRequestCompleted, .window = window};
     CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "completions are the core's");
     CHECK(mwinNextEvent(nullptr, &event) == mwin_errorInvalid, "a NULL context");
+    CHECK(mwinGetWindowState(context, window, nullptr) == mwin_errorInvalid,
+          "a getter's missing output");
     mwinWindowId never = {3, 7};
     CHECK(mwinDestroyWindow(context, never) == mwin_errorStale, "an id never given");
+    // Each invalid refusal of the live context counts; the capacity
+    // refusal, the NULL context and the stale id do not.
+    CHECK(mwinGetContextMisuse(context) == 11, "every misuse counted");
     program->done = true;
 }
 

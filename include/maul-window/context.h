@@ -148,6 +148,16 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRun(const mwinAppDef* def);
 
+    /// Returns how many calls the context has refused as invalid input
+    /// (`mwin_errorInvalid`): a count release builds can watch to catch a
+    /// program's bugs. Stale ids are not misuse.
+    ///
+    /// @param context  The context.
+    /// @return The count; 0 for a NULL context.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_API uint64_t mwinGetContextMisuse(const mwinContext* context);
+
 #ifdef __cplusplus
 }
 #endif

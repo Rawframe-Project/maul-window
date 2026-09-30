@@ -64,6 +64,11 @@ MWIN_NODISCARD MWIN_API mwinResult mwinRun(const mwinAppDef* def);
 ```
 Runs a program: creates the context, calls init, then frame until a frame returns mwin_frameStop, then quit, and destroys the context. Where the platform owns the loop (the web, iOS) this function may never return, or, on the web without Emscripten, return `mwin_success` once init has succeeded while the page's frames run the program on; either way put cleanup in quit. It is never called from inside a running program's functions.  @param def  The program: a valid cookie, init and frame set. @return init's status when it failed; `mwin_success` after a stop; `mwin_errorCapacity` when the allocator cannot give the context its memory; `mwin_errorUnsupported` for a backend this build lacks; `mwin_errorPlatform` when the window system cannot be reached; `mwin_errorInvalid` for a missing function, a bad cookie or a zero limit. @par Thread safety Main thread only.
 
+```c
+uint64_t mwinGetContextMisuse(const mwinContext* context);
+```
+Returns how many calls the context has refused as invalid input (`mwin_errorInvalid`): a count release builds can watch to catch a program's bugs. Stale ids are not misuse.  @param context  The context. @return The count; 0 for a NULL context. @par Thread safety Main thread only.
+
 ## `dialog.h`
 
 File dialogs: open one file or many, save one, or choose a folder, as requests of a window answered by a completion like any other. The window stays live while the dialog shows, and frames go on. A dialog chosen from completes with mwin_outcomeDone, and its paths wait under the request's id for mwinGetDialogFiles until the next dialog completes; one the user closes completes with mwin_outcomeCancelled; a choice past the dialogFiles or dialogBytes limits with mwin_outcomeTooLarge. A page names no files, so the web has no dialogs (mwin_outcomeUnsupported).
@@ -450,4 +455,4 @@ Asks for keyboard focus. Platforms may refuse to take focus from another program
 
 ---
 
-77 functions across 15 headers.
+78 functions across 15 headers.

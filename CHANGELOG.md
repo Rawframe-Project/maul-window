@@ -22,6 +22,9 @@ format.
   system has it: any number of pads, with their names, USB ids and
   batteries, and a battery's change posted (mwin-0023). XInput reads
   them where the runtime is missing.
+- The context's misuse count (`mwinGetContextMisuse`): every call a
+  live context refuses as invalid input counts one, as the family's
+  conventions require; stale ids and a NULL context count nothing.
 
 ### Changed
 

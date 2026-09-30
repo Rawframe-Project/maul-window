@@ -126,7 +126,7 @@ mwinResult mwinRequestFileDialog(mwinContext* context, mwinWindowId window,
 {
     if (context == nullptr || def == nullptr || !IsDef(def))
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinDialogCopy* copy = Copy(context, def);
     if (copy == nullptr)
@@ -220,7 +220,7 @@ mwinResult mwinGetDialogFiles(const mwinContext* context, mwinRequestId request,
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     const mwinFileList* files = &context->dialogFiles;
     if (request.index1 == 0 || request.index1 != context->dialogRequest.index1 ||

@@ -21,7 +21,7 @@ completion; events arrive in one ordered stream that the program
 drains; no library thread runs, and no callback delivers an event.
 
 [The guide](docs/guide.md) walks through each part, and
-[the API reference](docs/api.md) lists all 77 public functions,
+[the API reference](docs/api.md) lists all 78 public functions,
 generated from the headers.
 
 ## Status

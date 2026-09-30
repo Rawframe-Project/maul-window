@@ -528,7 +528,7 @@ mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
 {
     if (context == nullptr || eventOut == nullptr)
     {
-        return mwin_errorInvalid;
+        return mwinMisuse(context);
     }
     mwinWindow* window = nullptr;
     mwinRing* oldest = FindOldest(context, &window);

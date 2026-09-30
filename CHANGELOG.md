@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-30
+
+The macOS backend, the whole contract on AppKit, and the tracking of
+runtime-listed gamepads shared between Windows and macOS.
+
 ### Added
 
 - The macOS backend's first slice: AppKit windows whose views hold a
@@ -46,10 +51,17 @@ format.
   window view's child, and the first client's question posted
   (mwin-0024).
 
+### Changed
+
+- The pads Windows.Gaming.Input lists are tracked by a tracker shared
+  with macOS's GameController pads (mwin-0023).
+- A build of the library alone on macOS targets macOS 11 unless told
+  otherwise (mwin-0024).
+
 ### Fixed
 
-- macOS: a window the user zooms from its button or title bar posts
-  its mode. Its tracking is Windows.Gaming.Input's, now
+- A step of the program taken while its own code runs (a modal panel
+  spinning the platform's loop) no longer runs a frame inside a frame. Its tracking is Windows.Gaming.Input's, now
   shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30

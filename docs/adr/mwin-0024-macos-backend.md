@@ -14,6 +14,11 @@ the loop for platforms that own it (the web's, mwin-0022), through
 
 ## Decision
 
+- **Oldest macOS:** 11.0, the deployment target a build of the library
+  alone defaults to, so the compiler refuses a later API used without
+  an availability check. Later features (the screen's display link,
+  macOS 14; Low Power Mode, 12; the frame resize cursors, 15) are used
+  where the system has them.
 - **Language:** the backend is Objective-C, compiled with manual
   retain and release (`-fno-objc-arc`) at the C23 level the rest of the
   library uses, as Maul RHI's Metal driver is. Only the backend's files

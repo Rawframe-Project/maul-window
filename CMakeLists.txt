@@ -7,6 +7,13 @@ set(MAUL_MACRO_PREFIX MWIN)
 set(MAUL_TITLE "Maul Window")
 set(MAUL_PREFIX MAUL_WINDOW)
 
+# The oldest macOS the backend runs on (mwin-0024), unless the build or
+# the project including the library asks for another; the compiler then
+# refuses a later API used without a check.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "The oldest macOS to run on")
+endif()
+
 include(cmake/ReadVersion.cmake)
 maul_read_version(${CMAKE_CURRENT_SOURCE_DIR}/include/maul-window/base.h MWIN MAUL_VERSION)
 project(maul-window

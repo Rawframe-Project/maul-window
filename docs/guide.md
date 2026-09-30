@@ -54,9 +54,10 @@ int main(void)
 `mwinRun` creates the context, calls `init` once, calls `frame` once per
 frame until it returns `mwin_frameStop`, calls `quit` (optional), and
 destroys the context. On Win32, Wayland and X11 it pumps the platform
-itself; on the web the browser's loop drives it and `mwinRun` may never
-return, so cleanup belongs in `quit`. The program cannot tell the two
-apart.
+itself. On macOS it runs AppKit's loop, which calls the frames from the
+screen's display link, and returns once a frame stops. On the web the
+browser's loop drives it and `mwinRun` may never return, so cleanup
+belongs in `quit`. The program cannot tell these apart.
 
 Three rules hold everywhere:
 
@@ -112,7 +113,8 @@ them (`mwin_eventScaleChanged`, with the size the platform suggests).
 The requests are `mwinRequestTitle`, `Size`, `Position`, `Mode`,
 `Visible`, `Focus`, `SizeLimits`, `AspectRatio`, `Style`, `Opacity`
 and `Icon`. What a platform cannot do it answers unsupported: Wayland
-places no toplevel, and the web has no title bar. Nothing closes a
+places no toplevel, and the web has no title bar. A macOS window has no
+icon of its own, so its icon request sets the application's. Nothing closes a
 window by itself. The close button sends `mwin_eventCloseRequested`, and
 the program calls `mwinDestroyWindow`, or does not.
 
@@ -209,8 +211,10 @@ On Linux gamepads are evdev devices. On Windows, Xbox pads come through
 Windows.Gaming.Input, any number of them with their names and
 batteries, or through XInput's four players where the runtime is
 missing; the runtime may give a program in the background no input.
-Other pads come through Raw Input and the HID parser. On
-the web they come through the Gamepad API.
+Other pads come through Raw Input and the HID parser. On macOS they
+come through GameController, which maps every pad it knows (from macOS
+11.3), with the motors through CoreHaptics. On the web they come
+through the Gamepad API.
 
 ## 7. Clipboard, drag and drop
 
@@ -234,8 +238,9 @@ These are requests of a window, answered like any other:
 - `mwinRequestFileDialog` opens the platform's file dialog: open, open
   several, save, or choose a folder, with filters by extension. After a
   done completion, `mwinGetDialogFiles` copies out the paths. It uses
-  the common item dialog on Windows, and the desktop portal (else
-  zenity) on Linux. The web has none.
+  the common item dialog on Windows, a sheet on its window on macOS
+  (which never blocks), and the desktop portal (else zenity) on Linux.
+  The web has none.
 - `mwinRequestOpenUrl` opens an http, https or mailto address in the
   user's program for it.
 - `mwinRequestRevealFile` shows a file in the file manager.
@@ -252,6 +257,8 @@ platform:
 
 - On Windows, `mwinRequestAccessibilityRoot` gives UI Automation the
   program's root provider.
+- On macOS it makes the program's NSAccessibility root the window
+  view's child.
 - On the web, each window has a host element over its canvas for the
   program's ARIA elements. Its selector is in the native handles.
 - `mwin_eventAccessibilityRequested` comes the first time a client asks
@@ -263,6 +270,7 @@ platform:
 window, as opaque pointers:
 
 - Win32: the `HWND` and `HINSTANCE`;
+- macOS: the `NSView` and its `CAMetalLayer`;
 - Wayland: the `wl_display` and `wl_surface`;
 - X11: the XCB connection and window;
 - the web: the canvas's selector.
@@ -277,6 +285,7 @@ arrives with `mwin_eventSurfaceRestored`.
 | Backend | Platform API | Built when |
 | --- | --- | --- |
 | Win32 | user32, Raw Input, IMM32, OLE drag and drop, Windows.Gaming.Input, XInput | Windows |
+| macOS | AppKit, Text Input Sources, GameController, CoreHaptics, IOKit | macOS (`MAUL_WINDOW_MACOS`) |
 | Wayland | xdg-shell and its extensions, the desktop portal, evdev | Linux (`MAUL_WINDOW_WAYLAND`) |
 | X11 | XCB, XInput 2.1, XKB, XDND, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
 | Web | an HTML canvas and the browser's APIs | Emscripten, or wasm32-wasi |

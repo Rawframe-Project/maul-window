@@ -35,6 +35,22 @@ static mwinPixelRect PixelsOf(NSRect rect, CGFloat scale, CGFloat primaryHeight)
     };
 }
 
+// The screen's top refresh rate, and whether it varies (ProMotion); before
+// macOS 12, the display mode's rate, which says nothing of variation.
+static void RefreshOf(NSScreen* screen, mwinMonitorInfo* info)
+{
+    if (@available(macOS 12.0, *))
+    {
+        info->refreshMilliHz = (uint32_t)lround(screen.maximumFramesPerSecond * 1000.0);
+        info->variableRefresh = screen.minimumRefreshInterval != screen.maximumRefreshInterval;
+        return;
+    }
+    CGDisplayModeRef mode = CGDisplayCopyDisplayMode(DisplayOf(screen));
+    double rate = mode != nullptr ? CGDisplayModeGetRefreshRate(mode) : 0.0;
+    info->refreshMilliHz = (uint32_t)lround(rate * 1000.0);
+    CGDisplayModeRelease(mode);
+}
+
 static mwinMonitorInfo InfoOf(NSScreen* screen, bool primary, CGFloat primaryHeight)
 {
     mwinMonitorInfo info = {0};
@@ -61,8 +77,7 @@ static mwinMonitorInfo InfoOf(NSScreen* screen, bool primary, CGFloat primaryHei
     info.widthMm = (uint32_t)lround(millimeters.width);
     info.heightMm = (uint32_t)lround(millimeters.height);
     info.scale = (float)scale;
-    info.refreshMilliHz = (uint32_t)lround(screen.maximumFramesPerSecond * 1000.0);
-    info.variableRefresh = screen.minimumRefreshInterval != screen.maximumRefreshInterval;
+    RefreshOf(screen, &info);
     info.primary = primary;
     return info;
 }

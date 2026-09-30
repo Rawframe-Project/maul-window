@@ -42,8 +42,12 @@ static void CheckFacts(mwinContext* context)
           "reduced motion");
     CHECK(facts.textScale == 1.0f && !facts.snapLayouts, "no text scale, no snap layouts");
     CHECK(facts.onBattery != mwin_yes, "not on battery, a runner being plugged in or without one");
-    CHECK(facts.lowPower == (NSProcessInfo.processInfo.lowPowerModeEnabled ? mwin_yes : mwin_no),
-          "Low Power Mode");
+    mwinTristate lowPower = mwin_unknown;
+    if (@available(macOS 12.0, *))
+    {
+        lowPower = NSProcessInfo.processInfo.lowPowerModeEnabled ? mwin_yes : mwin_no;
+    }
+    CHECK(facts.lowPower == lowPower, "Low Power Mode, unknown before macOS 12");
     printf("theme %d accent %08x on battery %d\n", facts.theme, facts.accent, facts.onBattery);
 }
 

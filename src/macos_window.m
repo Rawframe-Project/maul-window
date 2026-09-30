@@ -168,6 +168,12 @@ static bool IsFullscreen(const mwinMacWindow* window)
     (void)notification;
     PostSize(platform, slot);
     PostMove(platform, slot);
+    // The user zooms a window from its button or its title bar too.
+    mwinMacWindow* window = &platform->windows[slot];
+    if (!IsFullscreen(window) && !window->window.miniaturized)
+    {
+        PostMode(platform, slot, window->window.zoomed ? mwin_modeMaximized : mwin_modeWindowed);
+    }
 }
 
 - (void)windowDidMove:(NSNotification*)notification
@@ -258,21 +264,6 @@ static bool IsFullscreen(const mwinMacWindow* window)
 }
 @end
 
-static NSWindowStyleMask StyleMaskOf(mwinWindowStyle style)
-{
-    NSWindowStyleMask mask = NSWindowStyleMaskBorderless;
-    if ((style & mwin_styleDecorated) != 0)
-    {
-        mask |=
-            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
-    }
-    if ((style & mwin_styleResizable) != 0)
-    {
-        mask |= NSWindowStyleMaskResizable;
-    }
-    return mask;
-}
-
 static NSString* StringOf(const char* bytes, size_t length)
 {
     return [[[NSString alloc] initWithBytes:bytes length:length
@@ -303,7 +294,8 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
     {
         NSRect content =
             NSMakeRect(0.0, 0.0, (CGFloat)core->def.size.width, (CGFloat)core->def.size.height);
-        NSWindow* made = mwinMacMakeWindow(platform, slot, content, StyleMaskOf(core->def.style));
+        NSWindow* made =
+            mwinMacMakeWindow(platform, slot, content, mwinMacStyleMaskOf(core->def.style));
         if (made == nil)
         {
             mwinComplete(context, slot, (uint32_t)request, mwin_outcomeFailed);
@@ -311,9 +303,9 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
         }
         made.releasedWhenClosed = NO;
         made.collectionBehavior |= NSWindowCollectionBehaviorFullScreenPrimary;
-        if ((core->def.style & mwin_styleAlwaysOnTop) != 0)
+        if (core->def.kind == mwin_windowNormal)
         {
-            made.level = NSFloatingWindowLevel;
+            mwinMacApplyStyle(made, core->def.style);
         }
         NSView* view = mwinMacCreateView(platform, slot, content);
         made.contentView = view;
@@ -467,6 +459,22 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwin_outcomeDone;
     case mwin_requestFocus:
         [window->window makeKeyAndOrderFront:nil];
+        return mwin_outcomeDone;
+    case mwin_requestStyle:
+        mwinMacApplyStyle(window->window, request->value.code);
+        // The content grows or shrinks as the title bar comes or goes.
+        PostSize(platform, slot);
+        return mwin_outcomeDone;
+    case mwin_requestSizeLimits:
+        return mwinMacSetLimits(platform, slot, request->value.limits.minimum,
+                                request->value.limits.maximum);
+    case mwin_requestAspectRatio:
+        return mwinMacSetAspect(platform, slot, request->value.aspect.width,
+                                request->value.aspect.height);
+    case mwin_requestOpacity:
+        return mwinMacSetOpacity(platform, slot, request->value.opacity);
+    case mwin_requestHitRegions:
+        // A press reads them (macos_chrome.m).
         return mwin_outcomeDone;
     case mwin_requestCursorMode:
         return mwinMacSetCursorMode(platform, slot, request->value.code);

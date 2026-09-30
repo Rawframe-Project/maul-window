@@ -56,6 +56,11 @@ typedef struct mwinMacWindow
     // was last posted.
     mwinDragContents dragContents;
     mwinPosition dragPosition;
+    // The edge a press on an edge region resizes from (mwin_hitClient
+    // when none), with the frame and the pointer's place at the press.
+    mwinHitKind resizing;
+    NSRect resizeFrame;
+    NSPoint resizeStart;
 } mwinMacWindow;
 
 struct mwinMacPlatform
@@ -241,6 +246,21 @@ void mwinMacPlace(mwinMacPlatform* platform, uint32_t slot, mwinPosition positio
 
 // An icon request's outcome: the application's icon (macos_icon.m).
 mwinOutcome mwinMacSetIcon(const mwinRequest* request);
+
+// Window chrome (macos_chrome.m): the style mask of a style, and a
+// window given a style; a press, a drag and a release that the hit
+// regions take (true when taken: not the program's); a size limit, an
+// aspect ratio or an opacity request's outcome.
+NSWindowStyleMask mwinMacStyleMaskOf(mwinWindowStyle style);
+void mwinMacApplyStyle(NSWindow* window, mwinWindowStyle style);
+bool mwinMacPressChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+bool mwinMacDragChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+bool mwinMacReleaseChrome(mwinMacPlatform* platform, uint32_t slot);
+mwinOutcome mwinMacSetLimits(mwinMacPlatform* platform, uint32_t slot, mwinSize minimum,
+                             mwinSize maximum);
+mwinOutcome mwinMacSetAspect(mwinMacPlatform* platform, uint32_t slot, uint32_t width,
+                             uint32_t height);
+mwinOutcome mwinMacSetOpacity(mwinMacPlatform* platform, uint32_t slot, float opacity);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

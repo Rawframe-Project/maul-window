@@ -209,6 +209,27 @@ the loop for platforms that own it (the web's, mwin-0022), through
   and a request without images gives back the bundle's own. The images
   are representations of one image of the largest's size, so AppKit
   draws the one nearest the pixels it needs.
+- **Chrome:**
+  - Styles map to AppKit's: decorated is titled with close and minimize
+    buttons, resizable is resizable, always on top is the floating
+    level. Custom chrome is a titled window whose content fills the
+    frame, its title bar clear and its buttons hidden: the program draws
+    everything, and the window keeps its shadow, its edges and its full
+    screen.
+  - The hit regions apply over the whole client area, as on Win32. A
+    press on a caption moves the window through AppKit, and a double
+    click on one does what the user set for title bars (zoom, minimize
+    or nothing). A press on an edge resizes the window, tracked here
+    from the events' places, since AppKit has no way to start a resize
+    from inside the content, within the window's limits and ratio; an
+    edge of a window that cannot be resized is swallowed, as a border.
+    Neither is reported. The button regions are the program's.
+  - Size limits are the content's minimum and maximum, a zero side
+    free, and a window outside new limits is brought into them. The
+    aspect ratio is the content's; lifting it sets resize steps of one,
+    which AppKit takes instead of a ratio. Opacity is the window's alpha.
+  - A zoom the user makes, from the button or the title bar, is posted
+    as the mode it gives.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
@@ -216,8 +237,8 @@ the loop for platforms that own it (the web's, mwin-0022), through
   cursors and capture; the fourth the pen; the fifth gamepads and their
   motors; the sixth the clipboard, the services, drag and drop, file
   dialogs and the message box; the seventh system facts and locales;
-  the eighth owned windows, popups and the icon. Chrome and
-  accessibility follow, and are unsupported until then.
+  the eighth owned windows, popups and the icon; the ninth chrome.
+  Accessibility follows, and is unsupported until then.
 
 ## Consequences
 
@@ -275,6 +296,14 @@ AppKit's events as well, since both run on the main thread.
   icon made of both images and given back; all gone with their owner.
   A menu losing the keyboard needs the program in front, as a runner's
   never is.
+- `macos_chrome` reads chrome back from AppKit: custom chrome's style
+  mask, clear title bar and hidden buttons, with the content reported as
+  the whole frame; half opacity; a ratio set and lifted; limits, the
+  window brought into them; a press on the client and on a close region
+  reported, a drag on a corner region resizing the window by as much
+  and not reported, a double click on a caption zooming it (maximized
+  posted); undecorated and floating. A single press on a caption moves
+  the window through the window server, which the test leaves alone.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

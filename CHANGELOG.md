@@ -38,7 +38,15 @@ format.
   reduced motion, the power source, Low Power Mode and the preferred
   languages, read again when they change (mwin-0024).
 - macOS owned windows and popups as child windows, and window icons as
-  the application's icon (mwin-0024). Its tracking is Windows.Gaming.Input's, now
+  the application's icon (mwin-0024).
+- macOS chrome: styles, custom chrome with hit regions (caption drags
+  and double clicks, edge resizes), size limits, aspect ratios and
+  opacity (mwin-0024).
+
+### Fixed
+
+- macOS: a window the user zooms from its button or title bar posts
+  its mode. Its tracking is Windows.Gaming.Input's, now
   shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30

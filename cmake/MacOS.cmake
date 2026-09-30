@@ -8,6 +8,7 @@
 enable_language(OBJC)
 set(MWIN_MACOS_SOURCES
     src/backend_macos.m
+    src/macos_chrome.m
     src/macos_cursor.m
     src/macos_dialog.m
     src/macos_drop.m

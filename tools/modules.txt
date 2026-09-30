@@ -35,6 +35,7 @@ linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 macos: core pad_tracker
+macos_chrome: chrome core macos
 macos_cursor: core macos
 macos_dialog: answer core dialog macos
 macos_drop: core macos

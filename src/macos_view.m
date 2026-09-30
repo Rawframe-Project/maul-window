@@ -206,6 +206,13 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     return YES;
 }
 
+// A press is never AppKit's to move the window: under a custom chrome's
+// clear title bar it is the program's, or a caption region's.
+- (BOOL)mouseDownCanMoveWindow
+{
+    return NO;
+}
+
 // A click that activates the window is the program's too.
 - (BOOL)acceptsFirstMouse:(NSEvent*)event
 {
@@ -240,14 +247,22 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     OnFlags(self, event);
 }
 
+// A press on a caption or an edge moves or resizes the window, and is
+// not the program's.
 - (void)mouseDown:(NSEvent*)event
 {
-    OnButton(self, event, true);
+    if (!mwinMacPressChrome(platform, slot, event))
+    {
+        OnButton(self, event, true);
+    }
 }
 
 - (void)mouseUp:(NSEvent*)event
 {
-    OnButton(self, event, false);
+    if (!mwinMacReleaseChrome(platform, slot))
+    {
+        OnButton(self, event, false);
+    }
 }
 
 - (void)rightMouseDown:(NSEvent*)event
@@ -277,7 +292,10 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
 
 - (void)mouseDragged:(NSEvent*)event
 {
-    OnMove(self, event);
+    if (!mwinMacDragChrome(platform, slot, event))
+    {
+        OnMove(self, event);
+    }
 }
 
 - (void)rightMouseDragged:(NSEvent*)event

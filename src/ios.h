@@ -36,7 +36,18 @@ typedef struct mwinIOSWindow
     mwinInsets safeArea;
     int32_t monitor;
     mwinWindowMode mode;
+    // The pointer's buttons held over the view (bit b - 1 for button b).
+    uint8_t buttons;
 } mwinIOSWindow;
+
+// Where a touch is in its life, as UIKit's touch methods tell.
+typedef enum mwinIOSTouchPhase
+{
+    mwin_iosTouchBegan,
+    mwin_iosTouchMoved,
+    mwin_iosTouchEnded,
+    mwin_iosTouchCancelled,
+} mwinIOSTouchPhase;
 
 struct mwinIOSPlatform
 {
@@ -80,6 +91,16 @@ UIViewController* mwinIOSCreateController(UIView* view);
 
 // Unties a destroyed window's view, which UIKit may still lay out.
 void mwinIOSForgetView(UIView* view);
+
+// The contract's modifiers of UIKit's flags (ios_pointer.m).
+mwinModifiers mwinIOSModifiersOf(UIKeyModifierFlags flags);
+
+// Touches in a phase: fingers, the Pencil and the pointer's clicks; the
+// pointer hovering; the pointer's scrolling (ios_pointer.m).
+void mwinIOSTouches(mwinIOSPlatform* platform, uint32_t slot, NSSet<UITouch*>* touches,
+                    UIEvent* event, mwinIOSTouchPhase phase);
+void mwinIOSHover(mwinIOSPlatform* platform, uint32_t slot, UIHoverGestureRecognizer* hover);
+void mwinIOSScroll(mwinIOSPlatform* platform, uint32_t slot, UIPanGestureRecognizer* pan);
 
 // Posts what changed of a window's scale, size, mode, place, safe area
 // and monitor, after UIKit laid it out (ios_window.m).

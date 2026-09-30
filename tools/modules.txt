@@ -28,6 +28,7 @@ icon: allocator core
 input: core
 ios: core
 ios_output: core ios
+ios_pointer: core ios
 ios_view: core ios
 ios_window: core ios
 linux_bus: dbus_api

@@ -7,6 +7,7 @@ enable_language(OBJC)
 target_sources(maul-window PRIVATE
     src/backend_ios.m
     src/ios_output.m
+    src/ios_pointer.m
     src/ios_view.m
     src/ios_window.m)
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_IOS)

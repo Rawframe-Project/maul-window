@@ -19,7 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
+        # A mirror's stalled download is retried; a hang ends here.
+        timeout-minutes: 15
         run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 clang-tidy-20 ninja-build libwayland-dev wayland-protocols \
             libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
@@ -79,7 +82,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install compilers
         if: runner.os == 'Linux'
+        # A mirror's stalled download is retried; a hang ends here.
+        timeout-minutes: 15
         run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-14 g++-14 clang-20 ninja-build libwayland-dev \
             wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
@@ -124,7 +130,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install compilers
+        # A mirror's stalled download is retried; a hang ends here.
+        timeout-minutes: 15
         run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 ninja-build libwayland-dev wayland-protocols \
             libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
@@ -195,7 +204,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
-        run: sudo apt-get update && sudo apt-get install -y clang-20 lld-20 wasi-libc libclang-rt-20-dev-wasm32
+        # A mirror's stalled download is retried; a hang ends here.
+        timeout-minutes: 15
+        run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          sudo apt-get update && sudo apt-get install -y clang-20 lld-20 wasi-libc libclang-rt-20-dev-wasm32
       - name: Configure
         run: >
           cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/wasm32-wasi.cmake -DCMAKE_C_COMPILER=clang-20

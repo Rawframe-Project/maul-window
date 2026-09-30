@@ -16,6 +16,8 @@ format.
   application's suspension told in a frame of its own, and native
   handles. A toolchain file builds for the iOS simulator, where every
   test runs.
+- iOS touches, the Pencil as a pen, and an iPad's mouse or trackpad as
+  the cursor, its buttons, hover and scrolling (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

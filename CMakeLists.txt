@@ -368,21 +368,25 @@ if(MAUL_WINDOW_BUILD_TESTS)
         endif()
     endif()
     if(MAUL_WINDOW_IOS)
-        # An application in the simulator, run by tools/run_ios_app.sh.
-        add_executable(test_ios MACOSX_BUNDLE test/test_ios.m)
-        target_link_libraries(test_ios PRIVATE maul-window "-framework UIKit")
-        maul_apply_flags(test_ios)
-        set_target_properties(test_ios PROPERTIES OBJC_STANDARD 23 OBJC_STANDARD_REQUIRED ON
-                              OBJC_EXTENSIONS OFF
-                              MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/test/ios/Info.plist.in
-                              MACOSX_BUNDLE_GUI_IDENTIFIER org.maul.window.test.ios
-                              MACOSX_BUNDLE_BUNDLE_NAME test_ios
-                              MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-                              MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION})
-        target_compile_options(test_ios PRIVATE -fno-objc-arc)
-        add_test(NAME ios COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
-                 $<TARGET_BUNDLE_DIR:test_ios>)
-        set_tests_properties(ios PROPERTIES TIMEOUT 240)
+        # Applications in the simulator, run by tools/run_ios_app.sh; ios_input
+        # hands the view touches and recognizers as UIKit would.
+        foreach(name ios ios_input)
+            string(REPLACE "_" "-" bundle ${name})
+            add_executable(test_${name} MACOSX_BUNDLE test/test_${name}.m)
+            target_link_libraries(test_${name} PRIVATE maul-window "-framework UIKit")
+            maul_apply_flags(test_${name})
+            set_target_properties(test_${name} PROPERTIES OBJC_STANDARD 23
+                OBJC_STANDARD_REQUIRED ON OBJC_EXTENSIONS OFF
+                MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/test/ios/Info.plist.in
+                MACOSX_BUNDLE_GUI_IDENTIFIER org.maul.window.test.${bundle}
+                MACOSX_BUNDLE_BUNDLE_NAME test_${name}
+                MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+                MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION})
+            target_compile_options(test_${name} PRIVATE -fno-objc-arc)
+            add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
+                     $<TARGET_BUNDLE_DIR:test_${name}>)
+            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator)
+        endforeach()
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

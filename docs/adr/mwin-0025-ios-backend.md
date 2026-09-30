@@ -66,6 +66,22 @@ mwin-0022).
   - The title is the scene's, which the app switcher shows. Visibility
     hides or shows the window; focus makes it the key window.
   - A scene the system lets go asks the program to close its window.
+- **Touches, the Pencil and the pointer** come to the view:
+  - A finger is a touch by the UITouch's address, stable over its life,
+    its pressure its force where the device measures it, else -1.
+  - The Pencil is a pen touching the screen: its force over the most
+    it can be is its pressure, and its altitude and azimuth its tilt
+    toward x and y (the pointer events' conversion). It has no eraser
+    end and no barrel button, and its hover is left for later.
+  - A mouse or trackpad on an iPad is the cursor. Its clicks are touches
+    of the indirect pointer type where the program's Info.plist sets
+    `UIApplicationSupportsIndirectInputEvents` (else they come as
+    fingers), the buttons held from the event's button mask, whose bits
+    are the contract's, the click count from the tap count and the
+    modifiers from the event's flags. Its motion without a button comes
+    through a hover recognizer taking the pointer only, entering and
+    leaving; its scrolling through a pan recognizer taking scroll events
+    only, ten points to a detent, with macOS's signs.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -108,5 +124,11 @@ one window.
   scene taken by the next window. A real trip to the background (the
   home screen) is not made: simctl has no way to send an application
   there.
+- `ios_input` hands the view what UIKit would, which the simulator
+  cannot make: its own touches for a finger's down, move and up and
+  another's cancel, the Pencil at half its force tilted 45 degrees
+  toward x, the pointer's double click with Shift and a second button;
+  its own recognizers for the pointer's hover and scrolling, through the
+  actions the view gives them.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

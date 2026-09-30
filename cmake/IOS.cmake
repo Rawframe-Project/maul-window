@@ -1,7 +1,8 @@
 # The iOS backend (mwin-0025), in Objective-C with manual retain and
 # release, as the macOS backend: UIKit for scenes, windows and input,
 # CoreGraphics for its geometry, QuartzCore for the views' CAMetalLayers
-# and the display link.
+# and the display link, GameController and CoreHaptics for the gamepads
+# (shared with macOS).
 
 enable_language(OBJC)
 target_sources(maul-window PRIVATE
@@ -13,6 +14,11 @@ target_sources(maul-window PRIVATE
     src/ios_text.m
     src/ios_view.m
     src/ios_window.m)
+if(MAUL_WINDOW_GAMEPAD)
+    target_sources(maul-window PRIVATE src/apple_pad.m src/apple_rumble.m)
+    target_link_libraries(maul-window PRIVATE "-framework CoreHaptics"
+        "-framework GameController")
+endif()
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_IOS)
 set_target_properties(maul-window PROPERTIES
     OBJC_STANDARD 23

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Gamepad motors on macOS through CoreHaptics (macos.h). A pad whose
+// Gamepad motors on macOS and iOS through CoreHaptics (apple_pad.h). A pad whose
 // haptics reach each grip has two engines: the left grip's is the heavy,
 // low motor and the right's the light, high one, as on Xbox pads. One
 // that reaches only its whole body has one engine, which runs at the
@@ -12,15 +12,15 @@
 // or a stop on a queue of its own; instead a call that fails drops its
 // engine, and the motor is made again once, on the main thread.
 
-#include "macos.h"
+#include "apple_pad.h"
 
 #import <CoreHaptics/CoreHaptics.h>
 #import <GameController/GameController.h>
 
 // A motor: its engine and the player of its endless event, made when it
 // first runs.
-API_AVAILABLE(macos(11.0))
-@interface MwinMacMotor : NSObject
+API_AVAILABLE(macos(11.0), ios(14.0))
+@interface MwinAppleMotor : NSObject
 {
   @public
     GCController* controller;
@@ -31,8 +31,8 @@ API_AVAILABLE(macos(11.0))
 }
 @end
 
-API_AVAILABLE(macos(11.0))
-@implementation MwinMacMotor
+API_AVAILABLE(macos(11.0), ios(14.0))
+@implementation MwinAppleMotor
 - (void)drop
 {
     if (running)
@@ -125,17 +125,17 @@ API_AVAILABLE(macos(11.0))
 @end
 
 // A pad's motors: two, one per grip, or one.
-API_AVAILABLE(macos(11.0))
-@interface MwinMacMotors : NSObject
+API_AVAILABLE(macos(11.0), ios(14.0))
+@interface MwinAppleMotors : NSObject
 {
   @public
-    MwinMacMotor* low;
-    MwinMacMotor* high;
+    MwinAppleMotor* low;
+    MwinAppleMotor* high;
 }
 @end
 
-API_AVAILABLE(macos(11.0))
-@implementation MwinMacMotors
+API_AVAILABLE(macos(11.0), ios(14.0))
+@implementation MwinAppleMotors
 - (void)dealloc
 {
     [low release];
@@ -144,25 +144,25 @@ API_AVAILABLE(macos(11.0))
 }
 @end
 
-static bool HasGrips(GCController* controller) API_AVAILABLE(macos(11.0))
+static bool HasGrips(GCController* controller) API_AVAILABLE(macos(11.0), ios(14.0))
 {
     NSSet<GCHapticsLocality>* places = controller.haptics.supportedLocalities;
     return [places containsObject:GCHapticsLocalityLeftHandle] &&
            [places containsObject:GCHapticsLocalityRightHandle];
 }
 
-static MwinMacMotor* MotorOf(GCController* controller, GCHapticsLocality locality)
-    API_AVAILABLE(macos(11.0))
+static MwinAppleMotor* MotorOf(GCController* controller, GCHapticsLocality locality)
+    API_AVAILABLE(macos(11.0), ios(14.0))
 {
-    MwinMacMotor* motor = [[MwinMacMotor alloc] init];
+    MwinAppleMotor* motor = [[MwinAppleMotor alloc] init];
     motor->controller = controller;
     motor->locality = locality;
     return motor;
 }
 
-bool mwinMacCanRumble(id controller)
+bool mwinAppleCanRumble(id controller)
 {
-    if (@available(macOS 11.0, *))
+    if (@available(macOS 11.0, iOS 14.0, *))
     {
         GCDeviceHaptics* haptics = ((GCController*)controller).haptics;
         return haptics != nil && haptics.supportedLocalities.count > 0;
@@ -170,19 +170,19 @@ bool mwinMacCanRumble(id controller)
     return false;
 }
 
-bool mwinMacRumble(mwinMacPlatform* platform, id controller, float low, float high)
+bool mwinAppleRumble(mwinApplePads* pads, id controller, float low, float high)
 {
-    if (@available(macOS 11.0, *))
+    if (@available(macOS 11.0, iOS 14.0, *))
     {
-        if (platform->rumbles == nil)
+        if (pads->rumbles == nil)
         {
-            platform->rumbles = [[NSMapTable strongToStrongObjectsMapTable] retain];
+            pads->rumbles = [[NSMapTable strongToStrongObjectsMapTable] retain];
         }
-        NSMapTable* rumbles = platform->rumbles;
-        MwinMacMotors* motors = [rumbles objectForKey:controller];
+        NSMapTable* rumbles = pads->rumbles;
+        MwinAppleMotors* motors = [rumbles objectForKey:controller];
         if (motors == nil)
         {
-            motors = [[MwinMacMotors alloc] init];
+            motors = [[MwinAppleMotors alloc] init];
             bool grips = HasGrips(controller);
             motors->low =
                 MotorOf(controller, grips ? GCHapticsLocalityLeftHandle : GCHapticsLocalityDefault);
@@ -200,9 +200,9 @@ bool mwinMacRumble(mwinMacPlatform* platform, id controller, float low, float hi
     return false;
 }
 
-void mwinMacForgetRumbles(mwinMacPlatform* platform, NSArray* kept)
+void mwinAppleForgetRumbles(mwinApplePads* pads, NSArray* kept)
 {
-    NSMapTable* rumbles = platform->rumbles;
+    NSMapTable* rumbles = pads->rumbles;
     for (id controller in [[rumbles keyEnumerator] allObjects])
     {
         if (![kept containsObject:controller])
@@ -212,7 +212,7 @@ void mwinMacForgetRumbles(mwinMacPlatform* platform, NSArray* kept)
     }
     if (kept == nil)
     {
-        [platform->rumbles release];
-        platform->rumbles = nil;
+        [pads->rumbles release];
+        pads->rumbles = nil;
     }
 }

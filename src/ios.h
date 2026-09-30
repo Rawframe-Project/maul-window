@@ -5,13 +5,14 @@
 // UIWindow, the view controller and the library's view with its
 // CAMetalLayer, and what the program was told of it; per monitor slot
 // the screen shown there and what was last said of it; the scene waiting
-// for a window; what drives the program's frames; and whether the
-// application runs. Objects are held with manual retain and
+// for a window; what drives the program's frames; whether the
+// application runs; the keyboard's state; and the gamepads. Objects are held with manual retain and
 // release. Included by the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_IOS_H
 #define MAUL_WINDOW_SRC_IOS_H
 
+#include "apple_pad.h"
 #include "core.h"
 
 #import <QuartzCore/CAMetalLayer.h>
@@ -84,6 +85,8 @@ struct mwinIOSPlatform
     mwinKey meanings[MWIN_IOS_KEY_CODES];
     uint8_t held[MWIN_IOS_KEY_CODES / 8];
     id keyboardObservers[2];
+    // GameController's pads (apple_pad.h).
+    mwinApplePads pads;
 };
 
 // A window's view: its platform and slot, null once its window is

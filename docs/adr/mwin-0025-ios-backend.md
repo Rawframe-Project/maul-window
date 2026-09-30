@@ -115,6 +115,12 @@ mwin-0022).
     only the text it accepts is posted, as on macOS. Turning text input
     off drops a composition, UIKit told through its input delegate. iOS
     gives marked text no clauses, so there is one.
+- **Gamepads** come through GameController and their motors through
+  CoreHaptics, with the macOS backend's code (mwin-0024), now shared as
+  `apple_pad.m` and `apple_rumble.m` over one state of the pads each
+  backend holds: every pad GameController maps, named by its vendor,
+  with its battery, and its motors per grip. iOS gives an application
+  in the background no pad input, and runs no frames there.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -177,5 +183,9 @@ one window.
   other text; shortened by a deletion; dropped when text input is
   turned off; composed without a record while it is off. A real input
   method on a real keyboard is not seen: the simulator on CI has none.
+- `ios_gamepad` runs a program with GameController watched for half a
+  second and lists its pads, each mapped and named. No pad is attached
+  to the simulator; the tracking runs against a stand-in in
+  `pad_tracker`, and the motors have run on no machine the tests run on.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

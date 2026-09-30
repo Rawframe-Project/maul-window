@@ -1,30 +1,33 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Gamepads on macOS through GameController (macos.h), for the pad
-// tracker (pad_tracker.h): the controllers with an extended gamepad
+// Gamepads on macOS and iOS through GameController (apple_pad.h), for
+// the pad tracker (pad_tracker.h): the controllers with an extended gamepad
 // profile, which GameController maps by place, so every one is mapped.
 // A controller's name is its vendor name; GameController gives no USB
 // ids. Its battery is the charge GameController reports, -1 while the
 // state is unknown (a wired pad). Its reading's time is the profile's
 // last event's. Connections and disconnections come as notifications on
 // the main thread, which only mark that the pads should be looked for.
-// Pads are read whether or not the program is in front, as on the other
-// desktop platforms. It needs GameController of macOS 11.3; before it,
-// no pad is found. The motors are CoreHaptics' (macos_rumble.m).
+// On macOS pads are read whether or not the program is in front, as on
+// the other desktop platforms; iOS gives an application in the
+// background none, and runs no frames there. It needs GameController of
+// macOS 11.3 or iOS 14.5; before it, no pad is found. The motors are
+// CoreHaptics' (apple_rumble.m).
 
-#include "macos.h"
+#include "apple_pad.h"
 
 #import <GameController/GameController.h>
 #include <math.h>
 #include <string.h>
 
-static int32_t List(void* self, void** pads, uint32_t capacity) API_AVAILABLE(macos(11.0))
+static int32_t List(void* self, void** pads, uint32_t capacity)
+    API_AVAILABLE(macos(11.0), ios(14.0))
 {
     (void)self;
     NSArray<GCController*>* controllers = [GCController controllers];
     // The motors of pads gone go with them.
-    mwinMacForgetRumbles(self, controllers);
+    mwinAppleForgetRumbles(self, controllers);
     uint32_t count = 0;
     for (GCController* controller in controllers)
     {
@@ -47,7 +50,8 @@ static uint32_t Bit(bool held, mwinGamepadButton button)
     return held ? 1u << button : 0;
 }
 
-static bool Read(void* self, void* pad, mwinPadReading* reading) API_AVAILABLE(macos(11.0))
+static bool Read(void* self, void* pad, mwinPadReading* reading)
+    API_AVAILABLE(macos(11.0), ios(14.0))
 {
     (void)self;
     GCExtendedGamepad* profile = ((GCController*)pad).extendedGamepad;
@@ -86,7 +90,7 @@ static bool Read(void* self, void* pad, mwinPadReading* reading) API_AVAILABLE(m
 
 static bool Vibrate(void* self, void* pad, float low, float high)
 {
-    return mwinMacRumble(self, (id)pad, low, high);
+    return mwinAppleRumble(self, (id)pad, low, high);
 }
 
 // The vendor name as UTF-8 that fits, a character never split.
@@ -107,10 +111,10 @@ static void Describe(void* self, void* pad, mwinGamepadInfo* info)
                  range:NSMakeRange(0, name.length)
         remainingRange:nullptr];
     info->nameLength = (uint32_t)used;
-    info->capabilities = mwinMacCanRumble((id)pad) ? mwin_padRumble : 0;
+    info->capabilities = mwinAppleCanRumble((id)pad) ? mwin_padRumble : 0;
 }
 
-static int8_t Battery(void* self, void* pad) API_AVAILABLE(macos(11.0))
+static int8_t Battery(void* self, void* pad) API_AVAILABLE(macos(11.0), ios(14.0))
 {
     (void)self;
     GCDeviceBattery* battery = ((GCController*)pad).battery;
@@ -124,58 +128,58 @@ static int8_t Battery(void* self, void* pad) API_AVAILABLE(macos(11.0))
 
 static bool Changed(void* self)
 {
-    mwinMacPlatform* platform = self;
-    bool changed = platform->padsChanged;
-    platform->padsChanged = false;
+    mwinApplePads* pads = self;
+    bool changed = pads->changed;
+    pads->changed = false;
     return changed;
 }
 
-static id Watch(mwinMacPlatform* platform, NSNotificationName name)
+static id Watch(mwinApplePads* pads, NSNotificationName name)
 {
     return [[[NSNotificationCenter defaultCenter] addObserverForName:name
                                                               object:nil
                                                                queue:nil
                                                           usingBlock:^(NSNotification* note) {
                                                             (void)note;
-                                                            platform->padsChanged = true;
+                                                            pads->changed = true;
                                                           }] retain];
 }
 
-void mwinMacStartPads(mwinMacPlatform* platform)
+void mwinAppleStartPads(mwinApplePads* pads, mwinContext* context)
 {
-    if (@available(macOS 11.3, *))
+    if (@available(macOS 11.3, iOS 14.5, *))
     {
         // Set before the application finishes launching, as it must be.
         GCController.shouldMonitorBackgroundEvents = YES;
-        platform->padObservers[0] = Watch(platform, GCControllerDidConnectNotification);
-        platform->padObservers[1] = Watch(platform, GCControllerDidDisconnectNotification);
-        const mwinPadRuntime runtime = {platform, List,     Release, Read,
-                                        Vibrate,  Describe, Battery, Changed};
-        mwinPadTrackerStart(&platform->pads, platform->context, &runtime);
-        platform->padsStarted = true;
+        pads->observers[0] = Watch(pads, GCControllerDidConnectNotification);
+        pads->observers[1] = Watch(pads, GCControllerDidDisconnectNotification);
+        const mwinPadRuntime runtime = {pads,    List,     Release, Read,
+                                        Vibrate, Describe, Battery, Changed};
+        mwinPadTrackerStart(&pads->tracker, context, &runtime);
+        pads->started = true;
     }
 }
 
-void mwinMacStopPads(mwinMacPlatform* platform)
+void mwinAppleStopPads(mwinApplePads* pads)
 {
-    if (!platform->padsStarted)
+    if (!pads->started)
     {
         return;
     }
-    mwinPadTrackerStop(&platform->pads);
-    mwinMacForgetRumbles(platform, nil);
+    mwinPadTrackerStop(&pads->tracker);
+    mwinAppleForgetRumbles(pads, nil);
     for (int i = 0; i < 2; i++)
     {
-        [[NSNotificationCenter defaultCenter] removeObserver:platform->padObservers[i]];
-        [platform->padObservers[i] release];
+        [[NSNotificationCenter defaultCenter] removeObserver:pads->observers[i]];
+        [pads->observers[i] release];
     }
-    platform->padsStarted = false;
+    pads->started = false;
 }
 
-void mwinMacPumpPads(mwinMacPlatform* platform, uint64_t nowNs)
+void mwinApplePumpPads(mwinApplePads* pads, uint64_t nowNs)
 {
-    if (platform->padsStarted)
+    if (pads->started)
     {
-        mwinPadTrackerPump(&platform->pads, nowNs);
+        mwinPadTrackerPump(&pads->tracker, nowNs);
     }
 }

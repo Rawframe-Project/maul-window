@@ -66,7 +66,7 @@ static void Pump(mwinContext* context)
     mwinMacKeepAwake(platform, mwinWantsAwake(context));
     mwinMacPumpDialogs(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
-    mwinMacPumpPads(platform, mwinMacNow());
+    mwinApplePumpPads(&platform->pads, mwinMacNow());
 #endif
 }
 
@@ -150,7 +150,7 @@ static void Stop(mwinContext* context)
         }
         [platform->stepper release];
 #ifdef MAUL_WINDOW_GAMEPAD
-        mwinMacStopPads(platform);
+        mwinAppleStopPads(&platform->pads);
 #endif
         mwinMacUnwatchKeyboard(platform);
         mwinMacUnwatchSystem(platform);
@@ -200,7 +200,7 @@ static mwinResult Start(mwinContext* context)
         mwinMacWatchKeyboard(platform);
         mwinMacWatchSystem(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
-        mwinMacStartPads(platform);
+        mwinAppleStartPads(&platform->pads, context);
 #endif
     }
     return mwin_success;
@@ -256,7 +256,8 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
     mwinMacPlatform* platform = mwinMacPlatformOf(context);
     @autoreleasepool
     {
-        return mwinPadTrackerRumble(&platform->pads, slot, low, high, durationMs, mwinMacNow());
+        return mwinPadTrackerRumble(&platform->pads.tracker, slot, low, high, durationMs,
+                                    mwinMacNow());
     }
 #else
     (void)context;

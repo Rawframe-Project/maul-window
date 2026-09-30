@@ -97,9 +97,15 @@ static mwinIOSPlatform* CurrentPlatform(void)
     return context != nullptr ? mwinIOSPlatformOf(context) : nullptr;
 }
 
+// The pads are read between frames.
 static void Pump(mwinContext* context)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
+    mwinApplePumpPads(&platform->pads, mwinIOSNow());
+#else
     (void)context;
+#endif
 }
 
 // Ends the program: quit, and the context freed. UIKit's callbacks find
@@ -296,6 +302,9 @@ static void Stop(mwinContext* context)
         }
         [platform->waitingScene release];
         mwinIOSUnwatchKeyboard(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+        mwinAppleStopPads(&platform->pads);
+#endif
         mwinIOSForgetScreens(platform);
     }
     mwinRelease(&context->allocator, platform, PartsOf(&context->limits).layout.size,
@@ -331,6 +340,9 @@ static mwinResult Start(mwinContext* context)
     stepper->context = context;
     platform->stepper = stepper;
     mwinIOSWatchKeyboard(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinAppleStartPads(&platform->pads, context);
+#endif
     return mwin_success;
 }
 
@@ -373,12 +385,21 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinPadTrackerRumble(&platform->pads.tracker, slot, low, high, durationMs,
+                                    mwinIOSNow());
+    }
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinIOSBackend = {

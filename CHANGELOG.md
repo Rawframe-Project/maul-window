@@ -23,6 +23,8 @@ format.
   (mwin-0025).
 - iOS input methods' compositions, through the view as a text input
   client (mwin-0025).
+- iOS gamepads and their motors through GameController and CoreHaptics,
+  with the code macOS now shares (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

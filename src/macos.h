@@ -12,8 +12,8 @@
 #ifndef MAUL_WINDOW_SRC_MACOS_H
 #define MAUL_WINDOW_SRC_MACOS_H
 
+#include "apple_pad.h"
 #include "core.h"
-#include "pad_tracker.h"
 
 #import <AppKit/AppKit.h>
 #import <QuartzCore/CADisplayLink.h>
@@ -86,15 +86,9 @@ struct mwinMacPlatform
     uint32_t captured;
     // Whether the pen near the tablet shows its eraser end.
     bool penEraser;
-    // GameController's pads, what tells of their connections, whether
-    // one came or went since they were looked for, and whether they are
-    // watched at all (from macOS 11.3).
-    mwinPadTracker pads;
-    id padObservers[2];
-    bool padsChanged;
-    bool padsStarted;
-    // Each rumbled pad's motors, by its controller; nil before the first.
-    id rumbles; // Whether the display is kept awake, and the power assertion that
+    // GameController's pads (apple_pad.h).
+    mwinApplePads pads;
+    // Whether the display is kept awake, and the power assertion that
     // does it (an IOPMAssertionID).
     bool awake;
     uint32_t awakeAssertion;
@@ -184,20 +178,6 @@ void mwinMacForgetCursors(mwinMacPlatform* platform);
 // (macos_pen.m). Notes which end of the pen came near the tablet.
 bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
 void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
-
-// Watches GameController's pads from the start of the backend to its
-// stop, and reads them at each pump (macos_pad.m, with the gamepad
-// component).
-void mwinMacStartPads(mwinMacPlatform* platform);
-void mwinMacStopPads(mwinMacPlatform* platform);
-void mwinMacPumpPads(mwinMacPlatform* platform, uint64_t nowNs);
-
-// Whether a controller has motors; runs them, each from 0 to 1, both 0
-// stopping them; lets go of the motors of controllers not kept, or of
-// all with nil (macos_rumble.m).
-bool mwinMacCanRumble(id controller);
-bool mwinMacRumble(mwinMacPlatform* platform, id controller, float low, float high);
-void mwinMacForgetRumbles(mwinMacPlatform* platform, NSArray* kept);
 
 // The clipboard's text written from the context and read into it; an
 // address opened; a file shown; the display kept awake, or let go, at

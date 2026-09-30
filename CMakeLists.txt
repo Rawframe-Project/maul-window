@@ -146,8 +146,9 @@ if(MAUL_WINDOW_GAMEPAD)
     target_sources(maul-window PRIVATE src/gamepad.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_GAMEPAD)
     # The pads a runtime lists and reads: Windows.Gaming.Input's and
-    # GameController's, and a test's stand-in on every platform.
-    if(MAUL_WINDOW_WIN32 OR MAUL_WINDOW_MACOS OR MAUL_WINDOW_TEST_BACKEND)
+    # GameController's (macOS and iOS), and a test's stand-in on every
+    # platform.
+    if(MAUL_WINDOW_WIN32 OR MAUL_WINDOW_MACOS OR MAUL_WINDOW_IOS OR MAUL_WINDOW_TEST_BACKEND)
         target_sources(maul-window PRIVATE src/pad_tracker.c)
     endif()
 endif()
@@ -371,7 +372,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,
         # ios_keys and ios_ime hand the view touches, recognizers, presses, text
         # and compositions as UIKit would.
-        foreach(name ios ios_input ios_keys ios_ime)
+        set(MWIN_IOS_TESTS ios ios_input ios_keys ios_ime)
+        if(MAUL_WINDOW_GAMEPAD)
+            list(APPEND MWIN_IOS_TESTS ios_gamepad)
+        endif()
+        foreach(name ${MWIN_IOS_TESTS})
             string(REPLACE "_" "-" bundle ${name})
             add_executable(test_${name} MACOSX_BUNDLE test/test_${name}.m)
             target_link_libraries(test_${name} PRIVATE maul-window "-framework UIKit")
@@ -388,6 +393,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
                      $<TARGET_BUNDLE_DIR:test_${name}>)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator)
         endforeach()
+        if(MAUL_WINDOW_GAMEPAD)
+            target_link_libraries(test_ios_gamepad PRIVATE "-framework GameController")
+        endif()
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

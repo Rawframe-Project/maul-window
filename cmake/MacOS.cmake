@@ -25,7 +25,7 @@ set(MWIN_MACOS_SOURCES
     src/macos_view.m
     src/macos_window.m)
 if(MAUL_WINDOW_GAMEPAD)
-    list(APPEND MWIN_MACOS_SOURCES src/macos_pad.m src/macos_rumble.m)
+    list(APPEND MWIN_MACOS_SOURCES src/apple_pad.m src/apple_rumble.m)
     target_link_libraries(maul-window PRIVATE "-framework CoreHaptics"
         "-framework GameController")
 endif()

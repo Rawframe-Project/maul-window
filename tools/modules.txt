@@ -3,6 +3,8 @@
 accessibility: core
 allocator:
 answer: core
+apple_pad: core pad_tracker
+apple_rumble: apple_pad
 apple_text:
 backend:
 backend_ios: allocator backend core ios
@@ -27,7 +29,7 @@ file_list: allocator
 gamepad: core
 icon: allocator core
 input: core
-ios: core
+ios: apple_pad core
 ios_keys: core ios
 ios_output: core ios
 ios_pointer: core ios
@@ -43,7 +45,7 @@ linux_services: answer core linux_bus linux_dialog linux_inhibit linux_locale li
 linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
-macos: core pad_tracker
+macos: apple_pad core
 macos_chrome: chrome core macos
 macos_cursor: core macos
 macos_dialog: answer core dialog macos
@@ -53,9 +55,7 @@ macos_keys: core macos
 macos_message_box: message_box
 macos_output: core macos
 macos_owned: core macos
-macos_pad: core macos pad_tracker
 macos_pen: core macos
-macos_rumble: core macos
 macos_services: core macos
 macos_system: core macos
 macos_text: apple_text core macos

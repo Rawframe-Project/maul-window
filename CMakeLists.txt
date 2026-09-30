@@ -327,7 +327,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                               "-framework IOKit")
         # Objective-C, to make the NSEvents AppKit would deliver and call
         # the view as an input method would.
-        foreach(name macos_input macos_ime macos_pen)
+        foreach(name macos_input macos_ime macos_pen macos_drop)
             add_executable(test_${name} test/test_${name}.m)
             target_link_libraries(test_${name} PRIVATE maul-window "-framework AppKit"
                                   "-framework Carbon")
@@ -337,8 +337,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
             target_compile_options(test_${name} PRIVATE -fno-objc-arc)
             add_test(NAME ${name} COMMAND test_${name})
         endforeach()
-        set_tests_properties(macos macos_input macos_ime macos_pen macos_services PROPERTIES
-                             TIMEOUT 60)
+        set_tests_properties(macos macos_input macos_ime macos_pen macos_services macos_drop
+                             PROPERTIES TIMEOUT 60)
         if(MAUL_WINDOW_GAMEPAD)
             set_tests_properties(macos_gamepad PROPERTIES TIMEOUT 60)
         endif()

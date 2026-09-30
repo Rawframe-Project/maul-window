@@ -158,6 +158,11 @@ the loop for platforms that own it (the web's, mwin-0022), through
   pasteboard without text reads as empty. Text of more UTF-16 units
   than the clipboard limit's bytes is too large before it is
   converted.
+- **Drag and drop:** each window's view is a dragging destination for
+  file URLs and text. A drag that carries either is taken with the copy
+  operation and reported as it enters, moves (AppKit asks again and
+  again while it rests; only a move is posted) and leaves. A drop's
+  files are the file URLs' paths, and its text the pasteboard's string.
 - **Services:** addresses open through NSWorkspace in the user's
   default program; a file is shown in the Finder, selected, and one
   that does not exist fails. The display is kept awake by a power
@@ -168,8 +173,8 @@ the loop for platforms that own it (the web's, mwin-0022), through
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
   cursors and capture; the fourth the pen; the fifth gamepads and their
-  motors; the sixth the clipboard and the services. Drag and drop,
-  dialogs and the rest follow, and are unsupported until then.
+  motors; the sixth the clipboard, the services, and drag and drop.
+  Dialogs and the rest follow, and are unsupported until then.
 
 ## Consequences
 
@@ -203,6 +208,11 @@ AppKit's events as well, since both run on the main thread.
   attached to the runner; the tracking, rumble's timing included, runs
   against a stand-in in `pad_tracker` on every platform. The motors
   themselves have run on no machine the tests run on.
+- `macos_drop` hands the view drags of its own (a private pasteboard
+  and a place, what the backend asks a drag for): one of only an image
+  refused; one of a file and text entering, resting, moving, leaving,
+  entering again and dropped, each record at its place, with the path
+  and the text read back.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

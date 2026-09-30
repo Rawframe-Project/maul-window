@@ -36,6 +36,7 @@ linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 macos: core pad_tracker
 macos_cursor: core macos
+macos_drop: core macos
 macos_keys: core macos
 macos_output: core macos
 macos_pad: core macos pad_tracker

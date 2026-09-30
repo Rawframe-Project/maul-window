@@ -29,7 +29,9 @@ format.
   their motors through CoreHaptics (mwin-0024).
 - The macOS clipboard and services: text on the general pasteboard,
   addresses opened by NSWorkspace, files shown in the Finder, and the
-  display kept awake by a power assertion (mwin-0024). Its tracking is Windows.Gaming.Input's, now
+  display kept awake by a power assertion (mwin-0024).
+- macOS drag and drop: files and text dropped on a window, with drags
+  entering, moving and leaving (mwin-0024). Its tracking is Windows.Gaming.Input's, now
   shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30

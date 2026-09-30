@@ -9,10 +9,10 @@
 // with Command held no key types text, and input methods compose into
 // it only while the window accepts text (macos_text.m). Quick clicks are
 // AppKit's click counts; a pen's mouse events are the pen's
-// (macos_pen.m). Precise scrolling (touchpads, Magic Mouse) comes in
-// points, ten to a detent; a wheel's in lines, one to a detent. The sign
-// is what the user's scrolling direction makes it, as on the other
-// platforms.
+// (macos_pen.m); drags come to it too (macos_drop.m). Precise scrolling
+// (touchpads, Magic Mouse) comes in points, ten to a detent; a wheel's
+// in lines, one to a detent. The sign is what the user's scrolling
+// direction makes it, as on the other platforms.
 
 #include "macos.h"
 
@@ -310,6 +310,28 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     OnWheel(self, event);
 }
 
+// The dragging destination.
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)drag
+{
+    return mwinMacDragEntered(platform, slot, drag);
+}
+
+- (NSDragOperation)draggingUpdated:(id<NSDraggingInfo>)drag
+{
+    return mwinMacDragUpdated(platform, slot, drag);
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)drag
+{
+    (void)drag;
+    mwinMacDragExited(platform, slot);
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)drag
+{
+    return mwinMacDrop(platform, slot, drag);
+}
+
 - (void)tabletPoint:(NSEvent*)event
 {
     (void)mwinMacTakePen(platform, slot, event);
@@ -405,6 +427,7 @@ NSView* mwinMacCreateView(mwinMacPlatform* platform, uint32_t slot, NSRect frame
         view->platform = platform;
         view->slot = slot;
         mwinMacLimitInputSources(view, false);
+        [view registerForDraggedTypes:@[ NSPasteboardTypeFileURL, NSPasteboardTypeString ]];
     }
     return view;
 }

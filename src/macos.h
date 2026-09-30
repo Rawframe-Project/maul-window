@@ -51,6 +51,10 @@ typedef struct mwinMacWindow
     NSRange markedSelection;
     // The pen's state over the window, as last posted.
     mwinPenFlags penFlags;
+    // What a drag over the window carries (0 when none is), and where it
+    // was last posted.
+    mwinDragContents dragContents;
+    mwinPosition dragPosition;
 } mwinMacWindow;
 
 struct mwinMacPlatform
@@ -184,6 +188,15 @@ mwinOutcome mwinMacReadClipboard(mwinMacPlatform* platform);
 mwinOutcome mwinMacOpenUrl(const mwinRequest* request);
 mwinOutcome mwinMacRevealFile(const mwinRequest* request);
 void mwinMacKeepAwake(mwinMacPlatform* platform, bool wanted);
+
+// A drag entering a window's view, moving over it, leaving it, and
+// dropped on it (macos_drop.m).
+NSDragOperation mwinMacDragEntered(mwinMacPlatform* platform, uint32_t slot,
+                                   id<NSDraggingInfo> drag);
+NSDragOperation mwinMacDragUpdated(mwinMacPlatform* platform, uint32_t slot,
+                                   id<NSDraggingInfo> drag);
+void mwinMacDragExited(mwinMacPlatform* platform, uint32_t slot);
+bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> drag);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

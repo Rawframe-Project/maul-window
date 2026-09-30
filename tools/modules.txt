@@ -31,8 +31,10 @@ icon: allocator core
 input: core
 ios: apple_pad core
 ios_keys: core ios
+ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
+ios_services: answer core ios
 ios_text: apple_text core ios
 ios_view: core ios
 ios_window: core ios

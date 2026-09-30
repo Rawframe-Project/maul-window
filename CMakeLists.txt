@@ -372,7 +372,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,
         # ios_keys and ios_ime hand the view touches, recognizers, presses, text
         # and compositions as UIKit would.
-        set(MWIN_IOS_TESTS ios ios_input ios_keys ios_ime)
+        set(MWIN_IOS_TESTS ios ios_input ios_keys ios_ime ios_services)
         if(MAUL_WINDOW_GAMEPAD)
             list(APPEND MWIN_IOS_TESTS ios_gamepad)
         endif()

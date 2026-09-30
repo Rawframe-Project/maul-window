@@ -121,6 +121,25 @@ mwin-0022).
   backend holds: every pad GameController maps, named by its vendor,
   with its battery, and its motors per grip. iOS gives an application
   in the background no pad input, and runs no frames there.
+- **Clipboard and services:**
+  - The clipboard is text on the general pasteboard, written and read
+    while the request is submitted. Reading what another application
+    put there, iOS may ask the user first, and the read waits for them;
+    a refusal reads as no text.
+  - Addresses open through UIKit, whose answer completes the request
+    later, done or failed; an answer after the program ended is dropped.
+  - The display is kept awake by turning the idle timer off while a
+    window that asks for it shows, from the pump.
+  - There is no file manager to show a file in: revealing is
+    unsupported.
+  - The message box is a `UIAlertController` over the topmost view
+    controller of a scene in the foreground (over a window of its own
+    on a scene that shows none), waited for by running the main run
+    loop, as AppKit's modal alerts do; the program's frames are not run
+    inside it. Its buttons are English, as on macOS. An alert taken away
+    without a button reads as closed; one never shown in five seconds
+    fails. It needs a scene in the foreground, so it fails in the
+    program's init, while the first scene connects.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -187,5 +206,11 @@ one window.
   second and lists its pads, each mapped and named. No pad is attached
   to the simulator; the tracking runs against a stand-in in
   `pad_tracker`, and the motors have run on no machine the tests run on.
+- `ios_services` writes the pasteboard and reads it back, reads another
+  writer's text, keeps the display awake and lets it sleep again, opens
+  a mailto address the simulator has no program for (failed, when UIKit
+  says), finds revealing unsupported, and shows two message boxes from
+  a frame: one taken away (closed), one answered OK through the
+  button's handler, which only a test may reach.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

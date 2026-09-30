@@ -25,6 +25,8 @@ format.
   client (mwin-0025).
 - iOS gamepads and their motors through GameController and CoreHaptics,
   with the code macOS now shares (mwin-0025).
+- iOS clipboard, addresses opened, the display kept awake, and message
+  boxes as alerts (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

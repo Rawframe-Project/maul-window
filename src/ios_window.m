@@ -239,8 +239,9 @@ void mwinIOSDestroyWindow(mwinContext* context, uint32_t slot)
     *window = (mwinIOSWindow){.monitor = -1};
 }
 
-// Carries out a request now: its outcome.
-static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* request)
+// Carries out a request now: its outcome, or -1 when UIKit answers
+// later.
+static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* request)
 {
     mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
     mwinIOSWindow* window = &platform->windows[slot];
@@ -266,6 +267,15 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
         // The purpose in the low bits, the high bit set to show.
         return mwinIOSSetVirtualKeyboard(platform, slot, (request->value.code & 0x80u) != 0,
                                          (mwinInputPurpose)(request->value.code & 0x7Fu));
+    case mwin_requestClipboardWrite:
+        return mwinIOSWriteClipboard(platform);
+    case mwin_requestClipboardRead:
+        return mwinIOSReadClipboard(platform);
+    case mwin_requestOpenUrl:
+        return mwinIOSOpenUrl(platform, slot, (uint32_t)(request - core->requests));
+    case mwin_requestKeepAwake:
+        // The pump keeps the display awake from the windows' state.
+        return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
     }
@@ -275,7 +285,10 @@ void mwinIOSSubmit(mwinContext* context, uint32_t slot, uint32_t request)
 {
     @autoreleasepool
     {
-        mwinComplete(context, slot, request,
-                     CarryOut(context, slot, &context->windows[slot].requests[request]));
+        int outcome = CarryOut(context, slot, &context->windows[slot].requests[request]);
+        if (outcome >= 0)
+        {
+            mwinComplete(context, slot, request, (mwinOutcome)outcome);
+        }
     }
 }

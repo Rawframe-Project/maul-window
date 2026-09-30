@@ -219,7 +219,7 @@ Returns the default message box def: no title or message, an error with an OK bu
 ```c
 MWIN_NODISCARD MWIN_API mwinResult mwinShowMessageBox(const mwinMessageBoxDef* def, bool* acceptedOut);
 ```
-Shows a message box and waits for the user. It needs no context, so a program can report an error that stops it from starting. On Linux it runs zenity or kdialog, whichever is there.  @param def          The message box. @param acceptedOut  Receives true for OK or Yes, false for Cancel, No or a closed box. May be NULL. @return `mwin_success`; `mwin_errorUnsupported` where the platform has no message box (Linux without zenity or kdialog, the test backend alone); `mwin_errorPlatform` when it failed; `mwin_errorInvalid` for a NULL or invalid def, or text that is not UTF-8, holds a NUL or passes its limit. @par Thread safety Main thread only.
+Shows a message box and waits for the user. It needs no context, so a program can report an error that stops it from starting. On Linux it runs zenity or kdialog, whichever is there. On iOS it needs a scene in the foreground, which the application does not show yet in the program's init: there it fails.  @param def          The message box. @param acceptedOut  Receives true for OK or Yes, false for Cancel, No or a closed box. May be NULL. @return `mwin_success`; `mwin_errorUnsupported` where the platform has no message box (Linux without zenity or kdialog, the test backend alone); `mwin_errorPlatform` when it failed; `mwin_errorInvalid` for a NULL or invalid def, or text that is not UTF-8, holds a NUL or passes its limit. @par Thread safety Main thread only.
 
 ## `system.h`
 

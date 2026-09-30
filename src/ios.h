@@ -87,6 +87,8 @@ struct mwinIOSPlatform
     id keyboardObservers[2];
     // GameController's pads (apple_pad.h).
     mwinApplePads pads;
+    // Whether the idle timer is off, keeping the display awake.
+    bool awake;
 };
 
 // A window's view: its platform and slot, null once its window is
@@ -110,6 +112,10 @@ struct mwinIOSPlatform
 
 // The platform of a context whose backend is iOS.
 mwinIOSPlatform* mwinIOSPlatformOf(const mwinContext* context);
+
+// The context of the program running, or null once it ended: what an
+// answer UIKit gives later checks first.
+mwinContext* mwinIOSCurrentContext(void);
 
 // Nanoseconds on the clock UIKit's events count (the uptime without
 // sleep).
@@ -165,6 +171,14 @@ mwinOutcome mwinIOSSetVirtualKeyboard(mwinIOSPlatform* platform, uint32_t slot, 
 void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* text,
                           NSRange selected);
 void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept);
+
+// The clipboard and services (ios_services.m): the clipboard's
+// requests; an address opened, answered later (-1) or failed; the idle
+// timer turned off while wanted.
+mwinOutcome mwinIOSWriteClipboard(const mwinIOSPlatform* platform);
+mwinOutcome mwinIOSReadClipboard(mwinIOSPlatform* platform);
+int mwinIOSOpenUrl(mwinIOSPlatform* platform, uint32_t slot, uint32_t request);
+void mwinIOSKeepAwake(mwinIOSPlatform* platform, bool wanted);
 
 // Posts what changed of a window's scale, size, mode, place, safe area
 // and monitor, after UIKit laid it out (ios_window.m).

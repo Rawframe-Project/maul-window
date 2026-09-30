@@ -9,8 +9,10 @@ target_sources(maul-window PRIVATE
     src/apple_text.m
     src/backend_ios.m
     src/ios_keys.m
+    src/ios_message_box.m
     src/ios_output.m
     src/ios_pointer.m
+    src/ios_services.m
     src/ios_text.m
     src/ios_view.m
     src/ios_window.m)

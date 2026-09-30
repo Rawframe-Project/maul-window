@@ -53,7 +53,6 @@ static void CheckPads(Program* program, mwinContext* context)
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
-    program->startNs = NowNs();
     mwinWindowDef def = mwinDefaultWindowDef();
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
@@ -61,6 +60,9 @@ static mwinResult Init(mwinContext* context, void* user)
 static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
+    // Frames begin once the scene is in the foreground: the half second
+    // counts from the first.
+    program->startNs = program->frames == 0 ? NowNs() : program->startNs;
     program->frames += 1;
     if (NowNs() - program->startNs < RUN_NS)
     {

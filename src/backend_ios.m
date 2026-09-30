@@ -84,27 +84,30 @@ uint64_t mwinIOSNow(void)
     return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
 }
 
+mwinContext* mwinIOSCurrentContext(void)
+{
+    id delegate = UIApplication.sharedApplication.delegate;
+    return [delegate isKindOfClass:[MwinIOSAppDelegate class]]
+               ? ((MwinIOSAppDelegate*)delegate)->context
+               : nullptr;
+}
+
 // The platform, from any of UIKit's callbacks; null before the program
 // started or after it ended.
 static mwinIOSPlatform* CurrentPlatform(void)
 {
-    id delegate = UIApplication.sharedApplication.delegate;
-    if (![delegate isKindOfClass:[MwinIOSAppDelegate class]])
-    {
-        return nullptr;
-    }
-    mwinContext* context = ((MwinIOSAppDelegate*)delegate)->context;
+    mwinContext* context = mwinIOSCurrentContext();
     return context != nullptr ? mwinIOSPlatformOf(context) : nullptr;
 }
 
-// The pads are read between frames.
+// Between frames the display is kept awake as the windows ask, and the
+// pads are read.
 static void Pump(mwinContext* context)
 {
-#ifdef MAUL_WINDOW_GAMEPAD
     mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
+    mwinIOSKeepAwake(platform, mwinWantsAwake(context));
+#ifdef MAUL_WINDOW_GAMEPAD
     mwinApplePumpPads(&platform->pads, mwinIOSNow());
-#else
-    (void)context;
 #endif
 }
 
@@ -302,6 +305,7 @@ static void Stop(mwinContext* context)
         }
         [platform->waitingScene release];
         mwinIOSUnwatchKeyboard(platform);
+        mwinIOSKeepAwake(platform, false);
 #ifdef MAUL_WINDOW_GAMEPAD
         mwinAppleStopPads(&platform->pads);
 #endif

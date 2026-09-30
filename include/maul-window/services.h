@@ -129,7 +129,9 @@ extern "C"
 
     /// Shows a message box and waits for the user. It needs no context,
     /// so a program can report an error that stops it from starting. On
-    /// Linux it runs zenity or kdialog, whichever is there.
+    /// Linux it runs zenity or kdialog, whichever is there. On iOS it
+    /// needs a scene in the foreground, which the application does not
+    /// show yet in the program's init: there it fails.
     ///
     /// @param def          The message box.
     /// @param acceptedOut  Receives true for OK or Yes, false for Cancel,

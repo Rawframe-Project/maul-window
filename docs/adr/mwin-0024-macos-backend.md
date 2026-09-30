@@ -230,6 +230,15 @@ the loop for platforms that own it (the web's, mwin-0022), through
     which AppKit takes instead of a ratio. Opacity is the window's alpha.
   - A zoom the user makes, from the button or the title bar, is posted
     as the mode it gives.
+- **Accessibility:** the program's root, an object of the
+  NSAccessibility protocol whose parent is the window's view, is the
+  view's accessibility child, and the view asks it what is focused and
+  what is under a point, as AccessKit's macOS adapter hooks a view. The
+  window holds a reference to it while it is the root. A client's first
+  question about the view, root or none, posts
+  `mwin_eventAccessibilityRequested` once, as Win32 does on its first
+  WM_GETOBJECT, so a program can build its tree when a client comes. A
+  new root tells clients the view's layout changed.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
@@ -237,8 +246,8 @@ the loop for platforms that own it (the web's, mwin-0022), through
   cursors and capture; the fourth the pen; the fifth gamepads and their
   motors; the sixth the clipboard, the services, drag and drop, file
   dialogs and the message box; the seventh system facts and locales;
-  the eighth owned windows, popups and the icon; the ninth chrome.
-  Accessibility follows, and is unsupported until then.
+  the eighth owned windows, popups and the icon; the ninth chrome; the
+  tenth the accessibility hooks.
 
 ## Consequences
 
@@ -304,6 +313,10 @@ AppKit's events as well, since both run on the main thread.
   and not reported, a double click on a caption zooming it (maximized
   posted); undecorated and floating. A single press on a caption moves
   the window through the window server, which the test leaves alone.
+- `macos_access` asks the view as a client would: the first question
+  told once, before any root; a root the view's child, answering what is
+  focused and what is under a point; held while it is the root, after
+  the program's own reference went; let go with no root.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

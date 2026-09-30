@@ -50,7 +50,7 @@ macos_rumble: core macos
 macos_services: core macos
 macos_system: core macos
 macos_text: core macos
-macos_view: core macos
+macos_view: accessibility core macos
 macos_window: core macos
 message_box:
 monitor: core

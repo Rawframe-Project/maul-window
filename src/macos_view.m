@@ -4,7 +4,8 @@
 // The content view of a macOS window (macos.h): flipped, so its
 // coordinates run down from the top left as the contract's do, backed
 // by a CAMetalLayer for a GPU layer to present to, and the responder its
-// window's keyboard, mouse and wheel input comes to. Keys come by
+// window's keyboard, mouse and wheel input comes to, and the way into
+// the program's accessibility tree. Keys come by
 // virtual key code; text comes through the view's text input client,
 // with Command held no key types text, and input methods compose into
 // it only while the window accepts text (macos_text.m). Quick clicks are
@@ -14,6 +15,7 @@
 // in lines, one to a detent. The sign is what the user's scrolling
 // direction makes it, as on the other platforms.
 
+#include "accessibility.h"
 #include "macos.h"
 
 // Precise scrolling's points per detent.
@@ -24,6 +26,8 @@
   @public
     mwinMacPlatform* platform;
     uint32_t slot;
+    // The root of the program's accessibility tree, held while it is.
+    id accessibilityRoot;
 }
 @end
 
@@ -365,6 +369,41 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     [self addCursorRect:self.visibleRect cursor:mwinMacCursorOf(platform, WindowOf(self))];
 }
 
+// The accessibility client's way in: the program's root is the view's
+// child, and answers what is focused and what is under a point. The
+// first question tells the program that a client came, root or none.
+static id Asked(const MwinMacView* view)
+{
+    mwinNoteAccessibilityAsked(view->platform->context, view->slot);
+    return view->accessibilityRoot;
+}
+
+- (NSArray*)accessibilityChildren
+{
+    id root = Asked(self);
+    return root != nil ? @[ root ] : [super accessibilityChildren];
+}
+
+- (id)accessibilityFocusedUIElement
+{
+    id root = Asked(self);
+    id focused = root != nil ? [root accessibilityFocusedUIElement] : nil;
+    return focused != nil ? focused : root != nil ? root : [super accessibilityFocusedUIElement];
+}
+
+- (id)accessibilityHitTest:(NSPoint)point
+{
+    id root = Asked(self);
+    id hit = root != nil ? [root accessibilityHitTest:point] : nil;
+    return hit != nil ? hit : root != nil ? root : [super accessibilityHitTest:point];
+}
+
+- (void)dealloc
+{
+    [accessibilityRoot release];
+    [super dealloc];
+}
+
 // The text input client.
 - (void)insertText:(id)string replacementRange:(NSRange)range
 {
@@ -436,6 +475,17 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     return NSNotFound;
 }
 @end
+
+mwinOutcome mwinMacSetAccessibilityRoot(mwinMacPlatform* platform, uint32_t slot, id root)
+{
+    MwinMacView* view = (MwinMacView*)platform->windows[slot].view;
+    [root retain];
+    [view->accessibilityRoot release];
+    view->accessibilityRoot = root;
+    // Clients read the view's children again.
+    NSAccessibilityPostNotification(view, NSAccessibilityLayoutChangedNotification);
+    return mwin_outcomeDone;
+}
 
 NSView* mwinMacCreateView(mwinMacPlatform* platform, uint32_t slot, NSRect frame)
 {

@@ -473,6 +473,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
                                 request->value.aspect.height);
     case mwin_requestOpacity:
         return mwinMacSetOpacity(platform, slot, request->value.opacity);
+    case mwin_requestAccessibilityRoot:
+        return mwinMacSetAccessibilityRoot(platform, slot, (id)request->value.root);
     case mwin_requestHitRegions:
         // A press reads them (macos_chrome.m).
         return mwin_outcomeDone;

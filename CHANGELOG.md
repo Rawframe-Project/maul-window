@@ -42,6 +42,9 @@ format.
 - macOS chrome: styles, custom chrome with hit regions (caption drags
   and double clicks, edge resizes), size limits, aspect ratios and
   opacity (mwin-0024).
+- macOS accessibility hooks: the program's NSAccessibility root as the
+  window view's child, and the first client's question posted
+  (mwin-0024).
 
 ### Fixed
 

@@ -29,8 +29,16 @@ extern "C"
     /// answers WM_GETOBJECT for UiaRootObjectId with it, and UI
     /// Automation takes references of its own. The provider must stay
     /// valid while it is the window's root. When the window is destroyed,
-    /// UI Automation is told to let go of it. X11, Wayland and the web
-    /// take no root and answer mwin_outcomeUnsupported.
+    /// UI Automation is told to let go of it.
+    ///
+    /// On macOS the root is an object of the NSAccessibility protocol (an
+    /// NSAccessibilityElement, say), whose accessibility parent is the
+    /// window's view (mwinNativeHandles). The view gives it as its child
+    /// and asks it what is focused and what is under a point; the window
+    /// holds a reference to it while it is the root.
+    ///
+    /// X11, Wayland and the web take no root and answer
+    /// mwin_outcomeUnsupported.
     ///
     /// @param context    The context.
     /// @param window     The window.

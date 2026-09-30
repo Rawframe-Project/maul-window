@@ -131,6 +131,11 @@ CGFloat mwinMacPrimaryHeight(void);
 // window (macos_view.m).
 NSView* mwinMacCreateView(mwinMacPlatform* platform, uint32_t slot, NSRect frame);
 
+// An accessibility root request's outcome: the program's root, an
+// object of the NSAccessibility protocol, as the view's child
+// (macos_view.m).
+mwinOutcome mwinMacSetAccessibilityRoot(mwinMacPlatform* platform, uint32_t slot, id root);
+
 // The physical key of a virtual key code; what the current layout makes
 // of a key with no modifier; the modifiers of an event's flags.
 mwinKeyCode mwinMacCodeOf(uint16_t virtualKey);

@@ -168,13 +168,29 @@ the loop for platforms that own it (the web's, mwin-0022), through
   that does not exist fails. The display is kept awake by a power
   assertion that prevents idle display sleep, held while some window
   that asks shows and is not minimized, as the pump finds it.
+- **File dialogs** are open and save panels, shown as a sheet on their
+  window, or as a panel of their own while the window is hidden. A panel
+  never blocks: frames go on while it shows, and it answers its request
+  when the user is done. macOS panels have no filter menu of their own,
+  so the filters are a menu under the panel, the first chosen at first,
+  each allowing the content types of its extensions (macOS 11; before
+  it the panels allow every file). A panel whose request goes (its
+  window destroyed, the program stopping) is cancelled and answers
+  nothing.
+- **The message box** is an NSAlert run modally, which needs no window
+  and may come before any context. The title is its headline and the
+  message the text below it; a box with only a message has it as the
+  headline. Its buttons are English (OK, Cancel, Yes, No), since AppKit
+  names only its own OK; Escape answers the second.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
   cursors and capture; the fourth the pen; the fifth gamepads and their
-  motors; the sixth the clipboard, the services, and drag and drop.
-  Dialogs and the rest follow, and are unsupported until then.
+  motors; the sixth the clipboard, the services, drag and drop, file
+  dialogs and the message box. System facts, locales, icons, owned
+  windows, chrome and accessibility follow, and are unsupported until
+  then.
 
 ## Consequences
 
@@ -213,6 +229,12 @@ AppKit's events as well, since both run on the main thread.
   refused; one of a file and text entering, resting, moving, leaving,
   entering again and dropped, each record at its place, with the path
   and the text read back.
+- `macos_dialog` ends message boxes from a timer in the modal loop,
+  before any context (No, then Yes) and inside a frame, with no frame
+  run inside it; works a save sheet (its title, the filters' menu
+  changing the allowed types) and confirms it, reading the path back;
+  cancels an open sheet; and destroys the window of a folder sheet,
+  which closes with its request cancelled.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

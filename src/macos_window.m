@@ -341,6 +341,7 @@ void mwinMacDestroyWindow(mwinContext* context, uint32_t slot)
     @autoreleasepool
     {
         mwinMacApplyCapture(platform, slot, false);
+        mwinMacCloseDialogs(platform, slot);
         [window->marked release];
         if (window->window != nil)
         {
@@ -472,6 +473,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwin_outcomeDone;
+    case mwin_requestFileDialog:
+        return mwinMacAskDialog(platform, slot, (uint32_t)(request - core->requests));
     default:
         return mwin_outcomeUnsupported;
     }

@@ -5,8 +5,8 @@
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
 // shown there; what drives the program's frames; the keyboard's layout,
-// the cursors, the pen, the gamepads and the services. Objects are held with manual retain and
-// release. Included by the backend's Objective-C files only.
+// the cursors, the pen, the gamepads, the services and the dialogs. Objects are held with manual
+// retain and release. Included by the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
 #define MAUL_WINDOW_SRC_MACOS_H
@@ -92,6 +92,8 @@ struct mwinMacPlatform
     // does it (an IOPMAssertionID).
     bool awake;
     uint32_t awakeAssertion;
+    // The file dialogs showing; nil before the first.
+    id dialogs;
 };
 
 // The platform of a context whose backend is macOS.
@@ -197,6 +199,14 @@ NSDragOperation mwinMacDragUpdated(mwinMacPlatform* platform, uint32_t slot,
                                    id<NSDraggingInfo> drag);
 void mwinMacDragExited(mwinMacPlatform* platform, uint32_t slot);
 bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> drag);
+
+// Shows a window's file dialog request, answered when the user is done:
+// -1. Cancels the panels whose requests went, at each pump; closes a
+// window's panels, or every panel at the stop with a slot of -1
+// (macos_dialog.m).
+int mwinMacAskDialog(mwinMacPlatform* platform, uint32_t slot, uint32_t request);
+void mwinMacPumpDialogs(mwinMacPlatform* platform);
+void mwinMacCloseDialogs(mwinMacPlatform* platform, int64_t slot);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

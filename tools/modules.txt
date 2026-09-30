@@ -2,6 +2,7 @@
 # and the modules it may use. tools/check_modules.py enforces it.
 accessibility: core
 allocator:
+answer: core
 backend:
 backend_macos: allocator backend core macos
 backend_test: allocator backend core
@@ -26,18 +27,19 @@ icon: allocator core
 input: core
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db pad_map
-linux_dialog: core dialog linux_answer linux_bus linux_zenity monotonic uri_list
+linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
 linux_locale:
-linux_answer: core
-linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_locale linux_power linux_settings monotonic
+linux_services: answer core linux_bus linux_dialog linux_inhibit linux_locale linux_power linux_settings monotonic
 linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 macos: core pad_tracker
 macos_cursor: core macos
+macos_dialog: answer core dialog macos
 macos_drop: core macos
 macos_keys: core macos
+macos_message_box: message_box
 macos_output: core macos
 macos_pad: core macos pad_tracker
 macos_pen: core macos

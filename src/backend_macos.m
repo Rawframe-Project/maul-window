@@ -58,11 +58,13 @@ uint64_t mwinMacNow(void)
 }
 
 // Platform events come to their objects between frames; the display is
-// kept awake as the windows ask, and the pads are read.
+// kept awake as the windows ask, panels whose requests went are
+// cancelled, and the pads are read.
 static void Pump(mwinContext* context)
 {
     mwinMacPlatform* platform = mwinMacPlatformOf(context);
     mwinMacKeepAwake(platform, mwinWantsAwake(context));
+    mwinMacPumpDialogs(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinMacPumpPads(platform, mwinMacNow());
 #endif
@@ -153,6 +155,7 @@ static void Stop(mwinContext* context)
         mwinMacUnwatchKeyboard(platform);
         mwinMacForgetCursors(platform);
         mwinMacKeepAwake(platform, false);
+        mwinMacCloseDialogs(platform, -1);
         mwinMacForgetScreens(platform);
     }
     mwinRelease(&context->allocator, platform, PartsOf(&context->limits).layout.size,

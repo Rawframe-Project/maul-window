@@ -8,6 +8,15 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- The iOS backend's first part (mwin-0025): UIKit's loop and the scene
+  life cycle, windows on scenes with CAMetalLayer views, their sizes,
+  scales, safe areas and modes, the screens as monitors, the
+  application's suspension told in a frame of its own, and native
+  handles. A toolchain file builds for the iOS simulator, where every
+  test runs.
+
 ## [0.3.0] - 2026-09-30
 
 The macOS backend, the whole contract on AppKit, and the tracking of

@@ -9,9 +9,15 @@ set(MAUL_PREFIX MAUL_WINDOW)
 
 # The oldest macOS the backend runs on (mwin-0024), unless the build or
 # the project including the library asks for another; the compiler then
-# refuses a later API used without a check.
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "The oldest macOS to run on")
+# refuses a later API used without a check. A toolchain file says its
+# own (the iOS simulator's, cmake/ios-simulator.cmake, iOS 15).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET
+   AND NOT CMAKE_TOOLCHAIN_FILE)
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "The oldest iOS to run on")
+    else()
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "The oldest macOS to run on")
+    endif()
 endif()
 
 include(cmake/ReadVersion.cmake)
@@ -46,6 +52,12 @@ else()
     set(MAUL_WINDOW_MACOS_DEFAULT OFF)
 endif()
 option(MAUL_WINDOW_MACOS "Build the macOS backend" ${MAUL_WINDOW_MACOS_DEFAULT})
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(MAUL_WINDOW_IOS_DEFAULT ON)
+else()
+    set(MAUL_WINDOW_IOS_DEFAULT OFF)
+endif()
+option(MAUL_WINDOW_IOS "Build the iOS backend" ${MAUL_WINDOW_IOS_DEFAULT})
 # The web: Emscripten's, or a plain WebAssembly toolchain's (mwin-0022).
 if(EMSCRIPTEN OR CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(MAUL_WINDOW_WEB_DEFAULT ON)
@@ -159,6 +171,9 @@ if(MAUL_WINDOW_WIN32)
 endif()
 if(MAUL_WINDOW_MACOS)
     include(cmake/MacOS.cmake)
+endif()
+if(MAUL_WINDOW_IOS)
+    include(cmake/IOS.cmake)
 endif()
 if(MAUL_WINDOW_WEB)
     include(cmake/Web.cmake)
@@ -351,6 +366,23 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(MAUL_WINDOW_GAMEPAD)
             set_tests_properties(macos_gamepad PROPERTIES TIMEOUT 60)
         endif()
+    endif()
+    if(MAUL_WINDOW_IOS)
+        # An application in the simulator, run by tools/run_ios_app.sh.
+        add_executable(test_ios MACOSX_BUNDLE test/test_ios.m)
+        target_link_libraries(test_ios PRIVATE maul-window "-framework UIKit")
+        maul_apply_flags(test_ios)
+        set_target_properties(test_ios PROPERTIES OBJC_STANDARD 23 OBJC_STANDARD_REQUIRED ON
+                              OBJC_EXTENSIONS OFF
+                              MACOSX_BUNDLE_INFO_PLIST ${PROJECT_SOURCE_DIR}/test/ios/Info.plist.in
+                              MACOSX_BUNDLE_GUI_IDENTIFIER org.maul.window.test.ios
+                              MACOSX_BUNDLE_BUNDLE_NAME test_ios
+                              MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+                              MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION})
+        target_compile_options(test_ios PRIVATE -fno-objc-arc)
+        add_test(NAME ios COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
+                 $<TARGET_BUNDLE_DIR:test_ios>)
+        set_tests_properties(ios PROPERTIES TIMEOUT 240)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

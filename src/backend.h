@@ -69,6 +69,9 @@ extern const mwinBackendOps mwinWin32Backend;
 // The macOS backend, in builds with MAUL_WINDOW_MACOS.
 extern const mwinBackendOps mwinMacBackend;
 
+// The iOS backend, in builds with MAUL_WINDOW_IOS.
+extern const mwinBackendOps mwinIOSBackend;
+
 // The web backend, in builds with MAUL_WINDOW_WEB.
 extern const mwinBackendOps mwinWebBackend;
 

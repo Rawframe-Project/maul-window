@@ -156,6 +156,37 @@ jobs:
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
 
+  ios:
+    # The iOS backend (mwin-0025) in the simulator: every test, the
+    # headless ones through simctl spawn, the UIKit ones as applications
+    # through tools/run_ios_app.sh, on an iPhone of the newest runtime.
+    name: ios-simulator
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot a simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((r for r in devices if ".iOS-" in r),
+                            key=lambda r: [int(p) for p in r.rsplit("iOS-", 1)[1].split("-")])
+          print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"].startswith("iPhone")))')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          # A new device's first launch takes minutes: paid here.
+          xcrun simctl launch "$udid" com.apple.Preferences
+          xcrun simctl terminate "$udid" com.apple.Preferences
+          echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
+      - name: Configure
+        run: >
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/ios-simulator.cmake
+          -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
+      - name: Build
+        run: cmake --build build -j 4
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --timeout 240
+
   web-wasi:
     # The web without Emscripten (mwin-0022): Clang's wasm32-wasi, every
     # test under Node's WASI and the browser tests in headless Chrome.

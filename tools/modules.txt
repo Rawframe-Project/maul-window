@@ -4,6 +4,7 @@ accessibility: core
 allocator:
 answer: core
 backend:
+backend_ios: allocator backend core ios
 backend_macos: allocator backend core macos
 backend_test: allocator backend core
 backend_test_services: accessibility allocator backend backend_test core dialog icon
@@ -25,6 +26,10 @@ file_list: allocator
 gamepad: core
 icon: allocator core
 input: core
+ios: core
+ios_output: core ios
+ios_view: core ios
+ios_window: core ios
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list

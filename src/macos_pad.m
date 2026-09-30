@@ -10,8 +10,8 @@
 // last event's. Connections and disconnections come as notifications on
 // the main thread, which only mark that the pads should be looked for.
 // Pads are read whether or not the program is in front, as on the other
-// desktop platforms. It needs GameController of macOS 11; before it, no
-// pad is found. The motors come in a later slice.
+// desktop platforms. It needs GameController of macOS 11.3; before it,
+// no pad is found. The motors are CoreHaptics' (macos_rumble.m).
 
 #include "macos.h"
 
@@ -22,8 +22,11 @@
 static int32_t List(void* self, void** pads, uint32_t capacity) API_AVAILABLE(macos(11.0))
 {
     (void)self;
+    NSArray<GCController*>* controllers = [GCController controllers];
+    // The motors of pads gone go with them.
+    mwinMacForgetRumbles(self, controllers);
     uint32_t count = 0;
-    for (GCController* controller in [GCController controllers])
+    for (GCController* controller in controllers)
     {
         if (count < capacity && controller.extendedGamepad != nil)
         {
@@ -83,11 +86,7 @@ static bool Read(void* self, void* pad, mwinPadReading* reading) API_AVAILABLE(m
 
 static bool Vibrate(void* self, void* pad, float low, float high)
 {
-    (void)self;
-    (void)pad;
-    (void)low;
-    (void)high;
-    return false;
+    return mwinMacRumble(self, (id)pad, low, high);
 }
 
 // The vendor name as UTF-8 that fits, a character never split.
@@ -108,6 +107,7 @@ static void Describe(void* self, void* pad, mwinGamepadInfo* info)
                  range:NSMakeRange(0, name.length)
         remainingRange:nullptr];
     info->nameLength = (uint32_t)used;
+    info->capabilities = mwinMacCanRumble((id)pad) ? mwin_padRumble : 0;
 }
 
 static int8_t Battery(void* self, void* pad) API_AVAILABLE(macos(11.0))
@@ -163,6 +163,7 @@ void mwinMacStopPads(mwinMacPlatform* platform)
         return;
     }
     mwinPadTrackerStop(&platform->pads);
+    mwinMacForgetRumbles(platform, nil);
     for (int i = 0; i < 2; i++)
     {
         [[NSNotificationCenter defaultCenter] removeObserver:platform->padObservers[i]];

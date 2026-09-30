@@ -1,7 +1,7 @@
 # The macOS backend (mwin-0024), in Objective-C with manual retain and
 # release, as Maul RHI's Metal driver: AppKit for windows and input,
 # Carbon for the keyboard layouts, QuartzCore for the views'
-# CAMetalLayers, GameController for the gamepads.
+# CAMetalLayers, GameController and CoreHaptics for the gamepads.
 
 enable_language(OBJC)
 set(MWIN_MACOS_SOURCES
@@ -14,8 +14,9 @@ set(MWIN_MACOS_SOURCES
     src/macos_view.m
     src/macos_window.m)
 if(MAUL_WINDOW_GAMEPAD)
-    list(APPEND MWIN_MACOS_SOURCES src/macos_pad.m)
-    target_link_libraries(maul-window PRIVATE "-framework GameController")
+    list(APPEND MWIN_MACOS_SOURCES src/macos_pad.m src/macos_rumble.m)
+    target_link_libraries(maul-window PRIVATE "-framework CoreHaptics"
+        "-framework GameController")
 endif()
 target_sources(maul-window PRIVATE ${MWIN_MACOS_SOURCES})
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_MACOS)

@@ -83,6 +83,8 @@ struct mwinMacPlatform
     id padObservers[2];
     bool padsChanged;
     bool padsStarted;
+    // Each rumbled pad's motors, by its controller; nil before the first.
+    id rumbles;
 };
 
 // The platform of a context whose backend is macOS.
@@ -163,6 +165,13 @@ void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
 void mwinMacStartPads(mwinMacPlatform* platform);
 void mwinMacStopPads(mwinMacPlatform* platform);
 void mwinMacPumpPads(mwinMacPlatform* platform, uint64_t nowNs);
+
+// Whether a controller has motors; runs them, each from 0 to 1, both 0
+// stopping them; lets go of the motors of controllers not kept, or of
+// all with nil (macos_rumble.m).
+bool mwinMacCanRumble(id controller);
+bool mwinMacRumble(mwinMacPlatform* platform, id controller, float low, float high);
+void mwinMacForgetRumbles(mwinMacPlatform* platform, NSArray* kept);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

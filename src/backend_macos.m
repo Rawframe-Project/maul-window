@@ -243,16 +243,23 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->handles.apple.layer = (void*)window->layer;
 }
 
-// The pads' motors come in a later slice: no pad says it has them.
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinMacPlatform* platform = mwinMacPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinPadTrackerRumble(&platform->pads, slot, low, high, durationMs, mwinMacNow());
+    }
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinMacBackend = {

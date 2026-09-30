@@ -106,6 +106,20 @@ the loop for platforms that own it (the web's, mwin-0022), through
   window is the program's too. Click counts are AppKit's, which follow
   the user's double-click setting. Buttons beyond the third are Back
   and Forward.
+- **Pen:**
+  - A tablet's pen drives mouse events with the tablet point subtype.
+    Those become pen records and no mouse record, as on the other
+    platforms: the tip's press and release are the pen's down and up, a
+    drag moves it touching, a move hovering. Tablet point events of
+    their own move it as well.
+  - Pressure is the event's, 0 while hovering. Tilt, which AppKit gives
+    from -1 to 1 along each axis, is scaled to 90 degrees, with AppKit's
+    upward y turned down.
+  - The barrel is the lower side button of the event's button mask; its
+    press and release are pen button records. The upper side button,
+    which tablet drivers give to their own commands, is left out.
+  - Proximity events tell which end is near the tablet: the eraser's
+    sets `mwin_penEraser` until the pen leaves.
 - **Wheel:** precise scrolling (touchpads, Magic Mouse) comes in points,
   ten to a detent, as the Wayland backend's continuous scrolling does; a
   wheel's comes in lines, one to a detent. Its sign is what the user's
@@ -115,7 +129,7 @@ the loop for platforms that own it (the web's, mwin-0022), through
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
-  cursors and capture. The pen, gamepads, the clipboard, dialogs and the rest follow, and are
+  cursors and capture; the fourth the pen. Gamepads, the clipboard, dialogs and the rest follow, and are
   unsupported until then.
 
 ## Consequences
@@ -140,6 +154,11 @@ AppKit's events as well, since both run on the main thread.
   input cannot be made on the runner without permissions.
   It also asks for a shape and each cursor mode: confinement is
   unsupported and the rest are done.
+- `macos_pen` makes tablet events through Quartz, the only way to give
+  them the tablet subtype, and hands them to the view: hovering, the
+  tip's down with pressure and tilt, a drag, the barrel's press and
+  release, lifting, and the eraser end; no mouse record comes of them.
+  Such events have no window, so their places are not checked.
 - `macos_ime` calls the view's text input client as an input method
   would: no input context before text input is on and one after, the
   caret the candidate window goes by, two clauses with the target and

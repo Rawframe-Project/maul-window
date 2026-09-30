@@ -22,6 +22,8 @@ format.
   clauses while a window accepts text, the system cursors with blank
   ones for the hiding modes, and a captured cursor's motion as deltas
   while the window has focus; confinement is unsupported (mwin-0024).
+- macOS pens: a tablet's pen as pen records rather than the mouse, with
+  pressure, tilt, the barrel button and the eraser end (mwin-0024).
 
 ## [0.2.0] - 2026-09-30
 

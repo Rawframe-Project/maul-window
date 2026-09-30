@@ -4,8 +4,8 @@
 // What the macOS backend keeps (mwin-0024): per window slot its NSWindow,
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
-// shown there; what drives the program's frames; the keyboard's layout
-// and the cursors. Objects are held with manual retain and release. Included by
+// shown there; what drives the program's frames; the keyboard's layout,
+// the cursors and the pen. Objects are held with manual retain and release. Included by
 // the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
@@ -48,6 +48,8 @@ typedef struct mwinMacWindow
     mwinRect caret;
     NSString* marked;
     NSRange markedSelection;
+    // The pen's state over the window, as last posted.
+    mwinPenFlags penFlags;
 } mwinMacWindow;
 
 struct mwinMacPlatform
@@ -71,6 +73,8 @@ struct mwinMacPlatform
     // none is.
     NSCursor* blankCursor;
     uint32_t captured;
+    // Whether the pen near the tablet shows its eraser end.
+    bool penEraser;
 };
 
 // The platform of a context whose backend is macOS.
@@ -139,6 +143,11 @@ mwinOutcome mwinMacSetCursorMode(mwinMacPlatform* platform, uint32_t slot, mwinC
 mwinOutcome mwinMacSetCursorShape(mwinMacPlatform* platform, uint32_t slot, mwinCursorShape shape);
 void mwinMacApplyCapture(mwinMacPlatform* platform, uint32_t slot, bool focused);
 void mwinMacForgetCursors(mwinMacPlatform* platform);
+
+// Posts a pen's event as pen records: true when the event was a pen's
+// (macos_pen.m). Notes which end of the pen came near the tablet.
+bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

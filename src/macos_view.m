@@ -7,10 +7,12 @@
 // window's keyboard, mouse and wheel input comes to. Keys come by
 // virtual key code; text comes through the view's text input client,
 // with Command held no key types text, and input methods compose into
-// it only while the window accepts text (macos_text.m). Quick clicks are AppKit's click
-// counts. Precise scrolling (touchpads, Magic Mouse) comes in points,
-// ten to a detent; a wheel's in lines, one to a detent. The sign is what
-// the user's scrolling direction makes it, as on the other platforms.
+// it only while the window accepts text (macos_text.m). Quick clicks are
+// AppKit's click counts; a pen's mouse events are the pen's
+// (macos_pen.m). Precise scrolling (touchpads, Magic Mouse) comes in
+// points, ten to a detent; a wheel's in lines, one to a detent. The sign
+// is what the user's scrolling direction makes it, as on the other
+// platforms.
 
 #include "macos.h"
 
@@ -107,6 +109,10 @@ static void PostPointer(const MwinMacView* view, mwinEventType type, NSEvent* ev
 
 static void OnButton(const MwinMacView* view, NSEvent* event, bool down)
 {
+    if (mwinMacTakePen(view->platform, view->slot, event))
+    {
+        return;
+    }
     mwinMouseButton button = ButtonOf(event);
     if (button == 0)
     {
@@ -124,6 +130,10 @@ static void OnButton(const MwinMacView* view, NSEvent* event, bool down)
 
 static void OnMove(const MwinMacView* view, NSEvent* event)
 {
+    if (mwinMacTakePen(view->platform, view->slot, event))
+    {
+        return;
+    }
     mwinMacWindow* window = WindowOf(view);
     // A captured cursor stays put; the mouse's motion is the delta.
     if (view->platform->captured == view->slot + 1)
@@ -298,6 +308,16 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
 - (void)scrollWheel:(NSEvent*)event
 {
     OnWheel(self, event);
+}
+
+- (void)tabletPoint:(NSEvent*)event
+{
+    (void)mwinMacTakePen(platform, slot, event);
+}
+
+- (void)tabletProximity:(NSEvent*)event
+{
+    mwinMacPenProximity(platform, event);
 }
 
 - (void)resetCursorRects

@@ -9,6 +9,7 @@ set(MWIN_MACOS_SOURCES
     src/macos_cursor.m
     src/macos_keys.m
     src/macos_output.m
+    src/macos_pen.m
     src/macos_text.m
     src/macos_view.m
     src/macos_window.m)

@@ -8,6 +8,13 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- The macOS backend's first slice: AppKit windows whose views hold a
+  CAMetalLayer, the screens as monitors, and frames from the screen's
+  display link, or a timer before macOS 14 (mwin-0024). Input and the
+  rest are unsupported until later slices.
+
 ## [0.2.0] - 2026-09-30
 
 The web backend without Emscripten, Xbox gamepads through

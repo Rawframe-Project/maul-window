@@ -28,3 +28,4 @@ are listed in [README.md](README.md).
 | [mwin-0021](mwin-0021-windows-hid-gamepads.md) | Generic gamepads on Windows | Accepted |
 | [mwin-0022](mwin-0022-web-without-emscripten.md) | The web without Emscripten | Accepted |
 | [mwin-0023](mwin-0023-windows-gaming-input.md) | Xbox gamepads through Windows.Gaming.Input | Accepted |
+| [mwin-0024](mwin-0024-macos-backend.md) | The macOS backend | Accepted |

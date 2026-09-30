@@ -3,6 +3,7 @@
 accessibility: core
 allocator:
 backend:
+backend_macos: allocator backend core macos
 backend_test: allocator backend core
 backend_test_services: accessibility allocator backend backend_test core dialog icon
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
@@ -33,6 +34,9 @@ linux_services: core linux_answer linux_bus linux_dialog linux_inhibit linux_loc
 linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
+macos: core
+macos_output: core macos
+macos_window: core macos
 message_box:
 monitor: core
 monotonic:

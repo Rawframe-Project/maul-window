@@ -6,8 +6,10 @@
 enable_language(OBJC)
 set(MWIN_MACOS_SOURCES
     src/backend_macos.m
+    src/macos_cursor.m
     src/macos_keys.m
     src/macos_output.m
+    src/macos_text.m
     src/macos_view.m
     src/macos_window.m)
 target_sources(maul-window PRIVATE ${MWIN_MACOS_SOURCES})

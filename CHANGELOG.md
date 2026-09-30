@@ -18,6 +18,10 @@ format.
   layout's meaning and its changes, typed text through a text input
   client, AppKit's click counts, and precise scrolling at ten points to
   a detent (mwin-0024).
+- macOS input methods, cursors and capture: compositions with their
+  clauses while a window accepts text, the system cursors with blank
+  ones for the hiding modes, and a captured cursor's motion as deltas
+  while the window has focus; confinement is unsupported (mwin-0024).
 
 ## [0.2.0] - 2026-09-30
 

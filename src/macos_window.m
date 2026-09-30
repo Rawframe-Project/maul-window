@@ -177,12 +177,14 @@ static bool IsFullscreen(const mwinMacWindow* window)
 - (void)windowDidBecomeKey:(NSNotification*)notification
 {
     (void)notification;
+    mwinMacApplyCapture(platform, slot, true);
     PostType(platform, slot, mwin_eventFocusGained);
 }
 
 - (void)windowDidResignKey:(NSNotification*)notification
 {
     (void)notification;
+    mwinMacApplyCapture(platform, slot, false);
     PostType(platform, slot, mwin_eventFocusLost);
 }
 
@@ -334,9 +336,12 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
 
 void mwinMacDestroyWindow(mwinContext* context, uint32_t slot)
 {
-    mwinMacWindow* window = &mwinMacPlatformOf(context)->windows[slot];
+    mwinMacPlatform* platform = mwinMacPlatformOf(context);
+    mwinMacWindow* window = &platform->windows[slot];
     @autoreleasepool
     {
+        mwinMacApplyCapture(platform, slot, false);
+        [window->marked release];
         if (window->window != nil)
         {
             window->window.delegate = nil;
@@ -449,6 +454,13 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestFocus:
         [window->window makeKeyAndOrderFront:nil];
         return mwin_outcomeDone;
+    case mwin_requestCursorMode:
+        return mwinMacSetCursorMode(platform, slot, request->value.code);
+    case mwin_requestCursorShape:
+        return mwinMacSetCursorShape(platform, slot, request->value.code);
+    case mwin_requestTextInput:
+        return mwinMacSetTextInput(platform, slot, request->value.textInput.enabled,
+                                   request->value.textInput.caret);
     default:
         return mwin_outcomeUnsupported;
     }

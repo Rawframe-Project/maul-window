@@ -142,6 +142,7 @@ static void Stop(mwinContext* context)
         }
         [platform->stepper release];
         mwinMacUnwatchKeyboard(platform);
+        mwinMacForgetCursors(platform);
         mwinMacForgetScreens(platform);
     }
     mwinRelease(&context->allocator, platform, PartsOf(&context->limits).layout.size,

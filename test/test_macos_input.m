@@ -4,9 +4,9 @@
 // The macOS backend's input against AppKit (a CI runner's session): key
 // presses and releases by virtual key code with the layout's meaning,
 // typed text, a modifier's press and release, mouse buttons with their
-// click counts and a drag, and the wheel. No real input can be made
-// without permissions, so the test makes NSEvents and hands them to the
-// window as AppKit would; the wheel's go to the view.
+// click counts and a drag, the wheel, and the cursor requests. No real
+// input can be made without permissions, so the test makes NSEvents and
+// hands them to the window as AppKit would; the wheel's go to the view.
 
 #include "test_harness.h"
 
@@ -29,6 +29,7 @@ typedef struct Record
     mwinPointerEvent pointer;
     mwinWheelEvent wheel;
     char text[16];
+    mwinOutcome outcome;
 } Record;
 
 typedef struct Program
@@ -56,8 +57,8 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinNextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
-        if (event.type < mwin_eventKeyDown || event.type > mwin_eventWheel ||
-            program->count == MAX_RECORDS)
+        bool input = event.type >= mwin_eventKeyDown && event.type <= mwin_eventWheel;
+        if ((!input && event.type != mwin_eventRequestCompleted) || program->count == MAX_RECORDS)
         {
             continue;
         }
@@ -71,6 +72,10 @@ static void Collect(Program* program, mwinContext* context)
         {
             size_t length = event.data.text.length < 15 ? event.data.text.length : 15;
             memcpy(record->text, event.data.text.text, length);
+        }
+        else if (event.type == mwin_eventRequestCompleted)
+        {
+            record->outcome = event.data.completion.outcome;
         }
         else if (event.type == mwin_eventWheel)
         {
@@ -230,6 +235,33 @@ static void CheckCommand(const Program* program)
           "Command and a key: its press and release, and no text");
 }
 
+// The cursor requests: a shape, and each mode but confinement, which
+// macOS cannot do. A captured cursor waits for the window to be the key
+// window, which a CI runner's session never makes it.
+static void RequestCursors(mwinContext* context, mwinWindowId window)
+{
+    CHECK(
+        mwinRequestCursorShape(context, window, mwin_shapeText, nullptr) == mwin_success &&
+            mwinRequestCursorMode(context, window, mwin_cursorConfined, nullptr) == mwin_success &&
+            mwinRequestCursorMode(context, window, mwin_cursorHidden, nullptr) == mwin_success &&
+            mwinRequestCursorMode(context, window, mwin_cursorCaptured, nullptr) == mwin_success &&
+            mwinRequestCursorMode(context, window, mwin_cursorVisible, nullptr) == mwin_success,
+        "the cursor requests");
+}
+
+static void CheckCursors(const Program* program)
+{
+    static const mwinOutcome expected[] = {mwin_outcomeDone, mwin_outcomeUnsupported,
+                                           mwin_outcomeDone, mwin_outcomeDone, mwin_outcomeDone};
+    size_t at = 0;
+    for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)
+    {
+        const Record* completed = Find(program, &at, mwin_eventRequestCompleted);
+        CHECK(completed != nullptr && completed->outcome == expected[i],
+              "a shape, no confinement, hiding, capturing and showing");
+    }
+}
+
 // Each phase sends its events at once, and the next frame reads what
 // they posted.
 static void Advance(Program* program, mwinContext* context)
@@ -262,6 +294,10 @@ static void Advance(Program* program, mwinContext* context)
         {
             CheckCommand(program);
         }
+        RequestCursors(context, program->window);
+        break;
+    case 4:
+        CheckCursors(program);
         break;
     default:
         break;
@@ -286,11 +322,18 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     Collect(program, context);
-    // The posted events come between frames, the release last.
+    // The posted events come between frames, the release last; the
+    // cursor requests complete as they are carried out.
     size_t at = 0;
-    bool waiting = program->phase == 3 && program->keyWindow &&
-                   Find(program, &at, mwin_eventKeyUp) == nullptr &&
-                   NowNs() - program->startNs < DEADLINE_NS;
+    size_t completions = 0;
+    for (size_t i = 0; i < program->count; i++)
+    {
+        completions += program->records[i].type == mwin_eventRequestCompleted ? 1 : 0;
+    }
+    bool pending = (program->phase == 3 && program->keyWindow &&
+                    Find(program, &at, mwin_eventKeyUp) == nullptr) ||
+                   (program->phase == 4 && completions < 5);
+    bool waiting = pending && NowNs() - program->startNs < DEADLINE_NS;
     if (program->shown && !waiting)
     {
         @autoreleasepool
@@ -303,7 +346,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 4 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 5 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -316,6 +359,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 4, "every phase ran");
+    CHECK(program.phase == 5, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

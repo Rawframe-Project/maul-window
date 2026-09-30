@@ -68,8 +68,38 @@ the loop for platforms that own it (the web's, mwin-0022), through
   - The layout's name is its localized name ("U.S.", "ABC").
 - **Text** comes through the view's text input client, as AppKit's key
   bindings give it, without control characters. A key pressed with
-  Command types nothing: it is a shortcut. Compositions follow with the
-  input methods.
+  Command types nothing: it is a shortcut.
+- **Input methods:**
+  - A window that does not accept text gives its view no input
+    context, so the key bindings still type text but no input method
+    composes, as a Win32 window without an input context.
+  - Marked text comes as `mwin_eventImePreedit`. Its clauses are the
+    ranges of the marked clause attribute, neighbours of one style
+    joined; the clause with a thick underline is the target, the rest
+    are to convert. The target's span is the selection; without one,
+    the method's selected range is. The caret is at the end of the
+    method's selected range.
+  - Committed text comes as text, then the composition ends. Marked
+    text AppKit accepts as it is (`unmarkText`) is committed the same
+    way. Turning text input off discards a composition without
+    committing it.
+  - The candidate window goes by the caret the program gave, whatever
+    range the method asks about: the view keeps no text of its own.
+- **Cursors:**
+  - A window's cursor is its view's cursor rectangle: the shape's system
+    cursor, or a blank one while the mode hides it. The Move shape is
+    the open hand, macOS's cursor for what can be moved; the diagonal
+    resizes are macOS 15's frame resize cursors, and the arrow before
+    it; waiting and progress are the arrow, since macOS shows its own
+    busy cursor over a program that does not answer.
+  - A captured cursor is moved to the middle of the view, parted from
+    the mouse and hidden while the window is the key window; the
+    mouse's motion comes as `mwin_eventRawPointerDelta` from the
+    events' deltas, which macOS has already accelerated. It comes back
+    when the window loses focus or is destroyed.
+  - macOS has no way to keep a cursor inside a window other than
+    warping it back after it has left, which shows and loses motion, so
+    confinement is unsupported.
 - **Mouse:** buttons, motion and drags from the view's mouse methods,
   and entering and leaving from a tracking area over the whole view,
   active whether or not the window has focus. A click that activates a
@@ -84,8 +114,8 @@ the loop for platforms that own it (the web's, mwin-0022), through
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
-  second keys, text, the mouse and the wheel. Compositions, cursors,
-  capture, the pen, gamepads, the clipboard, dialogs and the rest follow, and are
+  second keys, text, the mouse and the wheel; the third input methods,
+  cursors and capture. The pen, gamepads, the clipboard, dialogs and the rest follow, and are
   unsupported until then.
 
 ## Consequences
@@ -108,3 +138,10 @@ AppKit's events as well, since both run on the main thread.
   Command and a key through the application's queue where the window
   is the key window, which a CI runner's session never makes it. Real
   input cannot be made on the runner without permissions.
+  It also asks for a shape and each cursor mode: confinement is
+  unsupported and the rest are done.
+- `macos_ime` calls the view's text input client as an input method
+  would: no input context before text input is on and one after, the
+  caret the candidate window goes by, two clauses with the target and
+  its selection in bytes, a commit and the composition's end, and a
+  composition that turning text input off ends without committing.

@@ -4,8 +4,8 @@
 // What the macOS backend keeps (mwin-0024): per window slot its NSWindow,
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
-// shown there; what drives the program's frames; and the keyboard's
-// layout. Objects are held with manual retain and release. Included by
+// shown there; what drives the program's frames; the keyboard's layout
+// and the cursors. Objects are held with manual retain and release. Included by
 // the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
@@ -38,6 +38,16 @@ typedef struct mwinMacWindow
     // whether the pointer is over it.
     uint8_t buttons;
     bool pointerInside;
+    // The cursor asked for.
+    mwinCursorMode cursorMode;
+    mwinCursorShape cursorShape;
+    // Whether the window accepts text, where its caret is, and an input
+    // method's marked text (nil when none) with its selection in UTF-16
+    // units.
+    bool textInput;
+    mwinRect caret;
+    NSString* marked;
+    NSRange markedSelection;
 } mwinMacWindow;
 
 struct mwinMacPlatform
@@ -56,6 +66,11 @@ struct mwinMacPlatform
     const void* layout;
     id layoutObserver;
     id keyUpMonitor;
+    // The blank cursor of the hiding modes, made when first needed, and
+    // the slot of the window whose cursor is captured, plus one; 0 when
+    // none is.
+    NSCursor* blankCursor;
+    uint32_t captured;
 };
 
 // The platform of a context whose backend is macOS.
@@ -100,6 +115,30 @@ mwinResult mwinMacKeyboardLayout(const mwinMacPlatform* platform, char* buffer, 
 // releases, from the start of the backend to its stop.
 void mwinMacWatchKeyboard(mwinMacPlatform* platform);
 void mwinMacUnwatchKeyboard(mwinMacPlatform* platform);
+
+// An input method's marked text and its selection, committed text, and
+// the marked text accepted as it is (macos_text.m); where the caret is
+// on the screen; a text input request's outcome.
+void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, NSRange selected);
+void mwinMacInsertText(mwinMacPlatform* platform, uint32_t slot, id string);
+void mwinMacUnmarkText(mwinMacPlatform* platform, uint32_t slot);
+NSRect mwinMacCaretOnScreen(const mwinMacPlatform* platform, uint32_t slot);
+
+// Lets every input source compose into a view, or only Roman keyboard
+// layouts.
+void mwinMacLimitInputSources(NSView* view, bool all);
+mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool enabled,
+                                mwinRect caret);
+
+// The cursor a window shows over its view (macos_cursor.m); a cursor
+// mode or shape request's outcome; capturing the cursor while the window
+// is the key window, or letting it go; letting every cursor go at the
+// stop.
+NSCursor* mwinMacCursorOf(mwinMacPlatform* platform, const mwinMacWindow* window);
+mwinOutcome mwinMacSetCursorMode(mwinMacPlatform* platform, uint32_t slot, mwinCursorMode mode);
+mwinOutcome mwinMacSetCursorShape(mwinMacPlatform* platform, uint32_t slot, mwinCursorShape shape);
+void mwinMacApplyCapture(mwinMacPlatform* platform, uint32_t slot, bool focused);
+void mwinMacForgetCursors(mwinMacPlatform* platform);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

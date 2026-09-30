@@ -140,6 +140,22 @@ mwin-0022).
     without a button reads as closed; one never shown in five seconds
     fails. It needs a scene in the foreground, so it fails in the
     program's init, while the first scene connects.
+- **Drag and drop:** each window's view has a drop interaction taking
+  a drag of text or files with the copy operation, reporting a drag
+  over that has moved. An item registering a type that is neither text
+  nor an address (a file's own address is one) is a file, loaded as
+  that type, a dynamic one for an extension the system does not know; another
+  that loads as a string is text, so a text file dragged gives its
+  text. (An item's provider can load even a file as a string, its
+  address.) Items load asynchronously, and a file
+  is handed over only while its load finishes, so each is copied into
+  the application's temporary directory, a folder of its own per drop,
+  under the name the system gave the file it handed over (the one its
+  source suggests, or "Document" with the extension), and the drop gives
+  those paths; the system empties it in time. The first
+  text item is the drop's text. The drop is posted once every item has
+  loaded, at the place it was made; one whose window or program went
+  since is dropped.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -212,5 +228,11 @@ one window.
   says), finds revealing unsupported, and shows two message boxes from
   a frame: one taken away (closed), one answered OK through the
   button's handler, which only a test may reach.
+- `ios_drop` hands the view's drop interaction a drop session of its
+  own over real item providers, a file and a string: entering, moving,
+  leaving, entering again and dropping, each record at its place, the
+  drop giving the file's copy with its contents and the text once they
+  loaded. A drag from another application is not seen: the simulator
+  cannot make one.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

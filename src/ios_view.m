@@ -8,9 +8,9 @@
 // then posts what changed. The status bar is hidden, the window being
 // the program's to draw; the safe area says what the system still
 // covers. Touches, the pointer's hover and its scrolling come to the
-// view (ios_pointer.m); text is typed and composed into it (ios_text.m),
-// and a hardware keyboard's presses pass through it to the controller
-// (ios_keys.m).
+// view (ios_pointer.m), and drags (ios_drop.m); text is typed and
+// composed into it (ios_text.m), and a hardware keyboard's presses pass
+// through it to the controller (ios_keys.m).
 
 #include "ios.h"
 
@@ -69,6 +69,7 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
     [noKeyboard release];
     [tokenizer release];
     [marked release];
+    [dropper release];
     [super dealloc];
 }
 
@@ -150,6 +151,7 @@ UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame
     view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     view.multipleTouchEnabled = YES;
     view->noKeyboard = [[UIView alloc] initWithFrame:CGRectZero];
+    view->dropper = mwinIOSWatchDrops(platform, slot, view);
     // No shortcuts bar over a hardware keyboard.
     view.inputAssistantItem.leadingBarButtonGroups = @[];
     view.inputAssistantItem.trailingBarButtonGroups = @[];
@@ -184,5 +186,6 @@ void mwinIOSForgetView(UIView* view)
 {
     [view resignFirstResponder];
     ((MwinIOSView*)view)->platform = nullptr;
+    mwinIOSForgetDrops(((MwinIOSView*)view)->dropper);
     ((MwinIOSController*)view.nextResponder)->platform = nullptr;
 }

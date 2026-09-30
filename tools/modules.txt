@@ -30,6 +30,7 @@ gamepad: core
 icon: allocator core
 input: core
 ios: apple_pad core
+ios_drop: core ios
 ios_keys: core ios
 ios_message_box: message_box
 ios_output: core ios

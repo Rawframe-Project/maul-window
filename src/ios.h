@@ -51,6 +51,10 @@ typedef struct mwinIOSWindow
     bool keyboard;
     mwinInputPurpose purpose;
     mwinRect covered;
+    // What a drag over the window carries (0 when none is), and where it
+    // was last posted.
+    mwinDragContents dragContents;
+    mwinPosition dragPosition;
 } mwinIOSWindow;
 
 // Where a touch is in its life, as UIKit's touch methods tell.
@@ -95,8 +99,8 @@ struct mwinIOSPlatform
 // destroyed; the input view that keeps the on-screen keyboard away; an
 // input method's marked text (nil when none) with its selection in
 // UTF-16 units, the delegate UIKit gives the text input client, not
-// held, and the tokenizer it asks for. Its text input methods are in
-// ios_text.m.
+// held, and the tokenizer it asks for; its drop interaction's delegate.
+// Its text input methods are in ios_text.m.
 @interface MwinIOSView : UIView
 {
   @public
@@ -107,6 +111,8 @@ struct mwinIOSPlatform
     NSRange markedSelection;
     id<UITextInputDelegate> inputDelegate;
     UITextInputStringTokenizer* tokenizer;
+    // The delegate of its drop interaction, which holds it weakly.
+    id dropper;
 }
 @end
 
@@ -179,6 +185,11 @@ mwinOutcome mwinIOSWriteClipboard(const mwinIOSPlatform* platform);
 mwinOutcome mwinIOSReadClipboard(mwinIOSPlatform* platform);
 int mwinIOSOpenUrl(mwinIOSPlatform* platform, uint32_t slot, uint32_t request);
 void mwinIOSKeepAwake(mwinIOSPlatform* platform, bool wanted);
+
+// Drag and drop (ios_drop.m): a view's drop interaction, and its
+// delegate, made retained, and untied from a destroyed window.
+id mwinIOSWatchDrops(mwinIOSPlatform* platform, uint32_t slot, UIView* view);
+void mwinIOSForgetDrops(id dropper);
 
 // Posts what changed of a window's scale, size, mode, place, safe area
 // and monitor, after UIKit laid it out (ios_window.m).

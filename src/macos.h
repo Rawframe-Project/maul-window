@@ -5,8 +5,8 @@
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
 // shown there; what drives the program's frames; the keyboard's layout,
-// the cursors, the pen and the gamepads. Objects are held with manual retain and release. Included
-// by the backend's Objective-C files only.
+// the cursors, the pen, the gamepads and the services. Objects are held with manual retain and
+// release. Included by the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
 #define MAUL_WINDOW_SRC_MACOS_H
@@ -84,7 +84,10 @@ struct mwinMacPlatform
     bool padsChanged;
     bool padsStarted;
     // Each rumbled pad's motors, by its controller; nil before the first.
-    id rumbles;
+    id rumbles; // Whether the display is kept awake, and the power assertion that
+    // does it (an IOPMAssertionID).
+    bool awake;
+    uint32_t awakeAssertion;
 };
 
 // The platform of a context whose backend is macOS.
@@ -172,6 +175,15 @@ void mwinMacPumpPads(mwinMacPlatform* platform, uint64_t nowNs);
 bool mwinMacCanRumble(id controller);
 bool mwinMacRumble(mwinMacPlatform* platform, id controller, float low, float high);
 void mwinMacForgetRumbles(mwinMacPlatform* platform, NSArray* kept);
+
+// The clipboard's text written from the context and read into it; an
+// address opened; a file shown; the display kept awake, or let go, at
+// each pump (macos_services.m).
+mwinOutcome mwinMacWriteClipboard(const mwinMacPlatform* platform);
+mwinOutcome mwinMacReadClipboard(mwinMacPlatform* platform);
+mwinOutcome mwinMacOpenUrl(const mwinRequest* request);
+mwinOutcome mwinMacRevealFile(const mwinRequest* request);
+void mwinMacKeepAwake(mwinMacPlatform* platform, bool wanted);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

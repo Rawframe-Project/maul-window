@@ -153,13 +153,23 @@ the loop for platforms that own it (the web's, mwin-0022), through
   wheel's comes in lines, one to a detent. Its sign is what the user's
   scrolling direction makes it, as on the other platforms: natural
   scrolling is not undone.
+- **Clipboard:** text on the general pasteboard as its string type,
+  written and read at once while the request is submitted; a
+  pasteboard without text reads as empty. Text of more UTF-16 units
+  than the clipboard limit's bytes is too large before it is
+  converted.
+- **Services:** addresses open through NSWorkspace in the user's
+  default program; a file is shown in the Finder, selected, and one
+  that does not exist fails. The display is kept awake by a power
+  assertion that prevents idle display sleep, held while some window
+  that asks shows and is not minimized, as the pump finds it.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
   cursors and capture; the fourth the pen; the fifth gamepads and their
-  motors. The clipboard, dialogs and the rest follow, and
-  are unsupported until then.
+  motors; the sixth the clipboard and the services. Drag and drop,
+  dialogs and the rest follow, and are unsupported until then.
 
 ## Consequences
 
@@ -193,6 +203,11 @@ AppKit's events as well, since both run on the main thread.
   attached to the runner; the tracking, rumble's timing included, runs
   against a stand-in in `pad_tracker` on every platform. The motors
   themselves have run on no machine the tests run on.
+- `macos_services` writes text to the pasteboard and reads it back,
+  keeps the display awake and reads it back from the process's power
+  assertions, then lets it go, and reveals a missing file (failed) and
+  an existing one (shown). Opening an address is not tested: it would
+  start the runner's browser, and nothing could tell that it did.
 - `macos_ime` calls the view's text input client as an input method
   would: no input context before text input is on and one after, the
   caret the candidate window goes by, two clauses with the target and

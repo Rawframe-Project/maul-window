@@ -461,6 +461,17 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestTextInput:
         return mwinMacSetTextInput(platform, slot, request->value.textInput.enabled,
                                    request->value.textInput.caret);
+    case mwin_requestClipboardWrite:
+        return mwinMacWriteClipboard(platform);
+    case mwin_requestClipboardRead:
+        return mwinMacReadClipboard(platform);
+    case mwin_requestOpenUrl:
+        return mwinMacOpenUrl(request);
+    case mwin_requestRevealFile:
+        return mwinMacRevealFile(request);
+    case mwin_requestKeepAwake:
+        // The pump keeps the display awake from the windows' state.
+        return mwin_outcomeDone;
     default:
         return mwin_outcomeUnsupported;
     }

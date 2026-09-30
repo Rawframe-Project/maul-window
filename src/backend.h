@@ -46,8 +46,9 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
 
 // The same loop in steps, for a platform that owns the loop and calls
 // the backend once a frame. Start calls init: true when frames follow.
-// Step pumps and runs a frame: false once the program stops. End calls
-// quit and returns init's status.
+// Step pumps and runs a frame: false once the program stops; a step
+// taken while init, a frame or quit runs does nothing. End calls quit
+// and returns init's status.
 bool mwinStartProgram(mwinContext* context);
 bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context));
 mwinResult mwinEndProgram(mwinContext* context);

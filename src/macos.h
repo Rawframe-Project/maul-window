@@ -4,9 +4,9 @@
 // What the macOS backend keeps (mwin-0024): per window slot its NSWindow,
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
-// shown there; and what drives the program's frames. Objects are held
-// with manual retain and release. Included by the backend's
-// Objective-C files only.
+// shown there; what drives the program's frames; and the keyboard's
+// layout. Objects are held with manual retain and release. Included by
+// the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
 #define MAUL_WINDOW_SRC_MACOS_H
@@ -34,6 +34,10 @@ typedef struct mwinMacWindow
     mwinPosition position;
     int32_t monitor;
     mwinWindowMode mode;
+    // The mouse buttons held over the view (bit b - 1 for button b), and
+    // whether the pointer is over it.
+    uint8_t buttons;
+    bool pointerInside;
 } mwinMacWindow;
 
 struct mwinMacPlatform
@@ -47,6 +51,11 @@ struct mwinMacPlatform
     id driver;
     id stepper;
     id screensObserver;
+    // The current keyboard input source (a TISInputSourceRef, held), what
+    // tells of its changes, and what hands Command's key releases on.
+    const void* layout;
+    id layoutObserver;
+    id keyUpMonitor;
 };
 
 // The platform of a context whose backend is macOS.
@@ -67,6 +76,30 @@ int32_t mwinMacMonitorOf(const mwinMacPlatform* platform, NSScreen* screen);
 // The height of the primary screen in points, which turns AppKit's
 // bottom-left coordinates into the contract's top-left ones.
 CGFloat mwinMacPrimaryHeight(void);
+
+// A window's content view, made retained: the view class of the slot's
+// window (macos_view.m).
+NSView* mwinMacCreateView(mwinMacPlatform* platform, uint32_t slot, NSRect frame);
+
+// The physical key of a virtual key code; what the current layout makes
+// of a key with no modifier; the modifiers of an event's flags.
+mwinKeyCode mwinMacCodeOf(uint16_t virtualKey);
+mwinKey mwinMacMeaningOf(const mwinMacPlatform* platform, uint16_t virtualKey, mwinKeyCode code);
+mwinModifiers mwinMacModifiersOf(NSEventModifierFlags flags);
+
+// What a flagsChanged: event did to a key: 1 pressed, 0 released, 2
+// toggled (Caps Lock), -1 when the key is no modifier.
+int mwinMacModifierChange(mwinKeyCode code, NSEventModifierFlags flags);
+
+// The backend's mapKeyCode and keyboardLayout.
+mwinKey mwinMacMapKeyCode(const mwinMacPlatform* platform, mwinKeyCode code);
+mwinResult mwinMacKeyboardLayout(const mwinMacPlatform* platform, char* buffer, size_t capacity,
+                                 size_t* lengthOut);
+
+// Reads the keyboard layout and watches its changes and Command's key
+// releases, from the start of the backend to its stop.
+void mwinMacWatchKeyboard(mwinMacPlatform* platform);
+void mwinMacUnwatchKeyboard(mwinMacPlatform* platform);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

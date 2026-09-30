@@ -326,6 +326,12 @@ bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
     {
         return false;
     }
+    if (context->inProgram)
+    {
+        // The program's own code spun the platform's loop (AppKit's, for
+        // a modal panel or an input method): its frame is not over.
+        return true;
+    }
     mwinBeginPump(context);
     pump(context);
     if (context->stopping)

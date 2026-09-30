@@ -14,44 +14,6 @@
 #include <math.h>
 #include <string.h>
 
-// The content view: flipped, so its coordinates run down from the top
-// left as the contract's do, and backed by a CAMetalLayer for a GPU
-// layer to present to.
-@interface MwinMacView : NSView
-@end
-
-@implementation MwinMacView
-- (instancetype)initWithFrame:(NSRect)frame
-{
-    self = [super initWithFrame:frame];
-    if (self != nil)
-    {
-        self.wantsLayer = YES;
-    }
-    return self;
-}
-
-- (CALayer*)makeBackingLayer
-{
-    return [CAMetalLayer layer];
-}
-
-- (BOOL)wantsUpdateLayer
-{
-    return YES;
-}
-
-- (BOOL)isFlipped
-{
-    return YES;
-}
-
-- (BOOL)acceptsFirstResponder
-{
-    return YES;
-}
-@end
-
 // A window's delegate: its platform and slot.
 @interface MwinMacDelegate : NSObject <NSWindowDelegate>
 {
@@ -333,8 +295,9 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
         {
             made.level = NSFloatingWindowLevel;
         }
-        MwinMacView* view = [[MwinMacView alloc] initWithFrame:content];
+        NSView* view = mwinMacCreateView(platform, slot, content);
         made.contentView = view;
+        [made makeFirstResponder:view];
         MwinMacDelegate* delegate = [[MwinMacDelegate alloc] init];
         delegate->platform = platform;
         delegate->slot = slot;

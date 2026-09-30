@@ -141,6 +141,7 @@ static void Stop(mwinContext* context)
             [platform->screensObserver release];
         }
         [platform->stepper release];
+        mwinMacUnwatchKeyboard(platform);
         mwinMacForgetScreens(platform);
     }
     mwinRelease(&context->allocator, platform, PartsOf(&context->limits).layout.size,
@@ -181,6 +182,7 @@ static mwinResult Start(mwinContext* context)
                       mwinMacReadScreens(platform, mwinMacNow());
                     }] retain];
         mwinMacReadScreens(platform, mwinMacNow());
+        mwinMacWatchKeyboard(platform);
     }
     return mwin_success;
 }
@@ -209,22 +211,15 @@ static uint64_t Now(const mwinContext* context)
     return mwinMacNow();
 }
 
-// Keys come in a later slice: no key has a meaning yet.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    (void)code;
-    return 0;
+    return mwinMacMapKeyCode(mwinMacPlatformOf(context), code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
                                  size_t* lengthOut)
 {
-    (void)context;
-    (void)buffer;
-    (void)capacity;
-    *lengthOut = 0;
-    return mwin_success;
+    return mwinMacKeyboardLayout(mwinMacPlatformOf(context), buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)

@@ -14,6 +14,10 @@ format.
   CAMetalLayer, the screens as monitors, and frames from the screen's
   display link, or a timer before macOS 14 (mwin-0024). Input and the
   rest are unsupported until later slices.
+- macOS keys, text, mouse and wheel: keys by virtual key code with the
+  layout's meaning and its changes, typed text through a text input
+  client, AppKit's click counts, and precise scrolling at ten points to
+  a detent (mwin-0024).
 
 ## [0.2.0] - 2026-09-30
 

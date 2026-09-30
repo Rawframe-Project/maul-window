@@ -312,6 +312,16 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_MACOS)
         # Needs the session's window server, which CI's macOS runners have.
         maul_add_test(macos)
+        # Objective-C, to make the NSEvents AppKit would deliver.
+        add_executable(test_macos_input test/test_macos_input.m)
+        target_link_libraries(test_macos_input PRIVATE maul-window "-framework AppKit"
+                              "-framework Carbon")
+        maul_apply_flags(test_macos_input)
+        set_target_properties(test_macos_input PROPERTIES OBJC_STANDARD 23
+                              OBJC_STANDARD_REQUIRED ON OBJC_EXTENSIONS OFF)
+        target_compile_options(test_macos_input PRIVATE -fno-objc-arc)
+        add_test(NAME macos_input COMMAND test_macos_input)
+        set_tests_properties(macos macos_input PROPERTIES TIMEOUT 60)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)

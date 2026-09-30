@@ -35,7 +35,9 @@ linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 macos: core
+macos_keys: core macos
 macos_output: core macos
+macos_view: core macos
 macos_window: core macos
 message_box:
 monitor: core

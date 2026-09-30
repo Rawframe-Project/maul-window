@@ -14,6 +14,7 @@
 #include "core.h"
 
 #import <AppKit/AppKit.h>
+#import <QuartzCore/CADisplayLink.h>
 #import <QuartzCore/CAMetalLayer.h>
 
 typedef struct mwinMacPlatform mwinMacPlatform;

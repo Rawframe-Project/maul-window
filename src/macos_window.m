@@ -87,13 +87,13 @@ static void PostSize(mwinMacPlatform* platform, uint32_t slot)
     NSSize points = PointsOf(window);
     float scale = (float)window->window.backingScaleFactor;
     mwinSize size = {(float)points.width, (float)points.height};
-    uint32_t width = (uint32_t)lround(points.width * scale);
-    uint32_t height = (uint32_t)lround(points.height * scale);
+    uint32_t width = (uint32_t)lround(points.width * (CGFloat)scale);
+    uint32_t height = (uint32_t)lround(points.height * (CGFloat)scale);
     mwinEvent event = {0};
     if (scale != window->scale)
     {
         window->scale = scale;
-        window->layer.contentsScale = scale;
+        window->layer.contentsScale = (CGFloat)scale;
         event.type = mwin_eventScaleChanged;
         event.data.scale = (mwinScaleChange){scale, size};
         Post(platform, slot, &event);
@@ -316,7 +316,8 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
         mwinFindActiveRequest(core, context->limits.requestsPerWindow, mwin_requestCreate);
     @autoreleasepool
     {
-        NSRect content = NSMakeRect(0.0, 0.0, core->def.size.width, core->def.size.height);
+        NSRect content =
+            NSMakeRect(0.0, 0.0, (CGFloat)core->def.size.width, (CGFloat)core->def.size.height);
         NSWindow* made = [[NSWindow alloc] initWithContentRect:content
                                                      styleMask:StyleMaskOf(core->def.style)
                                                        backing:NSBackingStoreBuffered
@@ -442,7 +443,8 @@ static int SetMode(mwinMacPlatform* platform, uint32_t slot, mwinWindowMode mode
 static void Place(const mwinMacWindow* window, mwinPosition position)
 {
     NSRect current = [window->window contentRectForFrameRect:window->window.frame];
-    NSRect content = NSMakeRect(position.x, mwinMacPrimaryHeight() - position.y - NSHeight(current),
+    NSRect content = NSMakeRect((CGFloat)position.x,
+                                mwinMacPrimaryHeight() - (CGFloat)position.y - NSHeight(current),
                                 NSWidth(current), NSHeight(current));
     [window->window setFrameOrigin:[window->window frameRectForContentRect:content].origin];
 }
@@ -462,8 +464,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         core->titleLength = core->pendingTitleLength;
         return mwin_outcomeDone;
     case mwin_requestSize:
-        [window->window
-            setContentSize:NSMakeSize(request->value.size.width, request->value.size.height)];
+        [window->window setContentSize:NSMakeSize((CGFloat)request->value.size.width,
+                                                  (CGFloat)request->value.size.height)];
         return mwin_outcomeDone;
     case mwin_requestPosition:
         Place(window, request->value.position);

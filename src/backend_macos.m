@@ -153,6 +153,7 @@ static void Stop(mwinContext* context)
         mwinMacStopPads(platform);
 #endif
         mwinMacUnwatchKeyboard(platform);
+        mwinMacUnwatchSystem(platform);
         mwinMacForgetCursors(platform);
         mwinMacKeepAwake(platform, false);
         mwinMacCloseDialogs(platform, -1);
@@ -197,6 +198,7 @@ static mwinResult Start(mwinContext* context)
                     }] retain];
         mwinMacReadScreens(platform, mwinMacNow());
         mwinMacWatchKeyboard(platform);
+        mwinMacWatchSystem(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
         mwinMacStartPads(platform);
 #endif

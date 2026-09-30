@@ -33,7 +33,10 @@ format.
 - macOS drag and drop: files and text dropped on a window, with drags
   entering, moving and leaving (mwin-0024).
 - macOS file dialogs as sheets that do not block, with a menu of
-  filters, and the message box as an alert (mwin-0024). Its tracking is Windows.Gaming.Input's, now
+  filters, and the message box as an alert (mwin-0024).
+- macOS system facts and locales: the appearance, the accent color,
+  reduced motion, the power source, Low Power Mode and the preferred
+  languages, read again when they change (mwin-0024). Its tracking is Windows.Gaming.Input's, now
   shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30

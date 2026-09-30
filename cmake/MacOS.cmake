@@ -1,8 +1,9 @@
 # The macOS backend (mwin-0024), in Objective-C with manual retain and
 # release, as Maul RHI's Metal driver: AppKit for windows and input,
-# Carbon for the keyboard layouts, IOKit to keep the display awake,
-# QuartzCore for the views' CAMetalLayers, UniformTypeIdentifiers for the
-# dialogs' filters, GameController and CoreHaptics for the gamepads.
+# Carbon for the keyboard layouts, IOKit to keep the display awake and
+# read the power source, QuartzCore for the views' CAMetalLayers,
+# UniformTypeIdentifiers for the dialogs' filters, GameController and
+# CoreHaptics for the gamepads.
 
 enable_language(OBJC)
 set(MWIN_MACOS_SOURCES
@@ -15,6 +16,7 @@ set(MWIN_MACOS_SOURCES
     src/macos_output.m
     src/macos_pen.m
     src/macos_services.m
+    src/macos_system.m
     src/macos_text.m
     src/macos_view.m
     src/macos_window.m)

@@ -45,6 +45,7 @@ macos_pad: core macos pad_tracker
 macos_pen: core macos
 macos_rumble: core macos
 macos_services: core macos
+macos_system: core macos
 macos_text: core macos
 macos_view: core macos
 macos_window: core macos

@@ -5,7 +5,8 @@
 // the library's content view with its CAMetalLayer, the window's delegate
 // and what the program was told of it; per monitor slot the display
 // shown there; what drives the program's frames; the keyboard's layout,
-// the cursors, the pen, the gamepads, the services and the dialogs. Objects are held with manual
+// the cursors, the pen, the gamepads, the services, the dialogs and the
+// system's facts. Objects are held with manual
 // retain and release. Included by the backend's Objective-C files only.
 
 #ifndef MAUL_WINDOW_SRC_MACOS_H
@@ -94,6 +95,12 @@ struct mwinMacPlatform
     uint32_t awakeAssertion;
     // The file dialogs showing; nil before the first.
     id dialogs;
+    // What announces changes of the system's facts: notifications, the
+    // appearance's observer, and the power source's run loop source (a
+    // CFRunLoopSourceRef, held).
+    id systemObservers[4];
+    id appearanceWatcher;
+    const void* powerSource;
 };
 
 // The platform of a context whose backend is macOS.
@@ -207,6 +214,12 @@ bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> dr
 int mwinMacAskDialog(mwinMacPlatform* platform, uint32_t slot, uint32_t request);
 void mwinMacPumpDialogs(mwinMacPlatform* platform);
 void mwinMacCloseDialogs(mwinMacPlatform* platform, int64_t slot);
+
+// Reads the system's facts and locales into the context; watches their
+// changes from the start of the backend to its stop (macos_system.m).
+void mwinMacReadSystem(mwinMacPlatform* platform);
+void mwinMacWatchSystem(mwinMacPlatform* platform);
+void mwinMacUnwatchSystem(mwinMacPlatform* platform);
 
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);

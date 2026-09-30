@@ -182,15 +182,27 @@ the loop for platforms that own it (the web's, mwin-0022), through
   message the text below it; a box with only a message has it as the
   headline. Its buttons are English (OK, Cancel, Yes, No), since AppKit
   names only its own OK; Escape answers the second.
+- **System facts:** the theme the application's appearance matches
+  (Aqua or Dark Aqua); the accent color, converted to sRGB; reduced
+  motion from the accessibility display options; on battery when the
+  battery provides the power, unknown with no power source to say; Low
+  Power Mode from macOS 12, unknown before it. macOS has no text scale
+  for every program, so it is 1. Changes come on the main thread (the
+  appearance by key-value observing, the power source by a run loop
+  source, the rest by notifications taken on the main queue, since the
+  power state's comes on any thread) and read everything again.
+- **Locales** are the preferred languages in order, comma-separated;
+  while the list is past the limit, whole tags from its end are left
+  out. A change of the current locale reads them again.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
   cursors and capture; the fourth the pen; the fifth gamepads and their
   motors; the sixth the clipboard, the services, drag and drop, file
-  dialogs and the message box. System facts, locales, icons, owned
-  windows, chrome and accessibility follow, and are unsupported until
-  then.
+  dialogs and the message box; the seventh system facts and locales.
+  Icons, owned windows, chrome and accessibility follow, and are
+  unsupported until then.
 
 ## Consequences
 
@@ -235,6 +247,11 @@ AppKit's events as well, since both run on the main thread.
   changing the allowed types) and confirms it, reading the path back;
   cancels an open sheet; and destroys the window of a folder sheet,
   which closes with its request cancelled.
+- `macos_system` compares the facts and locales with what AppKit says:
+  the appearance's theme, the accent color in sRGB, reduced motion, a
+  text scale of 1, not on battery, Low Power Mode, and the preferred
+  languages in order. Their changes cannot be made on the runner
+  without changing the user's settings.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

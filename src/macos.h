@@ -221,6 +221,27 @@ void mwinMacReadSystem(mwinMacPlatform* platform);
 void mwinMacWatchSystem(mwinMacPlatform* platform);
 void mwinMacUnwatchSystem(mwinMacPlatform* platform);
 
+// Owned windows and popups (macos_owned.m): the owner slot of a popup,
+// whose place is measured from its owner's content, or -1; a new
+// window, borderless for a popup, made retained; a new window placed,
+// centered on its owner or on the screen, a popup at its place; a
+// window shown or hidden, a child of its owner while it shows; its
+// owner let go before it is destroyed; whether it is a menu.
+int32_t mwinMacPopupOwner(const mwinMacPlatform* platform, uint32_t slot);
+NSWindow* mwinMacMakeWindow(const mwinMacPlatform* platform, uint32_t slot, NSRect content,
+                            NSWindowStyleMask style);
+void mwinMacPlaceNew(mwinMacPlatform* platform, uint32_t slot);
+void mwinMacShow(mwinMacPlatform* platform, uint32_t slot, bool visible);
+void mwinMacForgetOwner(mwinMacPlatform* platform, uint32_t slot);
+bool mwinMacIsMenu(const mwinMacPlatform* platform, uint32_t slot);
+
+// Moves a window's content to a place: from the top left of the primary
+// screen, or of its owner's content for a popup (macos_window.m).
+void mwinMacPlace(mwinMacPlatform* platform, uint32_t slot, mwinPosition position);
+
+// An icon request's outcome: the application's icon (macos_icon.m).
+mwinOutcome mwinMacSetIcon(const mwinRequest* request);
+
 // The backend's window operations (backend.h).
 void mwinMacCreateWindow(mwinContext* context, uint32_t slot);
 void mwinMacDestroyWindow(mwinContext* context, uint32_t slot);

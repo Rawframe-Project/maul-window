@@ -11,9 +11,11 @@ set(MWIN_MACOS_SOURCES
     src/macos_cursor.m
     src/macos_dialog.m
     src/macos_drop.m
+    src/macos_icon.m
     src/macos_keys.m
     src/macos_message_box.m
     src/macos_output.m
+    src/macos_owned.m
     src/macos_pen.m
     src/macos_services.m
     src/macos_system.m

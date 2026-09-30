@@ -38,9 +38,11 @@ macos: core pad_tracker
 macos_cursor: core macos
 macos_dialog: answer core dialog macos
 macos_drop: core macos
+macos_icon: core icon macos
 macos_keys: core macos
 macos_message_box: message_box
 macos_output: core macos
+macos_owned: core macos
 macos_pad: core macos pad_tracker
 macos_pen: core macos
 macos_rumble: core macos

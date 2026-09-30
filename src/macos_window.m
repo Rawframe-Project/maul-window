@@ -2,12 +2,11 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // macOS windows (macos.h): an NSWindow whose content view is the
-// library's, layer-backed by a CAMetalLayer, and a delegate that reports
-// what AppKit did to it. Sizes and places are logical, in points; a
-// place is the content's top left from the top left of the primary
-// screen. Closing asks the program. Borderless full screen is the
-// window's own full-screen space, which answers once AppKit has entered
-// or left it; the other requests answer at once.
+// library's (a borderless one for a popup, macos_owned.m), layer-backed by a CAMetalLayer, and a
+// delegate that reports what AppKit did to it. Sizes and places are logical, in points; a place is
+// the content's top left from the top left of the primary screen. Closing asks the program.
+// Borderless full screen is the window's own full-screen space, which answers once AppKit has
+// entered or left it; the other requests answer at once.
 
 #include "macos.h"
 
@@ -74,17 +73,33 @@ static void PostSize(mwinMacPlatform* platform, uint32_t slot)
 }
 
 // The content's top left, from the top left of the primary screen.
-static mwinPosition PositionOf(const mwinMacWindow* window)
+// The content's top left from the primary screen's top left.
+static mwinPosition ScreenPlaceOf(const mwinMacWindow* window)
 {
     NSRect content = [window->window contentRectForFrameRect:window->window.frame];
     return (mwinPosition){(float)NSMinX(content),
                           (float)(mwinMacPrimaryHeight() - NSMaxY(content))};
 }
 
+// What a window's place is measured from: its owner's content for a
+// popup, the primary screen for the rest.
+static mwinPosition AnchorOf(const mwinMacPlatform* platform, uint32_t slot)
+{
+    int32_t owner = mwinMacPopupOwner(platform, slot);
+    return owner >= 0 ? ScreenPlaceOf(&platform->windows[owner]) : (mwinPosition){0.0f, 0.0f};
+}
+
+static mwinPosition PositionOf(const mwinMacPlatform* platform, uint32_t slot)
+{
+    mwinPosition screen = ScreenPlaceOf(&platform->windows[slot]);
+    mwinPosition anchor = AnchorOf(platform, slot);
+    return (mwinPosition){screen.x - anchor.x, screen.y - anchor.y};
+}
+
 static void PostMove(mwinMacPlatform* platform, uint32_t slot)
 {
     mwinMacWindow* window = &platform->windows[slot];
-    mwinPosition position = PositionOf(window);
+    mwinPosition position = PositionOf(platform, slot);
     if (position.x == window->position.x && position.y == window->position.y)
     {
         return;
@@ -186,6 +201,12 @@ static bool IsFullscreen(const mwinMacWindow* window)
     (void)notification;
     mwinMacApplyCapture(platform, slot, false);
     PostType(platform, slot, mwin_eventFocusLost);
+    // A menu closes when the keyboard goes elsewhere, if the program
+    // agrees.
+    if (mwinMacIsMenu(platform, slot))
+    {
+        PostType(platform, slot, mwin_eventCloseRequested);
+    }
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification
@@ -282,10 +303,7 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
     {
         NSRect content =
             NSMakeRect(0.0, 0.0, (CGFloat)core->def.size.width, (CGFloat)core->def.size.height);
-        NSWindow* made = [[NSWindow alloc] initWithContentRect:content
-                                                     styleMask:StyleMaskOf(core->def.style)
-                                                       backing:NSBackingStoreBuffered
-                                                         defer:NO];
+        NSWindow* made = mwinMacMakeWindow(platform, slot, content, StyleMaskOf(core->def.style));
         if (made == nil)
         {
             mwinComplete(context, slot, (uint32_t)request, mwin_outcomeFailed);
@@ -305,16 +323,16 @@ void mwinMacCreateWindow(mwinContext* context, uint32_t slot)
         delegate->slot = slot;
         made.delegate = delegate;
         made.title = StringOf(core->title, core->titleLength);
-        [made center];
         window->window = made;
         window->view = view;
         window->layer = (CAMetalLayer*)view.layer;
         window->delegate = delegate;
         [view release];
+        mwinMacPlaceNew(platform, slot);
         Establish(platform, slot);
         if (core->def.visible)
         {
-            [made makeKeyAndOrderFront:nil];
+            mwinMacShow(platform, slot, true);
             PostType(platform, slot, mwin_eventShown);
         }
         if (core->def.mode == mwin_modeMaximized)
@@ -342,6 +360,7 @@ void mwinMacDestroyWindow(mwinContext* context, uint32_t slot)
     {
         mwinMacApplyCapture(platform, slot, false);
         mwinMacCloseDialogs(platform, slot);
+        mwinMacForgetOwner(platform, slot);
         [window->marked release];
         if (window->window != nil)
         {
@@ -407,14 +426,15 @@ static int SetMode(mwinMacPlatform* platform, uint32_t slot, mwinWindowMode mode
     return mwin_outcomeDone;
 }
 
-// Moves the content's top left to a place from the top left of the
-// primary screen.
-static void Place(const mwinMacWindow* window, mwinPosition position)
+void mwinMacPlace(mwinMacPlatform* platform, uint32_t slot, mwinPosition position)
 {
+    const mwinMacWindow* window = &platform->windows[slot];
+    mwinPosition anchor = AnchorOf(platform, slot);
     NSRect current = [window->window contentRectForFrameRect:window->window.frame];
-    NSRect content = NSMakeRect((CGFloat)position.x,
-                                mwinMacPrimaryHeight() - (CGFloat)position.y - NSHeight(current),
-                                NSWidth(current), NSHeight(current));
+    NSRect content =
+        NSMakeRect((CGFloat)(position.x + anchor.x),
+                   mwinMacPrimaryHeight() - (CGFloat)(position.y + anchor.y) - NSHeight(current),
+                   NSWidth(current), NSHeight(current));
     [window->window setFrameOrigin:[window->window frameRectForContentRect:content].origin];
 }
 
@@ -437,19 +457,12 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
                                                   (CGFloat)request->value.size.height)];
         return mwin_outcomeDone;
     case mwin_requestPosition:
-        Place(window, request->value.position);
+        mwinMacPlace(platform, slot, request->value.position);
         return mwin_outcomeDone;
     case mwin_requestMode:
         return SetMode(platform, slot, request->value.mode);
     case mwin_requestVisible:
-        if (request->value.visible)
-        {
-            [window->window orderFront:nil];
-        }
-        else
-        {
-            [window->window orderOut:nil];
-        }
+        mwinMacShow(platform, slot, request->value.visible);
         PostType(platform, slot, request->value.visible ? mwin_eventShown : mwin_eventHidden);
         return mwin_outcomeDone;
     case mwin_requestFocus:
@@ -473,6 +486,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwin_outcomeDone;
+    case mwin_requestIcon:
+        return mwinMacSetIcon(request);
     case mwin_requestFileDialog:
         return mwinMacAskDialog(platform, slot, (uint32_t)(request - core->requests));
     default:

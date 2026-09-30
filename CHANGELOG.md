@@ -36,7 +36,9 @@ format.
   filters, and the message box as an alert (mwin-0024).
 - macOS system facts and locales: the appearance, the accent color,
   reduced motion, the power source, Low Power Mode and the preferred
-  languages, read again when they change (mwin-0024). Its tracking is Windows.Gaming.Input's, now
+  languages, read again when they change (mwin-0024).
+- macOS owned windows and popups as child windows, and window icons as
+  the application's icon (mwin-0024). Its tracking is Windows.Gaming.Input's, now
   shared (mwin-0023).
 
 ## [0.2.0] - 2026-09-30

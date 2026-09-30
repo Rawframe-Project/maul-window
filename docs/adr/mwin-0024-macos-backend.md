@@ -194,15 +194,30 @@ the loop for platforms that own it (the web's, mwin-0022), through
 - **Locales** are the preferred languages in order, comma-separated;
   while the list is past the limit, whole tags from its end are left
   out. A change of the current locale reads them again.
+- **Owned windows** are child windows of their owner's, as AppKit has
+  owners: kept above it and gone with it, and, as AppKit does, moving
+  with it. A child window shows whenever its parent does, so a window
+  is made a child only while it shows. A new owned window is centered on
+  its owner.
+- **Popups** are also borderless, their places measured from their
+  owner's content, and follow it as children. A menu can take the
+  keyboard, and is asked to close when the keyboard goes elsewhere; a
+  tooltip never takes it.
+- **The icon:** a macOS window has no icon of its own; the Dock and the
+  application switcher show the application's. A window's icon request
+  sets the application's icon, the last request of any window winning,
+  and a request without images gives back the bundle's own. The images
+  are representations of one image of the largest's size, so AppKit
+  draws the one nearest the pixels it needs.
 - **Native handles** give the view and its layer, for the GPU layer to
   make its surface from.
 - **Slices:** the first slice makes windows, monitors and the loop; the
   second keys, text, the mouse and the wheel; the third input methods,
   cursors and capture; the fourth the pen; the fifth gamepads and their
   motors; the sixth the clipboard, the services, drag and drop, file
-  dialogs and the message box; the seventh system facts and locales.
-  Icons, owned windows, chrome and accessibility follow, and are
-  unsupported until then.
+  dialogs and the message box; the seventh system facts and locales;
+  the eighth owned windows, popups and the icon. Chrome and
+  accessibility follow, and are unsupported until then.
 
 ## Consequences
 
@@ -252,6 +267,14 @@ AppKit's events as well, since both run on the main thread.
   text scale of 1, not on battery, Low Power Mode, and the preferred
   languages in order. Their changes cannot be made on the runner
   without changing the user's settings.
+- `macos_owned` reads owned windows back from AppKit: an owned window,
+  a menu and a tooltip children of their owner's window; the popups
+  borderless, the menu able to take the keyboard and the tooltip not;
+  the menu at its place against its owner's content and keeping it as
+  the owner moves; the tooltip placed against it; the application's
+  icon made of both images and given back; all gone with their owner.
+  A menu losing the keyboard needs the program in front, as a runner's
+  never is.
 - `macos_services` writes text to the pasteboard and reads it back,
   keeps the display awake and reads it back from the process's power
   assertions, then lets it go, and reveals a missing file (failed) and

@@ -10,7 +10,7 @@
 //   that types none. UIKit does not repeat presses. iOS offers no way to
 //   ask a layout what a key types, so a printing key's meaning is known
 //   once it was pressed under the current layout; the others are named.
-// - The view is a text input client (UIKeyInput) and the first responder
+// - The view is a text input client (ios_text.m) and the first responder
 //   while its window shows, so text is typed into it, as on the other
 //   platforms, whether or not the window accepts text: a hardware key's
 //   text, or the on-screen keyboard's. A newline, a tab and a deletion
@@ -195,6 +195,11 @@ mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool e
                                 mwinRect caret)
 {
     mwinIOSWindow* window = &platform->windows[slot];
+    if (!enabled && window->textInput)
+    {
+        // The composition is dropped, not accepted.
+        mwinIOSEndComposition(platform, slot, false);
+    }
     window->textInput = enabled;
     window->caret = caret;
     return mwin_outcomeDone;

@@ -105,7 +105,16 @@ mwin-0022).
     corrected, capitalized or completed, and a hardware keyboard shows
     no shortcuts bar. The part of each window it covers is posted when
     its frame changes.
-  - Input methods' compositions (`UITextInput`) come in a later slice.
+  - Input methods compose through the view as a `UITextInput` client
+    whose document is only the marked text; accepted text leaves at once
+    as text records. While the window accepts text the marked text is
+    `mwin_eventImePreedit`, one clause underlined, the method's
+    selection as the selection and its end as the caret, and the
+    candidate window goes by the program's caret. While it does not, a
+    method still composes, as the user expects of their keyboard, but
+    only the text it accepts is posted, as on macOS. Turning text input
+    off drops a composition, UIKit told through its input delegate. iOS
+    gives marked text no clauses, so there is one.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -162,5 +171,11 @@ one window.
   frame, then hides it. The press path from a real keyboard through
   UIKit's text system, and the keyboard itself, are not seen: the
   simulator on CI has neither.
+- `ios_ime` works the view as an input method would, one composition
+  a frame: marked text reported with its caret and selection in bytes,
+  the candidate window at the program's caret; accepted as it is and as
+  other text; shortened by a deletion; dropped when text input is
+  turned off; composed without a record while it is off. A real input
+  method on a real keyboard is not seen: the simulator on CI has none.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

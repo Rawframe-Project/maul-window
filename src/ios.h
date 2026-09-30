@@ -86,6 +86,25 @@ struct mwinIOSPlatform
     id keyboardObservers[2];
 };
 
+// A window's view: its platform and slot, null once its window is
+// destroyed; the input view that keeps the on-screen keyboard away; an
+// input method's marked text (nil when none) with its selection in
+// UTF-16 units, the delegate UIKit gives the text input client, not
+// held, and the tokenizer it asks for. Its text input methods are in
+// ios_text.m.
+@interface MwinIOSView : UIView
+{
+  @public
+    mwinIOSPlatform* platform;
+    uint32_t slot;
+    UIView* noKeyboard;
+    NSString* marked;
+    NSRange markedSelection;
+    id<UITextInputDelegate> inputDelegate;
+    UITextInputStringTokenizer* tokenizer;
+}
+@end
+
 // The platform of a context whose backend is iOS.
 mwinIOSPlatform* mwinIOSPlatformOf(const mwinContext* context);
 
@@ -137,6 +156,12 @@ mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool e
                                 mwinRect caret);
 mwinOutcome mwinIOSSetVirtualKeyboard(mwinIOSPlatform* platform, uint32_t slot, bool visible,
                                       mwinInputPurpose purpose);
+
+// Compositions (ios_text.m): the text input client's marked text,
+// accepted or dropped.
+void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* text,
+                          NSRange selected);
+void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept);
 
 // Posts what changed of a window's scale, size, mode, place, safe area
 // and monitor, after UIKit laid it out (ios_window.m).

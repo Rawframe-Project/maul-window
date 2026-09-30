@@ -21,6 +21,8 @@ format.
 - iOS keys from a hardware keyboard, typed text, and the on-screen
   keyboard with its purpose and the part of the window it covers
   (mwin-0025).
+- iOS input methods' compositions, through the view as a text input
+  client (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

@@ -3,6 +3,7 @@
 accessibility: core
 allocator:
 answer: core
+apple_text:
 backend:
 backend_ios: allocator backend core ios
 backend_macos: allocator backend core macos
@@ -30,6 +31,7 @@ ios: core
 ios_keys: core ios
 ios_output: core ios
 ios_pointer: core ios
+ios_text: apple_text core ios
 ios_view: core ios
 ios_window: core ios
 linux_bus: dbus_api
@@ -56,7 +58,7 @@ macos_pen: core macos
 macos_rumble: core macos
 macos_services: core macos
 macos_system: core macos
-macos_text: core macos
+macos_text: apple_text core macos
 macos_view: accessibility core macos
 macos_window: core macos
 message_box:

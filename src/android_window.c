@@ -7,7 +7,8 @@
 // for; each later native window is a new surface generation, each one
 // going a lost surface. Its size in pixels is the native window's, its
 // scale the configuration's density over 160. Text input and the
-// on-screen keyboard are android_text.c's. A second window, sizing,
+// on-screen keyboard are android_text.c's, the clipboard, addresses and
+// keeping awake android_services.c's. A second window, sizing,
 // placing, restyling, hiding it or setting its mode are unsupported.
 
 #include "android.h"
@@ -151,6 +152,15 @@ static mwinOutcome CarryOut(mwinAndroidPlatform* platform, const mwinRequest* re
     case mwin_requestTextInput:
         return mwinAndroidSetTextInput(platform, request->value.textInput.enabled,
                                        request->value.textInput.caret);
+    case mwin_requestClipboardWrite:
+        return mwinAndroidWriteClipboard(platform);
+    case mwin_requestClipboardRead:
+        return mwinAndroidReadClipboard(platform);
+    case mwin_requestOpenUrl:
+        return mwinAndroidOpenUrl(platform, request);
+    case mwin_requestKeepAwake:
+        mwinAndroidApplyAwake(platform, request->value.awake);
+        return mwin_outcomeDone;
     case mwin_requestVirtualKeyboard:
         // The purpose in the low bits, the high bit set to show.
         return mwinAndroidSetKeyboard(platform, (request->value.code & 0x80u) != 0,

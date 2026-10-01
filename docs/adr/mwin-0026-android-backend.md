@@ -150,6 +150,19 @@ keep no global state.
   runs the device's motors (two where Android 12 lists them, else one
   at the stronger), timed by Android; batteries are read from Android
   12 on, with the look.
+- **Services:** the clipboard holds text, written as plain text and
+  read as the first item's text at once, through the library's Java
+  helper (`maul.window.Services`); from Android 10 only the focused
+  application reads it, and a refused read, which Android tells apart
+  only in its log, reads as empty, as on iOS. An address opens in the
+  application the user chose (an `ACTION_VIEW` intent), answered at
+  once, failed when there is none. Keeping awake is the activity
+  window's `FLAG_KEEP_SCREEN_ON` (`ANativeActivity_setWindowFlags`),
+  which holds while the window shows and is set again on an activity
+  that joins. There is no file manager to show a file in, and no message
+  box: Android forbids waiting on its main thread, where a program
+  waiting on one would stop its own input (Android calls an application
+  not responding after five seconds).
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -167,7 +180,10 @@ keep no global state.
   HID devices through Android's `hid` tool and the kernel's uhid, as a
   real gamepad comes: an Xbox 360 pad's ids (Android's own layout), a
   gamepad with none (the generic layout, a hat) and a joystick (raw),
-  and checks their facts, records, state and removal. The runner turns the system's
+  and checks their facts, records, state and removal; `android_services`
+  writes and reads the clipboard, keeps awake and stops, opens an
+  address in the browser and comes back, and checks that an activity
+  made anew keeps the display awake. The runner turns the system's
   animations off while a test runs, so that an opening transition does
   not move the window under the test's input.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps

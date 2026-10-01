@@ -38,11 +38,8 @@ static void PostEvent(mwinAndroidPlatform* platform, mwinEvent* event)
     mwinPost(platform->context, (uint32_t)platform->slot, event);
 }
 
-// A Java string as UTF-8 in a block from the allocator, which the caller
-// releases with its size; null for an empty one or no memory. The
-// UTF-16 offsets given are turned into byte offsets.
-static char* BytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
-                     size_t* sizeOut, int32_t* offsets, size_t offsetCount)
+char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
+                         size_t* sizeOut, int32_t* offsets, size_t offsetCount)
 {
     const mwinAllocator* allocator = &platform->context->allocator;
     jsize count = (*env)->GetStringLength(env, text);
@@ -96,7 +93,8 @@ static void JNICALL Commit(JNIEnv* env, jclass type, jlong program, jstring text
     (void)type;
     mwinAndroidPlatform* platform = Accepting(program);
     size_t size = 0;
-    char* bytes = platform != nullptr ? BytesOf(platform, env, text, &size, nullptr, 0) : nullptr;
+    char* bytes =
+        platform != nullptr ? mwinAndroidBytesOf(platform, env, text, &size, nullptr, 0) : nullptr;
     if (bytes == nullptr)
     {
         return;
@@ -137,7 +135,7 @@ static void JNICALL Compose(JNIEnv* env, jclass type, jlong program, jstring tex
     }
     int32_t offsets[2] = {start, end};
     size_t size = 0;
-    char* bytes = BytesOf(platform, env, text, &size, offsets, 2);
+    char* bytes = mwinAndroidBytesOf(platform, env, text, &size, offsets, 2);
     if (bytes == nullptr)
     {
         EndPreedit(platform);

@@ -59,7 +59,8 @@ typedef struct mwinAndroidInsets
 // JNI environment, the activity's class (a global reference) and its
 // field that holds the running program (maul.window.Activity.program),
 // and the library's methods that show the keyboard and drop the input
-// method's composition.
+// method's composition; its services helper (maul.window.Services, a
+// global reference) and its methods.
 typedef struct mwinAndroidJava
 {
     JNIEnv* env;
@@ -67,6 +68,10 @@ typedef struct mwinAndroidJava
     jfieldID program;
     jmethodID showKeyboard;
     jmethodID restartInput;
+    jclass services;
+    jmethodID writeClipboard;
+    jmethodID readClipboard;
+    jmethodID openUrl;
 } mwinAndroidJava;
 
 // The key codes the backend keeps a state of: the keyboard's usages up
@@ -217,11 +222,26 @@ mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float
                              uint32_t durationMs);
 void mwinAndroidStopPads(mwinAndroidPlatform* platform);
 
+// The clipboard and services (android_services.c): the Java helper
+// found at the start and let go at the stop; the clipboard written and
+// read, an address opened, the display kept awake or not.
+bool mwinAndroidFindServices(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopServices(mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidWriteClipboard(const mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidReadClipboard(const mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidOpenUrl(const mwinAndroidPlatform* platform, const mwinRequest* request);
+void mwinAndroidApplyAwake(const mwinAndroidPlatform* platform, bool awake);
+
 // Input methods, the keyboard and the insets (android_text.c): the Java
 // activity's native methods registered and its methods found, at the
 // start; the insets posted as they change and when the window is made;
 // the text input and keyboard requests.
 bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activity);
+// A Java string as UTF-8 in a block from the allocator, which the caller
+// releases with its size; null for an empty one or no memory. The
+// UTF-16 offsets given are turned into byte offsets.
+char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
+                         size_t* sizeOut, int32_t* offsets, size_t offsetCount);
 void mwinAndroidPostInsets(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled, mwinRect caret);
 mwinOutcome mwinAndroidSetKeyboard(mwinAndroidPlatform* platform, bool visible,

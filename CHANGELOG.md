@@ -29,6 +29,9 @@ format.
   library's Java helper, mapped by place as SDL maps them where Android
   names a south face button, raw otherwise, with rumble and batteries
   from Android 12.
+- Android services (mwin-0026): the clipboard's text, addresses opened
+  in the user's application, the display kept awake; no file manager
+  and no message box on Android.
 
 ## [0.4.0] - 2026-10-01
 

@@ -410,6 +410,11 @@ static void Attach(mwinAndroidPlatform* platform, ANativeActivity* activity)
     callbacks->onInputQueueDestroyed = OnInputQueueDestroyed;
     callbacks->onConfigurationChanged = OnConfigurationChanged;
     AConfiguration_fromAssetManager(platform->configuration, activity->assetManager);
+    // A window kept awake keeps the joining activity's display awake too.
+    if (platform->slot >= 0 && platform->context->windows[platform->slot].state.awake)
+    {
+        mwinAndroidApplyAwake(platform, true);
+    }
 }
 
 __attribute__((visibility("default"))) void
@@ -447,6 +452,7 @@ static void Stop(mwinContext* context)
     mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
     Detach(platform);
     mwinAndroidLoseInput(platform);
+    mwinAndroidStopServices(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidStopPads(platform);
 #endif
@@ -490,7 +496,8 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity);
+    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
+                 mwinAndroidFindServices(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif

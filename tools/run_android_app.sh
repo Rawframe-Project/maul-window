@@ -50,6 +50,9 @@ else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
 fi
 "$adb" shell am force-stop "$package"
+# A new device has neither set: the defaults are put back.
+[ "$rotation" = null ] && rotation=0
+[ "$rotating" = null ] && rotating=1
 "$adb" shell settings put system user_rotation "$rotation"
 "$adb" shell settings put system accelerometer_rotation "$rotating"
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do

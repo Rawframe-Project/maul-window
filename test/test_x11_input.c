@@ -133,6 +133,23 @@ static bool CanGrab(Program* program)
     return grabbed;
 }
 
+// Whether another client can grab the pointer within half a second: the
+// X server serves its clients in its own order, so it may meet the
+// test's grab before the program's ungrab, sent first.
+static bool CanGrabSoon(Program* program)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        if (CanGrab(program))
+        {
+            return true;
+        }
+        struct timespec pause = {0, 5000000};
+        (void)nanosleep(&pause, nullptr);
+    }
+    return false;
+}
+
 static bool Ready(const Program* program)
 {
     switch (program->phase)
@@ -213,7 +230,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
               "release");
         break;
     case phaseRelease:
-        CHECK(outcome == mwin_outcomeDone && CanGrab(program), "released: the grab goes");
+        CHECK(outcome == mwin_outcomeDone && CanGrabSoon(program), "released: the grab goes");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
                   mwin_success,
               "capture");
@@ -234,7 +251,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
         break;
     }
     case phaseUncapture:
-        CHECK(outcome == mwin_outcomeDone && CanGrab(program), "released: the grab goes");
+        CHECK(outcome == mwin_outcomeDone && CanGrabSoon(program), "released: the grab goes");
         break;
     default:
         break;

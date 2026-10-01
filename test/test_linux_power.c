@@ -3,7 +3,8 @@
 //
 // The power facts, on X11, against the stand-ins of linux_bus_fake.h: a
 // portal on a session bus and UPower on a system bus of the test's own.
-// - At the start: power saving from the portal, battery from UPower.
+// - At the start: power saving from the portal, battery from UPower, as
+//   one change or two, as the answers come.
 // - Each followed as it changes.
 // - A change of another interface, or of the wrong type, left alone.
 // - With the portal refusing and no system bus: both unknown, and no
@@ -119,7 +120,11 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else if (facts.lowPower == s_expected[program->phase][0] &&
              facts.onBattery == s_expected[program->phase][1])
     {
-        CHECK(program->changes == 1, "each change told once");
+        // The start's facts come from two answers, told together or one
+        // by one; each later change is told once.
+        CHECK(program->phase == 0 ? program->changes >= 1 && program->changes <= 2
+                                  : program->changes == 1,
+              "each change told once");
         program->changes = 0;
         program->done = program->phase + 1 == program->phases;
         if (!program->done)

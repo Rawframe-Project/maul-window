@@ -5,6 +5,7 @@ package maul.window;
 
 import android.app.NativeActivity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.os.Bundle;
@@ -72,6 +73,14 @@ public class Activity extends NativeActivity {
         // A keyboard asked for before the window had the focus shows now.
         if (hasFocus && keyboard) {
             showKeyboard(true, purpose);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int request, int code, Intent data) {
+        // The document picker's result goes to the library.
+        if (!Documents.result(this, request, code, data)) {
+            super.onActivityResult(request, code, data);
         }
     }
 

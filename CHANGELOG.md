@@ -32,6 +32,9 @@ format.
 - Android services (mwin-0026): the clipboard's text, addresses opened
   in the user's application, the display kept awake; no file manager
   and no message box on Android.
+- Android file dialogs (mwin-0026): the document picker opens documents,
+  copied into the application's cache between frames and answered as
+  their copies' paths; saving and folders are unsupported on Android.
 
 ## [0.4.0] - 2026-10-01
 

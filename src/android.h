@@ -13,6 +13,7 @@
 
 #include "android_motion.h"
 #include "android_pad_map.h"
+#include "answer.h"
 #include "core.h"
 
 #include <android/choreographer.h>
@@ -22,6 +23,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <jni.h>
+#include <limits.h>
 
 typedef struct mwinAndroidPlatform mwinAndroidPlatform;
 
@@ -125,6 +127,25 @@ typedef struct mwinAndroidPads
     jintArray keys;
 } mwinAndroidPads;
 
+// The file dialog: the library's Java helper (maul.window.Documents, a
+// global reference) and its picker; the folder the copies go to, under
+// the cache, and the number of the last dialog's; the request the
+// picker answers; and while its documents are copied, their
+// descriptors, read from and written to, and the next to copy.
+typedef struct mwinAndroidDocuments
+{
+    jclass type;
+    jmethodID open;
+    char folder[PATH_MAX];
+    uint32_t serial;
+    mwinServiceAnswer to;
+    bool copying;
+    int* from;
+    int* into;
+    uint32_t count;
+    uint32_t next;
+} mwinAndroidDocuments;
+
 struct mwinAndroidPlatform
 {
     mwinContext* context;
@@ -158,6 +179,7 @@ struct mwinAndroidPlatform
     mwinAndroidKeys keys;
     mwinAndroidInsets insets;
     mwinAndroidPads pads;
+    mwinAndroidDocuments documents;
 };
 
 // The platform of a context whose backend is Android.
@@ -221,6 +243,16 @@ bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event
 mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float low, float high,
                              uint32_t durationMs);
 void mwinAndroidStopPads(mwinAndroidPlatform* platform);
+
+// File dialogs (android_dialog.c): the Java helper found and its
+// function registered, and the copies of earlier runs removed, at the
+// start; the copying let go at the stop; a dialog asked for (-1 while
+// it waits for the picker, else its outcome); its documents copied a
+// step further between frames.
+bool mwinAndroidFindDialogs(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopDialogs(mwinAndroidPlatform* platform);
+int mwinAndroidAskDialog(mwinAndroidPlatform* platform, uint32_t slot, uint32_t request);
+void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform);
 
 // The clipboard and services (android_services.c): the Java helper
 // found at the start and let go at the stop; the clipboard written and

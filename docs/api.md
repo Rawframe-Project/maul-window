@@ -76,7 +76,7 @@ Returns how many calls the context has refused as invalid input (`mwin_errorInva
 
 ## `dialog.h`
 
-File dialogs: open one file or many, save one, or choose a folder, as requests of a window answered by a completion like any other. The window stays live while the dialog shows, and frames go on. A dialog chosen from completes with mwin_outcomeDone, and its paths wait under the request's id for mwinGetDialogFiles until the next dialog completes; one the user closes completes with mwin_outcomeCancelled; a choice past the dialogFiles or dialogBytes limits with mwin_outcomeTooLarge. A page names no files, so the web has no dialogs (mwin_outcomeUnsupported).
+File dialogs: open one file or many, save one, or choose a folder, as requests of a window answered by a completion like any other. The window stays live while the dialog shows, and frames go on. A dialog chosen from completes with mwin_outcomeDone, and its paths wait under the request's id for mwinGetDialogFiles until the next dialog completes; one the user closes completes with mwin_outcomeCancelled; a choice past the dialogFiles or dialogBytes limits with mwin_outcomeTooLarge. A page names no files, so the web has no dialogs (mwin_outcomeUnsupported). Android's documents have no paths either: the documents an Android dialog opens are copied into the application's cache first, and their copies' paths answered; saving and choosing a folder are unsupported there.
 
 ```c
 mwinFileDialogDef mwinDefaultFileDialogDef(void);

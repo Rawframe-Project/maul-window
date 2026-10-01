@@ -8,7 +8,7 @@
 // going a lost surface. Its size in pixels is the native window's, its
 // scale the configuration's density over 160. Text input and the
 // on-screen keyboard are android_text.c's, the clipboard, addresses and
-// keeping awake android_services.c's. A second window, sizing,
+// keeping awake android_services.c's, file dialogs android_dialog.c's. A second window, sizing,
 // placing, restyling, hiding it or setting its mode are unsupported.
 
 #include "android.h"
@@ -142,8 +142,10 @@ void mwinAndroidDestroyWindow(mwinContext* context, uint32_t slot)
     }
 }
 
-static mwinOutcome CarryOut(mwinAndroidPlatform* platform, const mwinRequest* request)
+// A request carried out: its outcome, or -1 when it is answered later.
+static int CarryOut(mwinAndroidPlatform* platform, uint32_t slot, uint32_t index)
 {
+    const mwinRequest* request = &platform->context->windows[slot].requests[index];
     switch (request->kind)
     {
     case mwin_requestVisible:
@@ -152,6 +154,8 @@ static mwinOutcome CarryOut(mwinAndroidPlatform* platform, const mwinRequest* re
     case mwin_requestTextInput:
         return mwinAndroidSetTextInput(platform, request->value.textInput.enabled,
                                        request->value.textInput.caret);
+    case mwin_requestFileDialog:
+        return mwinAndroidAskDialog(platform, slot, index);
     case mwin_requestClipboardWrite:
         return mwinAndroidWriteClipboard(platform);
     case mwin_requestClipboardRead:
@@ -172,7 +176,9 @@ static mwinOutcome CarryOut(mwinAndroidPlatform* platform, const mwinRequest* re
 
 void mwinAndroidSubmit(mwinContext* context, uint32_t slot, uint32_t request)
 {
-    mwinOutcome outcome =
-        CarryOut(mwinAndroidPlatformOf(context), &context->windows[slot].requests[request]);
-    mwinComplete(context, slot, request, outcome);
+    int outcome = CarryOut(mwinAndroidPlatformOf(context), slot, request);
+    if (outcome >= 0)
+    {
+        mwinComplete(context, slot, request, (mwinOutcome)outcome);
+    }
 }

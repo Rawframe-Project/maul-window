@@ -175,13 +175,14 @@ static void Finish(mwinAndroidPlatform* platform)
     mwinFinishRun(context);
 }
 
-// Between frames the gamepads are looked for when due.
+// Between frames the dialog's documents are copied a step further and
+// the gamepads looked for when due.
 static void Pump(mwinContext* context)
 {
+    mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
+    mwinAndroidPumpDialogs(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
-    mwinAndroidPumpPads(mwinAndroidPlatformOf(context), mwinAndroidNow());
-#else
-    (void)context;
+    mwinAndroidPumpPads(platform, mwinAndroidNow());
 #endif
 }
 
@@ -453,6 +454,7 @@ static void Stop(mwinContext* context)
     Detach(platform);
     mwinAndroidLoseInput(platform);
     mwinAndroidStopServices(platform);
+    mwinAndroidStopDialogs(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidStopPads(platform);
 #endif
@@ -497,7 +499,8 @@ static mwinResult Start(mwinContext* context)
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
     bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
-                 mwinAndroidFindServices(platform, activity);
+                 mwinAndroidFindServices(platform, activity) &&
+                 mwinAndroidFindDialogs(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif

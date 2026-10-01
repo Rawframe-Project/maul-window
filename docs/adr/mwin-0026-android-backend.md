@@ -163,6 +163,21 @@ keep no global state.
   box: Android forbids waiting on its main thread, where a program
   waiting on one would stop its own input (Android calls an application
   not responding after five seconds).
+- **File dialogs** show the system's document picker
+  (`ACTION_OPEN_DOCUMENT`, through `maul.window.Documents`). Android's
+  documents are content addresses, and a document's descriptor cannot
+  be opened again through its `/proc/self/fd` path (refused on Android
+  11 and 15: it points into shared storage), so each chosen document is
+  copied into the application's cache, a folder per dialog and per
+  document under its provider's name, between frames (at most 8 MiB a
+  frame, from a descriptor that never blocks), and the dialog answers
+  with the copies' paths once they are whole, as iOS's picker copies its
+  documents in. Saving and choosing a folder are unsupported: neither
+  has a path a program could write through. A dialog asked for while
+  another waits supersedes it: the old picker is finished by its request
+  code, its copy stops, and an answer under its number is dropped.
+  Filters offer the types Android knows of their extensions. The copies
+  of earlier runs are removed at the start.
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -183,7 +198,10 @@ keep no global state.
   and checks their facts, records, state and removal; `android_services`
   writes and reads the clipboard, keeps awake and stops, opens an
   address in the browser and comes back, and checks that an activity
-  made anew keeps the display awake. The runner turns the system's
+  made anew keeps the display awake; `android_dialog` shows the picker,
+  supersedes it and cancels with Back, then hands the activity the
+  picker's result for two documents it made in Downloads and reads their
+  copies back, a large one over several frames. The runner turns the system's
   animations off while a test runs, so that an opening transition does
   not move the window under the test's input.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps

@@ -100,12 +100,13 @@ static mwinIOSPlatform* CurrentPlatform(void)
     return context != nullptr ? mwinIOSPlatformOf(context) : nullptr;
 }
 
-// Between frames the display is kept awake as the windows ask, and the
-// pads are read.
+// Between frames the display is kept awake as the windows ask, pickers
+// whose requests went are taken away, and the pads are read.
 static void Pump(mwinContext* context)
 {
     mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
     mwinIOSKeepAwake(platform, mwinWantsAwake(context));
+    mwinIOSPumpDialogs(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinApplePumpPads(&platform->pads, mwinIOSNow());
 #endif
@@ -296,6 +297,7 @@ static void Stop(mwinContext* context)
         [platform->link invalidate];
         [platform->link release];
         [platform->stepper release];
+        mwinIOSCloseDialogs(platform, -1);
         for (uint32_t i = 0; i < context->limits.windows; i++)
         {
             if (platform->windows[i].window != nil)

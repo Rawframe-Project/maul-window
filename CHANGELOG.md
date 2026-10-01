@@ -29,6 +29,9 @@ format.
   boxes as alerts (mwin-0025).
 - iOS drag and drop of text and files, the files copied for the program
   (mwin-0025).
+- iOS file dialogs through the document picker: files opened as copies,
+  folders, and saves by exporting a file to the place chosen
+  (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

@@ -1,13 +1,15 @@
 # The iOS backend (mwin-0025), in Objective-C with manual retain and
 # release, as the macOS backend: UIKit for scenes, windows and input,
 # CoreGraphics for its geometry, QuartzCore for the views' CAMetalLayers
-# and the display link, UniformTypeIdentifiers for what drags carry, GameController and CoreHaptics for the gamepads
+# and the display link, UniformTypeIdentifiers for what drags carry and
+# dialogs allow, GameController and CoreHaptics for the gamepads
 # (shared with macOS).
 
 enable_language(OBJC)
 target_sources(maul-window PRIVATE
     src/apple_text.m
     src/backend_ios.m
+    src/ios_dialog.m
     src/ios_drop.m
     src/ios_keys.m
     src/ios_message_box.m

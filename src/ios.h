@@ -93,6 +93,8 @@ struct mwinIOSPlatform
     mwinApplePads pads;
     // Whether the idle timer is off, keeping the display awake.
     bool awake;
+    // The document pickers showing; nil before the first.
+    id dialogs;
 };
 
 // A window's view: its platform and slot, null once its window is
@@ -185,6 +187,13 @@ mwinOutcome mwinIOSWriteClipboard(const mwinIOSPlatform* platform);
 mwinOutcome mwinIOSReadClipboard(mwinIOSPlatform* platform);
 int mwinIOSOpenUrl(mwinIOSPlatform* platform, uint32_t slot, uint32_t request);
 void mwinIOSKeepAwake(mwinIOSPlatform* platform, bool wanted);
+
+// File dialogs (ios_dialog.m): a picker shown for a request, answered
+// later (-1) or failed; those whose requests went taken away at a pump;
+// those of a window, or all (-1), closed without an answer.
+int mwinIOSAskDialog(mwinIOSPlatform* platform, uint32_t slot, uint32_t request);
+void mwinIOSPumpDialogs(mwinIOSPlatform* platform);
+void mwinIOSCloseDialogs(mwinIOSPlatform* platform, int64_t slot);
 
 // Drag and drop (ios_drop.m): a view's drop interaction, and its
 // delegate, made retained, and untied from a destroyed window.

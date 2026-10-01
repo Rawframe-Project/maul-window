@@ -156,6 +156,23 @@ mwin-0022).
   text item is the drop's text. The drop is posted once every item has
   loaded, at the place it was made; one whose window or program went
   since is dropped.
+- **File dialogs** are the document picker, presented over the top of
+  its window's view controllers; it never blocks, and answers when the
+  user is done.
+  - Opening files, the picker copies them into the application, and the
+    answer's paths are those copies, which the program reads as they
+    are.
+  - A folder is the folder itself, reached through a security scope the
+    backend opens and keeps open while the application runs.
+  - iOS has no save panel: the picker exports a file to a place the user
+    chooses. The dialog exports an empty file of the offered name (or
+    "Untitled"), so that place then holds it, and answers with the
+    place, its security scope kept open for the program to write.
+  - The filters allow every filter's types at once, the picker having
+    no menu of them; none allows every item. The folder is where the
+    picker starts; it shows no title.
+  - A picker whose request goes (its window destroyed, the program
+    stopping) is taken away at the next pump, answering nothing.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -234,5 +251,10 @@ one window.
   drop giving the file's copy with its contents and the text once they
   loaded. A drag from another application is not seen: the simulator
   cannot make one.
+- `ios_dialog` finds the picker shown and tells its delegate what the
+  picker would: a file chosen to open, read back; a pick of several
+  cancelled; a save answered with the place chosen; a folder's picker
+  taken away when its window is destroyed. The user's own choice, and
+  the picker's export itself, are out of a test's reach.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

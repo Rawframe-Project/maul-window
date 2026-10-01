@@ -220,6 +220,7 @@ void mwinIOSDestroyWindow(mwinContext* context, uint32_t slot)
     mwinIOSWindow* window = &platform->windows[slot];
     @autoreleasepool
     {
+        mwinIOSCloseDialogs(platform, slot);
         mwinIOSForgetView(window->view);
         window->window.hidden = YES;
         window->window.rootViewController = nil;
@@ -276,6 +277,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwin_outcomeDone;
+    case mwin_requestFileDialog:
+        return mwinIOSAskDialog(platform, slot, (uint32_t)(request - core->requests));
     default:
         return mwin_outcomeUnsupported;
     }

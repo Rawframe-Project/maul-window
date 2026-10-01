@@ -9,6 +9,7 @@
 // the power source by a run loop source, the rest by notifications)
 // and reads everything again; the core posts what changed.
 
+#include "apple_locale.h"
 #include "macos.h"
 
 #import <IOKit/ps/IOPSKeys.h>
@@ -90,26 +91,6 @@ static mwinTristate LowPowerOf(void)
     return mwin_unknown;
 }
 
-// The preferred languages, comma-separated; whole tags from the end left
-// out while the list is past the limit.
-static void ReadLocales(mwinMacPlatform* platform, uint64_t nowNs)
-{
-    mwinContext* context = platform->context;
-    NSMutableArray* tags = [[NSLocale.preferredLanguages mutableCopy] autorelease];
-    const char* list = "";
-    while (true)
-    {
-        list = [tags componentsJoinedByString:@","].UTF8String;
-        if (list == nullptr || strlen(list) <= context->limits.localeBytes || tags.count == 0)
-        {
-            break;
-        }
-        [tags removeLastObject];
-    }
-    (void)mwinSetLocales(context, list != nullptr ? list : "", list != nullptr ? strlen(list) : 0,
-                         nowNs);
-}
-
 void mwinMacReadSystem(mwinMacPlatform* platform)
 {
     @autoreleasepool
@@ -123,7 +104,7 @@ void mwinMacReadSystem(mwinMacPlatform* platform)
             .lowPower = LowPowerOf()};
         facts.hasAccent = AccentOf(&facts.accent);
         mwinSetSystemFacts(platform->context, &facts, nowNs);
-        ReadLocales(platform, nowNs);
+        mwinAppleReadLocales(platform->context, nowNs);
     }
 }
 

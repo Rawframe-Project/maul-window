@@ -3,6 +3,7 @@
 accessibility: core
 allocator:
 answer: core
+apple_locale: core
 apple_pad: core pad_tracker
 apple_rumble: apple_pad
 apple_text:
@@ -37,8 +38,9 @@ ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
 ios_services: answer core ios
+ios_system: apple_locale core ios
 ios_text: apple_text core ios
-ios_view: core ios
+ios_view: accessibility core ios
 ios_window: core ios
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db pad_map
@@ -61,7 +63,7 @@ macos_output: core macos
 macos_owned: core macos
 macos_pen: core macos
 macos_services: core macos
-macos_system: core macos
+macos_system: apple_locale core macos
 macos_text: apple_text core macos
 macos_view: accessibility core macos
 macos_window: core macos

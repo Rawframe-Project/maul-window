@@ -37,6 +37,11 @@ extern "C"
     /// and asks it what is focused and what is under a point; the window
     /// holds a reference to it while it is the root.
     ///
+    /// On iOS the root is an object of the UIAccessibility protocols (a
+    /// UIAccessibilityElement, say), whose container is the window's view.
+    /// The view gives it as its only accessibility element, and holds a
+    /// reference to it while it is the root.
+    ///
     /// X11, Wayland and the web take no root and answer
     /// mwin_outcomeUnsupported.
     ///

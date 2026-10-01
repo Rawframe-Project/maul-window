@@ -24,6 +24,9 @@ typedef struct mwinIOSPlatform mwinIOSPlatform;
 // HID usages of the keyboard page up to the right Meta key.
 #define MWIN_IOS_KEY_CODES 256
 
+// The notifications that announce changes of the system's facts.
+#define MWIN_IOS_SYSTEM_OBSERVERS 5
+
 // A window: nil objects in a free slot. Its size in pixels, its scale,
 // its place in logical units on its screen, its safe area, its monitor
 // slot (-1 before the first) and its mode, as last posted.
@@ -95,14 +98,19 @@ struct mwinIOSPlatform
     bool awake;
     // The document pickers showing; nil before the first.
     id dialogs;
+    // What announces changes of the system's facts, and whether the
+    // battery was watched before the backend watched it.
+    id systemObservers[MWIN_IOS_SYSTEM_OBSERVERS];
+    bool batteryWatched;
 };
 
 // A window's view: its platform and slot, null once its window is
 // destroyed; the input view that keeps the on-screen keyboard away; an
 // input method's marked text (nil when none) with its selection in
 // UTF-16 units, the delegate UIKit gives the text input client, not
-// held, and the tokenizer it asks for; its drop interaction's delegate.
-// Its text input methods are in ios_text.m.
+// held, and the tokenizer it asks for; its drop interaction's delegate;
+// the program's accessibility root. Its text input methods are in
+// ios_text.m.
 @interface MwinIOSView : UIView
 {
   @public
@@ -115,6 +123,8 @@ struct mwinIOSPlatform
     UITextInputStringTokenizer* tokenizer;
     // The delegate of its drop interaction, which holds it weakly.
     id dropper;
+    // The root of the program's accessibility tree, held while it is.
+    id accessibilityRoot;
 }
 @end
 
@@ -142,6 +152,10 @@ int32_t mwinIOSMonitorOf(const mwinIOSPlatform* platform, UIScreen* screen);
 // controller that shows it (ios_view.m).
 UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame);
 UIViewController* mwinIOSCreateController(mwinIOSPlatform* platform, uint32_t slot, UIView* view);
+
+// An accessibility root request's outcome: the program's root, an
+// object of the UIAccessibility protocols, as the view's element.
+mwinOutcome mwinIOSSetAccessibilityRoot(mwinIOSPlatform* platform, uint32_t slot, id root);
 
 // Unties a destroyed window's view, which UIKit may still lay out.
 void mwinIOSForgetView(UIView* view);
@@ -187,6 +201,12 @@ mwinOutcome mwinIOSWriteClipboard(const mwinIOSPlatform* platform);
 mwinOutcome mwinIOSReadClipboard(mwinIOSPlatform* platform);
 int mwinIOSOpenUrl(mwinIOSPlatform* platform, uint32_t slot, uint32_t request);
 void mwinIOSKeepAwake(mwinIOSPlatform* platform, bool wanted);
+
+// The system's facts and locales (ios_system.m): read again, and
+// watched from the first scene to the backend's stop.
+void mwinIOSReadSystem(mwinIOSPlatform* platform);
+void mwinIOSWatchSystem(mwinIOSPlatform* platform);
+void mwinIOSUnwatchSystem(mwinIOSPlatform* platform);
 
 // File dialogs (ios_dialog.m): a picker shown for a request, answered
 // later (-1) or failed; those whose requests went taken away at a pump;

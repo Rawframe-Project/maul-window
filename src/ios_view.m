@@ -10,8 +10,10 @@
 // covers. Touches, the pointer's hover and its scrolling come to the
 // view (ios_pointer.m), and drags (ios_drop.m); text is typed and
 // composed into it (ios_text.m), and a hardware keyboard's presses pass
-// through it to the controller (ios_keys.m).
+// through it to the controller (ios_keys.m). It holds the program's
+// accessibility root as its element.
 
+#include "accessibility.h"
 #include "ios.h"
 
 @implementation MwinIOSView
@@ -70,6 +72,7 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
     [tokenizer release];
     [marked release];
     [dropper release];
+    [accessibilityRoot release];
     [super dealloc];
 }
 
@@ -87,6 +90,28 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
     if (platform != nullptr)
     {
         mwinIOSScroll(platform, slot, pan);
+    }
+}
+
+// The accessibility client's way in: the program's root is the view's
+// element. The first question tells the program that a client came,
+// root or none.
+- (NSArray*)accessibilityElements
+{
+    if (platform != nullptr)
+    {
+        mwinNoteAccessibilityAsked(platform->context, slot);
+    }
+    return accessibilityRoot != nil ? @[ accessibilityRoot ] : [super accessibilityElements];
+}
+
+// The light or dark style, and the text size, come with the traits.
+- (void)traitCollectionDidChange:(UITraitCollection*)previous
+{
+    [super traitCollectionDidChange:previous];
+    if (platform != nullptr)
+    {
+        mwinIOSReadSystem(platform);
     }
 }
 
@@ -180,6 +205,17 @@ UIViewController* mwinIOSCreateController(mwinIOSPlatform* platform, uint32_t sl
     controller->slot = slot;
     controller.view = view;
     return controller;
+}
+
+mwinOutcome mwinIOSSetAccessibilityRoot(mwinIOSPlatform* platform, uint32_t slot, id root)
+{
+    MwinIOSView* view = (MwinIOSView*)platform->windows[slot].view;
+    [root retain];
+    [view->accessibilityRoot release];
+    view->accessibilityRoot = root;
+    // Clients read the view's elements again.
+    UIAccessibilityPostNotification(UIAccessibilityLayoutChangedNotification, nil);
+    return mwin_outcomeDone;
 }
 
 void mwinIOSForgetView(UIView* view)

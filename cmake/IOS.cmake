@@ -7,6 +7,7 @@
 
 enable_language(OBJC)
 target_sources(maul-window PRIVATE
+    src/apple_locale.m
     src/apple_text.m
     src/backend_ios.m
     src/ios_dialog.m
@@ -16,6 +17,7 @@ target_sources(maul-window PRIVATE
     src/ios_output.m
     src/ios_pointer.m
     src/ios_services.m
+    src/ios_system.m
     src/ios_text.m
     src/ios_view.m
     src/ios_window.m)

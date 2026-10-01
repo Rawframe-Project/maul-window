@@ -185,8 +185,10 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
     {
         return;
     }
-    // The first scene: the program starts, and its frames.
+    // The first scene: the system's facts are watched, and the program
+    // starts, and its frames.
     mwinContext* context = platform->context;
+    mwinIOSWatchSystem(platform);
     if (!mwinStartProgram(context))
     {
         Finish(context);
@@ -307,6 +309,7 @@ static void Stop(mwinContext* context)
         }
         [platform->waitingScene release];
         mwinIOSUnwatchKeyboard(platform);
+        mwinIOSUnwatchSystem(platform);
         mwinIOSKeepAwake(platform, false);
 #ifdef MAUL_WINDOW_GAMEPAD
         mwinAppleStopPads(&platform->pads);

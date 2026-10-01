@@ -277,6 +277,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestKeepAwake:
         // The pump keeps the display awake from the windows' state.
         return mwin_outcomeDone;
+    case mwin_requestAccessibilityRoot:
+        return mwinIOSSetAccessibilityRoot(platform, slot, (id)request->value.root);
     case mwin_requestFileDialog:
         return mwinIOSAskDialog(platform, slot, (uint32_t)(request - core->requests));
     default:

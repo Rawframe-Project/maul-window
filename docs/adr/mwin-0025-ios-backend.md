@@ -173,6 +173,22 @@ mwin-0022).
     picker starts; it shows no title.
   - A picker whose request goes (its window destroyed, the program
     stopping) is taken away at the next pump, answering nothing.
+- **System facts:** the light or dark style of the first window (of
+  the scenes before one), reduced motion, the text scale Dynamic Type
+  gives the body text, whether the battery provides the power (the
+  device's battery watched from the first scene to the backend's stop,
+  its earlier setting put back; unknown where it cannot be watched, as
+  in the simulator) and Low Power Mode. iOS has no accent
+  color of the user's, only each application's tint, so there is none.
+  Changes come from the view's traits and from notifications, each
+  reading everything again. The locales are the preferred languages,
+  read by the code macOS now shares (`apple_locale.m`).
+- **Accessibility:** the program's root, an object of the
+  UIAccessibility protocols whose container is the window's view, is
+  the view's only accessibility element, held while it is the root; a
+  client's first question about the view, root or none, posts
+  `mwin_eventAccessibilityRequested` once, and a new root tells clients
+  the layout changed.
 - **Monitors** are the screens the connected scenes show on, the
   application's own first and primary, external displays to its right.
   Bounds are in pixels at the screen's scale in the interface's
@@ -256,5 +272,10 @@ one window.
   cancelled; a save answered with the place chosen; a folder's picker
   taken away when its window is destroyed. The user's own choice, and
   the picker's export itself, are out of a test's reach.
+- `ios_system` compares the facts and locales with what UIKit says,
+  gives the window the other style and sees the theme change posted,
+  and takes the accessibility root through its life: the first question
+  told once before any root, the root as the view's element, held after
+  the program's own reference went, let go with no root.
 - Every other test runs in the simulator too, through `simctl spawn`,
   on the test backend.

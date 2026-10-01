@@ -32,6 +32,8 @@ format.
 - iOS file dialogs through the document picker: files opened as copies,
   folders, and saves by exporting a file to the place chosen
   (mwin-0025).
+- iOS system facts, preferred languages and accessibility hooks
+  (mwin-0025).
 
 ## [0.3.0] - 2026-09-30
 

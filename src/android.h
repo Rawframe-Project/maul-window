@@ -11,6 +11,7 @@
 #ifndef MAUL_WINDOW_SRC_ANDROID_H
 #define MAUL_WINDOW_SRC_ANDROID_H
 
+#include "android_motion.h"
 #include "core.h"
 
 #include <android/choreographer.h>
@@ -46,6 +47,25 @@ typedef struct mwinAndroidJava
     jfieldID program;
 } mwinAndroidJava;
 
+// The key codes the backend keeps a state of: the keyboard's usages up
+// to the right Meta key.
+#define MWIN_ANDROID_KEY_CODES 256
+
+// The keys: what each printing key typed when last pressed (0 before),
+// the keys held, the dead key waiting for the next (0 when none); the
+// Java side's key character maps (android.view.KeyCharacterMap, a global
+// reference, with its load, get and getDeadChar).
+typedef struct mwinAndroidKeys
+{
+    mwinKey meanings[MWIN_ANDROID_KEY_CODES];
+    uint8_t held[MWIN_ANDROID_KEY_CODES / 8];
+    int32_t accent;
+    jclass maps;
+    jmethodID load;
+    jmethodID get;
+    jmethodID deadChar;
+} mwinAndroidKeys;
+
 struct mwinAndroidPlatform
 {
     mwinContext* context;
@@ -73,6 +93,9 @@ struct mwinAndroidPlatform
     // The window's slot, -1 when there is none.
     int32_t slot;
     mwinAndroidWindow window;
+    // Its pointers and the keys.
+    mwinAndroidPointers pointers;
+    mwinAndroidKeys keys;
 };
 
 // The platform of a context whose backend is Android.
@@ -92,6 +115,17 @@ void mwinAndroidSurfaceCame(mwinAndroidPlatform* platform);
 void mwinAndroidSurfaceWent(mwinAndroidPlatform* platform);
 void mwinAndroidReadSize(mwinAndroidPlatform* platform);
 void mwinAndroidPostFocus(mwinAndroidPlatform* platform);
+
+// Input (android_input.c): what the Java side's key maps and the double
+// tap's time are, found at the start and let go at the stop; an event of
+// the input queue, posted to the window: whether the program took it,
+// else Android acts on it; what a key means; the input forgotten when the
+// application suspends.
+bool mwinAndroidFindInput(mwinAndroidPlatform* platform);
+void mwinAndroidLoseInput(mwinAndroidPlatform* platform);
+bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event);
+mwinKey mwinAndroidMapKeyCode(const mwinAndroidPlatform* platform, mwinKeyCode code);
+void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
 
 // The backend's window operations (android_window.c).
 void mwinAndroidCreateWindow(mwinContext* context, uint32_t slot);

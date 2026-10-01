@@ -34,7 +34,9 @@ jobs:
       - name: clang-format
         run: |
           clang-format --version
-          clang-format --dry-run -Werror $(find include src test tools bench samples -name '*.[ch]' 2>/dev/null)
+          # Files kept as published (tools/external-dirs.txt) are left out.
+          external=$(grep -v '^#' tools/external-dirs.txt | sed 's|$|/|' | paste -sd'|')
+          clang-format --dry-run -Werror $(find include src test tools bench samples -name '*.[ch]' 2>/dev/null | grep -v -E "^($external)")
       - name: Family checks
         run: |
           python3 tools/check_source.py
@@ -49,12 +51,15 @@ jobs:
           git diff --exit-code docs/api.md || { echo "docs/api.md is stale: run tools/gen_api.py"; exit 1; }
           grep -q "$COUNT public functions" README.md || { echo "README says the wrong function count ($COUNT)"; exit 1; }
       - name: Generated tables
-        # The gamepad mappings are what the generator makes from the data.
+        # The gamepad mappings and Android's key table are what the
+        # generators make from the data.
         run: |
           python3 tools/gen_gamepad_db.py Linux /tmp/pad_linux.c
           diff -u src/generated/pad_linux.c /tmp/pad_linux.c
           python3 tools/gen_gamepad_db.py Windows /tmp/pad_windows.c
           diff -u src/generated/pad_windows.c /tmp/pad_windows.c
+          python3 tools/gen_android_keys.py /tmp/android_keys.c
+          diff -u src/generated/android_keys.c /tmp/android_keys.c
       - name: clang-tidy
         run: |
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \

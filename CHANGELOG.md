@@ -17,6 +17,9 @@ format.
   the running program, the window and its surfaces, and native handles
   with the activity; `cmake/android-emulator.cmake` and the emulator
   runners, with which CI runs every test in the Android emulator.
+- Android input (mwin-0026): touches, the pen, the mouse's cursor,
+  buttons and wheel, and keys with their meanings and text, from the
+  activity's input queue; Android's system keys stay the system's.
 
 ## [0.4.0] - 2026-10-01
 

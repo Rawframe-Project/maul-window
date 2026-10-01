@@ -210,6 +210,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(owned)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)
+        # Android's pointers as records, on every platform: elsewhere the test
+        # builds the backend's translator itself.
+        maul_add_test(android_motion WHITEBOX)
+        if(TARGET test_android_motion AND NOT MAUL_WINDOW_ANDROID)
+            target_sources(test_android_motion PRIVATE ${PROJECT_SOURCE_DIR}/src/android_motion.c)
+        endif()
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
             # The runtime pads' tracking against a stand-in runtime.
@@ -380,7 +386,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_ANDROID AND DEFINED ENV{ANDROID_HOME})
         # Applications in the emulator, built by tools/build_android_app.sh
         # without Gradle and run by tools/run_android_app.sh.
-        set(MWIN_ANDROID_TESTS android)
+        set(MWIN_ANDROID_TESTS android android_input)
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)

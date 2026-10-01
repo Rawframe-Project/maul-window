@@ -2,7 +2,10 @@
 # and the modules it may use. tools/check_modules.py enforces it.
 accessibility: core
 allocator:
-android: core
+android: android_motion core
+android_input: android android_keys android_motion core evdev key_prints
+android_keys:
+android_motion: clicks core
 android_window: android core
 answer: core
 apple_locale: core
@@ -36,7 +39,7 @@ input: core
 ios: apple_pad core
 ios_dialog: answer core dialog ios
 ios_drop: core ios
-ios_keys: core ios
+ios_keys: core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
@@ -45,6 +48,7 @@ ios_system: apple_locale core ios
 ios_text: apple_text core ios
 ios_view: accessibility core ios
 ios_window: core ios
+key_prints:
 linux_bus: dbus_api
 linux_pad: allocator core monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list

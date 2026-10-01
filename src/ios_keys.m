@@ -23,6 +23,7 @@
 //   frame changes.
 
 #include "ios.h"
+#include "key_prints.h"
 
 #include <string.h>
 
@@ -49,14 +50,6 @@ static void Hold(mwinIOSPlatform* platform, mwinKeyCode code, bool down)
     uint8_t bit = (uint8_t)(1u << (code % 8));
     platform->held[code / 8] =
         down ? (platform->held[code / 8] | bit) : (platform->held[code / 8] & (uint8_t)~bit);
-}
-
-// Whether a key prints under a layout: letters, digits, the space,
-// punctuation and the keypad's printing keys, by their HID usages.
-static bool Prints(mwinKeyCode code)
-{
-    return (code >= 0x04 && code <= 0x27) || (code >= 0x2C && code <= 0x38) ||
-           (code >= 0x54 && code <= 0x57) || (code >= 0x59 && code <= 0x64) || code == 0x67;
 }
 
 // The character a key types without modifiers, or 0: one character,
@@ -87,7 +80,7 @@ mwinKey mwinIOSMapKeyCode(const mwinIOSPlatform* platform, mwinKeyCode code)
     {
         return 0;
     }
-    return Prints(code) ? platform->meanings[code] : MWIN_KEY_NAMED | code;
+    return mwinKeyPrints(code) ? platform->meanings[code] : MWIN_KEY_NAMED | code;
 }
 
 static void PostKey(mwinIOSPlatform* platform, uint32_t slot, mwinEventType type, mwinKeyCode code,
@@ -109,7 +102,7 @@ void mwinIOSPresses(mwinIOSPlatform* platform, uint32_t slot, NSSet<UIPress*>* p
         }
         mwinKeyCode code = (mwinKeyCode)key.keyCode;
         mwinKey meaning = MWIN_KEY_NAMED | code;
-        if (Prints(code))
+        if (mwinKeyPrints(code))
         {
             mwinKey typed = CharacterOf(key.charactersIgnoringModifiers);
             meaning = typed != 0 ? typed : platform->meanings[code];

@@ -198,6 +198,9 @@ static bool Lifecycle(mwinAndroidPlatform* platform, bool running)
 {
     mwinContext* context = platform->context;
     platform->suspended = !running;
+    // Suspending resets the input state: keys and pointers held are
+    // forgotten.
+    mwinAndroidForgetInput(platform);
     PostLifecycle(context, running ? mwin_eventResuming : mwin_eventSuspending);
     mwinRunCriticalFrame(context);
     if (context->stopping)
@@ -305,8 +308,8 @@ static void OnNativeWindowDestroyed(ANativeActivity* activity, ANativeWindow* wi
     }
 }
 
-// Events the backend does not handle yet go on to the input method and
-// the activity, unhandled, so that none waits.
+// Each event goes to the input method first; what it leaves comes to
+// the window, and what the program does not take goes on to Android.
 static int OnInput(int fd, int events, void* data)
 {
     (void)fd;
@@ -319,7 +322,7 @@ static int OnInput(int fd, int events, void* data)
         {
             continue;
         }
-        AInputQueue_finishEvent(platform->queue, event, 0);
+        AInputQueue_finishEvent(platform->queue, event, mwinAndroidInput(platform, event) ? 1 : 0);
     }
     return 1;
 }
@@ -407,6 +410,7 @@ static void Stop(mwinContext* context)
 {
     mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
     Detach(platform);
+    mwinAndroidLoseInput(platform);
     AConfiguration_delete(platform->configuration);
     (*platform->java.env)->DeleteGlobalRef(platform->java.env, platform->java.activityClass);
     mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
@@ -447,6 +451,11 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
+    if (!mwinAndroidFindInput(platform))
+    {
+        Stop(context);
+        return mwin_errorPlatform;
+    }
     Attach(platform, activity);
     return mwin_success;
 }
@@ -470,12 +479,9 @@ static uint64_t Now(const mwinContext* context)
     return mwinAndroidNow();
 }
 
-// No key has a meaning yet: keys are not read.
 static mwinKey MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    (void)context;
-    (void)code;
-    return 0;
+    return mwinAndroidMapKeyCode(mwinAndroidPlatformOf(context), code);
 }
 
 static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,

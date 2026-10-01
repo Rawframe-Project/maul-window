@@ -67,9 +67,52 @@ keep no global state.
   placing, restyling, hiding it or setting its mode are unsupported.
 - **Native handles** give the `ANativeWindow` and the `ANativeActivity`,
   through which the program reaches Java and its assets.
-- **Input** the backend does not handle yet goes on to the input method
-  and the activity unhandled, so that none waits.
-- **Tests** run in the emulator: `cmake/android-emulator.cmake` wraps
+- **Input** comes from the activity's input queue on the main looper;
+  each event goes to the input method first (`preDispatchEvent`), and
+  what it leaves comes to the window. A motion event becomes samples,
+  its history first, which a translator with no platform type
+  (`android_motion.c`) turns into records:
+  - a finger (or a tool Android does not know) is a touch, its id
+    counting up from the first and never reused, as Android's pointer
+    ids are; pressure is kept to 0..1;
+  - a stylus or its eraser is the pen, hovering and touching, its barrel
+    button Android's primary stylus button, its tilts toward x and y
+    from Android's tilt and orientation as Chromium computes them;
+  - a mouse is the cursor. Its buttons are those whose state changed at
+    Android's button press and release (the NDK names the changed button
+    only from API 33); a press with no button state (an injected one) is
+    the left button, and the pointer's going up releases what is held.
+    Quick clicks count within Android's double tap timeout. Android ends
+    hovering before every press and begins it again after
+    (crbug.com/715114), so the cursor enters at its first motion over
+    the window and is never said to leave. Its scrolling is the wheel,
+    in Android's detents.
+- **Keys:** a key's code comes from its scan code where a keyboard gives
+  one (the Linux input code, through the table the Linux backends use),
+  else from its Android key code through Android's generic key layout,
+  compiled by `tools/gen_android_keys.py` from `tools/androidkeys/`
+  (Generic.kl and the NDK's keycodes.h, Apache 2.0). Its meaning is what
+  the device's key character map types for it without modifiers, known
+  once pressed under the current layout, as on iOS; a key that types
+  nothing is named. A press types its text through the key character map
+  unless Control or Meta is held, a dead key's accent joining the next
+  character. The keys Android calls system keys (`KeyEvent.isSystemKey`:
+  back, home, menu, volume, media and the like) and keys with no code go
+  on to Android; the program takes every other key and every motion, so
+  that Android acts on none of them (an Escape left to it would go
+  back). The layout has no name.
+- **A window that never showed a frame gets no touches** from Android 14
+  on: the input dispatcher gives the window an empty frame until its
+  surface has a buffer (seen on Android 15; Android 11 used the window's
+  frame). A program that draws is not affected; the input test shows a
+  frame drawn on the CPU first.
+- **Tests:** `android_motion` drives the translator on every platform
+  with samples as the backend reads them. In the emulator, run on
+  Android 11 and 15 here and on 11 in CI, `android_input` takes what the
+  system's input command injects: a tap, a swipe, a mouse's tap, a
+  stylus's tap (a pen where the command marks it a stylus), keys, typed
+  text, Escape and a volume key, and the wheel from Android 13.
+- **The emulator runners:** `cmake/android-emulator.cmake` wraps
   the NDK's toolchain file and runs executables through
   `tools/run_android.sh` (`adb push` and `adb shell`); window tests are
   applications, built without Gradle by `tools/build_android_app.sh`

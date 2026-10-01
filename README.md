@@ -26,9 +26,9 @@ generated from the headers.
 
 ## Status
 
-0.3.0 is the current release. It has the whole contract on five
-backends, Win32, macOS, Wayland, X11 and the web (with Emscripten or as
-plain wasm32-wasi), and a headless test backend:
+0.4.0 is the current release. It has the whole contract on six
+backends, Win32, macOS, iOS, Wayland, X11 and the web (with Emscripten
+or as plain wasm32-wasi), and a headless test backend:
 
 1. Windows, their modes and styles, monitors and per-monitor scale, and
    the platform's loop, owned by the program or by the platform.
@@ -36,8 +36,8 @@ plain wasm32-wasi), and a headless test backend:
    pen, cursors and pointer capture.
 3. Gamepads with rumble, mapped by SDL_GameControllerDB: Xbox pads
    through Windows.Gaming.Input (XInput before Windows 10) and generic
-   HID pads on Windows, GameController on macOS, evdev on Linux, the
-   Gamepad API on the web.
+   HID pads on Windows, GameController on macOS and iOS, evdev on Linux,
+   the Gamepad API on the web.
 4. The clipboard, drag and drop, file dialogs, message boxes, opening
    addresses, revealing files and keeping the display awake.
 5. Owned windows, popups and custom chrome, and the hooks for
@@ -47,7 +47,7 @@ plain wasm32-wasi), and a headless test backend:
 7. A misuse count per context, and every size taken from a count
    checked before it is allocated.
 
-Android and iOS backends come later.
+An Android backend comes later.
 
 ## Building
 
@@ -55,7 +55,11 @@ Requirements: CMake 3.25 and GCC 14 or Clang 19 or newer; on Windows,
 `clang-cl` (the Visual Studio component "C++ Clang tools for Windows");
 on macOS, Xcode 16's Apple Clang and SDK, the backend running on
 macOS 11 or newer (the display link needs macOS 14, a timer driving the
-frames before it).
+frames before it); for iOS, the same Xcode, the backend running on
+iOS 15 or newer, and a program whose Info.plist has a
+`UIApplicationSceneManifest` (see the guide, section 11).
+`cmake/ios-simulator.cmake` builds for the iOS simulator, where the
+tests run on a booted device.
 On Linux the Wayland backend also needs `wayland-scanner` and the
 development files of `wayland-client` 1.22, `wayland-protocols` 1.32
 and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and

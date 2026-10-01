@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-01
+
+The iOS backend, the whole contract on UIKit with scenes, its tests in
+the iOS simulator.
+
 ### Added
 
 - The iOS backend's first part (mwin-0025): UIKit's loop and the scene

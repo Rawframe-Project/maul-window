@@ -12,6 +12,7 @@ android_motion: clicks core
 android_pad: android
 android_pad_map: core
 android_services: allocator android core
+android_system: allocator android core
 android_text: allocator android core
 android_window: android core
 answer: core

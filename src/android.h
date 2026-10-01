@@ -62,8 +62,9 @@ typedef struct mwinAndroidInsets
 // JNI environment, the activity's class (a global reference) and its
 // field that holds the running program (maul.window.Activity.program),
 // and the library's methods that show the keyboard and drop the input
-// method's composition; its services helper (maul.window.Services, a
-// global reference) and its methods.
+// method's composition; its services and facts helpers
+// (maul.window.Services and maul.window.Facts, global references) and
+// their methods.
 typedef struct mwinAndroidJava
 {
     JNIEnv* env;
@@ -75,6 +76,9 @@ typedef struct mwinAndroidJava
     jmethodID writeClipboard;
     jmethodID readClipboard;
     jmethodID openUrl;
+    jclass facts;
+    jmethodID readFacts;
+    jmethodID readLocales;
 } mwinAndroidJava;
 
 // The key codes the backend keeps a state of: the keyboard's usages up
@@ -186,6 +190,8 @@ struct mwinAndroidPlatform
     mwinAndroidPads pads;
     mwinAndroidDocuments documents;
     mwinAndroidDrops drops;
+    // When the facts were last read.
+    uint64_t factsReadNs;
 };
 
 // The platform of a context whose backend is Android.
@@ -267,6 +273,15 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget);
 bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopDrops(mwinAndroidPlatform* platform);
 void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget);
+
+// The system's facts and locales (android_system.c): the Java helper
+// found at the start and let go at the stop; everything read (when an
+// activity starts or changes its configuration); the power read every
+// two seconds.
+bool mwinAndroidFindFacts(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopFacts(mwinAndroidPlatform* platform);
+void mwinAndroidReadSystem(mwinAndroidPlatform* platform);
+void mwinAndroidPumpFacts(mwinAndroidPlatform* platform, uint64_t nowNs);
 
 // The clipboard and services (android_services.c): the Java helper
 // found at the start and let go at the stop; the clipboard written and

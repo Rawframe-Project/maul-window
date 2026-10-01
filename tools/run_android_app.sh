@@ -8,7 +8,9 @@
 # the system can do (the home key, a rotation); the rotation settings
 # are put back at the end, whatever the test did. The system's
 # animations are off while it runs, as for any UI test, so that an
-# opening transition does not move the window under the test's input. The library never ends
+# opening transition does not move the window under the test's input.
+# The night mode, the font scale, battery saver and the battery's state,
+# which a test may change, are put back too. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
 # failures; otherwise shows the application's crashes from the log.
 set -eu
@@ -22,6 +24,9 @@ for scale in window_animation_scale transition_animation_scale animator_duration
     eval "old_$scale=\$(\"\$adb\" shell settings get global $scale | tr -d '\\r')"
     "$adb" shell settings put global "$scale" 0
 done
+night=$("$adb" shell cmd uimode night | tr -d '\r' | sed 's/^Night mode: //')
+font=$("$adb" shell settings get system font_scale | tr -d '\r')
+saver=$("$adb" shell settings get global low_power | tr -d '\r')
 "$adb" install -r "$apk" > /dev/null
 "$adb" logcat -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
@@ -60,6 +65,12 @@ for scale in window_animation_scale transition_animation_scale animator_duration
     [ "$value" = null ] && value=1
     "$adb" shell settings put global "$scale" "$value"
 done
+"$adb" shell cmd uimode night "$night" > /dev/null
+[ "$font" = null ] && font=1.0
+"$adb" shell settings put system font_scale "$font"
+[ "$saver" = null ] && saver=0
+"$adb" shell settings put global low_power "$saver"
+"$adb" shell dumpsys battery reset
 "$adb" uninstall "$package" > /dev/null
 rm -f "$out"
 exit $status

@@ -100,10 +100,18 @@ keep no global state.
   nothing is named. A press types its text through the key character map
   unless Control or Meta is held, a dead key's accent joining the next
   character. The keys Android calls system keys (`KeyEvent.isSystemKey`:
-  back, home, menu, volume, media and the like) and keys with no code go
-  on to Android; the program takes every other key and every motion, so
-  that Android acts on none of them (an Escape left to it would go
-  back). The layout has no name.
+  home, menu, volume, media and the like) but Back, and keys with no
+  code, go on to Android; the program takes every other key and every
+  motion, so that Android acts on none of them (an Escape left to it
+  would go back). The layout has no name.
+- **Back,** the key or the gesture Android turns into one, is the
+  window's close request when it is let go (not when Android cancels
+  it): the program decides, ending, which is what Back at the root
+  means, or going back within itself, as a desktop program may ask
+  first. The contract has no Back of its own, and an Escape key a
+  program could ignore would leave the user no way out. The library
+  does not opt into Android 13's back callback, so Back stays a key on
+  every version.
 - **Input methods:** the library's activity replaces NativeActivity's
   content view with a focusable view that is a text editor, whose input
   connection keeps only the composition (the program keeps its own
@@ -189,6 +197,15 @@ keep no global state.
   is told once every copy is whole, at its place. The window takes no
   drag while the last drop's documents are still copied, rather than
   queue drops.
+- **System facts:** the theme from the configuration's night mode;
+  through the library's Java helper (`maul.window.Facts`) the text scale
+  (the font scale), reduced motion (Android's "remove animations" makes
+  the animator scale 0), the accent (Android 12's system palette, none
+  before), battery saver and whether the battery provides the power
+  (the battery's sticky broadcast), and the preferred locales
+  (`LocaleList`). They are read when an activity starts (a joining
+  activity starts too) or changes its configuration, and the power every
+  two seconds, Android announcing it only to receivers.
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -215,9 +232,13 @@ keep no global state.
   copies back, a large one over several frames; `android_drop` starts a
   drag from its own window under a finger the runner puts down, moves
   and lifts, with a MediaStore document and text, and checks the drag's
-  records, the drop's place, its copy and its text. The runner turns the system's
+  records, the drop's place, its copy and its text; `android_system`
+  checks the facts at the start, unplugs the battery and turns battery
+  saver on, changes the night mode and the font scale (told through the
+  activity made anew), and presses Back. The runner turns the system's
   animations off while a test runs, so that an opening transition does
-  not move the window under the test's input.
+  not move the window under the test's input, and the night mode, the
+  font scale, battery saver and the battery are put back after a test.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps
   the NDK's toolchain file and runs executables through
   `tools/run_android.sh` (`adb push` and `adb shell`); window tests are

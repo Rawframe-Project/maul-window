@@ -38,6 +38,9 @@ format.
 - Android drops (mwin-0026): drags over the window told as they move, and
   a drop's documents copied into the cache before it is told, with its
   text.
+- Android facts and Back (mwin-0026): the theme, text scale, reduced
+  motion, accent, power and preferred locales; Back is the window's close
+  request.
 
 ## [0.4.0] - 2026-10-01
 

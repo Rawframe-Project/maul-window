@@ -204,7 +204,8 @@ static void Motion(mwinAndroidPlatform* platform, const AInputEvent* event)
     mwinAndroidMotionSample(platform->context, slot, &platform->pointers, &motion);
 }
 
-// The keys Android keeps for itself, as KeyEvent.isSystemKey lists them.
+// The keys Android keeps for itself, as KeyEvent.isSystemKey lists them,
+// but Back, which is the window's close request.
 static bool IsSystemKey(int32_t keyCode)
 {
     switch (keyCode)
@@ -213,7 +214,6 @@ static bool IsSystemKey(int32_t keyCode)
     case AKEYCODE_SOFT_RIGHT:
     case AKEYCODE_HOME:
     case AKEYCODE_RECENT_APPS:
-    case AKEYCODE_BACK:
     case AKEYCODE_CALL:
     case AKEYCODE_ENDCALL:
     case AKEYCODE_VOLUME_UP:
@@ -367,6 +367,21 @@ bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* ke
     return true;
 }
 
+// Back, a key or the gesture Android turns into one, asks the window to
+// close when it is let go, unless Android cancelled it: the program
+// decides, ending (Back at the root leaves the application) or going
+// back within itself.
+static void Back(mwinAndroidPlatform* platform, const AInputEvent* event)
+{
+    bool cancelled = (AKeyEvent_getFlags(event) & AKEY_EVENT_FLAG_CANCELED) != 0;
+    if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP && !cancelled)
+    {
+        mwinEvent close = {.type = mwin_eventCloseRequested,
+                           .timeNs = (uint64_t)AKeyEvent_getEventTime(event)};
+        mwinPost(platform->context, (uint32_t)platform->slot, &close);
+    }
+}
+
 bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
 {
     if (platform->slot < 0 || !platform->window.created)
@@ -383,6 +398,11 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
     {
     case AINPUT_EVENT_TYPE_KEY:
     {
+        if (AKeyEvent_getKeyCode(event) == AKEYCODE_BACK)
+        {
+            Back(platform, event);
+            return true;
+        }
         mwinAndroidKey key = {
             .action = AKeyEvent_getAction(event),
             .keyCode = AKeyEvent_getKeyCode(event),

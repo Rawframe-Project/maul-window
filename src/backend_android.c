@@ -176,15 +176,15 @@ static void Finish(mwinAndroidPlatform* platform)
 }
 
 // Between frames the dialog's and the drop's documents are copied a step
-// further, at
-// most MWIN_ANDROID_COPY_BYTES a frame, and the gamepads looked for when
-// due.
+// further, at most MWIN_ANDROID_COPY_BYTES a frame, the power read and
+// the gamepads looked for when due.
 static void Pump(mwinContext* context)
 {
     mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
     uint32_t budget = MWIN_ANDROID_COPY_BYTES;
     mwinAndroidPumpDialogs(platform, &budget);
     mwinAndroidPumpDrops(platform, &budget);
+    mwinAndroidPumpFacts(platform, mwinAndroidNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidPumpPads(platform, mwinAndroidNow());
 #endif
@@ -257,6 +257,8 @@ static void OnStart(ANativeActivity* activity)
         return;
     }
     platform->started = true;
+    // Settings changed in the settings application come back with it.
+    mwinAndroidReadSystem(platform);
     if (platform->suspended && !Lifecycle(platform, true))
     {
         return;
@@ -395,6 +397,7 @@ static void OnConfigurationChanged(ANativeActivity* activity)
     {
         AConfiguration_fromAssetManager(platform->configuration, activity->assetManager);
         mwinAndroidReadSize(platform);
+        mwinAndroidReadSystem(platform);
     }
 }
 
@@ -460,6 +463,7 @@ static void Stop(mwinContext* context)
     mwinAndroidStopServices(platform);
     mwinAndroidStopDialogs(platform);
     mwinAndroidStopDrops(platform);
+    mwinAndroidStopFacts(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidStopPads(platform);
 #endif
@@ -503,10 +507,10 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
-                 mwinAndroidFindServices(platform, activity) &&
-                 mwinAndroidFindDialogs(platform, activity) &&
-                 mwinAndroidFindDrops(platform, activity);
+    bool found =
+        mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
+        mwinAndroidFindServices(platform, activity) && mwinAndroidFindDialogs(platform, activity) &&
+        mwinAndroidFindDrops(platform, activity) && mwinAndroidFindFacts(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif

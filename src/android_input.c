@@ -415,7 +415,11 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
         return mwinAndroidKeyEvent(platform, &key);
     }
     case AINPUT_EVENT_TYPE_MOTION:
-        Motion(platform, event);
+        // Touch exploration's hovers are the accessibility tree's.
+        if (!mwinAndroidExplore(platform, event))
+        {
+            Motion(platform, event);
+        }
         return true;
     default:
         return false;

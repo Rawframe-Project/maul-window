@@ -197,6 +197,19 @@ keep no global state.
   is told once every copy is whole, at its place. The window takes no
   drag while the last drop's documents are still copied, rather than
   queue drops.
+- **Accessibility:** the root is the program's
+  `AccessibilityNodeProvider`, which the library's view returns as its
+  provider (held by a global reference, given by each activity's view in
+  turn; the first asking is the program's
+  `mwin_eventAccessibilityRequested`), and the view joins the native
+  handles for the nodes to name. Touch exploration's hovers, whose tool
+  is a finger, reach the window's native input queue rather than its
+  views (measured under TalkBack), so ExploreByTouchHelper's work falls
+  to the library: while there is a root those hovers are the tree's, the
+  virtual view under the finger comes from the root's
+  `maul.window.Explorer` (a provider's own nodes do not expose their
+  children, so the library cannot find it alone), and the views entered
+  and left are announced.
 - **System facts:** the theme from the configuration's night mode;
   through the library's Java helper (`maul.window.Facts`) the text scale
   (the font scale), reduced motion (Android's "remove animations" makes
@@ -235,10 +248,17 @@ keep no global state.
   records, the drop's place, its copy and its text; `android_system`
   checks the facts at the start, unplugs the battery and turns battery
   saver on, changes the night mode and the font scale (told through the
-  activity made anew), and presses Back. The runner turns the system's
+  activity made anew), and presses Back; `android_access` sets a test
+  provider as the root, enables an accessibility client of the test's
+  own that asks for touch exploration, has it read the tree through the
+  system, puts a finger down through the emulator's console (whose
+  touches pass the system's touch explorer, as `input` does not), and
+  checks what the client heard and that the program saw no touch. The
+  runner turns the system's
   animations off while a test runs, so that an opening transition does
   not move the window under the test's input, and the night mode, the
-  font scale, battery saver and the battery are put back after a test.
+  font scale, battery saver, the battery and the enabled accessibility
+  services are put back after a test.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps
   the NDK's toolchain file and runs executables through
   `tools/run_android.sh` (`adb push` and `adb shell`); window tests are

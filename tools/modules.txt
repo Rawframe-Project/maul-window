@@ -3,6 +3,7 @@
 accessibility: core
 allocator:
 android: android_copy android_motion android_pad_map answer core
+android_access: accessibility android core
 android_copy: allocator core
 android_dialog: android android_copy answer core dialog
 android_drop: allocator android android_copy core

@@ -4,9 +4,11 @@
 #
 #   tools/build_android_app.sh <out.apk> <libname.so> <package> [abi]
 #
-# The library's Java activity (java/maul/window) compiled with javac and
-# d8, test/android/AndroidManifest.xml with the package and library
-# filled in, linked by aapt2 as debuggable, the native library under
+# The library's Java activity (java/maul/window) and the tests' Java
+# (test/android/java) compiled with javac and d8,
+# test/android/AndroidManifest.xml with the package and library filled
+# in, linked by aapt2 as debuggable with the tests' resources
+# (test/android/res), the native library under
 # lib/<abi>/ (x86_64 by default), aligned and signed with a debug key
 # kept beside the output. ANDROID_HOME names the SDK; the newest build
 # tools and platform there are used.
@@ -26,10 +28,12 @@ sed -e "s/@PACKAGE@/$package/" -e "s/@LIBRARY@/$name/" \
     "$root/test/android/AndroidManifest.xml" > "$work/AndroidManifest.xml"
 mkdir -p "$work/classes" "$work/dex" "$work/lib/$abi"
 javac -nowarn --release 11 -classpath "$jar" -d "$work/classes" \
-    $(find "$root/java" -name '*.java')
+    $(find "$root/java" "$root/test/android/java" -name '*.java')
 "$tools/d8" --min-api 30 --lib "$jar" --output "$work/dex" \
     $(find "$work/classes" -name '*.class')
+"$tools/aapt2" compile --dir "$root/test/android/res" -o "$work/res.zip"
 "$tools/aapt2" link -o "$work/linked.apk" -I "$jar" --manifest "$work/AndroidManifest.xml" \
+    "$work/res.zip" \
     --min-sdk-version 30 --target-sdk-version 35 --debug-mode
 cp "$library" "$work/lib/$abi/"
 cp "$work/dex/classes.dex" "$work/"

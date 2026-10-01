@@ -16,6 +16,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
+import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
@@ -38,7 +39,8 @@ public class Activity extends NativeActivity {
      */
     static long program;
 
-    private Field field;
+    // The view, which Accessibility hosts the program's root on.
+    View field;
     private boolean keyboard;
     private int purpose;
     // Counts the input method's starts: a connection from an earlier one
@@ -160,6 +162,15 @@ public class Activity extends NativeActivity {
             info.inputType = typeOf(purpose);
             info.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN | EditorInfo.IME_FLAG_NO_EXTRACT_UI;
             return new Connection(this);
+        }
+
+        // The program's accessibility root (Accessibility.java).
+        @Override
+        public AccessibilityNodeProvider getAccessibilityNodeProvider() {
+            Object root = Accessibility.nativeRoot(program);
+            return root instanceof AccessibilityNodeProvider
+                    ? (AccessibilityNodeProvider) root
+                    : super.getAccessibilityNodeProvider();
         }
     }
 

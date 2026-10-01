@@ -41,6 +41,9 @@ format.
 - Android facts and Back (mwin-0026): the theme, text scale, reduced
   motion, accent, power and preferred locales; Back is the window's close
   request.
+- Android accessibility (mwin-0026): the program's
+  `AccessibilityNodeProvider` as the root, explored by touch through
+  `maul.window.Explorer`; the activity's view in the native handles.
 
 ## [0.4.0] - 2026-10-01
 

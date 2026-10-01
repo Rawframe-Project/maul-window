@@ -155,6 +155,21 @@ typedef struct mwinAndroidDrops
     mwinPosition place;
 } mwinAndroidDrops;
 
+// Accessibility: the library's Java helper (maul.window.Accessibility,
+// a global reference) and its methods; the program's root and the
+// activity's view, global references or null; and the virtual view
+// touch exploration hovers, or -1.
+typedef struct mwinAndroidAccessibility
+{
+    jclass type;
+    jmethodID viewOf;
+    jmethodID changed;
+    jmethodID explore;
+    jobject root;
+    jobject view;
+    jint hovered;
+} mwinAndroidAccessibility;
+
 struct mwinAndroidPlatform
 {
     mwinContext* context;
@@ -190,6 +205,7 @@ struct mwinAndroidPlatform
     mwinAndroidPads pads;
     mwinAndroidDocuments documents;
     mwinAndroidDrops drops;
+    mwinAndroidAccessibility accessibility;
     // When the facts were last read.
     uint64_t factsReadNs;
 };
@@ -273,6 +289,19 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget);
 bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopDrops(mwinAndroidPlatform* platform);
 void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget);
+
+// Accessibility (android_access.c): the Java helper found at the start
+// and everything let go at the stop; an activity's view taken when it
+// starts and let go when it leaves; the root let go with the window; the
+// root set (the request's outcome); a touch exploration hover taken for
+// the root's tree, true when it was.
+bool mwinAndroidFindAccessibility(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopAccessibility(mwinAndroidPlatform* platform);
+void mwinAndroidJoinAccessibility(mwinAndroidPlatform* platform);
+void mwinAndroidLeaveAccessibility(mwinAndroidPlatform* platform);
+void mwinAndroidForgetAccessibility(mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidSetAccessibilityRoot(mwinAndroidPlatform* platform, void* root);
+bool mwinAndroidExplore(mwinAndroidPlatform* platform, const AInputEvent* event);
 
 // The system's facts and locales (android_system.c): the Java helper
 // found at the start and let go at the stop; everything read (when an

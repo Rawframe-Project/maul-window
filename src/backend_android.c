@@ -134,7 +134,8 @@ static bool IsFinishing(const mwinAndroidPlatform* platform, ANativeActivity* ac
 }
 
 // Lets go of the activity's parts: its input queue, its native window,
-// and the activity itself, whose callbacks then find no program.
+// its view, and the activity itself, whose callbacks then find no
+// program.
 static void Detach(mwinAndroidPlatform* platform)
 {
     if (platform->queue != nullptr)
@@ -149,6 +150,7 @@ static void Detach(mwinAndroidPlatform* platform)
     }
     if (platform->activity != nullptr)
     {
+        mwinAndroidLeaveAccessibility(platform);
         platform->activity->instance = nullptr;
         platform->activity = nullptr;
     }
@@ -257,6 +259,9 @@ static void OnStart(ANativeActivity* activity)
         return;
     }
     platform->started = true;
+    // The activity's view exists from its start: its creation calls the
+    // library before making it.
+    mwinAndroidJoinAccessibility(platform);
     // Settings changed in the settings application come back with it.
     mwinAndroidReadSystem(platform);
     if (platform->suspended && !Lifecycle(platform, true))
@@ -464,6 +469,7 @@ static void Stop(mwinContext* context)
     mwinAndroidStopDialogs(platform);
     mwinAndroidStopDrops(platform);
     mwinAndroidStopFacts(platform);
+    mwinAndroidStopAccessibility(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidStopPads(platform);
 #endif
@@ -510,7 +516,8 @@ static mwinResult Start(mwinContext* context)
     bool found =
         mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
         mwinAndroidFindServices(platform, activity) && mwinAndroidFindDialogs(platform, activity) &&
-        mwinAndroidFindDrops(platform, activity) && mwinAndroidFindFacts(platform, activity);
+        mwinAndroidFindDrops(platform, activity) && mwinAndroidFindFacts(platform, activity) &&
+        mwinAndroidFindAccessibility(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif
@@ -564,6 +571,7 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
     out->platform = mwin_platformAndroid;
     out->handles.android.window = platform->nativeWindow;
     out->handles.android.activity = platform->activity;
+    out->handles.android.view = platform->accessibility.view;
 }
 
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,

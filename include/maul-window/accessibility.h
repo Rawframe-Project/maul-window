@@ -42,6 +42,19 @@ extern "C"
     /// The view gives it as its only accessibility element, and holds a
     /// reference to it while it is the root.
     ///
+    /// On Android the root is the jobject of an
+    /// android.view.accessibility.AccessibilityNodeProvider, whose nodes
+    /// name the window's view (mwinNativeHandles) as their source and
+    /// parent. The view gives it as its provider, and holds a global
+    /// reference to it while it is the root; the view changes with the
+    /// activity, the root staying. A root that also implements the
+    /// library's Java interface maul.window.Explorer is explored by
+    /// touch: Android sends touch exploration to the window's input
+    /// rather than to its view, so while there is a root the library
+    /// takes those hovers, asks the root for the virtual view under the
+    /// finger, and announces the one entered and the one left, as
+    /// ExploreByTouchHelper does. The program sees no touch for them.
+    ///
     /// X11, Wayland and the web take no root and answer
     /// mwin_outcomeUnsupported.
     ///

@@ -139,6 +139,7 @@ void mwinAndroidDestroyWindow(mwinContext* context, uint32_t slot)
     {
         platform->slot = -1;
         platform->window = (mwinAndroidWindow){0};
+        mwinAndroidForgetAccessibility(platform);
     }
 }
 
@@ -169,6 +170,8 @@ static int CarryOut(mwinAndroidPlatform* platform, uint32_t slot, uint32_t index
         // The purpose in the low bits, the high bit set to show.
         return mwinAndroidSetKeyboard(platform, (request->value.code & 0x80u) != 0,
                                       (mwinInputPurpose)(request->value.code & 0x7Fu));
+    case mwin_requestAccessibilityRoot:
+        return mwinAndroidSetAccessibilityRoot(platform, request->value.root);
     default:
         return mwin_outcomeUnsupported;
     }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A test application (tools/build_android_app.sh, mwin-0026): the
+     library's activity running the test's native library. No
+     configChanges: a rotation makes the activity anew. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="@PACKAGE@">
+    <application android:label="@LIBRARY@" android:hasCode="true">
+        <activity android:name="maul.window.Activity" android:exported="true">
+            <meta-data android:name="android.app.lib_name" android:value="@LIBRARY@" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

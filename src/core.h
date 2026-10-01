@@ -198,6 +198,9 @@ struct mwinContext
     mwinLimits limits;
     const mwinBackendOps* backend;
     void* backendData;
+    // What the platform handed the backend's start where it, not the
+    // program, begins the run (Android's activity); null from mwinRun.
+    void* launch;
     mwinAppDef app;
     uint64_t sequence;
     mwinWindow* windows;

@@ -8,6 +8,16 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- The Android backend's first part (mwin-0026): the library's Java
+  activity (`maul.window.Activity`, a NativeActivity), the program's
+  entry `mwinAndroidMain`, the loop on the main thread with the
+  choreographer's frames, the life cycle, activities made anew joining
+  the running program, the window and its surfaces, and native handles
+  with the activity; `cmake/android-emulator.cmake` and the emulator
+  runners, with which CI runs every test in the Android emulator.
+
 ## [0.4.0] - 2026-10-01
 
 The iOS backend, the whole contract on UIKit with scenes, its tests in

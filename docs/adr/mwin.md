@@ -30,3 +30,4 @@ are listed in [README.md](README.md).
 | [mwin-0023](mwin-0023-windows-gaming-input.md) | Xbox gamepads through Windows.Gaming.Input | Accepted |
 | [mwin-0024](mwin-0024-macos-backend.md) | The macOS backend | Accepted |
 | [mwin-0025](mwin-0025-ios-backend.md) | The iOS backend | Accepted |
+| [mwin-0026](mwin-0026-android-backend.md) | The Android backend | Accepted |

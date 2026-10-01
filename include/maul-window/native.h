@@ -60,10 +60,12 @@ extern "C"
                 void* connection;
                 uint32_t window;
             } x11;
-            // ANativeWindow*.
+            // ANativeWindow*, and the ANativeActivity* it belongs to,
+            // through which the program reaches Java and its assets.
             struct
             {
                 void* window;
+                void* activity;
             } android;
             // The NSView or UIView, and its CAMetalLayer.
             struct

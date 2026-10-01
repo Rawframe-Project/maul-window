@@ -221,6 +221,12 @@ static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
         backends[count++] = &mwinWebBackend;
     }
 #endif
+#ifdef MAUL_WINDOW_ANDROID
+    if (kind == mwin_backendNative)
+    {
+        backends[count++] = &mwinAndroidBackend;
+    }
+#endif
     (void)kind;
     (void)backends;
     return count;
@@ -277,6 +283,11 @@ uint64_t mwinGetContextMisuse(const mwinContext* context)
 
 mwinResult mwinRun(const mwinAppDef* def)
 {
+    return mwinRunLaunched(def, nullptr);
+}
+
+mwinResult mwinRunLaunched(const mwinAppDef* def, void* launch)
+{
     if (def == nullptr || !IsDefValid(def))
     {
         return mwin_errorInvalid;
@@ -295,6 +306,7 @@ mwinResult mwinRun(const mwinAppDef* def)
             return status;
         }
         context->backend = backends[i];
+        context->launch = launch;
         status = backends[i]->start(context);
         if (status == mwin_success)
         {

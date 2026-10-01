@@ -58,6 +58,12 @@ else()
     set(MAUL_WINDOW_IOS_DEFAULT OFF)
 endif()
 option(MAUL_WINDOW_IOS "Build the iOS backend" ${MAUL_WINDOW_IOS_DEFAULT})
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(MAUL_WINDOW_ANDROID_DEFAULT ON)
+else()
+    set(MAUL_WINDOW_ANDROID_DEFAULT OFF)
+endif()
+option(MAUL_WINDOW_ANDROID "Build the Android backend" ${MAUL_WINDOW_ANDROID_DEFAULT})
 # The web: Emscripten's, or a plain WebAssembly toolchain's (mwin-0022).
 if(EMSCRIPTEN OR CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(MAUL_WINDOW_WEB_DEFAULT ON)
@@ -175,6 +181,9 @@ if(MAUL_WINDOW_MACOS)
 endif()
 if(MAUL_WINDOW_IOS)
     include(cmake/IOS.cmake)
+endif()
+if(MAUL_WINDOW_ANDROID)
+    include(cmake/Android.cmake)
 endif()
 if(MAUL_WINDOW_WEB)
     include(cmake/Web.cmake)
@@ -367,6 +376,32 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(MAUL_WINDOW_GAMEPAD)
             set_tests_properties(macos_gamepad PROPERTIES TIMEOUT 60)
         endif()
+    endif()
+    if(MAUL_WINDOW_ANDROID AND DEFINED ENV{ANDROID_HOME})
+        # Applications in the emulator, built by tools/build_android_app.sh
+        # without Gradle and run by tools/run_android_app.sh.
+        set(MWIN_ANDROID_TESTS android)
+        foreach(name ${MWIN_ANDROID_TESTS})
+            set(package maul.window.tests.${name})
+            add_library(test_${name} SHARED test/test_${name}.c)
+            target_link_libraries(test_${name} PRIVATE maul-window android)
+            target_compile_definitions(test_${name} PRIVATE MWIN_TEST_PACKAGE="${package}")
+            maul_apply_flags(test_${name})
+            file(GLOB_RECURSE MWIN_JAVA_SOURCES ${PROJECT_SOURCE_DIR}/java/*.java)
+            add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/test_${name}.apk
+                COMMAND ${CMAKE_COMMAND} -E env ANDROID_HOME=$ENV{ANDROID_HOME}
+                        ${PROJECT_SOURCE_DIR}/tools/build_android_app.sh
+                        ${PROJECT_BINARY_DIR}/test_${name}.apk $<TARGET_FILE:test_${name}>
+                        ${package} ${ANDROID_ABI}
+                DEPENDS test_${name} ${MWIN_JAVA_SOURCES}
+                        ${PROJECT_SOURCE_DIR}/test/android/AndroidManifest.xml
+                        ${PROJECT_SOURCE_DIR}/tools/build_android_app.sh
+                VERBATIM)
+            add_custom_target(test_${name}_apk ALL DEPENDS ${PROJECT_BINARY_DIR}/test_${name}.apk)
+            add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_android_app.sh
+                     ${PROJECT_BINARY_DIR}/test_${name}.apk ${package})
+            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator)
+        endforeach()
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,

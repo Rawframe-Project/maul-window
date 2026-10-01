@@ -2,12 +2,15 @@
 # and the modules it may use. tools/check_modules.py enforces it.
 accessibility: core
 allocator:
+android: core
+android_window: android core
 answer: core
 apple_locale: core
 apple_pad: core pad_tracker
 apple_rumble: apple_pad
 apple_text:
 backend:
+backend_android: allocator android backend core
 backend_ios: allocator backend core ios
 backend_macos: allocator backend core macos
 backend_test: allocator backend core

@@ -53,6 +53,11 @@ bool mwinStartProgram(mwinContext* context);
 bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context));
 mwinResult mwinEndProgram(mwinContext* context);
 
+// Runs a program as mwinRun does, for a platform that begins the run
+// itself, with what it handed over for the backend's start (the
+// context's launch).
+mwinResult mwinRunLaunched(const mwinAppDef* def, void* launch);
+
 // Stops the backend and frees the context, after mwinEndProgram, where
 // mwinRun could not wait for the program to end.
 void mwinFinishRun(mwinContext* context);
@@ -71,6 +76,9 @@ extern const mwinBackendOps mwinMacBackend;
 
 // The iOS backend, in builds with MAUL_WINDOW_IOS.
 extern const mwinBackendOps mwinIOSBackend;
+
+// The Android backend, in builds with MAUL_WINDOW_ANDROID.
+extern const mwinBackendOps mwinAndroidBackend;
 
 // The web backend, in builds with MAUL_WINDOW_WEB.
 extern const mwinBackendOps mwinWebBackend;

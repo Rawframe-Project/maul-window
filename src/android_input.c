@@ -299,15 +299,13 @@ static void PostText(mwinAndroidPlatform* platform, uint32_t typed, uint64_t tim
 }
 
 // The text a press types: a dead key's accent waits for the next key.
-static void Type(mwinAndroidPlatform* platform, const AInputEvent* event, uint64_t timeNs)
+static void Type(mwinAndroidPlatform* platform, const mwinAndroidKey* key)
 {
-    int32_t meta = AKeyEvent_getMetaState(event);
-    if ((meta & (AMETA_CTRL_ON | AMETA_META_ON)) != 0)
+    if ((key->meta & (AMETA_CTRL_ON | AMETA_META_ON)) != 0)
     {
         return;
     }
-    uint32_t typed =
-        Typed(platform, AInputEvent_getDeviceId(event), AKeyEvent_getKeyCode(event), meta);
+    uint32_t typed = Typed(platform, key->device, key->keyCode, key->meta);
     mwinAndroidKeys* keys = &platform->keys;
     if ((typed & COMBINING_ACCENT) != 0)
     {
@@ -321,37 +319,34 @@ static void Type(mwinAndroidPlatform* platform, const AInputEvent* event, uint64
     keys->accent = 0;
     if (IsPrinting(typed))
     {
-        PostText(platform, typed, timeNs);
+        PostText(platform, typed, key->timeNs);
     }
 }
 
-static mwinKeyCode CodeOf(const AInputEvent* event)
+static mwinKeyCode CodeOf(const mwinAndroidKey* key)
 {
-    int32_t scan = AKeyEvent_getScanCode(event);
-    mwinKeyCode code = scan > 0 ? mwinKeyCodeFromEvdev((uint32_t)scan) : mwin_codeUnknown;
-    return code != mwin_codeUnknown
-               ? code
-               : mwinKeyCodeFromEvdev(mwinAndroidEvdevOf(AKeyEvent_getKeyCode(event)));
+    mwinKeyCode code =
+        key->scanCode > 0 ? mwinKeyCodeFromEvdev((uint32_t)key->scanCode) : mwin_codeUnknown;
+    return code != mwin_codeUnknown ? code : mwinKeyCodeFromEvdev(mwinAndroidEvdevOf(key->keyCode));
 }
 
-static bool Key(mwinAndroidPlatform* platform, const AInputEvent* event)
+bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* key)
 {
-    int32_t action = AKeyEvent_getAction(event);
-    mwinKeyCode code = CodeOf(event);
-    if (IsSystemKey(AKeyEvent_getKeyCode(event)) || code == mwin_codeUnknown ||
-        code >= MWIN_ANDROID_KEY_CODES || action == AKEY_EVENT_ACTION_MULTIPLE)
+    mwinKeyCode code = CodeOf(key);
+    if (platform->slot < 0 || !platform->window.created || IsSystemKey(key->keyCode) ||
+        code == mwin_codeUnknown || code >= MWIN_ANDROID_KEY_CODES ||
+        key->action == AKEY_EVENT_ACTION_MULTIPLE)
     {
         return false;
     }
     mwinAndroidKeys* keys = &platform->keys;
-    bool down = action == AKEY_EVENT_ACTION_DOWN;
+    bool down = key->action == AKEY_EVENT_ACTION_DOWN;
     uint8_t bit = (uint8_t)(1u << (code % 8));
     bool held = (keys->held[code / 8] & bit) != 0;
     mwinKey meaning = MWIN_KEY_NAMED | code;
     if (mwinKeyPrints(code))
     {
-        uint32_t typed =
-            Typed(platform, AInputEvent_getDeviceId(event), AKeyEvent_getKeyCode(event), 0);
+        uint32_t typed = Typed(platform, key->device, key->keyCode, 0);
         meaning = IsPrinting(typed) ? typed : keys->meanings[code];
         keys->meanings[code] = meaning;
     }
@@ -362,14 +357,12 @@ static bool Key(mwinAndroidPlatform* platform, const AInputEvent* event)
     }
     keys->held[code / 8] = down ? (uint8_t)(keys->held[code / 8] | bit)
                                 : (uint8_t)(keys->held[code / 8] & (uint8_t)~bit);
-    uint64_t timeNs = (uint64_t)AKeyEvent_getEventTime(event);
-    mwinEvent record = {.type = down ? mwin_eventKeyDown : mwin_eventKeyUp, .timeNs = timeNs};
-    record.data.key = (mwinKeyEvent){code, ModifiersOf(AKeyEvent_getMetaState(event)), meaning,
-                                     down && AKeyEvent_getRepeatCount(event) > 0};
+    mwinEvent record = {.type = down ? mwin_eventKeyDown : mwin_eventKeyUp, .timeNs = key->timeNs};
+    record.data.key = (mwinKeyEvent){code, ModifiersOf(key->meta), meaning, down && key->repeat};
     mwinPost(platform->context, (uint32_t)platform->slot, &record);
     if (down)
     {
-        Type(platform, event, timeNs);
+        Type(platform, key);
     }
     return true;
 }
@@ -383,7 +376,18 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
     switch (AInputEvent_getType(event))
     {
     case AINPUT_EVENT_TYPE_KEY:
-        return Key(platform, event);
+    {
+        mwinAndroidKey key = {
+            .action = AKeyEvent_getAction(event),
+            .keyCode = AKeyEvent_getKeyCode(event),
+            .scanCode = AKeyEvent_getScanCode(event),
+            .meta = AKeyEvent_getMetaState(event),
+            .device = AInputEvent_getDeviceId(event),
+            .repeat = AKeyEvent_getRepeatCount(event) > 0,
+            .timeNs = (uint64_t)AKeyEvent_getEventTime(event),
+        };
+        return mwinAndroidKeyEvent(platform, &key);
+    }
     case AINPUT_EVENT_TYPE_MOTION:
         Motion(platform, event);
         return true;

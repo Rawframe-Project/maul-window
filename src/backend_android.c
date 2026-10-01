@@ -79,7 +79,7 @@ typedef union ProgramLong
     mwinAndroidPlatform* program;
 } ProgramLong;
 
-static mwinAndroidPlatform* ProgramOf(jlong value)
+mwinAndroidPlatform* mwinAndroidProgramOf(jlong value)
 {
     ProgramLong held = {.value = value};
     return held.program;
@@ -308,8 +308,11 @@ static void OnNativeWindowDestroyed(ANativeActivity* activity, ANativeWindow* wi
     }
 }
 
-// Each event goes to the input method first; what it leaves comes to
+// While the window accepts text, each event goes to the input method
+// first (it composes from a keyboard's keys too); what it leaves comes to
 // the window, and what the program does not take goes on to Android.
+// Otherwise the input method never sees the keys, which it would take
+// some of (Escape, for one).
 static int OnInput(int fd, int events, void* data)
 {
     (void)fd;
@@ -318,7 +321,7 @@ static int OnInput(int fd, int events, void* data)
     AInputEvent* event = nullptr;
     while (platform->queue != nullptr && AInputQueue_getEvent(platform->queue, &event) >= 0)
     {
-        if (AInputQueue_preDispatchEvent(platform->queue, event) != 0)
+        if (platform->window.textInput && AInputQueue_preDispatchEvent(platform->queue, event) != 0)
         {
             continue;
         }
@@ -392,7 +395,8 @@ ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_t sav
         ANativeActivity_finish(activity);
         return;
     }
-    mwinAndroidPlatform* running = ProgramOf((*env)->GetStaticLongField(env, type, field));
+    mwinAndroidPlatform* running =
+        mwinAndroidProgramOf((*env)->GetStaticLongField(env, type, field));
     (*env)->DeleteLocalRef(env, type);
     if (running != nullptr)
     {
@@ -443,7 +447,7 @@ static mwinResult Start(mwinContext* context)
     }
     *platform = (mwinAndroidPlatform){
         .context = context,
-        .java = {env, (*env)->NewGlobalRef(env, type), field},
+        .java = {.env = env, .activityClass = (*env)->NewGlobalRef(env, type), .program = field},
         .configuration = configuration,
         .looper = ALooper_forThread(),
         .choreographer = AChoreographer_getInstance(),
@@ -451,7 +455,7 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    if (!mwinAndroidFindInput(platform))
+    if (!mwinAndroidFindInput(platform) || !mwinAndroidFindText(platform, activity))
     {
         Stop(context);
         return mwin_errorPlatform;

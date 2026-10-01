@@ -26,7 +26,8 @@ typedef struct mwinAndroidPlatform mwinAndroidPlatform;
 
 // The window: whether its first surface came (mwin_eventWindowCreated
 // posted) and whether its surface is gone; its size in pixels, scale and
-// focus as last posted.
+// focus as last posted; whether it accepts text and where its caret is;
+// its safe area and the part the keyboard covers, as last posted.
 typedef struct mwinAndroidWindow
 {
     bool created;
@@ -35,16 +36,36 @@ typedef struct mwinAndroidWindow
     uint32_t height;
     float scale;
     bool focused;
+    bool textInput;
+    mwinRect caret;
+    mwinInsets safeArea;
+    mwinRect covered;
 } mwinAndroidWindow;
+
+// The window's insets as the activity last told them, in pixels: the
+// system's bars and cutouts on each side, and the input method's at the
+// bottom.
+typedef struct mwinAndroidInsets
+{
+    int32_t left;
+    int32_t top;
+    int32_t right;
+    int32_t bottom;
+    int32_t keyboard;
+} mwinAndroidInsets;
 
 // The Java side, reached through the first activity: the main thread's
 // JNI environment, the activity's class (a global reference) and its
-// field that holds the running program (maul.window.Activity.program).
+// field that holds the running program (maul.window.Activity.program),
+// and the library's methods that show the keyboard and drop the input
+// method's composition.
 typedef struct mwinAndroidJava
 {
     JNIEnv* env;
     jclass activityClass;
     jfieldID program;
+    jmethodID showKeyboard;
+    jmethodID restartInput;
 } mwinAndroidJava;
 
 // The key codes the backend keeps a state of: the keyboard's usages up
@@ -93,13 +114,17 @@ struct mwinAndroidPlatform
     // The window's slot, -1 when there is none.
     int32_t slot;
     mwinAndroidWindow window;
-    // Its pointers and the keys.
+    // Its pointers and the keys; the insets the activity told.
     mwinAndroidPointers pointers;
     mwinAndroidKeys keys;
+    mwinAndroidInsets insets;
 };
 
 // The platform of a context whose backend is Android.
 mwinAndroidPlatform* mwinAndroidPlatformOf(const mwinContext* context);
+
+// The running program as maul.window.Activity.program holds it, or null.
+mwinAndroidPlatform* mwinAndroidProgramOf(jlong program);
 
 // Nanoseconds on the clock input events count (CLOCK_MONOTONIC).
 uint64_t mwinAndroidNow(void);
@@ -116,16 +141,41 @@ void mwinAndroidSurfaceWent(mwinAndroidPlatform* platform);
 void mwinAndroidReadSize(mwinAndroidPlatform* platform);
 void mwinAndroidPostFocus(mwinAndroidPlatform* platform);
 
+// A key's press or release, as an event of the input queue or an input
+// method gives it: Android's action, key code, scan code (0 for none),
+// meta state, device, whether it repeats, and when.
+typedef struct mwinAndroidKey
+{
+    int32_t action;
+    int32_t keyCode;
+    int32_t scanCode;
+    int32_t meta;
+    int32_t device;
+    bool repeat;
+    uint64_t timeNs;
+} mwinAndroidKey;
+
 // Input (android_input.c): what the Java side's key maps and the double
 // tap's time are, found at the start and let go at the stop; an event of
 // the input queue, posted to the window: whether the program took it,
-// else Android acts on it; what a key means; the input forgotten when the
+// else Android acts on it; a key, from either; what a key means; the input forgotten when the
 // application suspends.
 bool mwinAndroidFindInput(mwinAndroidPlatform* platform);
 void mwinAndroidLoseInput(mwinAndroidPlatform* platform);
 bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event);
+bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* key);
 mwinKey mwinAndroidMapKeyCode(const mwinAndroidPlatform* platform, mwinKeyCode code);
 void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
+
+// Input methods, the keyboard and the insets (android_text.c): the Java
+// activity's native methods registered and its methods found, at the
+// start; the insets posted as they change and when the window is made;
+// the text input and keyboard requests.
+bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidPostInsets(mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled, mwinRect caret);
+mwinOutcome mwinAndroidSetKeyboard(mwinAndroidPlatform* platform, bool visible,
+                                   mwinInputPurpose purpose);
 
 // The backend's window operations (android_window.c).
 void mwinAndroidCreateWindow(mwinContext* context, uint32_t slot);

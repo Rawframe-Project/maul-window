@@ -67,9 +67,12 @@ keep no global state.
   placing, restyling, hiding it or setting its mode are unsupported.
 - **Native handles** give the `ANativeWindow` and the `ANativeActivity`,
   through which the program reaches Java and its assets.
-- **Input** comes from the activity's input queue on the main looper;
-  each event goes to the input method first (`preDispatchEvent`), and
-  what it leaves comes to the window. A motion event becomes samples,
+- **Input** comes from the activity's input queue on the main looper.
+  While the window accepts text each event goes to the input method
+  first (`preDispatchEvent`; it composes from a keyboard's keys too), and
+  what it leaves comes to the window; otherwise the input method never
+  sees the keys, as it would take some of them (Escape, seen with
+  Gboard). A motion event becomes samples,
   its history first, which a translator with no platform type
   (`android_motion.c`) turns into records:
   - a finger (or a tool Android does not know) is a touch, its id
@@ -101,6 +104,31 @@ keep no global state.
   on to Android; the program takes every other key and every motion, so
   that Android acts on none of them (an Escape left to it would go
   back). The layout has no name.
+- **Input methods:** the library's activity replaces NativeActivity's
+  content view with a focusable view that is a text editor, whose input
+  connection keeps only the composition (the program keeps its own
+  text), as SDL's does: committed text comes as text, a newline and a tab
+  as the Enter and Tab keys' press and release, as on iOS; a composition
+  (one underlined segment, its selection in bytes) is told while the
+  window accepts text, and dropped, the input method started again, when
+  it stops; a deletion outside a composition is the Backspace and Delete
+  keys, and the keys an input method sends and its editor action come as
+  keys. The Java activity calls the library's native methods, which the
+  backend registers at its start on the class it loads through the
+  application's class loader. The caret's place is not told to the input
+  method.
+- **The on-screen keyboard** shows while the program asks for it
+  (`InputMethodManager.showSoftInput`, again when the window gets the
+  focus), its purpose setting the input type: text, an address or a URL
+  with nothing suggested, corrected or capitalized, a signed decimal
+  number, a password. A keyboard asked for is not shown again by an
+  activity made anew.
+- **Insets:** the window has no title bar, whatever the theme, and is
+  drawn behind the system's bars (`setDecorFitsSystemWindows(false)`,
+  transparent bars). The safe area is the bars' and cutouts' insets, and
+  the part the keyboard covers the input method's inset at the window's
+  bottom, both in logical units, told as they change and when the window
+  is made.
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -111,7 +139,12 @@ keep no global state.
   Android 11 and 15 here and on 11 in CI, `android_input` takes what the
   system's input command injects: a tap, a swipe, a mouse's tap, a
   stylus's tap (a pen where the command marks it a stylus), keys, typed
-  text, Escape and a volume key, and the wheel from Android 13.
+  text, Escape and Menu, and the wheel from Android 13; `android_ime`
+  calls the activity's input connection as an input method would and
+  shows and hides the keyboard, with the safe area and the keyboard's
+  part, and each purpose's input type. The runner turns the system's
+  animations off while a test runs, so that an opening transition does
+  not move the window under the test's input.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps
   the NDK's toolchain file and runs executables through
   `tools/run_android.sh` (`adb push` and `adb shell`); window tests are

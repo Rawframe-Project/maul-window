@@ -20,6 +20,11 @@ format.
 - Android input (mwin-0026): touches, the pen, the mouse's cursor,
   buttons and wheel, and keys with their meanings and text, from the
   activity's input queue; Android's system keys stay the system's.
+- Android input methods, the on-screen keyboard and insets (mwin-0026):
+  the library's activity gives input methods an editor that holds only
+  the composition, compositions are told while the window accepts text,
+  the keyboard shows for a purpose, and the window, drawn behind the
+  system's bars, tells its safe area and the part the keyboard covers.
 
 ## [0.4.0] - 2026-10-01
 

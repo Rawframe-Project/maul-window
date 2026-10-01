@@ -341,7 +341,13 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         printf("timed out in phase %d after %d records:", program->phase, program->recordCount);
         for (int i = 0; i < program->recordCount; i++)
         {
-            printf(" %d", (int)program->records[i].type);
+            const mwinEvent* record = &program->records[i];
+            bool key = record->type == mwin_eventKeyDown || record->type == mwin_eventKeyUp;
+            printf(" %d", (int)record->type);
+            if (key)
+            {
+                printf("(%d)", (int)record->data.key.code);
+            }
         }
         printf("\n");
         s_failures += 1;

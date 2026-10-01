@@ -6,7 +6,8 @@
 // the activity's first native window, which its create request waits
 // for; each later native window is a new surface generation, each one
 // going a lost surface. Its size in pixels is the native window's, its
-// scale the configuration's density over 160. A second window, sizing,
+// scale the configuration's density over 160. Text input and the
+// on-screen keyboard are android_text.c's. A second window, sizing,
 // placing, restyling, hiding it or setting its mode are unsupported.
 
 #include "android.h"
@@ -51,6 +52,8 @@ void mwinAndroidReadSize(mwinAndroidPlatform* platform)
         event.type = mwin_eventPixelSizeChanged;
         event.data.pixelSize = (mwinPixelSize){(uint32_t)width, (uint32_t)height};
         mwinPost(platform->context, slot, &event);
+        // The keyboard's part depends on the size.
+        mwinAndroidPostInsets(platform);
     }
 }
 
@@ -88,6 +91,7 @@ void mwinAndroidSurfaceCame(mwinAndroidPlatform* platform)
     window->created = true;
     PostType(platform, mwin_eventWindowCreated);
     mwinAndroidReadSize(platform);
+    mwinAndroidPostInsets(platform);
     PostType(platform, mwin_eventShown);
     mwinAndroidPostFocus(platform);
     int32_t request = mwinFindActiveRequest(&context->windows[slot],
@@ -137,10 +141,28 @@ void mwinAndroidDestroyWindow(mwinContext* context, uint32_t slot)
     }
 }
 
+static mwinOutcome CarryOut(mwinAndroidPlatform* platform, const mwinRequest* request)
+{
+    switch (request->kind)
+    {
+    case mwin_requestVisible:
+        // The window shows with its activity: asking it to show is done.
+        return request->value.visible ? mwin_outcomeDone : mwin_outcomeUnsupported;
+    case mwin_requestTextInput:
+        return mwinAndroidSetTextInput(platform, request->value.textInput.enabled,
+                                       request->value.textInput.caret);
+    case mwin_requestVirtualKeyboard:
+        // The purpose in the low bits, the high bit set to show.
+        return mwinAndroidSetKeyboard(platform, (request->value.code & 0x80u) != 0,
+                                      (mwinInputPurpose)(request->value.code & 0x7Fu));
+    default:
+        return mwin_outcomeUnsupported;
+    }
+}
+
 void mwinAndroidSubmit(mwinContext* context, uint32_t slot, uint32_t request)
 {
-    const mwinRequest* taken = &context->windows[slot].requests[request];
-    // The window shows with its activity: asking it to show is done.
-    bool shows = taken->kind == mwin_requestVisible && taken->value.visible;
-    mwinComplete(context, slot, request, shows ? mwin_outcomeDone : mwin_outcomeUnsupported);
+    mwinOutcome outcome =
+        CarryOut(mwinAndroidPlatformOf(context), &context->windows[slot].requests[request]);
+    mwinComplete(context, slot, request, outcome);
 }

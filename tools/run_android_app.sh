@@ -6,7 +6,9 @@
 # application is debuggable). A line "adb: <command>" the test writes is
 # run once, as "adb shell <command>", so that the test drives what only
 # the system can do (the home key, a rotation); the rotation settings
-# are put back at the end, whatever the test did. The library never ends
+# are put back at the end, whatever the test did. The system's
+# animations are off while it runs, as for any UI test, so that an
+# opening transition does not move the window under the test's input. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
 # failures; otherwise shows the application's crashes from the log.
 set -eu
@@ -16,6 +18,10 @@ package=$2
 start=$(date +%s)
 rotating=$("$adb" shell settings get system accelerometer_rotation | tr -d '\r')
 rotation=$("$adb" shell settings get system user_rotation | tr -d '\r')
+for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
+    eval "old_$scale=\$(\"\$adb\" shell settings get global $scale | tr -d '\\r')"
+    "$adb" shell settings put global "$scale" 0
+done
 "$adb" install -r "$apk" > /dev/null
 "$adb" logcat -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
@@ -46,6 +52,11 @@ fi
 "$adb" shell am force-stop "$package"
 "$adb" shell settings put system user_rotation "$rotation"
 "$adb" shell settings put system accelerometer_rotation "$rotating"
+for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
+    eval "value=\$old_$scale"
+    [ "$value" = null ] && value=1
+    "$adb" shell settings put global "$scale" "$value"
+done
 "$adb" uninstall "$package" > /dev/null
 rm -f "$out"
 exit $status

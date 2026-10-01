@@ -35,6 +35,9 @@ format.
 - Android file dialogs (mwin-0026): the document picker opens documents,
   copied into the application's cache between frames and answered as
   their copies' paths; saving and folders are unsupported on Android.
+- Android drops (mwin-0026): drags over the window told as they move, and
+  a drop's documents copied into the cache before it is told, with its
+  text.
 
 ## [0.4.0] - 2026-10-01
 

@@ -5,7 +5,9 @@
 # (java/maul/window).
 
 target_sources(maul-window PRIVATE
+    src/android_copy.c
     src/android_dialog.c
+    src/android_drop.c
     src/android_input.c
     src/android_motion.c
     src/android_services.c

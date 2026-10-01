@@ -2,8 +2,10 @@
 # and the modules it may use. tools/check_modules.py enforces it.
 accessibility: core
 allocator:
-android: android_motion android_pad_map answer core
-android_dialog: allocator android answer core dialog
+android: android_copy android_motion android_pad_map answer core
+android_copy: allocator core
+android_dialog: android android_copy answer core dialog
+android_drop: allocator android android_copy core
 android_input: android android_keys android_motion core evdev key_prints
 android_keys:
 android_motion: clicks core

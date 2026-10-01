@@ -57,6 +57,7 @@ public class Activity extends NativeActivity {
         window.setNavigationBarColor(Color.TRANSPARENT);
         field = new Field(this);
         setContentView(field);
+        field.setOnDragListener(new Drops(this));
         field.requestFocus();
         field.setOnApplyWindowInsetsListener((view, insets) -> {
             Insets safe = insets.getInsets(

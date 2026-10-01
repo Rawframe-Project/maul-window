@@ -178,6 +178,17 @@ keep no global state.
   code, its copy stops, and an answer under its number is dropped.
   Filters offer the types Android knows of their extensions. The copies
   of earlier runs are removed at the start.
+- **Drops** come through a drag listener (`maul.window.Drops`) on the
+  activity's view, which covers the window: a drag with a text type
+  carries text, one with any other type files (a document is an address
+  of any type); entering, moving and leaving are told as they come, in
+  logical units. A drop's documents are opened under the drag's
+  permissions (`requestDragAndDropPermissions`, which another
+  application's documents need) and copied into the cache as a dialog's
+  are, a folder per drop, and its first text item is its text; the drop
+  is told once every copy is whole, at its place. The window takes no
+  drag while the last drop's documents are still copied, rather than
+  queue drops.
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -201,7 +212,10 @@ keep no global state.
   made anew keeps the display awake; `android_dialog` shows the picker,
   supersedes it and cancels with Back, then hands the activity the
   picker's result for two documents it made in Downloads and reads their
-  copies back, a large one over several frames. The runner turns the system's
+  copies back, a large one over several frames; `android_drop` starts a
+  drag from its own window under a finger the runner puts down, moves
+  and lifts, with a MediaStore document and text, and checks the drag's
+  records, the drop's place, its copy and its text. The runner turns the system's
   animations off while a test runs, so that an opening transition does
   not move the window under the test's input.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps

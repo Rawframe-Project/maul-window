@@ -101,7 +101,7 @@ final class Documents {
 
     // A document opened to read, its descriptor the library's; -1 when
     // it could not be.
-    private static int descriptorOf(ContentResolver resolver, Uri uri) {
+    static int descriptorOf(ContentResolver resolver, Uri uri) {
         try {
             ParcelFileDescriptor descriptor = resolver.openFileDescriptor(uri, "r");
             return descriptor != null ? descriptor.detachFd() : -1;
@@ -111,7 +111,7 @@ final class Documents {
     }
 
     // A document's name as its provider tells it, or empty.
-    private static String nameOf(ContentResolver resolver, Uri uri) {
+    static String nameOf(ContentResolver resolver, Uri uri) {
         String[] columns = {OpenableColumns.DISPLAY_NAME};
         try (Cursor cursor = resolver.query(uri, columns, null, null, null)) {
             if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {

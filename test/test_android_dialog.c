@@ -51,7 +51,7 @@ typedef struct Program
     bool resumed;
     // Whether a frame saw the large document's copy part done (the
     // copies' place, mwin-0026: the cache's maul-documents, a folder per
-    // dialog and per document).
+    // copying dialog and per document; this is the first).
     bool partial;
     // The activity, kept while it shows: the window's handles have none
     // once its surface went.
@@ -320,7 +320,7 @@ static bool Ready(Program* program, mwinContext* context)
     {
         char path[256];
         (void)snprintf(path, sizeof(path),
-                       "/data/data/" MWIN_TEST_PACKAGE "/cache/maul-documents/3/1/%s",
+                       "/data/data/" MWIN_TEST_PACKAGE "/cache/maul-documents/1/1/%s",
                        program->names[1]);
         struct stat status;
         program->partial |=

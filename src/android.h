@@ -11,6 +11,7 @@
 #ifndef MAUL_WINDOW_SRC_ANDROID_H
 #define MAUL_WINDOW_SRC_ANDROID_H
 
+#include "android_copy.h"
 #include "android_motion.h"
 #include "android_pad_map.h"
 #include "answer.h"
@@ -128,23 +129,27 @@ typedef struct mwinAndroidPads
 } mwinAndroidPads;
 
 // The file dialog: the library's Java helper (maul.window.Documents, a
-// global reference) and its picker; the folder the copies go to, under
-// the cache, and the number of the last dialog's; the request the
-// picker answers; and while its documents are copied, their
-// descriptors, read from and written to, and the next to copy.
+// global reference) and its picker; the number of the last dialog, whose
+// low byte its picker's request code carries; the request the picker
+// answers; and the copy of its documents.
 typedef struct mwinAndroidDocuments
 {
     jclass type;
     jmethodID open;
-    char folder[PATH_MAX];
-    uint32_t serial;
+    uint32_t number;
     mwinServiceAnswer to;
-    bool copying;
-    int* from;
-    int* into;
-    uint32_t count;
-    uint32_t next;
+    mwinAndroidCopy copy;
 } mwinAndroidDocuments;
+
+// Drops: while the last drop's documents are copied, the copy, its
+// text (UTF-8 from the allocator, or null) and the place it was made.
+typedef struct mwinAndroidDrops
+{
+    mwinAndroidCopy copy;
+    char* text;
+    size_t textLength;
+    mwinPosition place;
+} mwinAndroidDrops;
 
 struct mwinAndroidPlatform
 {
@@ -180,6 +185,7 @@ struct mwinAndroidPlatform
     mwinAndroidInsets insets;
     mwinAndroidPads pads;
     mwinAndroidDocuments documents;
+    mwinAndroidDrops drops;
 };
 
 // The platform of a context whose backend is Android.
@@ -248,11 +254,19 @@ void mwinAndroidStopPads(mwinAndroidPlatform* platform);
 // function registered, and the copies of earlier runs removed, at the
 // start; the copying let go at the stop; a dialog asked for (-1 while
 // it waits for the picker, else its outcome); its documents copied a
-// step further between frames.
+// step further between frames, within a budget of bytes.
 bool mwinAndroidFindDialogs(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopDialogs(mwinAndroidPlatform* platform);
 int mwinAndroidAskDialog(mwinAndroidPlatform* platform, uint32_t slot, uint32_t request);
-void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform);
+void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget);
+
+// Drops (android_drop.c): the Java listener's functions registered and
+// earlier runs' copies removed, at the start; the copy let go at the
+// stop; a drop's documents copied a step further between frames, within
+// a budget of bytes.
+bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopDrops(mwinAndroidPlatform* platform);
+void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget);
 
 // The clipboard and services (android_services.c): the Java helper
 // found at the start and let go at the stop; the clipboard written and

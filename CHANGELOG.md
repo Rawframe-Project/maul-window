@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-01
+
+The Android backend, the whole contract on NativeActivity with the
+library's Java, its tests in the Android emulator.
+
 ### Added
 
 - The Android backend's first part (mwin-0026): the library's Java

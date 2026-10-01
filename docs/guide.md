@@ -59,8 +59,13 @@ screen's display link, and returns once a frame stops. On iOS it runs
 UIKit's, which never returns: init runs when the application's first
 scene connects, frames follow the display while a scene shows, and a
 program that stops ends with `quit` while the application runs on. On
-the web the browser's loop drives it and `mwinRun` may never return, so
-cleanup belongs in `quit`. The program cannot tell these apart.
+Android the platform begins the run: the program defines
+`mwinAndroidMain` in place of `main`, returning the same def, and the
+library's activity runs it on the main thread, frames following the
+display; an activity the system makes anew (a rotation, the user coming
+back) joins the running program. On the web the browser's loop drives
+it and `mwinRun` may never return, so cleanup belongs in `quit`. The
+program cannot tell these apart.
 
 Three rules hold everywhere:
 
@@ -119,9 +124,12 @@ and `Icon`. What a platform cannot do it answers unsupported: Wayland
 places no toplevel, and the web has no title bar. A macOS window has no
 icon of its own, so its icon request sets the application's. An iOS
 window is a scene's, which the system sizes and places; its title is
-what the app switcher shows, and a program on an iPhone has one window. Nothing closes a
-window by itself. The close button sends `mwin_eventCloseRequested`, and
-the program calls `mwinDestroyWindow`, or does not.
+what the app switcher shows, and a program on an iPhone has one window.
+An Android program has one window too, its activity's, drawn edge to
+edge behind the system's bars, whose safe area the window state gives.
+Nothing closes a window by itself. The close button sends `mwin_eventCloseRequested`, and
+the program calls `mwinDestroyWindow`, or does not. On Android the Back
+key and gesture send it too, so a program goes back a screen or ends.
 
 ### Editor windows
 
@@ -218,8 +226,10 @@ batteries, or through XInput's four players where the runtime is
 missing; the runtime may give a program in the background no input.
 Other pads come through Raw Input and the HID parser. On macOS and iOS
 they come through GameController, which maps every pad it knows (from
-macOS 11.3), with the motors through CoreHaptics. On the web they come
-through the Gamepad API.
+macOS 11.3), with the motors through CoreHaptics. On Android they are
+the system's input devices, mapped by place where Android names a south
+face button, with rumble and batteries from Android 12. On the web they
+come through the Gamepad API.
 
 ## 7. Clipboard, drag and drop
 
@@ -235,6 +245,9 @@ While something is dragged over a window, the program hears
 `mwin_eventDropped` instead of the leaving. Its files, as UTF-8 paths
 each ended by a NUL, and its text wait under the drop's number for
 `mwinGetDroppedFiles` and `mwinGetDroppedText` until the next drop.
+On Android, whose documents have no paths, a drop's documents are
+copied into the application's cache first, and the drop comes once
+every copy is whole.
 
 ## 8. Platform services
 
@@ -246,16 +259,19 @@ These are requests of a window, answered like any other:
   the common item dialog on Windows, a sheet on its window on macOS
   (which never blocks), the document picker on iOS (files opened as the
   application's copies; a save exports an empty file to the place
-  chosen, which the program then writes), and the desktop portal (else
+  chosen, which the program then writes), the document picker on
+  Android (documents opened, copied into the application's cache
+  between frames; no save or folder), and the desktop portal (else
   zenity) on Linux. The web has none.
 - `mwinRequestOpenUrl` opens an http, https or mailto address in the
   user's program for it.
-- `mwinRequestRevealFile` shows a file in the file manager.
+- `mwinRequestRevealFile` shows a file in the file manager (none on
+  Android).
 - `mwinRequestKeepAwake` keeps the display on while the window shows.
 
 `mwinShowMessageBox` needs no context. It shows a platform message box
 and waits, for errors a program must report before or after it has
-windows.
+windows. Android has none.
 
 ## 9. Accessibility hooks
 
@@ -266,6 +282,10 @@ platform:
   program's root provider.
 - On macOS it makes the program's NSAccessibility root the window
   view's child; on iOS, its UIAccessibility root the view's element.
+- On Android the root is the program's `AccessibilityNodeProvider`,
+  which the activity's view gives; a root that also implements
+  `maul.window.Explorer` is explored by touch, the library finding the
+  node under the finger through it.
 - On the web, each window has a host element over its canvas for the
   program's ARIA elements. Its selector is in the native handles.
 - `mwin_eventAccessibilityRequested` comes the first time a client asks
@@ -278,6 +298,8 @@ window, as opaque pointers:
 
 - Win32: the `HWND` and `HINSTANCE`;
 - macOS and iOS: the `NSView` or `UIView` and its `CAMetalLayer`;
+- Android: the `ANativeWindow`, its `ANativeActivity` and the
+  activity's view;
 - Wayland: the `wl_display` and `wl_surface`;
 - X11: the XCB connection and window;
 - the web: the canvas's selector.
@@ -294,6 +316,7 @@ arrives with `mwin_eventSurfaceRestored`.
 | Win32 | user32, Raw Input, IMM32, OLE drag and drop, Windows.Gaming.Input, XInput | Windows |
 | macOS | AppKit, Text Input Sources, GameController, CoreHaptics, IOKit | macOS (`MAUL_WINDOW_MACOS`) |
 | iOS | UIKit with scenes, GameController, CoreHaptics | iOS (`MAUL_WINDOW_IOS`) |
+| Android | NativeActivity with the library's Java, the input queue, the choreographer | Android (`MAUL_WINDOW_ANDROID`) |
 | Wayland | xdg-shell and its extensions, the desktop portal, evdev | Linux (`MAUL_WINDOW_WAYLAND`) |
 | X11 | XCB, XInput 2.1, XKB, XDND, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
 | Web | an HTML canvas and the browser's APIs | Emscripten, or wasm32-wasi |
@@ -309,6 +332,15 @@ On iOS the program's Info.plist carries a `UIApplicationSceneManifest`
 delegate), a `UILaunchScreen` so that the application fills the screen,
 and `UIApplicationSupportsIndirectInputEvents` for a mouse's clicks to
 come as the cursor's. `test/ios/Info.plist.in` is such a list.
+
+On Android the application carries the library's Java
+(`java/maul/window`, compiled with the program's own) and names the
+library's activity in its manifest, with the program's native library
+as its `android.app.lib_name`; the program defines `mwinAndroidMain`
+and exports it from that library. No `configChanges` are needed: an
+activity made anew joins the running program. `test/android/` holds
+such a manifest, and `tools/build_android_app.sh` builds an application
+without Gradle.
 
 On the web without Emscripten (a wasm32-wasi build), the backend's
 JavaScript comes as imports. The build writes `maul-window.mjs` beside

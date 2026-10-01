@@ -26,6 +26,7 @@
 
 #define DEADLINE_NS 10000000000ull
 #define STEP_NS     3000000000ull
+#define POINTER_NS  2000000000ull
 
 enum
 {
@@ -113,15 +114,25 @@ static void Click(const Program* program, int16_t x, int16_t y)
     xcb_test_fake_input(connection, XCB_MOTION_NOTIFY, 0, XCB_CURRENT_TIME, program->root, rootX,
                         rootY, 0);
     // A press the X server takes before the pointer got there would go
-    // where it was.
+    // where it was: XTEST's motion waits in the server's input queue,
+    // which a loaded machine drains late, so the wait is by time, not by
+    // a number of round trips (a double click's first press once went to
+    // the button clicked before).
     bool there = false;
-    for (int tries = 0; tries < 1000 && !there; tries++)
+    uint64_t startNs = NowNs();
+    while (!there && NowNs() - startNs < POINTER_NS)
     {
         xcb_query_pointer_reply_t* pointer = xcb_query_pointer_reply(
             connection, xcb_query_pointer(connection, program->root), nullptr);
         there = pointer != nullptr && pointer->root_x == rootX && pointer->root_y == rootY;
         free(pointer);
+        if (!there)
+        {
+            struct timespec pause = {0, 1000000};
+            (void)nanosleep(&pause, nullptr);
+        }
     }
+    CHECK(there, "the pointer at the click's place");
     xcb_test_fake_input(connection, XCB_BUTTON_PRESS, 1, XCB_CURRENT_TIME, program->root, 0, 0, 0);
     xcb_test_fake_input(connection, XCB_BUTTON_RELEASE, 1, XCB_CURRENT_TIME, program->root, 0, 0,
                         0);
@@ -271,6 +282,16 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         bool settled = Settled(program);
         if (settled || NowNs() - program->stepNs > STEP_NS)
         {
+            if (!settled)
+            {
+                // What the window manager and the program were told, for a
+                // failure that does not repeat at will.
+                printf("step %d: %d moveresizes (last %u at %u,%u), %d states, %d downs, "
+                       "%d ups\n",
+                       program->step, program->moveresizes, program->moveresize[2],
+                       program->moveresize[0], program->moveresize[1], program->states,
+                       program->downs, program->ups);
+            }
             CHECK(settled, what[program->step]);
             Next(context, program);
         }

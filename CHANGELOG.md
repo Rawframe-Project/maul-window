@@ -25,6 +25,10 @@ format.
   the composition, compositions are told while the window accepts text,
   the keyboard shows for a purpose, and the window, drawn behind the
   system's bars, tells its safe area and the part the keyboard covers.
+- Android gamepads (mwin-0026): gamepads and joysticks listed through the
+  library's Java helper, mapped by place as SDL maps them where Android
+  names a south face button, raw otherwise, with rumble and batteries
+  from Android 12.
 
 ## [0.4.0] - 2026-10-01
 

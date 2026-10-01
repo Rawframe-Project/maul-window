@@ -240,21 +240,8 @@ bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activit
         {"nativeInsets", "(JIIIII)V", (void*)Insets},
     };
     JNIEnv* env = activity->env;
-    // The library's class through the application's class loader, which
-    // NativeActivity's own cannot see.
-    jclass type = (*env)->GetObjectClass(env, activity->clazz);
-    jmethodID loaderOf =
-        (*env)->GetMethodID(env, type, "getClassLoader", "()Ljava/lang/ClassLoader;");
-    jobject loader = (*env)->CallObjectMethod(env, activity->clazz, loaderOf);
-    jclass loaders = loader != nullptr ? (*env)->GetObjectClass(env, loader) : nullptr;
-    jmethodID load = loaders != nullptr
-                         ? (*env)->GetMethodID(env, loaders, "loadClass",
-                                               "(Ljava/lang/String;)Ljava/lang/Class;")
-                         : nullptr;
-    jstring name = (*env)->NewStringUTF(env, "maul.window.Activity");
-    jclass library =
-        load != nullptr ? (jclass)(*env)->CallObjectMethod(env, loader, load, name) : nullptr;
-    bool found = library != nullptr && !(*env)->ExceptionCheck(env) &&
+    jclass library = mwinAndroidLoadClass(env, activity, "maul.window.Activity");
+    bool found = library != nullptr &&
                  (*env)->RegisterNatives(env, library, methods,
                                          sizeof(methods) / sizeof(methods[0])) == JNI_OK;
     if (found)
@@ -264,10 +251,6 @@ bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activit
         found = platform->java.showKeyboard != nullptr && platform->java.restartInput != nullptr;
     }
     (*env)->ExceptionClear(env);
-    (*env)->DeleteLocalRef(env, type);
-    (*env)->DeleteLocalRef(env, loader);
-    (*env)->DeleteLocalRef(env, loaders);
-    (*env)->DeleteLocalRef(env, name);
     (*env)->DeleteLocalRef(env, library);
     return found;
 }

@@ -12,6 +12,7 @@
 #define MAUL_WINDOW_SRC_ANDROID_H
 
 #include "android_motion.h"
+#include "android_pad_map.h"
 #include "core.h"
 
 #include <android/choreographer.h>
@@ -87,6 +88,38 @@ typedef struct mwinAndroidKeys
     jmethodID deadChar;
 } mwinAndroidKeys;
 
+// The gamepads the backend follows at most.
+#define MWIN_ANDROID_PADS 16
+
+// A gamepad: Android's device id, the core's slot, its layout, and its
+// battery as last told.
+typedef struct mwinAndroidPad
+{
+    int32_t device;
+    uint32_t slot;
+    mwinAndroidPadLayout layout;
+    int8_t battery;
+} mwinAndroidPad;
+
+// The gamepads followed, and when they were last looked for; the
+// library's Java helper (maul.window.Gamepads, a global reference) and
+// its methods, and mwinAndroidPadKeys as a Java array (a global
+// reference).
+typedef struct mwinAndroidPads
+{
+    mwinAndroidPad pads[MWIN_ANDROID_PADS];
+    uint32_t count;
+    uint64_t lookedNs;
+    jclass type;
+    jmethodID list;
+    jmethodID name;
+    jmethodID describe;
+    jmethodID ranges;
+    jmethodID battery;
+    jmethodID rumble;
+    jintArray keys;
+} mwinAndroidPads;
+
 struct mwinAndroidPlatform
 {
     mwinContext* context;
@@ -114,14 +147,20 @@ struct mwinAndroidPlatform
     // The window's slot, -1 when there is none.
     int32_t slot;
     mwinAndroidWindow window;
-    // Its pointers and the keys; the insets the activity told.
+    // Its pointers and the keys; the insets the activity told; the
+    // gamepads.
     mwinAndroidPointers pointers;
     mwinAndroidKeys keys;
     mwinAndroidInsets insets;
+    mwinAndroidPads pads;
 };
 
 // The platform of a context whose backend is Android.
 mwinAndroidPlatform* mwinAndroidPlatformOf(const mwinContext* context);
+
+// A class of the application or the library, as a local reference, or
+// null.
+jclass mwinAndroidLoadClass(JNIEnv* env, ANativeActivity* activity, const char* name);
 
 // The running program as maul.window.Activity.program holds it, or null.
 mwinAndroidPlatform* mwinAndroidProgramOf(jlong program);
@@ -166,6 +205,17 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event);
 bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* key);
 mwinKey mwinAndroidMapKeyCode(const mwinAndroidPlatform* platform, mwinKeyCode code);
 void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
+
+// Gamepads (android_pad.c): the Java helper found, at the start; the
+// gamepads looked for every half second and when an event comes from
+// one not followed; an event of a gamepad followed, true when it was
+// one; the motors run; everything let go, the motors stopped.
+bool mwinAndroidFindPads(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidPumpPads(mwinAndroidPlatform* platform, uint64_t nowNs);
+bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event);
+mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float low, float high,
+                             uint32_t durationMs);
+void mwinAndroidStopPads(mwinAndroidPlatform* platform);
 
 // Input methods, the keyboard and the insets (android_text.c): the Java
 // activity's native methods registered and its methods found, at the

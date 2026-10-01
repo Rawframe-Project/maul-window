@@ -220,6 +220,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
             maul_add_test(gamepad)
             # The runtime pads' tracking against a stand-in runtime.
             maul_add_test(pad_tracker WHITEBOX)
+            # Android's gamepad layouts as records, on every platform.
+            maul_add_test(android_pad_map WHITEBOX)
+            if(TARGET test_android_pad_map AND NOT MAUL_WINDOW_ANDROID)
+                target_sources(test_android_pad_map PRIVATE
+                    ${PROJECT_SOURCE_DIR}/src/android_pad_map.c)
+            endif()
         endif()
     endif()
     if(MAUL_WINDOW_WAYLAND)
@@ -386,7 +392,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_ANDROID AND DEFINED ENV{ANDROID_HOME})
         # Applications in the emulator, built by tools/build_android_app.sh
         # without Gradle and run by tools/run_android_app.sh.
-        set(MWIN_ANDROID_TESTS android android_input android_ime)
+        set(MWIN_ANDROID_TESTS android android_input android_ime android_pad)
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)

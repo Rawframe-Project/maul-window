@@ -79,6 +79,34 @@ typedef union ProgramLong
     mwinAndroidPlatform* program;
 } ProgramLong;
 
+jclass mwinAndroidLoadClass(JNIEnv* env, ANativeActivity* activity, const char* name)
+{
+    // Through the application's class loader: NativeActivity's own, which
+    // FindClass uses on the main thread, cannot see the library's classes.
+    jclass type = (*env)->GetObjectClass(env, activity->clazz);
+    jmethodID loaderOf =
+        (*env)->GetMethodID(env, type, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    jobject loader = (*env)->CallObjectMethod(env, activity->clazz, loaderOf);
+    jclass loaders = loader != nullptr ? (*env)->GetObjectClass(env, loader) : nullptr;
+    jmethodID load = loaders != nullptr
+                         ? (*env)->GetMethodID(env, loaders, "loadClass",
+                                               "(Ljava/lang/String;)Ljava/lang/Class;")
+                         : nullptr;
+    jstring text = (*env)->NewStringUTF(env, name);
+    jclass found =
+        load != nullptr ? (jclass)(*env)->CallObjectMethod(env, loader, load, text) : nullptr;
+    if ((*env)->ExceptionCheck(env))
+    {
+        (*env)->ExceptionClear(env);
+        found = nullptr;
+    }
+    (*env)->DeleteLocalRef(env, type);
+    (*env)->DeleteLocalRef(env, loader);
+    (*env)->DeleteLocalRef(env, loaders);
+    (*env)->DeleteLocalRef(env, text);
+    return found;
+}
+
 mwinAndroidPlatform* mwinAndroidProgramOf(jlong value)
 {
     ProgramLong held = {.value = value};
@@ -147,10 +175,14 @@ static void Finish(mwinAndroidPlatform* platform)
     mwinFinishRun(context);
 }
 
-// Nothing waits between frames yet.
+// Between frames the gamepads are looked for when due.
 static void Pump(mwinContext* context)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinAndroidPumpPads(mwinAndroidPlatformOf(context), mwinAndroidNow());
+#else
     (void)context;
+#endif
 }
 
 static void OnFrame(int64_t frameTimeNanos, void* data);
@@ -415,6 +447,9 @@ static void Stop(mwinContext* context)
     mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
     Detach(platform);
     mwinAndroidLoseInput(platform);
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinAndroidStopPads(platform);
+#endif
     AConfiguration_delete(platform->configuration);
     (*platform->java.env)->DeleteGlobalRef(platform->java.env, platform->java.activityClass);
     mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
@@ -455,7 +490,11 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    if (!mwinAndroidFindInput(platform) || !mwinAndroidFindText(platform, activity))
+    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity);
+#ifdef MAUL_WINDOW_GAMEPAD
+    found = found && mwinAndroidFindPads(platform, activity);
+#endif
+    if (!found)
     {
         Stop(context);
         return mwin_errorPlatform;
@@ -510,12 +549,16 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
 static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs)
 {
+#ifdef MAUL_WINDOW_GAMEPAD
+    return mwinAndroidRumble(mwinAndroidPlatformOf(context), slot, low, high, durationMs);
+#else
     (void)context;
     (void)slot;
     (void)low;
     (void)high;
     (void)durationMs;
     return mwin_errorUnsupported;
+#endif
 }
 
 const mwinBackendOps mwinAndroidBackend = {

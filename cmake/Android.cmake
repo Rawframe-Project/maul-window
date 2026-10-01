@@ -13,4 +13,8 @@ target_sources(maul-window PRIVATE
     src/evdev.c
     src/generated/android_keys.c)
 target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_ANDROID)
+# Gamepads through the input queue and the library's Java helper.
+if(MAUL_WINDOW_GAMEPAD)
+    target_sources(maul-window PRIVATE src/android_pad.c src/android_pad_map.c)
+endif()
 target_link_libraries(maul-window PRIVATE android)

@@ -129,6 +129,27 @@ keep no global state.
   the part the keyboard covers the input method's inset at the window's
   bottom, both in logical units, told as they change and when the window
   is made.
+- **Gamepads** are the devices, not virtual, whose sources include the
+  gamepad or the joystick, listed through the library's Java helper
+  (`maul.window.Gamepads`: `InputDevice` is Java only) every half second
+  and at once when an event comes from one not followed; their keys and
+  joystick motions come through the input queue and are taken, so
+  Android's fallbacks (B as Back) do not follow. One with the south face
+  button (`BUTTON_A`) is mapped as SDL maps Android's gamepads: A south,
+  B east, X west, Y north, Back as select, Menu as start, the hat as the
+  dpad; the left stick on X and Y, the right on RX and RY where both are
+  there, else on Z and RZ (Android's layouts for the gamepads it knows);
+  the triggers on LTRIGGER and RTRIGGER, else BRAKE and GAS, else Z and
+  RZ beside a right stick on RX and RY, else the L2 and R2 keys. Any
+  other device is raw: the gamepad keys it has, numbered in the
+  library's order, and its joystick axes. A key is a gamepad's by its
+  device and code, since Android counts a joystick's buttons
+  (`BTN_TRIGGER` and up) as keyboard keys. Android gives an axis 0 until
+  its device reports it, which a trigger at rest on a centered axis
+  never does, so such a trigger stays at rest until it moves. Rumble
+  runs the device's motors (two where Android 12 lists them, else one
+  at the stronger), timed by Android; batteries are read from Android
+  12 on, with the look.
 - **A window that never showed a frame gets no touches** from Android 14
   on: the input dispatcher gives the window an empty frame until its
   surface has a buffer (seen on Android 15; Android 11 used the window's
@@ -142,7 +163,11 @@ keep no global state.
   text, Escape and Menu, and the wheel from Android 13; `android_ime`
   calls the activity's input connection as an input method would and
   shows and hides the keyboard, with the safe area and the keyboard's
-  part, and each purpose's input type. The runner turns the system's
+  part, and each purpose's input type; `android_pad` makes three USB
+  HID devices through Android's `hid` tool and the kernel's uhid, as a
+  real gamepad comes: an Xbox 360 pad's ids (Android's own layout), a
+  gamepad with none (the generic layout, a hat) and a joystick (raw),
+  and checks their facts, records, state and removal. The runner turns the system's
   animations off while a test runs, so that an opening transition does
   not move the window under the test's input.
 - **The emulator runners:** `cmake/android-emulator.cmake` wraps

@@ -373,6 +373,12 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
     {
         return false;
     }
+#ifdef MAUL_WINDOW_GAMEPAD
+    if (mwinAndroidPadInput(platform, event))
+    {
+        return true;
+    }
+#endif
     switch (AInputEvent_getType(event))
     {
     case AINPUT_EVENT_TYPE_KEY:

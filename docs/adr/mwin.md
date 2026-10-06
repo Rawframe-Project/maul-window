@@ -36,3 +36,4 @@ are listed in [README.md](README.md).
 | [mwin-0029](mwin-0029-clipboard-data-and-primary.md) | Clipboard data and the primary selection | Accepted |
 | [mwin-0030](mwin-0030-x11-input-methods.md) | Input methods on X11 | Accepted |
 | [mwin-0031](mwin-0031-keys-the-platform-keeps.md) | Keys the platform keeps | Accepted |
+| [mwin-0032](mwin-0032-win32-input-methods.md) | Input methods on Win32 through IMM32 | Accepted |

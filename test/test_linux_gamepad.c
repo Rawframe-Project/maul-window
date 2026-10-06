@@ -176,7 +176,9 @@ static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t pro
         (void)ioctl(fd, UI_SET_PHYS, KERNEL_PHYS);
     }
     struct uinput_setup setup = {.id = {BUS_USB, vendor, product, version}};
-    setup.ff_effects_max = xbox ? 1 : 0;
+    // Room for the effects of other programs on the machine that open
+    // every pad (Wine's and games' input layers upload their own).
+    setup.ff_effects_max = xbox ? 16 : 0;
     strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
     if (ioctl(fd, UI_DEV_SETUP, &setup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0)
     {

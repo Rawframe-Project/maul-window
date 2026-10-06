@@ -199,6 +199,8 @@ set(MAUL_PKG_REQUIRES_PRIVATE "maul-unicode >= ${MAUL_WINDOW_UNICODE_VERSION}")
 if(MAUL_WINDOW_BUILD_TESTS)
     enable_testing()
     maul_add_test(base)
+    # The guide's opening program, built only (family record 0019).
+    maul_add_test(guide_hello MANUAL)
     if(MAUL_WINDOW_TEST_BACKEND)
         maul_add_test(window)
         maul_add_test(input)

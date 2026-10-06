@@ -338,6 +338,7 @@ A GPU layer makes its surface from them, and the library includes no
 graphics API header. With Maul RHI the program copies the bundle into
 the surface source of its platform, field for field:
 
+<!-- guide: not run: Maul RHI's types; maul-rhi's seam check (test/seam) runs this copy -->
 ```c
 mwinNativeHandles handles;
 if (mwinGetNativeHandles(context, window, &handles) == mwin_success &&

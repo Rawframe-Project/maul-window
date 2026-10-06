@@ -90,9 +90,16 @@ EM_JS(void, mwinPageWatchKeys, (const mwinContext* context, uint32_t slot), {
                          ['F5', 'F11', 'F12'].includes(e.code);
         // In the text field (web_text.c) keys type through the page, its
         // input events bringing the text; only Tab is kept from moving
-        // the focus.
+        // the focus. In the accessibility host the page keeps every key,
+        // the elements there being the program's adapter's, and a field
+        // there brings its own text.
         const texting = e.target === entry.textarea;
-        if (texting ? e.code === 'Tab' : !shortcut) {
+        const hosted = entry.host.contains(e.target);
+        const field = hosted && (e.target.isContentEditable ||
+                                 e.target instanceof HTMLInputElement ||
+                                 e.target instanceof HTMLTextAreaElement ||
+                                 e.target instanceof HTMLSelectElement);
+        if (!hosted && (texting ? e.code === 'Tab' : !shortcut)) {
             e.preventDefault();
         }
         if (code === 0 || e.isComposing || e.key === 'Process') {
@@ -102,7 +109,7 @@ EM_JS(void, mwinPageWatchKeys, (const mwinContext* context, uint32_t slot), {
                    input.meaning(e.code, e.key, e.shiftKey), 0, 0, 0, modifiers(e));
         // A character, typed alone or with AltGr (Control and Alt).
         const typed = !e.metaKey && (!e.ctrlKey || e.altKey) && [...e.key].length === 1;
-        if (down && typed && !texting) {
+        if (down && typed && !texting && !field) {
             state.push(11, slot, e.key.codePointAt(0));
         }
     };
@@ -110,11 +117,15 @@ EM_JS(void, mwinPageWatchKeys, (const mwinContext* context, uint32_t slot), {
     const onUp = e => key(e, false);
     entry.keyDown = onDown;
     entry.keyUp = onUp;
-    entry.canvas.addEventListener('keydown', onDown);
-    entry.canvas.addEventListener('keyup', onUp);
+    for (const target of [entry.canvas, entry.host]) {
+        target.addEventListener('keydown', onDown);
+        target.addEventListener('keyup', onUp);
+    }
     entry.listeners.push(() => {
-        entry.canvas.removeEventListener('keydown', onDown);
-        entry.canvas.removeEventListener('keyup', onUp);
+        for (const target of [entry.canvas, entry.host]) {
+            target.removeEventListener('keydown', onDown);
+            target.removeEventListener('keyup', onUp);
+        }
     });
 });
 

@@ -39,3 +39,4 @@ are listed in [README.md](README.md).
 | [mwin-0032](mwin-0032-win32-input-methods.md) | Input methods on Win32 through IMM32 | Accepted |
 | [mwin-0033](mwin-0033-win32-touch-keyboard.md) | The touch keyboard and input purpose on Win32 | Accepted |
 | [mwin-0034](mwin-0034-composition-offsets.md) | A composition's offsets fit its text | Accepted |
+| [mwin-0035](mwin-0035-web-accessibility-host-focus.md) | Keys and focus on the web's accessibility host | Accepted |

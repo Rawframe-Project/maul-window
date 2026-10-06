@@ -17,6 +17,13 @@ format.
   composition whose offsets lay outside its text and let an offset
   inside a character through. A fuzz target checks the fitting.
 
+- On the web, the focus on an element in the accessibility host is the
+  window's and keys there reach the program (mwin-0035). A screen
+  reader in focus mode moves the focus to the program's ARIA elements,
+  and the window used to lose it and the program its keys. The page
+  keeps those keys' default actions, and a field there keeps its typed
+  text; a focus request leaves the focus there.
+
 ### Fixed
 
 - A monitor name longer than 64 bytes, or with ill-formed bytes, keeps

@@ -314,7 +314,10 @@ platform:
   `maul.window.Explorer` is explored by touch, the library finding the
   node under the finger through it.
 - On the web, each window has a host element over its canvas for the
-  program's ARIA elements. Its selector is in the native handles.
+  program's ARIA elements. Its selector is in the native handles. When
+  a screen reader moves the focus to an element there, the window keeps
+  the focus and the program still gets the keys (mwin-0035); a field
+  there keeps its own text.
 - `mwin_eventAccessibilityRequested` comes the first time a client asks
   a window for its tree. A program can build its tree only then.
 

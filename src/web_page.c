@@ -203,15 +203,24 @@ EM_JS(int, mwinWebOpenCanvas, (const mwinContext* context, uint32_t slot, const 
         host.style.display = canvas.style.display === 'none' ? 'none' : 'block';
     };
     entry.place();
-    // The canvas and its text field (web_text.c) have the focus as one.
-    const mine = target => target !== null && (target === canvas || target === entry.textarea);
+    // The canvas, its text field (web_text.c) and the elements in its
+    // accessibility host, where a screen reader may move the focus, have
+    // the focus as one.
+    const mine = target => target instanceof Node && (target === canvas ||
+                                                      target === entry.textarea ||
+                                                      host.contains(target));
+    entry.mine = mine;
     entry.focusIn = e => mine(e.relatedTarget) || state.push(3, slot, 1);
     entry.focusOut = e => mine(e.relatedTarget) || state.push(3, slot, 0);
-    canvas.addEventListener('focusin', entry.focusIn);
-    canvas.addEventListener('focusout', entry.focusOut);
+    for (const target of [canvas, host]) {
+        target.addEventListener('focusin', entry.focusIn);
+        target.addEventListener('focusout', entry.focusOut);
+    }
     entry.listeners.push(() => {
-        canvas.removeEventListener('focusin', entry.focusIn);
-        canvas.removeEventListener('focusout', entry.focusOut);
+        for (const target of [canvas, host]) {
+            target.removeEventListener('focusin', entry.focusIn);
+            target.removeEventListener('focusout', entry.focusOut);
+        }
     });
     entry.width = canvas.clientWidth || width;
     entry.height = canvas.clientHeight || height;
@@ -265,10 +274,14 @@ EM_JS(void, mwinWebSetOpacity, (const mwinContext* context, uint32_t slot, float
     Module.mwinWeb.get(context).canvases[slot].canvas.style.opacity = opacity;
 });
 
+// The focus within the window stays where it is: in the text field, or
+// on the element a screen reader is at.
 EM_JS(bool, mwinWebFocus, (const mwinContext* context, uint32_t slot), {
-    const canvas = Module.mwinWeb.get(context).canvases[slot].canvas;
-    canvas.focus();
-    return document.activeElement === canvas;
+    const entry = Module.mwinWeb.get(context).canvases[slot];
+    if (!entry.mine(document.activeElement)) {
+        entry.canvas.focus();
+    }
+    return entry.mine(document.activeElement);
 });
 
 EM_JS(int, mwinWebSetFullscreen, (const mwinContext* context, uint32_t slot, bool fullscreen), {

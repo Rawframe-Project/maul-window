@@ -40,8 +40,11 @@ cp "$work/dex/classes.dex" "$work/"
 (cd "$work" && zip -q linked.apk classes.dex "lib/$abi/$(basename "$library")")
 "$tools/zipalign" -f -p 4 "$work/linked.apk" "$work/aligned.apk"
 key=$(dirname "$out")/debug.keystore
+# Made aside and renamed into place: the apps build in parallel, and one
+# must never sign with a key another is still writing.
 if [ ! -f "$key" ]; then
-    keytool -genkeypair -keystore "$key" -storepass android -keypass android \
+    keytool -genkeypair -keystore "$key.$$" -storepass android -keypass android \
         -alias debug -keyalg RSA -validity 10000 -dname "CN=Maul Window test" > /dev/null 2>&1
+    mv -f "$key.$$" "$key"
 fi
 "$tools/apksigner" sign --ks "$key" --ks-pass pass:android --out "$out" "$work/aligned.apk"

@@ -125,6 +125,21 @@ static void LimitStep(Program* program, mwinContext* context, int step)
               mwinGetMonitorInfo(context, s_monitors[0], &info) == mwin_success &&
               info.nameLength == 0,
           "a name that is not UTF-8 is left empty");
+    // 62 bytes of "a", then the first two of a three-byte character, as a
+    // backend cutting a long name at 64 bytes leaves it.
+    mwinMonitorInfo cut = info;
+    memset(cut.name, 'a', 62);
+    memcpy(cut.name + 62, "\xE3\x81", 2);
+    cut.nameLength = MWIN_MONITOR_NAME_BYTES;
+    CHECK(mwinTestChangeMonitor(context, s_monitors[1], &cut) == mwin_success &&
+              mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
+              info.nameLength == 62 && info.name[61] == 'a',
+          "a name cut inside a character keeps its whole characters");
+    cut.name[10] = (char)0xC0;
+    CHECK(mwinTestChangeMonitor(context, s_monitors[1], &cut) == mwin_success &&
+              mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
+              info.nameLength == 10,
+          "and one ill-formed within, its part before");
     mwinEvent move = {.type = mwin_eventDisplayChanged, .window = Create(context, nullptr)};
     move.data.monitor = (mwinMonitorId){5, 1};
     CHECK(mwinTestPost(context, &move) == mwin_errorStale, "no move to an unknown monitor");

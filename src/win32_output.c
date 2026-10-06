@@ -24,12 +24,24 @@ static void ReadName(const WCHAR* device, mwinMonitorInfo* info)
     {
         return;
     }
+    // A name too long is cut to the most whole characters that fit.
     size_t units = wcsnlen(display.DeviceString, sizeof(display.DeviceString) / sizeof(WCHAR));
-    size_t needed = 0;
-    muniTextResult result =
-        muniConvertUtf16ToUtf8((const uint16_t*)display.DeviceString, units, info->name,
-                               MWIN_MONITOR_NAME_BYTES, muni_convertReplace, &needed);
-    info->nameLength = result.status == muni_success ? (uint32_t)needed : 0;
+    for (; units > 0; --units)
+    {
+        size_t needed = 0;
+        bool split = IS_HIGH_SURROGATE(display.DeviceString[units - 1]) &&
+                     units < sizeof(display.DeviceString) / sizeof(WCHAR) &&
+                     IS_LOW_SURROGATE(display.DeviceString[units]);
+        if (!split &&
+            muniConvertUtf16ToUtf8((const uint16_t*)display.DeviceString, units, info->name,
+                                   MWIN_MONITOR_NAME_BYTES, muni_convertReplace, &needed)
+                    .status == muni_success)
+        {
+            info->nameLength = (uint32_t)needed;
+            return;
+        }
+    }
+    info->nameLength = 0;
 }
 
 static void ReadInfo(HMONITOR handle, const MONITORINFOEXW* monitor, mwinMonitorInfo* info)

@@ -17,6 +17,13 @@ format.
   composition whose offsets lay outside its text and let an offset
   inside a character through. A fuzz target checks the fitting.
 
+### Fixed
+
+- A monitor name longer than 64 bytes, or with ill-formed bytes, keeps
+  its whole characters before the cut or the fault; it used to arrive
+  empty when the cut split a character (X11, Wayland) or, on Windows,
+  whenever it did not fit.
+
 ## [0.7.0] - 2026-10-06
 
 The gaps an audit of 0.6.0 against the requirements found: input

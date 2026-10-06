@@ -49,7 +49,8 @@ extern "C"
     // What the platform tells about a monitor.
     typedef struct mwinMonitorInfo
     {
-        // UTF-8, not NUL-terminated.
+        // UTF-8, not NUL-terminated; a longer name, or one with ill-formed
+        // bytes, is cut to the whole characters before the cut or the fault.
         char name[MWIN_MONITOR_NAME_BYTES];
         uint32_t nameLength;
         // Where it is on the desktop and its size, and the part windows

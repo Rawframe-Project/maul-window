@@ -30,14 +30,16 @@ int32_t mwinFindMonitor(const mwinContext* context, mwinMonitorId monitor)
 }
 
 // Keeps a monitor's facts, with a name that is not UTF-8 left empty.
+// Keeps a monitor's facts, its name cut to its longest well-formed
+// prefix: a backend cuts a long name at MWIN_MONITOR_NAME_BYTES, which
+// may split a character, and another program's bytes may be ill-formed.
 static void Store(mwinMonitor* monitor, const mwinMonitorInfo* info)
 {
     monitor->info = *info;
-    if (info->nameLength > MWIN_MONITOR_NAME_BYTES ||
-        muniValidateUtf8(info->name, info->nameLength).status != muni_success)
-    {
-        monitor->info.nameLength = 0;
-    }
+    uint32_t length =
+        info->nameLength < MWIN_MONITOR_NAME_BYTES ? info->nameLength : MWIN_MONITOR_NAME_BYTES;
+    muniTextResult valid = muniValidateUtf8(info->name, length);
+    monitor->info.nameLength = valid.status == muni_success ? length : (uint32_t)valid.offset;
 }
 
 static void PostMonitor(mwinContext* context, uint32_t slot, mwinEventType type, uint64_t timeNs)

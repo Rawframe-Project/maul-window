@@ -18,6 +18,7 @@ android_system: allocator android core
 android_text: allocator android core
 android_window: android core
 answer: core
+apple_clipboard:
 apple_locale: core
 apple_pad: core pad_tracker
 apple_rumble: apple_pad
@@ -55,7 +56,7 @@ ios_keys: core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
-ios_services: answer core ios
+ios_services: answer apple_clipboard clipboard_data core ios
 ios_system: apple_locale core ios
 ios_text: apple_text core ios
 ios_view: accessibility core ios
@@ -82,7 +83,7 @@ macos_message_box: message_box
 macos_output: core macos
 macos_owned: core macos
 macos_pen: core macos
-macos_services: core macos
+macos_services: apple_clipboard clipboard_data core macos
 macos_system: apple_locale core macos
 macos_text: apple_text core macos
 macos_view: accessibility core macos
@@ -122,7 +123,7 @@ wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard waylan
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_text
 web: clicks core web_pad
-web_clipboard: allocator core web web_js
+web_clipboard: allocator clipboard_data core web web_js
 web_drop: allocator core web web_js
 web_cursor: core cursor icon web web_js
 web_input: clicks core web web_cursor web_js
@@ -135,7 +136,7 @@ web_text: core web web_js
 web_window: core web web_clipboard web_cursor web_drop web_input web_js web_page web_services web_text
 win32: clicks core win32_base win32_pad
 win32_accessibility: accessibility core win32
-win32_clipboard: core win32
+win32_clipboard: clipboard_data core win32
 win32_dialog: allocator core dialog win32
 win32_drop: allocator core win32
 win32_icon: core icon win32

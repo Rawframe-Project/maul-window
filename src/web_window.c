@@ -185,6 +185,10 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwinWebWriteClipboard(context, slot);
     case mwin_requestClipboardRead:
         return mwinWebReadClipboard(context, slot);
+    case mwin_requestClipboardWriteData:
+        return mwinWebWriteClipboardData(context, slot);
+    case mwin_requestClipboardReadData:
+        return mwinWebReadClipboardData(context, slot, request);
     case mwin_requestOpenUrl:
         return mwinWebOpenUrl(request);
     case mwin_requestKeepAwake:

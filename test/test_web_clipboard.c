@@ -6,7 +6,11 @@
 // read back; text the page put there with a lone surrogate read with
 // U+FFFD; text past the limit too large; a refusal denied, the last
 // text kept; a read whose window went answered for no one, its text
-// taken, so the next window's read has the clipboard's text now.
+// taken, so the next window's read has the clipboard's text now. Data
+// (mwin-0029): a custom type, a PNG and text written together; the
+// custom type read back as it was, the PNG as a PNG (the browser encodes
+// it again), the text as text; a type the clipboard lacks fails; the
+// primary selection is unsupported.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -17,7 +21,7 @@
 #include <string.h>
 
 #define DEADLINE_MS 10000.0
-#define LIMIT       32
+#define LIMIT       256
 
 typedef enum Phase
 {
@@ -31,6 +35,12 @@ typedef enum Phase
     phaseWait,
     phaseCreateAgain,
     phaseAgain,
+    phaseWriteData,
+    phaseReadCustom,
+    phaseReadPng,
+    phaseReadText,
+    phaseMissing,
+    phasePrimary,
     phaseDone,
 } Phase;
 
@@ -50,7 +60,7 @@ typedef struct Program
 // clang-format off
 // Puts text on the clipboard as another program would; Placed says when.
 EM_JS(void, Place, (int which), {
-    const texts = ['A\uD800B', 'x'.repeat(40), 'last'];
+    const texts = ['A\uD800B', 'x'.repeat(300), 'last'];
     globalThis.mwinPlaced = false;
     navigator.clipboard.writeText(texts[which]).then(() => globalThis.mwinPlaced = true);
 });
@@ -113,6 +123,80 @@ static void Create(Program* program, mwinContext* context)
           "create");
 }
 
+// A PNG of one transparent pixel, and bytes of a type of the program's.
+static const uint8_t s_png[] = {
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48,
+    0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
+    0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78,
+    0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0, 0x1f, 0x00, 0x05, 0x00, 0x01, 0xff, 0x89, 0x99,
+    0x3d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
+static const uint8_t s_custom[] = {'o', 't', 'h', 'e', 'r', 0, 0xff};
+
+// Whether the last data read found bytes beginning as these, and
+// exactly these when whole.
+static bool FoundData(mwinContext* context, const uint8_t* expected, size_t length, bool whole)
+{
+    uint8_t data[LIMIT];
+    size_t found = 0;
+    return mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           (whole ? found == length : found >= length) && memcmp(data, expected, length) == 0;
+}
+
+static void ReadData(Program* program, mwinContext* context, const char* mime)
+{
+    CHECK(mwinRequestClipboardReadData(context, program->window, mime, strlen(mime),
+                                       &program->request) == mwin_success,
+          "a data read");
+}
+
+// The data phases' checks and requests.
+static void AdvanceData(Program* program, mwinContext* context, int outcome)
+{
+    switch (program->phase)
+    {
+    case phaseAgain:
+    {
+        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4),
+              "the next window reads the clipboard's text now");
+        mwinClipboardItem items[] = {
+            {"image/png", 9, s_png, sizeof(s_png)},
+            {"text/plain", 10, "hi", 2},
+            {"application/x-maul", 18, s_custom, sizeof(s_custom)},
+        };
+        CHECK(mwinRequestClipboardWriteData(context, program->window, items, 3,
+                                            &program->request) == mwin_success,
+              "a data write");
+        break;
+    }
+    case phaseWriteData:
+        CHECK(outcome == mwin_outcomeDone, "data written");
+        ReadData(program, context, "application/x-maul");
+        break;
+    case phaseReadCustom:
+        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_custom, sizeof(s_custom), true),
+              "a custom type read back as it was");
+        ReadData(program, context, "image/png");
+        break;
+    case phaseReadPng:
+        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_png, 8, false),
+              "the image read back as a PNG");
+        Read(program, context);
+        break;
+    case phaseReadText:
+        CHECK(outcome == mwin_outcomeDone && Found(context, "hi", 2), "the write's text read");
+        ReadData(program, context, "image/gif");
+        break;
+    case phaseMissing:
+        CHECK(outcome == mwin_outcomeFailed, "a type the clipboard lacks fails");
+        CHECK(mwinRequestPrimaryRead(context, program->window, &program->request) == mwin_success,
+              "a primary read");
+        break;
+    default:
+        CHECK(outcome == mwin_outcomeUnsupported, "no primary selection");
+        break;
+    }
+}
+
 // Checks a phase's answer and starts the next phase's request.
 static void Advance(Program* program, mwinContext* context, int outcome)
 {
@@ -168,8 +252,7 @@ static void Advance(Program* program, mwinContext* context, int outcome)
         Place(2);
         break;
     default:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4),
-              "the next window reads the clipboard's text now");
+        AdvanceData(program, context, outcome);
         break;
     }
     program->phase += 1;

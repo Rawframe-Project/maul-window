@@ -2,9 +2,12 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The Win32 backend's clipboard, against Windows' own: text written
-// lands as CF_UNICODETEXT, the window its owner; text another program put there is read,
-// a lone surrogate replaced; a clipboard without text reads as empty;
-// text past the limit is too large.
+// lands as CF_UNICODETEXT, the window its owner; text another program
+// put there is read, a lone surrogate replaced; a clipboard without text
+// reads as empty; text past the limit is too large. Data (mwin-0029)
+// lands as registered formats, image/png as "PNG", beside its text, and
+// alone without text; another program's PNG is read; a type the
+// clipboard lacks fails; the primary selection is unsupported.
 
 #include "test_harness.h"
 
@@ -96,6 +99,80 @@ static bool Found(mwinContext* context, const char* expected)
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
+static const uint8_t s_png[] = {0x89, 'P', 'N', 'G', 0, '\r', '\n'};
+
+// Whether the clipboard holds bytes as a format, at least as many as the
+// memory holds.
+static bool HoldsData(UINT format, const uint8_t* expected, size_t length)
+{
+    bool same = false;
+    if (OpenClipboard(nullptr))
+    {
+        HANDLE memory = GetClipboardData(format);
+        const uint8_t* bytes = memory != nullptr ? GlobalLock(memory) : nullptr;
+        same = bytes != nullptr && GlobalSize(memory) >= length &&
+               memcmp(bytes, expected, length) == 0;
+        if (bytes != nullptr)
+        {
+            GlobalUnlock(memory);
+        }
+        CloseClipboard();
+    }
+    return same;
+}
+
+static bool FoundData(mwinContext* context, const uint8_t* expected, size_t length)
+{
+    uint8_t data[LIMIT];
+    size_t found = 0;
+    return mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           found >= length && memcmp(data, expected, length) == 0;
+}
+
+static int ReadData(mwinContext* context, mwinWindowId window, const char* mime)
+{
+    mwinRequestId request = {0};
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &request) ==
+                   mwin_success
+               ? Outcome(context, request)
+               : -1;
+}
+
+static void CheckData(mwinContext* context, mwinWindowId window)
+{
+    static const uint8_t other[] = {'o', 't', 'h', 'e', 'r'};
+    UINT png = RegisterClipboardFormatW(L"PNG");
+    UINT maul = RegisterClipboardFormatW(L"application/x-maul");
+    mwinClipboardItem items[] = {
+        {"image/png", 9, s_png, sizeof(s_png)},
+        {"text/plain", 10, "hi", 2},
+        {"application/x-maul", 18, other, sizeof(other)},
+    };
+    mwinRequestId request = {0};
+    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, &request) == mwin_success &&
+              Outcome(context, request) == mwin_outcomeDone && Holds(L"hi") &&
+              HoldsData(png, s_png, sizeof(s_png)) && HoldsData(maul, other, sizeof(other)),
+          "data written as registered formats, image/png as PNG, beside its text");
+    CHECK(mwinRequestClipboardWriteData(context, window, items, 1, &request) == mwin_success &&
+              Outcome(context, request) == mwin_outcomeDone &&
+              HoldsData(png, s_png, sizeof(s_png)) && !IsClipboardFormatAvailable(CF_UNICODETEXT),
+          "data alone without text");
+    CHECK(OpenClipboard(nullptr) && EmptyClipboard(), "open the clipboard");
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, sizeof(other));
+    memcpy(GlobalLock(memory), other, sizeof(other));
+    GlobalUnlock(memory);
+    CHECK(SetClipboardData(png, memory) != nullptr, "set the clipboard");
+    CloseClipboard();
+    CHECK(ReadData(context, window, "image/png") == mwin_outcomeDone &&
+              FoundData(context, other, sizeof(other)),
+          "another program's PNG read");
+    CHECK(ReadData(context, window, "image/gif") == mwin_outcomeFailed,
+          "a type the clipboard lacks fails");
+    CHECK(mwinRequestPrimaryRead(context, window, &request) == mwin_success &&
+              Outcome(context, request) == mwin_outcomeUnsupported,
+          "no primary selection");
+}
+
 static void Check(mwinContext* context, mwinWindowId window)
 {
     mwinRequestId request = {0};
@@ -119,6 +196,7 @@ static void Check(mwinContext* context, mwinWindowId window)
     large[LIMIT + 1] = 0;
     Put(large, LIMIT + 2);
     CHECK(Read(context, window) == mwin_outcomeTooLarge, "text past the limit too large");
+    CheckData(context, window);
 }
 
 static mwinResult Init(mwinContext* context, void* user)

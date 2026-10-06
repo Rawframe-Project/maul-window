@@ -188,6 +188,7 @@ void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
 // each pump (macos_services.m).
 mwinOutcome mwinMacWriteClipboard(const mwinMacPlatform* platform);
 mwinOutcome mwinMacReadClipboard(mwinMacPlatform* platform);
+mwinOutcome mwinMacReadClipboardData(mwinMacPlatform* platform, const mwinRequest* request);
 mwinOutcome mwinMacOpenUrl(const mwinRequest* request);
 mwinOutcome mwinMacRevealFile(const mwinRequest* request);
 void mwinMacKeepAwake(mwinMacPlatform* platform, bool wanted);

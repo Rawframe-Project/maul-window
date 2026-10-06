@@ -4,10 +4,10 @@
 // The clipboard and services on Android, in the emulator
 // (tools/run_android_app.sh): text written to the clipboard reads back
 // the same; keeping awake sets the activity window's flag and clearing
-// it clears it; showing a file and the message box are unsupported; an
-// address opens in the browser, which takes the program to the
-// background; an activity made anew while the window is kept awake keeps
-// the display awake too.
+// it clears it; showing a file, the message box, clipboard data and the
+// primary selection (mwin-0029) are unsupported; an address opens in the
+// browser, which takes the program to the background; an activity made
+// anew while the window is kept awake keeps the display awake too.
 
 #include "test_harness.h"
 
@@ -143,7 +143,7 @@ static bool Ready(Program* program, mwinContext* context)
     case 1:
         return program->completions >= 2 && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
     case 3:
-        return program->completions >= 2 && (WindowFlags(program, context) & KEEP_SCREEN_ON) == 0;
+        return program->completions >= 4 && (WindowFlags(program, context) & KEEP_SCREEN_ON) == 0;
     case 2:
         return program->completions >= 1;
     case 4:
@@ -195,6 +195,10 @@ static void Advance(Program* program, mwinContext* context)
                   mwinRequestRevealFile(context, program->window, "/sdcard", 7, nullptr) ==
                       mwin_success,
               "no longer awake, and a file shown, asked for");
+        CHECK(mwinRequestClipboardReadData(context, program->window, "image/png", 9, nullptr) ==
+                      mwin_success &&
+                  mwinRequestPrimaryRead(context, program->window, nullptr) == mwin_success,
+              "data and the primary selection asked for");
         {
             mwinMessageBoxDef box = mwinDefaultMessageBoxDef();
             CHECK(mwinShowMessageBox(&box, nullptr) == mwin_errorUnsupported,
@@ -204,6 +208,8 @@ static void Advance(Program* program, mwinContext* context)
     case 3:
         CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeUnsupported,
               "awake cleared; no file manager");
+        CHECK(outcomes[2] == mwin_outcomeUnsupported && outcomes[3] == mwin_outcomeUnsupported,
+              "no clipboard data, no primary selection");
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) == 0 &&
                   !StateOf(program, context).awake,
               "the window's flag cleared");

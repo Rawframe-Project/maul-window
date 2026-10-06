@@ -813,9 +813,12 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         return mwinWin32SetTextInput(window, request->value.textInput.enabled,
                                      request->value.textInput.caret);
     case mwin_requestClipboardWrite:
+    case mwin_requestClipboardWriteData:
         return mwinWin32WriteClipboard(window);
     case mwin_requestClipboardRead:
         return mwinWin32ReadClipboard(window);
+    case mwin_requestClipboardReadData:
+        return mwinWin32ReadClipboardData(window, request);
     case mwin_requestOpenUrl:
         return mwinWin32OpenUrl(window, request);
     case mwin_requestRevealFile:

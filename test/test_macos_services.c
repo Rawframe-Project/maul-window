@@ -6,8 +6,10 @@
 // the display kept awake while a window asks, read back from the
 // process's power assertions, and let go when it no longer asks; a file
 // that does not exist not revealed, and one that does shown in the
-// Finder. Opening an address is left out: it would start the runner's
-// browser, and nothing here could tell that it did.
+// Finder. Data by MIME type (mwin-0029) written with its text, each type
+// read back as it was, a type the pasteboard lacks failed; the primary
+// selection unsupported. Opening an address is left out: it would start
+// the runner's browser, and nothing here could tell that it did.
 
 #include "test_harness.h"
 
@@ -79,6 +81,38 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
+static const uint8_t s_png[] = {0x89, 'P', 'N', 'G', 0, '\r', '\n'};
+static const uint8_t s_custom[] = {'o', 't', 'h', 'e', 'r', 0, 0xff};
+
+// Reads a type, answered at once, and whether these bytes came.
+static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime,
+                     const uint8_t* expected, size_t length)
+{
+    uint8_t data[32];
+    size_t found = 0;
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), nullptr) ==
+               mwin_success &&
+           mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           found == length && memcmp(data, expected, length) == 0;
+}
+
+// Writes data with text and reads each type back.
+static void CheckData(mwinContext* context, mwinWindowId window)
+{
+    mwinClipboardItem items[] = {
+        {"image/png", 9, s_png, sizeof(s_png)},
+        {"text/plain", 10, "hi", 2},
+        {"application/x-maul", 18, s_custom, sizeof(s_custom)},
+    };
+    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
+          "a data write");
+    CHECK(ReadData(context, window, "image/png", s_png, sizeof(s_png)), "the image read back");
+    CHECK(ReadData(context, window, "application/x-maul", s_custom, sizeof(s_custom)),
+          "a type the system does not know read back");
+    CHECK(mwinRequestClipboardReadData(context, window, "image/gif", 9, nullptr) == mwin_success,
+          "a read of a type the pasteboard lacks");
+}
+
 // Each phase asks, and the next reads the answers once they came.
 static void Advance(Program* program, mwinContext* context)
 {
@@ -118,6 +152,28 @@ static void Advance(Program* program, mwinContext* context)
               "let go when it no longer asks");
         CHECK(program->outcomes[1] == mwin_outcomeFailed, "a file that does not exist");
         CHECK(program->outcomes[2] == mwin_outcomeDone, "one that does, shown");
+        CheckData(context, window);
+        break;
+    case 3:
+    {
+        char text[8];
+        size_t length = 0;
+        CHECK(program->outcomes[0] == mwin_outcomeDone &&
+                  program->outcomes[1] == mwin_outcomeDone &&
+                  program->outcomes[2] == mwin_outcomeDone,
+              "data written and read");
+        CHECK(program->outcomes[3] == mwin_outcomeFailed, "a type the pasteboard lacks fails");
+        CHECK(mwinRequestClipboardRead(context, window, nullptr) == mwin_success &&
+                  mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+                  length == 2 && memcmp(text, "hi", 2) == 0,
+              "the write's text read");
+        CHECK(mwinRequestPrimaryRead(context, window, nullptr) == mwin_success, "a primary read");
+        break;
+    }
+    case 4:
+        CHECK(program->outcomes[0] == mwin_outcomeDone &&
+                  program->outcomes[1] == mwin_outcomeUnsupported,
+              "no primary selection");
         break;
     default:
         break;
@@ -143,8 +199,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     // The awake state follows at the pump after a completion, so each
     // phase waits a frame past its answers.
-    static const int answers[] = {0, 3, 3};
-    bool ready = program->shown && program->completions >= answers[program->phase % 3] &&
+    static const int answers[] = {0, 3, 3, 4, 2};
+    bool ready = program->shown && program->completions >= answers[program->phase] &&
                  NowNs() - program->startNs > 50000000u;
     if (ready)
     {
@@ -155,7 +211,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 3 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 5 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -168,6 +224,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "every answer comes in time");
-    CHECK(program.phase == 3, "every phase ran");
+    CHECK(program.phase == 5, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

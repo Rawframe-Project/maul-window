@@ -45,8 +45,13 @@ format.
   X11 offers each type as its own target, large items in pieces
   (INCR), and owns PRIMARY apart from CLIPBOARD; Wayland offers each
   type on its data source and keeps the primary selection through its
-  protocol where the compositor has it; the test backend serves them
-  too, the others answer `mwin_outcomeUnsupported` for now.
+  protocol where the compositor has it; Win32 registers a format per
+  type ("PNG" and "HTML Format" for theirs); macOS and iOS put each type
+  on the pasteboard as UTType names it; the web writes a ClipboardItem,
+  a type other than text/plain, text/html and image/png as a web custom
+  format, and the browser may encode an image again; the test backend
+  serves them too. The primary selection is X11's and Wayland's alone;
+  Android answers both `mwin_outcomeUnsupported`.
 
 ### Fixed
 

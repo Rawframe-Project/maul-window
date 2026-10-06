@@ -7,7 +7,10 @@
 // awake while asked, through the idle timer; a mailto address, which the
 // simulator has no program for, answered failed when UIKit says so;
 // revealing a file unsupported; and message boxes shown from a frame,
-// one taken away (closed), one answered OK. Pressing an alert's button
+// one taken away (closed), one answered OK; data by MIME type
+// (mwin-0029) written with its text and each type read back, a type the
+// pasteboard lacks failed, the primary selection unsupported. Pressing
+// an alert's button
 // has no public way: the test calls the button's handler through its
 // private key, which only a test may do.
 
@@ -117,6 +120,40 @@ static bool Box(bool press)
     return accepted;
 }
 
+static const uint8_t s_png[] = {0x89, 'P', 'N', 'G', 0, '\r', '\n'};
+static const uint8_t s_custom[] = {'o', 't', 'h', 'e', 'r', 0, 0xff};
+
+// Reads a type, answered at once, and whether these bytes came.
+static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime,
+                     const uint8_t* expected, size_t length)
+{
+    uint8_t data[32];
+    size_t found = 0;
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), nullptr) ==
+               mwin_success &&
+           mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           found == length && memcmp(data, expected, length) == 0;
+}
+
+// Writes data with text, reads each type back, and asks for a type the
+// pasteboard lacks.
+static void CheckData(mwinContext* context, mwinWindowId window)
+{
+    mwinClipboardItem items[] = {
+        {"image/png", 9, s_png, sizeof(s_png)},
+        {"text/plain", 10, "hi", 2},
+        {"application/x-maul", 18, s_custom, sizeof(s_custom)},
+    };
+    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
+          "a data write");
+    CHECK([UIPasteboard.generalPasteboard.string isEqual:@"hi"], "its text on the pasteboard");
+    CHECK(ReadData(context, window, "image/png", s_png, sizeof(s_png)), "the image read back");
+    CHECK(ReadData(context, window, "application/x-maul", s_custom, sizeof(s_custom)),
+          "a type the system does not know read back");
+    CHECK(mwinRequestClipboardReadData(context, window, "image/gif", 9, nullptr) == mwin_success,
+          "a read of a type the pasteboard lacks");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->window;
@@ -154,6 +191,18 @@ static void Advance(Program* program, mwinContext* context)
               "no program for it, answered when UIKit says");
         CHECK(!Box(false), "a box taken away reads as closed");
         CHECK(Box(true), "OK accepted");
+        CheckData(context, window);
+        break;
+    case 4:
+        CHECK(program->outcomes[0] == mwin_outcomeDone &&
+                  program->outcomes[1] == mwin_outcomeDone &&
+                  program->outcomes[2] == mwin_outcomeDone,
+              "data written and read");
+        CHECK(program->outcomes[3] == mwin_outcomeFailed, "a type the pasteboard lacks fails");
+        CHECK(mwinRequestPrimaryRead(context, window, nullptr) == mwin_success, "a primary read");
+        break;
+    case 5:
+        CHECK(program->outcomes[0] == mwin_outcomeUnsupported, "no primary selection");
         break;
     default:
         break;
@@ -165,7 +214,7 @@ static void Advance(Program* program, mwinContext* context)
 
 static bool Ready(const Program* program)
 {
-    static const int answers[] = {0, 3, 2, 1};
+    static const int answers[] = {0, 3, 2, 1, 4, 1};
     return program->phase == 0 ? program->shown : program->completions >= answers[program->phase];
 }
 
@@ -195,7 +244,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         s_failures += 1;
         return mwin_frameStop;
     }
-    return program->phase == 4 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 6 ? mwin_frameStop : mwin_frameContinue;
 }
 
 static void Quit(mwinContext* context, mwinResult status, void* user)
@@ -203,7 +252,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 4, "every phase ran");
+    CHECK(program->phase == 6, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

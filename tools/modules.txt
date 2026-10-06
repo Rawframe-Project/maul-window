@@ -99,7 +99,8 @@ pad_db:
 pad_map: core pad_db
 pad_tracker: core
 posix_message_box: message_box
-queue: core text
+preedit_fit:
+queue: core preedit_fit text
 selection_reads: clipboard_data core
 services: allocator core
 system: core

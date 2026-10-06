@@ -53,7 +53,8 @@ extern "C"
     /// window, focus moved, the scale changed, a key went down, text was
     /// typed, the application is suspending. The report reaches the stream
     /// at the next pump, stamped with the time of this call; text is copied
-    /// from the record's pointer. The pump runs a frame at once after a
+    /// from the record's pointer, and a composition's offsets are fitted
+    /// to its text as a platform's are. The pump runs a frame at once after a
     /// lifecycle or surface report, as a platform that waits for the
     /// program would make it; a lifecycle report needs no window.
     /// Completions, input state resets and the created and destroyed

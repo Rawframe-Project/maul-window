@@ -128,6 +128,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/monitor.c
     src/native.c
     src/pad.c
+    src/preedit_fit.c
     src/queue.c
     src/selection_reads.c
     src/services.c
@@ -549,7 +550,7 @@ if(MAUL_WINDOW_FUZZ)
     # the sanitizers watch its code, not only the targets'.
     target_compile_options(maul-window PRIVATE -fsanitize=fuzzer-no-link,address,undefined)
     target_link_options(maul-window PUBLIC -fsanitize=address,undefined)
-    set(MWIN_FUZZ_AREAS payload)
+    set(MWIN_FUZZ_AREAS payload preedit)
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         list(APPEND MWIN_FUZZ_AREAS locale)
     endif()

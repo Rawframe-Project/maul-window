@@ -8,6 +8,15 @@ format.
 
 ## [Unreleased]
 
+### Changed
+
+- A composition's offsets fit its text (mwin-0034): the caret, the
+  selection and every segment lie on character boundaries within the
+  text, the selection in order and no segment empty. The core fits what
+  the platform's input method hands it, where it used to drop a
+  composition whose offsets lay outside its text and let an offset
+  inside a character through. A fuzz target checks the fitting.
+
 ## [0.7.0] - 2026-10-06
 
 The gaps an audit of 0.6.0 against the requirements found: input

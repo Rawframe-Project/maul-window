@@ -5,7 +5,8 @@
 // by request, compositions with their caret, selection and segments,
 // keys a composition consumes left out with their releases, commits as
 // text, a composition ended when text input stops, refused compositions,
-// and compositions that replace each other without leaking storage.
+// offsets fitted to their text, and compositions that replace each
+// other without leaking storage.
 
 #include "test_program.h"
 
@@ -122,12 +123,7 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
 {
     (void)step;
     mwinWindowId window = Create(context, nullptr);
-    mwinPreeditSegment outside = {2, 5, mwin_preeditUnderline};
-    mwinEvent event = Preedit(window, "abc", 9, nullptr, 0);
-    CHECK(mwinTestPost(context, &event) == mwin_success, "a bad caret reaches the core");
-    event = Preedit(window, "abc", 1, &outside, 1);
-    CHECK(mwinTestPost(context, &event) == mwin_success, "and a segment past the text");
-    event = Preedit(window, "abc", 1, nullptr, 3);
+    mwinEvent event = Preedit(window, "abc", 1, nullptr, 3);
     CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "segments without an array");
     static mwinPreeditSegment many[40];
     event = Preedit(window, "abc", 1, many, 40);
@@ -135,10 +131,22 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
                                nullptr) == mwin_errorInvalid,
           "a negative caret");
+    // "a", U+3042 in three bytes, "b": a caret inside the character, a
+    // selection backwards and past the end, a segment reaching into the
+    // character, one past the text and one empty.
+    static const mwinPreeditSegment segments[3] = {
+        {2, 1, mwin_preeditTarget}, {5, 4, mwin_preeditUnderline}, {0, 0, mwin_preeditPlain}};
+    event = Preedit(window,
+                    "a\xE3\x81\x82"
+                    "b",
+                    2, segments, 3);
+    event.data.preedit.selectionStart = 9;
+    event.data.preedit.selectionEnd = 3;
+    CHECK(mwinTestPost(context, &event) == mwin_success, "offsets that do not fit reach the core");
     program->done = true;
 }
 
-static void RefusedStep(Program* program, mwinContext* context, int step)
+static void FittedStep(Program* program, mwinContext* context, int step)
 {
     if (step == 0)
     {
@@ -147,17 +155,27 @@ static void RefusedStep(Program* program, mwinContext* context, int step)
         return;
     }
     Drain(program, context);
+    const mwinPreeditEvent* fitted = nullptr;
     for (int i = 0; i < program->eventCount; i++)
     {
-        CHECK(program->events[i].type != mwin_eventImePreedit,
-              "compositions that do not fit their text are dropped by the core");
+        if (program->events[i].type == mwin_eventImePreedit)
+        {
+            fitted = &program->events[i].data.preedit;
+        }
     }
+    CHECK(fitted != nullptr && fitted->length == 5, "the composition kept");
+    CHECK(fitted != nullptr && fitted->caret == 1, "the caret at the character's start");
+    CHECK(fitted != nullptr && fitted->selectionStart == 1 && fitted->selectionEnd == 5,
+          "the selection in order, within the text, covering the character");
+    CHECK(fitted != nullptr && fitted->segmentCount == 1 && fitted->segments[0].start == 1 &&
+              fitted->segments[0].length == 3 && fitted->segments[0].style == mwin_preeditTarget,
+          "the segment covering the character, the empty ones dropped");
     program->done = true;
 }
 
 static void TestRefusals(void)
 {
-    Program program = {.step = RefusedStep};
+    Program program = {.step = FittedStep};
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 

@@ -91,10 +91,12 @@ typedef struct mwinX11Window
     // -1, until its deadline.
     int32_t modeRequest;
     uint64_t modeDeadlineNs;
-    // The cursor the program asked for over the window, and whether the
-    // pointer is grabbed to keep it inside.
+    // The cursor the program asked for over the window: a shape, or a
+    // cursor made from images when cursorImage is live (mwin-0027); and
+    // whether the pointer is grabbed to keep it inside.
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
+    mwinCursorId cursorImage;
     bool confined;
     // A popup's place from its owner's corner, in pixels.
     int32_t offsetX;
@@ -124,12 +126,16 @@ typedef struct mwinX11Pointer
 } mwinX11Pointer;
 
 // The cursors the backend made: an empty one that hides the pointer,
-// and each shape loaded from the cursor theme, 0 before it is.
+// and each shape loaded from the cursor theme, 0 before it is. Cursors
+// from images need RENDER's 32-bit ARGB picture format, looked up the
+// first time one is asked for: 0 where there is none.
 typedef struct mwinX11Cursors
 {
     xcb_cursor_context_t* context;
     xcb_cursor_t blank;
     xcb_cursor_t shapes[16];
+    bool formatSought;
+    xcb_render_pictformat_t format;
 } mwinX11Cursors;
 
 // A monitor from RandR, by the atom of its name.

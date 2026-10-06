@@ -417,7 +417,16 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinX11Backend = {
-    Start,         Stop,    Run,        mwinX11CreateWindow, mwinX11DestroyWindow,
-    mwinX11Submit, Now,     MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,        nullptr,
+    Start,
+    Stop,
+    Run,
+    mwinX11CreateWindow,
+    mwinX11DestroyWindow,
+    mwinX11Submit,
+    Now,
+    MapKeyCode,
+    KeyboardLayout,
+    NativeHandles,
+    Rumble,
+    mwinX11ReleaseCursor,
 };

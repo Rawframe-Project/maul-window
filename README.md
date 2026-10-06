@@ -68,11 +68,12 @@ development files of `wayland-client` 1.22, `wayland-protocols` 1.32
 and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and
 `libxkbcommon-dev` on Debian and Ubuntu), or
 `-DMAUL_WINDOW_WAYLAND=OFF`; the X11 backend needs the development
-files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-xinput` and
-`xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`, `libxcb-xkb-dev`,
-`libxcb-cursor-dev`, `libxcb-xinput-dev` and `libxkbcommon-x11-dev`),
-or
-`-DMAUL_WINDOW_X11=OFF`. For the web, Emscripten (`emcmake cmake`), or
+files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-render`,
+`xcb-xinput` and `xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`,
+`libxcb-xkb-dev`, `libxcb-cursor-dev`, `libxcb-render0-dev`,
+`libxcb-xinput-dev` and `libxkbcommon-x11-dev`), or
+`-DMAUL_WINDOW_X11=OFF`, and its tests `xcb-xtest` and `xcb-xfixes`
+(`libxcb-xtest0-dev` and `libxcb-xfixes0-dev`). For the web, Emscripten (`emcmake cmake`), or
 Clang's wasm32-wasi with wasi-libc
 (`-DCMAKE_TOOLCHAIN_FILE=cmake/wasm32-wasi.cmake`), whose build writes
 `maul-window.mjs` for the page (see the guide, section 11). The browser

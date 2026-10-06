@@ -255,7 +255,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11 PRIVATE _POSIX_C_SOURCE=200809L)
         set_tests_properties(x11 PROPERTIES SKIP_RETURN_CODE 77)
         # Drives the X server through XTEST, which the test links.
-        pkg_check_modules(MWIN_TEST_XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest)
+        pkg_check_modules(MWIN_TEST_XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-xfixes)
         maul_add_test(x11_input POSIX)
         target_compile_definitions(test_x11_input PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_input PRIVATE PkgConfig::MWIN_TEST_XCB)

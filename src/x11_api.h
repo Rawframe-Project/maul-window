@@ -4,8 +4,9 @@
 // XCB, opened at run time (mwin-0006) into a table each context loads for
 // itself: libxcb, and where they are there libxcb-randr for monitors,
 // libxkbcommon-x11 and libxcb-xkb for the keyboard, libxcb-cursor for
-// cursor themes, and libxcb-xinput for raw motion. The X server's replies come from the C library's
-// malloc and go back through mwinReleaseSystemMemory.
+// cursor themes, libxcb-render for cursors made from images, and
+// libxcb-xinput for raw motion. The X server's replies come from the C
+// library's malloc and go back through mwinReleaseSystemMemory.
 
 #ifndef MAUL_WINDOW_SRC_X11_API_H
 #define MAUL_WINDOW_SRC_X11_API_H
@@ -13,6 +14,7 @@
 #include "maul-window/base.h"
 
 #include <xcb/randr.h>
+#include <xcb/render.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_cursor.h>
 #include <xcb/xinput.h>
@@ -58,6 +60,9 @@ typedef struct mwinX11Api
     typeof(xcb_change_window_attributes)* changeWindowAttributes;
     typeof(xcb_create_pixmap)* createPixmap;
     typeof(xcb_free_pixmap)* freePixmap;
+    typeof(xcb_create_gc)* createGc;
+    typeof(xcb_free_gc)* freeGc;
+    typeof(xcb_put_image)* putImage;
     typeof(xcb_create_cursor)* createCursor;
     typeof(xcb_free_cursor)* freeCursor;
     typeof(xcb_grab_pointer)* grabPointer;
@@ -93,6 +98,16 @@ typedef struct mwinX11Api
     typeof(xcb_cursor_context_new)* cursorContextNew;
     typeof(xcb_cursor_load_cursor)* cursorLoad;
     typeof(xcb_cursor_context_free)* cursorContextFree;
+    // libxcb-render, NULL where it is missing.
+    void* renderLibrary;
+    xcb_extension_t* renderId;
+    typeof(xcb_render_query_pict_formats)* renderQueryFormats;
+    typeof(xcb_render_query_pict_formats_reply)* renderQueryFormatsReply;
+    typeof(xcb_render_query_pict_formats_formats)* renderFormats;
+    typeof(xcb_render_query_pict_formats_formats_length)* renderFormatsLength;
+    typeof(xcb_render_create_picture)* renderCreatePicture;
+    typeof(xcb_render_free_picture)* renderFreePicture;
+    typeof(xcb_render_create_cursor)* renderCreateCursor;
     // libxcb-xinput, NULL where it is missing.
     void* xinputLibrary;
     xcb_extension_t* xinputId;

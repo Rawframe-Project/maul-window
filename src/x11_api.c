@@ -58,7 +58,8 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, translateCoordinatesReply, xcb_translate_coordinates_reply) &&
            FIND(library, changeWindowAttributes, xcb_change_window_attributes) &&
            FIND(library, createPixmap, xcb_create_pixmap) &&
-           FIND(library, freePixmap, xcb_free_pixmap) &&
+           FIND(library, freePixmap, xcb_free_pixmap) && FIND(library, createGc, xcb_create_gc) &&
+           FIND(library, freeGc, xcb_free_gc) && FIND(library, putImage, xcb_put_image) &&
            FIND(library, createCursor, xcb_create_cursor) &&
            FIND(library, freeCursor, xcb_free_cursor) &&
            FIND(library, grabPointer, xcb_grab_pointer) &&
@@ -101,6 +102,20 @@ static bool FindCursors(mwinX11Api* api)
     return FIND(cursorLibrary, cursorContextNew, xcb_cursor_context_new) &&
            FIND(cursorLibrary, cursorLoad, xcb_cursor_load_cursor) &&
            FIND(cursorLibrary, cursorContextFree, xcb_cursor_context_free);
+}
+
+static bool FindRender(mwinX11Api* api)
+{
+    // The extension's id is data, not a function.
+    api->renderId = dlsym(api->renderLibrary, "xcb_render_id");
+    return api->renderId != nullptr &&
+           FIND(renderLibrary, renderQueryFormats, xcb_render_query_pict_formats) &&
+           FIND(renderLibrary, renderQueryFormatsReply, xcb_render_query_pict_formats_reply) &&
+           FIND(renderLibrary, renderFormats, xcb_render_query_pict_formats_formats) &&
+           FIND(renderLibrary, renderFormatsLength, xcb_render_query_pict_formats_formats_length) &&
+           FIND(renderLibrary, renderCreatePicture, xcb_render_create_picture) &&
+           FIND(renderLibrary, renderFreePicture, xcb_render_free_picture) &&
+           FIND(renderLibrary, renderCreateCursor, xcb_render_create_cursor);
 }
 
 static bool FindXinput(mwinX11Api* api)
@@ -155,6 +170,7 @@ mwinResult mwinLoadX11(mwinX11Api* api)
     // Each links libxcb itself, and shares the one libxcb.so.1 loaded.
     OpenOptional(api, &api->randrLibrary, "libxcb-randr.so.0", FindRandr);
     OpenOptional(api, &api->cursorLibrary, "libxcb-cursor.so.0", FindCursors);
+    OpenOptional(api, &api->renderLibrary, "libxcb-render.so.0", FindRender);
     OpenOptional(api, &api->xinputLibrary, "libxcb-xinput.so.0", FindXinput);
     api->xcbXkbLibrary = dlopen("libxcb-xkb.so.1", RTLD_NOW | RTLD_LOCAL);
     if (api->xcbXkbLibrary != nullptr)
@@ -171,8 +187,8 @@ mwinResult mwinLoadX11(mwinX11Api* api)
 
 void mwinUnloadX11(mwinX11Api* api)
 {
-    void* optional[] = {api->randrLibrary, api->cursorLibrary, api->xkbX11Library,
-                        api->xcbXkbLibrary, api->xinputLibrary};
+    void* optional[] = {api->randrLibrary,  api->cursorLibrary, api->renderLibrary,
+                        api->xkbX11Library, api->xcbXkbLibrary, api->xinputLibrary};
     for (size_t i = 0; i < sizeof(optional) / sizeof(optional[0]); i++)
     {
         if (optional[i] != nullptr)

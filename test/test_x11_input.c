@@ -5,18 +5,20 @@
 // through XTEST from a connection of the test's own: keys with their
 // codes, meanings and text, Shift, the X server's repeats, the pointer
 // entering and moving, a double click, the wheel, cursor shapes, a
-// hidden cursor, a confined one whose grab another client then meets,
-// and a captured one with XInput 2's raw motion. Without DISPLAY the
+// cursor made from images as XFixes reads it back, a hidden cursor, a confined one whose grab
+// another client then meets, and a captured one with XInput 2's raw motion. Without DISPLAY the
 // test is skipped (exit status 77).
 
 #include "test_harness.h"
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <xcb/xcb.h>
+#include <xcb/xfixes.h>
 #include <xcb/xtest.h>
 
 #define DEADLINE_NS 5000000000ull
@@ -37,6 +39,8 @@ typedef enum Phase
     phaseClicks,
     phaseWheel,
     phaseShape,
+    phaseImage,
+    phaseDestroyed,
     phaseConfine,
     phaseRelease,
     phaseCapture,
@@ -52,6 +56,7 @@ typedef struct Program
     Phase phase;
     uint64_t startNs;
     mwinWindowId window;
+    mwinCursorId cursor;
     mwinEvent records[MAX_RECORDS];
     int count;
     char text[64];
@@ -150,6 +155,58 @@ static bool CanGrabSoon(Program* program)
     return false;
 }
 
+// A cursor of two images: red at 16 pixels, green at 32.
+static uint8_t s_red[16 * 16 * 4];
+static uint8_t s_green[32 * 32 * 4];
+
+static mwinCursorDef CursorDef(mwinIconImage images[2])
+{
+    for (size_t i = 0; i < sizeof(s_green); i += 4)
+    {
+        memcpy(&s_green[i], (const uint8_t[]){0, 255, 0, 255}, 4);
+        if (i < sizeof(s_red))
+        {
+            memcpy(&s_red[i], (const uint8_t[]){255, 0, 0, 255}, 4);
+        }
+    }
+    images[0] = (mwinIconImage){16, 16, 16 * 4, s_red};
+    images[1] = (mwinIconImage){32, 32, 32 * 4, s_green};
+    mwinCursorDef def = mwinDefaultCursorDef();
+    def.images = images;
+    def.imageCount = 2;
+    def.hotspotX = 3;
+    def.hotspotY = 5;
+    return def;
+}
+
+// Whether the X server shows the red image, by XFixes.
+static bool ShowsRed(Program* program)
+{
+    xcb_xfixes_get_cursor_image_reply_t* reply = xcb_xfixes_get_cursor_image_reply(
+        program->connection, xcb_xfixes_get_cursor_image(program->connection), nullptr);
+    bool red = reply != nullptr && reply->width == 16 && reply->height == 16 && reply->xhot == 3 &&
+               reply->yhot == 5 &&
+               xcb_xfixes_get_cursor_image_cursor_image(reply)[0] == 0xFFFF0000u;
+    free(reply);
+    return red;
+}
+
+// Whether the X server comes to show the red image, or not, within half
+// a second: the program's requests and the test's go apart.
+static bool ShowsRedSoon(Program* program, bool red)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        if (ShowsRed(program) == red)
+        {
+            return true;
+        }
+        struct timespec pause = {0, 5000000};
+        (void)nanosleep(&pause, nullptr);
+    }
+    return false;
+}
+
 static bool Ready(const Program* program)
 {
     switch (program->phase)
@@ -171,6 +228,9 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventWheel, 0) != nullptr;
     case phaseRaw:
         return Find(program, mwin_eventRawPointerDelta, 0) != nullptr;
+    case phaseDestroyed:
+        // Frames have run, and the backend has sent what it does.
+        return NowNs() - program->startNs > 50000000u;
     default:
         return Find(program, mwin_eventRequestCompleted, 0) != nullptr;
     }
@@ -217,7 +277,23 @@ static void AdvancePointer(Program* program, mwinContext* context)
               "a text cursor");
         break;
     case phaseShape:
+    {
         CHECK(outcome == mwin_outcomeDone, "the shape from the theme or the cursor font");
+        mwinIconImage images[2];
+        mwinCursorDef def = CursorDef(images);
+        CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
+                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                      mwin_success,
+              "a cursor made from images");
+        break;
+    }
+    case phaseImage:
+        CHECK(outcome == mwin_outcomeDone && ShowsRedSoon(program, true),
+              "the image for scale 1, with its hotspot");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
+        break;
+    case phaseDestroyed:
+        CHECK(ShowsRedSoon(program, false), "destroyed, the window shows the default shape");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfinedHidden, nullptr) ==
                   mwin_success,
               "confine and hide");
@@ -350,6 +426,9 @@ int main(void)
         return 77;
     }
     program.root = xcb_setup_roots_iterator(xcb_get_setup(program.connection)).data->root;
+    // XFixes answers only a client that told its version.
+    free(xcb_xfixes_query_version_reply(
+        program.connection, xcb_xfixes_query_version(program.connection, 4, 0), nullptr));
     // Nothing holds the pointer before the test.
     Fake(&program, XCB_MOTION_NOTIFY, 0, 1000, 700);
     mwinAppDef def = mwinDefaultAppDef();

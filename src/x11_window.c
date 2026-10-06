@@ -494,6 +494,8 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         return mwinX11SetCursorMode(platform, window->slot, request->value.code);
     case mwin_requestCursorShape:
         return mwinX11SetCursorShape(platform, window->slot, request->value.code);
+    case mwin_requestCursorImage:
+        return mwinX11SetCursorImage(platform, window->slot, request->value.cursor);
     case mwin_requestTextInput:
         // Keys type text whether asked or not; there is no input method.
         return mwin_outcomeDone;

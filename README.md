@@ -26,7 +26,7 @@ generated from the headers.
 
 ## Status
 
-0.7.0 is the current release. It has the whole contract on seven
+0.8.0 is the current release. It has the whole contract on seven
 backends, Win32, macOS, iOS, Android, Wayland, X11 and the web (with
 Emscripten or as plain wasm32-wasi), and a headless test backend:
 
@@ -45,7 +45,8 @@ Emscripten or as plain wasm32-wasi), and a headless test backend:
    on X11 and Wayland), drag and drop, file dialogs, message boxes,
    opening addresses, revealing files and keeping the display awake.
 5. Owned windows, popups and custom chrome, and the hooks for
-   accessibility adapters.
+   accessibility adapters (on the web, a host for ARIA elements that
+   keeps the window's focus and keys under a screen reader).
 6. System facts (theme, accent, motion, text scale, power) and the
    preferred locales.
 7. A misuse count per context, and every size taken from a count

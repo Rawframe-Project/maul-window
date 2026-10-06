@@ -8,6 +8,14 @@ format.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-06
+
+Text from outside the program made safe to slice, and screen readers on
+the web: a composition's offsets always fit its text, monitor and
+gamepad names keep their whole characters when cut, and the focus and
+keys stay the window's while a screen reader works the program's ARIA
+elements (mwin-0035).
+
 ### Changed
 
 - A composition's offsets fit its text (mwin-0034): the caret, the
@@ -16,7 +24,6 @@ format.
   the platform's input method hands it, where it used to drop a
   composition whose offsets lay outside its text and let an offset
   inside a character through. A fuzz target checks the fitting.
-
 - On the web, the focus on an element in the accessibility host is the
   window's and keys there reach the program (mwin-0035). A screen
   reader in focus mode moves the focus to the program's ARIA elements,

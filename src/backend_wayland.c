@@ -15,6 +15,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
+#include "key_reach.h"
 #include "wayland.h"
 #include "wayland_api.h"
 #include "wayland_clipboard.h"
@@ -474,4 +475,5 @@ const mwinBackendOps mwinWaylandBackend = {
 #else
     nullptr,
 #endif
+    mwinLinuxKeyReach,
 };

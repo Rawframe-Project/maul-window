@@ -5,15 +5,15 @@
 // library makes and one of the page's, their CSS sizes and device
 // pixels at the page's ratio and after it changes, a size, a title,
 // focus, fullscreen refused without a user's gesture, hiding, the facts
-// and locales, and closing: the page's canvas stays, the library's goes.
-// With each canvas, the host of the program's accessibility elements:
-// right after it, over it as it resizes, letting the pointer through,
-// hidden with it and gone with the window.
+// and locales, the chords Chrome and Linux keep, and closing: the page's canvas stays, the
+// library's goes. With each canvas, the host of the program's accessibility elements: right after
+// it, over it as it resizes, letting the pointer through, hidden with it and gone with the window.
 
 #include "test_harness.h"
 #include "web_js.h"
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 #include "maul-window/native.h"
 #include "maul-window/system.h"
 
@@ -200,6 +200,17 @@ static void CheckCreated(Program* program, mwinContext* context)
     CHECK(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
               length > 0 && LanguagesAre(locales, length),
           "the preferred languages");
+    mwinKeyReach closeTab = 0;
+    mwinKeyReach copy = 0;
+    mwinKeyReach super = 0;
+    mwinKeyReach plain = 0;
+    CHECK(mwinGetKeyReach(context, mwin_codeKeyW, mwin_modControl, &closeTab) == mwin_success &&
+              mwinGetKeyReach(context, mwin_codeKeyC, mwin_modControl, &copy) == mwin_success &&
+              mwinGetKeyReach(context, mwin_codeKeyA, mwin_modMeta, &super) == mwin_success &&
+              mwinGetKeyReach(context, mwin_codeKeyA, 0, &plain) == mwin_success &&
+              closeTab == mwin_keyReachNever && copy == mwin_keyReachShared &&
+              super == mwin_keyReachUncertain && plain == mwin_keyReachDelivered,
+          "Chrome on Linux: its own chords never, shortcuts shared, the desktop's uncertain");
 }
 
 static void AdvanceLate(Program* program, mwinContext* context)

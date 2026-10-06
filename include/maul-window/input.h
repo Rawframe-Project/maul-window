@@ -184,6 +184,25 @@ extern "C"
         mwin_modNumLock = 32,
     };
 
+    // Whether a chord, a key with modifiers, reaches the program
+    // (mwinGetKeyReach).
+    typedef uint8_t mwinKeyReach;
+
+    enum
+    {
+        // Its records arrive and nothing else acts on it, as far as the
+        // library knows.
+        mwin_keyReachDelivered = 0,
+        // Its records arrive and the platform acts on it too: a browser's
+        // shortcut, Alt+F4 closing a window on Windows.
+        mwin_keyReachShared = 1,
+        // The desktop's own shortcuts, which the user may change, may take
+        // it: no record arrives when they do.
+        mwin_keyReachUncertain = 2,
+        // The platform always takes it: no record ever arrives.
+        mwin_keyReachNever = 3,
+    };
+
     // A mouse button.
     typedef uint8_t mwinMouseButton;
 
@@ -417,6 +436,27 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyboardLayout(const mwinContext* context,
                                                              char* buffer, size_t capacity,
                                                              size_t* lengthOut);
+
+    /// Tells whether a chord reaches the program on the platform the
+    /// context runs on, for a rebinding UI to refuse a chord that never
+    /// arrives and warn about one the platform may take: Ctrl+W in
+    /// Chromium, Alt+Tab on Windows and Command+Tab on Apple's systems
+    /// never arrive; the desktop's configurable shortcuts are uncertain.
+    /// The answer is the library's knowledge of the platform, not a
+    /// promise: a desktop may keep chords nothing lists.
+    ///
+    /// @param context    The context.
+    /// @param code       The key.
+    /// @param modifiers  The modifiers held with it; the lock bits are
+    ///                   ignored.
+    /// @param reachOut   Receives the answer.
+    /// @return `mwin_success`; `mwin_errorInvalid` for a NULL argument or
+    ///         a code that is not a key.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyReach(const mwinContext* context, mwinKeyCode code,
+                                                       mwinModifiers modifiers,
+                                                       mwinKeyReach* reachOut);
 
 #ifdef __cplusplus
 }

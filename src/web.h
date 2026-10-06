@@ -64,6 +64,9 @@ typedef struct mwinWebPlatform
     bool awake;
     // The gamepads, with the gamepad component.
     mwinWebPads pads;
+    // The browser's family and the system under it, for the chords they
+    // keep (mwinWebReadKeyHost).
+    uint8_t keyHost;
 } mwinWebPlatform;
 
 // What the page reports, one record at a time.

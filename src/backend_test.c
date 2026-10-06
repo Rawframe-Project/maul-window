@@ -501,10 +501,21 @@ static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
 }
 
 const mwinBackendOps mwinTestBackend = {
-    Start,          Stop,          Run,           CreateWindow,
-    DestroyWindow,  Submit,        Now,           MapKeyCode,
-    KeyboardLayout, NativeHandles, RumbleGamepad, ReleaseCursor,
-    RumbleTriggers, SetMotion,
+    Start,
+    Stop,
+    Run,
+    CreateWindow,
+    DestroyWindow,
+    Submit,
+    Now,
+    MapKeyCode,
+    KeyboardLayout,
+    NativeHandles,
+    RumbleGamepad,
+    ReleaseCursor,
+    RumbleTriggers,
+    SetMotion,
+    mwinTestKeyReachOf,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)

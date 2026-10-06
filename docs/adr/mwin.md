@@ -35,3 +35,4 @@ are listed in [README.md](README.md).
 | [mwin-0028](mwin-0028-trigger-rumble-and-motion.md) | Trigger rumble and motion | Accepted |
 | [mwin-0029](mwin-0029-clipboard-data-and-primary.md) | Clipboard data and the primary selection | Accepted |
 | [mwin-0030](mwin-0030-x11-input-methods.md) | Input methods on X11 | Accepted |
+| [mwin-0031](mwin-0031-keys-the-platform-keeps.md) | Keys the platform keeps | Accepted |

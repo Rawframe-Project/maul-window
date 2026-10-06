@@ -24,6 +24,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "ios.h"
+#include "key_reach.h"
 
 #include <crt_externs.h>
 #include <string.h>
@@ -434,12 +435,13 @@ static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
 #endif
 
 const mwinBackendOps mwinIOSBackend = {
-    Start,         Stop,      Run,        mwinIOSCreateWindow, mwinIOSDestroyWindow,
-    mwinIOSSubmit, Now,       MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,        nullptr,
+    Start,           Stop,      Run,        mwinIOSCreateWindow, mwinIOSDestroyWindow,
+    mwinIOSSubmit,   Now,       MapKeyCode, KeyboardLayout,      NativeHandles,
+    Rumble,          nullptr,
 #ifdef MAUL_WINDOW_GAMEPAD
-    TriggerRumble, SetMotion,
+    TriggerRumble,   SetMotion,
 #else
-    nullptr,       nullptr,
+    nullptr,         nullptr,
 #endif
+    mwinIosKeyReach,
 };

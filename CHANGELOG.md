@@ -10,6 +10,12 @@ format.
 
 ### Added
 
+- Keys the platform keeps (mwin-0031): `mwinGetKeyReach` tells whether
+  a chord, a key with modifiers, is delivered, shared with the
+  platform, uncertain or never delivered, from a table per platform;
+  on the web Chromium's own chords never arrive. `mwinTestSetKeyReach`
+  sets the test backend's answers.
+
 - Input methods on X11 (mwin-0030): IBus, through its portal, and
   Fcitx 5 over the session bus, Fcitx first when `XMODIFIERS` names
   it. While a focused window accepts text, keys go to the input method

@@ -5,8 +5,8 @@
 // text that stays valid through its frame and wraps in its storage,
 // discrete input that resets instead of vanishing, motion, deltas and
 // wheel turns that merge when their storage is full, touches merged
-// only with their own, refused records, the keyboard layout, and cursor
-// requests.
+// only with their own, refused records, the keyboard layout, cursor
+// requests, and the chords the platform keeps.
 
 #include "test_program.h"
 
@@ -297,6 +297,68 @@ static void TestCursor(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+static mwinKeyReach Reach(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers)
+{
+    mwinKeyReach reach = 0xFF;
+    return mwinGetKeyReach(context, code, modifiers, &reach) == mwin_success ? reach : 0xFF;
+}
+
+static void KeyReachStep(Program* program, mwinContext* context, int step)
+{
+    (void)step;
+    mwinKeyReach reach = 0;
+    CHECK(Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachDelivered,
+          "every chord delivered until a test sets one");
+    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachNever) ==
+                  mwin_success &&
+              Reach(context, mwin_codeKeyW, mwin_modControl | mwin_modCapsLock) ==
+                  mwin_keyReachNever &&
+              Reach(context, mwin_codeKeyW, mwin_modControl | mwin_modShift) ==
+                  mwin_keyReachDelivered &&
+              Reach(context, mwin_codeKeyQ, mwin_modControl) == mwin_keyReachDelivered,
+          "a set chord, the locks ignored, its neighbours untouched");
+    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachShared) ==
+                  mwin_success &&
+              Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachShared,
+          "set again, the chord's latest answer");
+    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachDelivered) ==
+                  mwin_success &&
+              Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachDelivered,
+          "delivered forgets it");
+    bool filled = true;
+    for (mwinKeyCode code = mwin_codeKeyA; code < mwin_codeKeyA + 32; code++)
+    {
+        filled = filled && mwinTestSetKeyReach(context, code, mwin_modAlt,
+                                               mwin_keyReachUncertain) == mwin_success;
+    }
+    CHECK(filled &&
+              mwinTestSetKeyReach(context, mwin_codeF1, mwin_modAlt, mwin_keyReachNever) ==
+                  mwin_errorCapacity &&
+              mwinTestSetKeyReach(context, mwin_codeKeyA, mwin_modAlt, mwin_keyReachNever) ==
+                  mwin_success &&
+              Reach(context, mwin_codeKeyA, mwin_modAlt) == mwin_keyReachNever,
+          "32 chords, a set one changed when full");
+    CHECK(mwinGetKeyReach(context, mwin_codeUnknown, 0, &reach) == mwin_errorInvalid &&
+              mwinGetKeyReach(context, mwin_codeMetaRight + 1, 0, &reach) == mwin_errorInvalid &&
+              mwinGetKeyReach(context, mwin_codeKeyA, 0, nullptr) == mwin_errorInvalid &&
+              mwinGetKeyReach(nullptr, mwin_codeKeyA, 0, &reach) == mwin_errorInvalid,
+          "no answer for a code that is not a key or a NULL argument");
+    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyA, 0, mwin_keyReachNever + 1) ==
+                  mwin_errorInvalid &&
+              mwinTestSetKeyReach(context, mwin_codeUnknown, 0, mwin_keyReachNever) ==
+                  mwin_errorInvalid &&
+              mwinTestSetKeyReach(nullptr, mwin_codeKeyA, 0, mwin_keyReachNever) ==
+                  mwin_errorInvalid,
+          "no setting out of range");
+    program->done = true;
+}
+
+static void TestKeyReach(void)
+{
+    Program program = {.step = KeyReachStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 int main(void)
 {
     TestKeysAndText();
@@ -305,5 +367,6 @@ int main(void)
     TestTouches();
     TestRefusalsAndLayout();
     TestCursor();
+    TestKeyReach();
     return s_failures == 0 ? 0 : 1;
 }

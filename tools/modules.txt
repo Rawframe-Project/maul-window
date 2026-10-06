@@ -24,15 +24,15 @@ apple_pad: core pad_tracker
 apple_rumble: apple_pad
 apple_text:
 backend:
-backend_android: allocator android backend core
-backend_ios: allocator backend core ios
-backend_macos: allocator backend core macos
+backend_android: allocator android backend core key_reach
+backend_ios: allocator backend core ios key_reach
+backend_macos: allocator backend core key_reach macos
 backend_test: allocator backend core cursor
 backend_test_services: accessibility allocator backend backend_test clipboard_data core dialog icon
-backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
+backend_wayland: allocator backend core key_reach wayland wayland_api wayland_clipboard wayland_cursor wayland_drop wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_cursor web_drop web_input web_js web_pad web_page web_services web_text web_window
-backend_win32: allocator backend core win32 win32_dialog win32_drop win32_input win32_output win32_pad win32_services win32_system win32_window
-backend_x11: allocator backend core monotonic x11 x11_api x11_clipboard x11_drop x11_cursor x11_input x11_output x11_window
+backend_win32: allocator backend core key_reach win32 win32_dialog win32_drop win32_input win32_output win32_pad win32_services win32_system win32_window
+backend_x11: allocator backend core key_reach monotonic x11 x11_api x11_clipboard x11_cursor x11_drop x11_input x11_output x11_window
 base:
 chrome: core
 clicks:
@@ -62,6 +62,7 @@ ios_text: apple_text core ios
 ios_view: accessibility core ios
 ios_window: core ios
 key_prints:
+key_reach:
 linux_bus: dbus_api
 linux_ime: core linux_bus monotonic utf8
 linux_motion: core
@@ -127,7 +128,7 @@ web: clicks core web_pad
 web_clipboard: allocator clipboard_data core web web_js
 web_drop: allocator core web web_js
 web_cursor: core cursor icon web web_js
-web_input: clicks core web web_cursor web_js
+web_input: clicks core key_reach web web_cursor web_js
 web_js:
 web_message_box: message_box web_js
 web_page: core web web_js

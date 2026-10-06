@@ -24,6 +24,7 @@
 #include "allocator.h"
 #include "android.h"
 #include "backend.h"
+#include "key_reach.h"
 
 #include <string.h>
 #include <time.h>
@@ -621,4 +622,5 @@ const mwinBackendOps mwinAndroidBackend = {
 #else
     nullptr,
 #endif
+    mwinAndroidKeyReach,
 };

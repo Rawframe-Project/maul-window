@@ -318,6 +318,25 @@ extern "C"
                                                              const float rotationRate[3],
                                                              uint64_t timeNs);
 
+    /// Sets what mwinGetKeyReach answers for a chord on the test platform,
+    /// which answers mwin_keyReachDelivered for every chord until set.
+    /// Setting mwin_keyReachDelivered forgets the chord.
+    ///
+    /// @param context    A context of the test backend.
+    /// @param code       The key.
+    /// @param modifiers  The modifiers held with it; the lock bits are
+    ///                   ignored.
+    /// @param reach      The answer.
+    /// @return `mwin_success`; `mwin_errorCapacity` when 32 chords are
+    ///         already set; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL context, a
+    ///         code that is not a key or an answer out of range.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetKeyReach(mwinContext* context, mwinKeyCode code,
+                                                           mwinModifiers modifiers,
+                                                           mwinKeyReach reach);
+
     /// Puts bytes on the test platform's clipboard, at once, as another
     /// program would: they need not be UTF-8.
     ///

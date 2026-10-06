@@ -48,6 +48,9 @@ typedef struct mwinBackendOps
     mwinResult (*triggerRumble)(mwinContext* context, uint32_t slot, float left, float right,
                                 uint32_t durationMs);
     mwinResult (*setMotion)(mwinContext* context, uint32_t slot, bool enabled);
+    // What mwinGetKeyReach answers for a chord, a valid code with the
+    // modifiers held.
+    mwinKeyReach (*keyReach)(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers);
 } mwinBackendOps;
 
 // The loop of a backend that pumps: init, then pump and frame until a

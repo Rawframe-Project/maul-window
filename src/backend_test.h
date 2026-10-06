@@ -14,12 +14,23 @@
 
 #define MWIN_TEST_KINDS (mwin_requestPrimaryRead + 1)
 
+// The chords whose reach a test sets.
+#define MWIN_TEST_KEY_REACHES 32
+
 // The bytes of the paths a dialog chooses, and of the last dialog's
 // description.
 #define MWIN_TEST_DIALOG_BYTES 1024
 
 // A request waiting for the next pump. The generations tell it from a
 // later window or request in the same slots.
+// A chord's reach, as mwinTestSetKeyReach set it.
+typedef struct mwinTestKeyReach
+{
+    mwinKeyCode code;
+    uint8_t modifiers;
+    mwinKeyReach reach;
+} mwinTestKeyReach;
+
 typedef struct mwinTestPending
 {
     uint32_t slot;
@@ -100,6 +111,8 @@ typedef struct mwinTestPlatform
     bool hold;
     uint64_t timeNs;
     float scale;
+    mwinTestKeyReach keyReaches[MWIN_TEST_KEY_REACHES];
+    uint32_t keyReachCount;
 } mwinTestPlatform;
 
 // The test platform of a context of the test backend, or NULL.
@@ -120,6 +133,10 @@ mwinOutcome mwinTestUseClipboard(mwinContext* context, const mwinRequest* reques
 
 // Opens an address or reveals a path as a platform would: it keeps it.
 void mwinTestOpen(mwinContext* context, const mwinRequest* request);
+
+// What mwinGetKeyReach answers: the reach a test set, else delivered.
+mwinKeyReach mwinTestKeyReachOf(const mwinContext* context, mwinKeyCode code,
+                                mwinModifiers modifiers);
 
 // Writes the icon down.
 void mwinTestSetIcon(mwinContext* context, const mwinRequest* request);

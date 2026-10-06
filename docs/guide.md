@@ -178,6 +178,13 @@ deltas, and the wheel.
   the key right of Tab on every layout);
 - its key, what the layout makes of it (`mwinMapKeyCode`).
 
+Some chords never reach a program: Ctrl+W in Chromium, Alt+Tab on
+Windows, Command+Tab on Apple's systems. `mwinGetKeyReach` tells, for
+a key with modifiers, whether it is delivered, shared with the
+platform (a browser shortcut the page also gets), uncertain (the
+desktop's configurable shortcuts may take it) or never delivered, so
+a rebinding UI can refuse or warn (mwin-0031).
+
 Typed text is not keys. It arrives as `mwin_eventTextInput`, while the
 window accepts text (`mwinRequestTextInput`, with the caret's rectangle
 for the input method's window). An input method's composition arrives

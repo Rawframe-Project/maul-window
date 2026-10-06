@@ -523,3 +523,58 @@ mwinResult mwinTestAskAccessibility(mwinContext* context, mwinWindowId window)
     mwinNoteAccessibilityAsked(context, window.index1 - 1);
     return mwin_success;
 }
+
+// The modifiers a chord is set and asked with: Shift, Control, Alt, Meta.
+#define CHORD_MODIFIERS (mwin_modShift | mwin_modControl | mwin_modAlt | mwin_modMeta)
+
+mwinKeyReach mwinTestKeyReachOf(const mwinContext* context, mwinKeyCode code,
+                                mwinModifiers modifiers)
+{
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    for (uint32_t i = 0; i < platform->keyReachCount; i++)
+    {
+        const mwinTestKeyReach* set = &platform->keyReaches[i];
+        if (set->code == code && set->modifiers == (modifiers & CHORD_MODIFIERS))
+        {
+            return set->reach;
+        }
+    }
+    return mwin_keyReachDelivered;
+}
+
+mwinResult mwinTestSetKeyReach(mwinContext* context, mwinKeyCode code, mwinModifiers modifiers,
+                               mwinKeyReach reach)
+{
+    if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight ||
+        reach > mwin_keyReachNever)
+    {
+        return mwinMisuse(context);
+    }
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    uint8_t chord = (uint8_t)(modifiers & CHORD_MODIFIERS);
+    uint32_t found = 0;
+    while (found < platform->keyReachCount && (platform->keyReaches[found].code != code ||
+                                               platform->keyReaches[found].modifiers != chord))
+    {
+        found++;
+    }
+    if (reach == mwin_keyReachDelivered)
+    {
+        if (found < platform->keyReachCount)
+        {
+            platform->keyReaches[found] = platform->keyReaches[--platform->keyReachCount];
+        }
+        return mwin_success;
+    }
+    if (found == MWIN_TEST_KEY_REACHES)
+    {
+        return mwin_errorCapacity;
+    }
+    platform->keyReaches[found] = (mwinTestKeyReach){code, chord, reach};
+    platform->keyReachCount += found == platform->keyReachCount;
+    return mwin_success;
+}

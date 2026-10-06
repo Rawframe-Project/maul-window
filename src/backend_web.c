@@ -212,6 +212,7 @@ static mwinResult Start(mwinContext* context)
     platform->context = context;
     platform->monitor = -1;
     platform->scale = mwinWebScale();
+    platform->keyHost = mwinWebReadKeyHost();
     context->backendData = platform;
     mwinWebAttach(context, Lifecycle);
     mwinWebAttachInput(context);
@@ -431,4 +432,5 @@ const mwinBackendOps mwinWebBackend = {
     nullptr,
 #endif
     nullptr,
+    mwinWebKeyReach,
 };

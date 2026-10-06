@@ -12,6 +12,7 @@
 
 #include "allocator.h"
 #include "backend.h"
+#include "key_reach.h"
 #include "macos.h"
 
 #include <string.h>
@@ -311,4 +312,5 @@ const mwinBackendOps mwinMacBackend = {
     nullptr,
     nullptr,
 #endif
+    mwinMacosKeyReach,
 };

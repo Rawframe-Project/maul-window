@@ -5,6 +5,7 @@
 
 #include "web_input.h"
 
+#include "key_reach.h"
 #include "web_cursor.h"
 #include "web_js.h"
 
@@ -403,4 +404,54 @@ mwinKey mwinWebMapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
     int meaning = mwinPageKeyMeaning(context, (int)code);
     return meaning > 0 ? (mwinKey)meaning : MWIN_KEY_NAMED | code;
+}
+
+// The system in the low bits (KEY_HOST_*), Chromium in the high one.
+// Chromium-based browsers name a brand "Chromium" in userAgentData,
+// which the others lack; an iPad's Safari calls itself a Mac with touch.
+// clang-format off
+EM_JS(int, mwinPageKeyHost, (void), {
+    if (typeof navigator === 'undefined') {
+        return 0;
+    }
+    const data = navigator.userAgentData;
+    const chromium = data && data.brands.some(b => b.brand === 'Chromium') ? 8 : 0;
+    const name = (data && data.platform) || navigator.platform || "";
+    const agent = navigator.userAgent || "";
+    const touch = navigator.maxTouchPoints > 1;
+    const system = /Android/.test(name) || /Android/.test(agent) ? 4
+                 : /iPhone|iPad|iPod|iOS/.test(name) || (/Mac/.test(name) && touch) ? 3
+                 : /Mac/.test(name) ? 2
+                 : /Win/.test(name) ? 1
+                 : /Linux|CrOS|Chrome OS|X11/.test(name) ? 5 : 0;
+    return chromium | system;
+});
+// clang-format on
+
+#define KEY_HOST_SYSTEM   7u
+#define KEY_HOST_CHROMIUM 8u
+
+uint8_t mwinWebReadKeyHost(void)
+{
+    return (uint8_t)mwinPageKeyHost();
+}
+
+mwinKeyReach mwinWebKeyReach(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers)
+{
+    static const mwinKeyRules* const systems[] = {
+        nullptr,          &mwinKeyRulesWindows, &mwinKeyRulesMacos,
+        &mwinKeyRulesIos, &mwinKeyRulesAndroid, &mwinKeyRulesLinux,
+    };
+    const mwinWebPlatform* platform = context->backendData;
+    uint8_t host = platform->keyHost;
+    mwinKeyReach reach = mwinFindKeyReach((host & KEY_HOST_CHROMIUM) != 0 ? &mwinKeyRulesChromium
+                                                                          : &mwinKeyRulesBrowser,
+                                          code, modifiers);
+    uint32_t system = host & KEY_HOST_SYSTEM;
+    if (system < sizeof(systems) / sizeof(systems[0]) && systems[system] != nullptr)
+    {
+        mwinKeyReach kept = mwinFindKeyReach(systems[system], code, modifiers);
+        reach = kept > reach ? kept : reach;
+    }
+    return reach;
 }

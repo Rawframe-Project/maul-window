@@ -11,6 +11,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
+#include "key_reach.h"
 #include "x11.h"
 #include "x11_api.h"
 #include "x11_clipboard.h"
@@ -439,4 +440,5 @@ const mwinBackendOps mwinX11Backend = {
 #else
     nullptr,
 #endif
+    mwinLinuxKeyReach,
 };

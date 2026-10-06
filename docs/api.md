@@ -239,6 +239,11 @@ MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyboardLayout(const mwinContext* cont
 ```
 Reads the name of the current keyboard layout, as the platform gives it, for showing which layout key labels come from.  @param context    The context. @param buffer     Receives the name in UTF-8, not NUL-terminated. May be NULL when capacity is 0. @param capacity   The bytes buffer holds. @param lengthOut  Receives the name's length in bytes. @return `mwin_success`; `mwin_errorCapacity` when the name does not fit (the bytes that fit are written); `mwin_errorInvalid` for a NULL argument. @par Thread safety Main thread only.
 
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyReach(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers, mwinKeyReach* reachOut);
+```
+Tells whether a chord reaches the program on the platform the context runs on, for a rebinding UI to refuse a chord that never arrives and warn about one the platform may take: Ctrl+W in Chromium, Alt+Tab on Windows and Command+Tab on Apple's systems never arrive; the desktop's configurable shortcuts are uncertain. The answer is the library's knowledge of the platform, not a promise: a desktop may keep chords nothing lists.  @param context    The context. @param code       The key. @param modifiers  The modifiers held with it; the lock bits are ignored. @param reachOut   Receives the answer. @return `mwin_success`; `mwin_errorInvalid` for a NULL argument or a code that is not a key. @par Thread safety Main thread only.
+
 ## `monitor.h`
 
 Monitors. Each has an id that stays the same while it is connected; mwin_eventMonitorAdded and mwin_eventMonitorRemoved report hotplug, mwin_eventMonitorChanged a change of its facts, and a window whose monitor changes gets mwin_eventDisplayChanged. Listing the monitors gives a consistent snapshot of those connected.
@@ -410,6 +415,11 @@ MWIN_NODISCARD MWIN_API mwinResult mwinTestGamepadMotion(mwinContext* context, m
 Gives a gamepad's motion sensors a sample, at once, as the platform would; kept only while they are on.  @param context       A context of the test backend. @param gamepad       The gamepad. @param acceleration  In m/s^2, gravity included. @param rotationRate  In radians per second. @param timeNs        When it was taken, on any steady clock. @return As mwinTestRemoveGamepad, with `mwin_errorInvalid` for a NULL array. @par Thread safety Main thread only.
 
 ```c
+MWIN_NODISCARD MWIN_API mwinResult mwinTestSetKeyReach(mwinContext* context, mwinKeyCode code, mwinModifiers modifiers, mwinKeyReach reach);
+```
+Sets what mwinGetKeyReach answers for a chord on the test platform, which answers mwin_keyReachDelivered for every chord until set. Setting mwin_keyReachDelivered forgets the chord.  @param context    A context of the test backend. @param code       The key. @param modifiers  The modifiers held with it; the lock bits are ignored. @param reach      The answer. @return `mwin_success`; `mwin_errorCapacity` when 32 chords are already set; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL context, a code that is not a key or an answer out of range. @par Thread safety Main thread only.
+
+```c
 MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length);
 ```
 Puts bytes on the test platform's clipboard, at once, as another program would: they need not be UTF-8.  @param context  A context of the test backend. @param bytes    The bytes. May be NULL when length is 0. @param length   Their number. @return `mwin_success`; `mwin_errorCapacity` when the allocator has no room; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL context, or NULL bytes with a length. @par Thread safety Main thread only.
@@ -565,4 +575,4 @@ Asks for keyboard focus. Platforms may refuse to take focus from another program
 
 ---
 
-100 functions across 15 headers.
+102 functions across 15 headers.

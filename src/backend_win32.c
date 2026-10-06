@@ -9,6 +9,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
+#include "key_reach.h"
 #include "win32.h"
 #include "win32_dialog.h"
 #include "win32_drop.h"
@@ -251,4 +252,5 @@ const mwinBackendOps mwinWin32Backend = {
     nullptr,
 #endif
     nullptr,
+    mwinWindowsKeyReach,
 };

@@ -33,3 +33,4 @@ are listed in [README.md](README.md).
 | [mwin-0026](mwin-0026-android-backend.md) | The Android backend | Accepted |
 | [mwin-0027](mwin-0027-custom-cursors.md) | Cursors made from images | Accepted |
 | [mwin-0028](mwin-0028-trigger-rumble-and-motion.md) | Trigger rumble and motion | Accepted |
+| [mwin-0029](mwin-0029-clipboard-data-and-primary.md) | Clipboard data and the primary selection | Accepted |

@@ -249,6 +249,15 @@ read that completes done leaves its text for `mwinGetClipboardText`.
 Text from other programs has ill-formed UTF-8 replaced with U+FFFD, and
 text past `clipboardBytes` completes the read too large.
 
+Beside text, `mwinRequestClipboardWriteData` offers data by MIME type,
+up to four items, one of which may be the text; the bytes pass through
+as they are, so an image goes as PNG the program encodes.
+`mwinRequestClipboardReadData` asks for one type and
+`mwinGetClipboardData` copies it out; a clipboard without it completes
+the read failed. On X11 and Wayland, `mwinRequestPrimaryWrite` and
+`mwinRequestPrimaryRead` keep the selected text, pasted with the middle
+button, apart from the clipboard.
+
 While something is dragged over a window, the program hears
 `mwin_eventDragEntered`, `DragMoved` and `DragLeft`; a drop brings
 `mwin_eventDropped` instead of the leaving. Its files, as UTF-8 paths

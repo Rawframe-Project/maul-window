@@ -113,6 +113,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/allocator.c
     src/base.c
     src/clipboard.c
+    src/clipboard_data.c
     src/context.c
     src/dialog.c
     src/drop.c
@@ -204,6 +205,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(ime)
         maul_add_test(properties)
         maul_add_test(clipboard)
+        maul_add_test(clipboard_data)
         maul_add_test(drop)
         maul_add_test(services)
         maul_add_test(dialog)

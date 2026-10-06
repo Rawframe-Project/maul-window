@@ -206,6 +206,10 @@ extern "C"
         mwin_requestHitRegions = 22,
         mwin_requestAccessibilityRoot = 23,
         mwin_requestCursorImage = 24,
+        mwin_requestClipboardWriteData = 25,
+        mwin_requestClipboardReadData = 26,
+        mwin_requestPrimaryWrite = 27,
+        mwin_requestPrimaryRead = 28,
     };
 
     // How a request ended.

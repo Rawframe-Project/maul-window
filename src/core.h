@@ -224,11 +224,20 @@ struct mwinContext
     char* locales;
     uint16_t localeLength;
     // The text last written to the clipboard and the text the last read
-    // found, each in a block of its own length from the allocator.
+    // found, each in a block of its own length from the allocator; the
+    // data last written and the data the last data read found; the
+    // primary selection's text written and found, likewise.
     char* clipboardOffer;
     uint32_t clipboardOfferLength;
     char* clipboardFound;
     uint32_t clipboardFoundLength;
+    struct mwinClipboardCopy* clipboardData;
+    uint8_t* clipboardDataFound;
+    uint32_t clipboardDataFoundLength;
+    char* primaryOffer;
+    uint32_t primaryOfferLength;
+    char* primaryFound;
+    uint32_t primaryFoundLength;
     // The drop being gathered, and the last one delivered with its
     // number.
     mwinDropPayload dropping;
@@ -350,6 +359,12 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
 // too large, or failed when the allocator has no room.
 mwinOutcome mwinTakeClipboardText(mwinContext* context, const char* bytes, size_t length);
 mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length);
+
+// Holds what a data read or a primary selection read found, as
+// mwinTakeClipboardText does (clipboard_data.c): data as it is, the
+// primary selection's text repaired.
+mwinOutcome mwinTakeClipboardData(mwinContext* context, const void* bytes, size_t length);
+mwinOutcome mwinTakePrimaryText(mwinContext* context, const char* bytes, size_t length);
 
 // Frees the clipboard's text; the context's end calls it.
 void mwinReleaseClipboard(mwinContext* context);

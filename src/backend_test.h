@@ -12,7 +12,7 @@
 
 #include "maul-window/services.h"
 
-#define MWIN_TEST_KINDS (mwin_requestCursorImage + 1)
+#define MWIN_TEST_KINDS (mwin_requestPrimaryRead + 1)
 
 // The bytes of the paths a dialog chooses, and of the last dialog's
 // description.
@@ -81,6 +81,11 @@ typedef struct mwinTestPlatform
     void* clipboard;
     size_t clipboardBytes;
     bool utf16;
+    // Its data, a copy of the core's block of the same form
+    // (clipboard_data.h), or NULL; its primary selection's bytes.
+    struct mwinClipboardCopy* data;
+    char* primary;
+    size_t primaryBytes;
     // A drop gathered in the context waits for its report.
     bool dropWaiting;
     // The last address opened and path revealed.
@@ -110,7 +115,8 @@ mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* even
 
 // Uses the clipboard as a platform would: a write replaces its text, a
 // read takes it.
-mwinOutcome mwinTestUseClipboard(mwinContext* context, mwinRequestKind kind);
+// Carries out a clipboard or primary selection request: its outcome.
+mwinOutcome mwinTestUseClipboard(mwinContext* context, const mwinRequest* request);
 
 // Opens an address or reveals a path as a platform would: it keeps it.
 void mwinTestOpen(mwinContext* context, const mwinRequest* request);

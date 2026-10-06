@@ -363,6 +363,65 @@ extern "C"
                                                             char* buffer, size_t capacity,
                                                             size_t* lengthOut);
 
+    /// Puts data of one MIME type on the test platform's clipboard, at
+    /// once, as another program would: its text goes.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param mime        The type, 1 to MWIN_CLIPBOARD_MIME bytes, taken
+    ///                    as it is.
+    /// @param mimeLength  Its bytes.
+    /// @param bytes       The data. May be NULL when length is 0.
+    /// @param length      Its bytes.
+    /// @return As mwinTestSetClipboard.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboardData(mwinContext* context,
+                                                                const char* mime, size_t mimeLength,
+                                                                const void* bytes, size_t length);
+
+    /// Reads the test platform's clipboard data of a MIME type, as the
+    /// program last wrote it or mwinTestSetClipboardData put it there.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param mime        The type, as written.
+    /// @param mimeLength  Its bytes.
+    /// @param buffer      Receives the bytes. May be NULL when capacity is
+    ///                    0.
+    /// @param capacity    The bytes buffer holds.
+    /// @param lengthOut   Receives their number.
+    /// @return As mwinTestGetClipboard, with `mwin_errorInvalid` for a
+    ///         type the clipboard does not hold.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetClipboardData(const mwinContext* context,
+                                                                const char* mime, size_t mimeLength,
+                                                                void* buffer, size_t capacity,
+                                                                size_t* lengthOut);
+
+    /// Puts bytes in the test platform's primary selection, at once, as
+    /// another program would: they need not be UTF-8.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param bytes    The bytes. May be NULL when length is 0.
+    /// @param length   Their number.
+    /// @return As mwinTestSetClipboard.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestSetPrimary(mwinContext* context, const char* bytes,
+                                                          size_t length);
+
+    /// Reads the test platform's primary selection as bytes.
+    ///
+    /// @param context    A context of the test backend.
+    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes buffer holds.
+    /// @param lengthOut  Receives their number.
+    /// @return As mwinTestGetClipboard.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetPrimary(const mwinContext* context, char* buffer,
+                                                          size_t capacity, size_t* lengthOut);
+
     /// Drops files and text on a window of the test platform: gathered at
     /// once, delivered in order with the reports at the next pump. The
     /// drag's own records are reported with mwinTestPost.

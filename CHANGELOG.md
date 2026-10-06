@@ -36,6 +36,15 @@ format.
   and later to pads with an accelerometer and a gyroscope; the test
   backend gives both.
 
+- Clipboard data by MIME type and the primary selection (mwin-0029):
+  `mwinRequestClipboardWriteData` offers up to four typed items, one of
+  them text, their bytes passed through unconverted;
+  `mwinRequestClipboardReadData` and `mwinGetClipboardData` read one
+  type back; `mwinRequestPrimaryWrite`, `mwinRequestPrimaryRead` and
+  `mwinGetPrimaryText` keep the selected text apart from the clipboard.
+  The test backend serves them; the others answer
+  `mwin_outcomeUnsupported` for now.
+
 ### Fixed
 
 - `MWIN_NODISCARD` is `[[nodiscard]]` under MSVC's C++17 compiler too,

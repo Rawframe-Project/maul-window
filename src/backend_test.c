@@ -318,7 +318,11 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     }
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardRead:
-        return mwinTestUseClipboard(context, request->kind);
+    case mwin_requestClipboardWriteData:
+    case mwin_requestClipboardReadData:
+    case mwin_requestPrimaryWrite:
+    case mwin_requestPrimaryRead:
+        return mwinTestUseClipboard(context, request);
     case mwin_requestOpenUrl:
     case mwin_requestRevealFile:
         mwinTestOpen(context, request);

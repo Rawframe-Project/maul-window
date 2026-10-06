@@ -58,6 +58,7 @@ static void TestWindows(void)
 {
     const mwinKeyRules* rules = &mwinKeyRulesWindows;
     CHECK(Is(rules, mwin_codeDelete, control | alt, mwin_keyReachNever) &&
+              Is(rules, mwin_codeDelete, control | alt | shift, mwin_keyReachNever) &&
               Is(rules, mwin_codeTab, alt, mwin_keyReachNever) &&
               Is(rules, mwin_codeTab, alt | shift, mwin_keyReachNever) &&
               Is(rules, mwin_codeEscape, control | shift, mwin_keyReachNever) &&
@@ -79,6 +80,7 @@ static void TestWindows(void)
 static void TestApple(void)
 {
     CHECK(Is(&mwinKeyRulesMacos, mwin_codeTab, meta, mwin_keyReachNever) &&
+              Is(&mwinKeyRulesMacos, mwin_codeTab, meta | shift, mwin_keyReachNever) &&
               Is(&mwinKeyRulesMacos, mwin_codeEscape, meta | alt, mwin_keyReachNever),
           "macOS: the switcher and Force Quit never");
     CHECK(Is(&mwinKeyRulesMacos, mwin_codeSpace, meta, mwin_keyReachUncertain) &&

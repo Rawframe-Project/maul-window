@@ -233,6 +233,8 @@ bool mwinMacIsMenu(const mwinMacPlatform* platform, uint32_t slot);
 // screen, or of its owner's content for a popup (macos_window.m).
 void mwinMacPlace(mwinMacPlatform* platform, uint32_t slot, mwinPosition position);
 
+struct mwinIconCopyImage;
+
 // An icon request's outcome: the application's icon (macos_icon.m);
 // and an image of an icon's or a cursor's as a representation of a
 // size in points, autoreleased, or nil.

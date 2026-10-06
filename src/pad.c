@@ -62,6 +62,8 @@ int32_t mwinAddGamepad(mwinContext* context, const mwinGamepadInfo* info, uint64
             gamepad->generation += 1;
             gamepad->arrival = context->arrivals++;
             gamepad->state = (mwinGamepadState){0};
+            gamepad->motionOn = false;
+            gamepad->motion = (mwinGamepadMotion){0};
             Store(gamepad, info);
             PostGlobal(context, i, mwin_eventGamepadAdded, timeNs);
             return (int32_t)i;
@@ -124,4 +126,29 @@ void mwinPostGamepadAxis(mwinContext* context, uint32_t slot, uint8_t axis, floa
     event.data.gamepadAxis =
         (mwinGamepadAxisEvent){mwinGamepadIdOf(context, slot), axis, !gamepad->info.mapped, value};
     mwinPostGamepadRecord(context, &event);
+}
+
+// A sample apart from the one before by more than this is after a gap
+// (the sensors paused, the link dropped): it turns the pad only by its
+// rate over this long.
+#define MOTION_GAP_NS 100000000ull
+
+void mwinPostGamepadMotion(mwinContext* context, uint32_t slot, const float acceleration[3],
+                           const float rotationRate[3], uint64_t timeNs)
+{
+    mwinGamepad* gamepad = &context->gamepads[slot];
+    if (!gamepad->motionOn)
+    {
+        return;
+    }
+    mwinGamepadMotion* motion = &gamepad->motion;
+    uint64_t since = motion->timeNs != 0 && timeNs > motion->timeNs ? timeNs - motion->timeNs : 0;
+    float seconds = (float)(since < MOTION_GAP_NS ? since : MOTION_GAP_NS) * 1e-9f;
+    for (int i = 0; i < 3; i++)
+    {
+        motion->acceleration[i] = acceleration[i];
+        motion->rotationRate[i] = rotationRate[i];
+        motion->rotation[i] += rotationRate[i] * seconds;
+    }
+    motion->timeNs = timeNs;
 }

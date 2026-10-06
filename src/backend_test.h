@@ -42,6 +42,16 @@ typedef struct mwinTestRumble
     uint32_t count;
 } mwinTestRumble;
 
+// What a gamepad was given: its motors' last rumble, its triggers'
+// (low the left, high the right), and whether its motion sensors are
+// on.
+typedef struct mwinTestPad
+{
+    mwinTestRumble rumble;
+    mwinTestRumble triggers;
+    bool motion;
+} mwinTestPad;
+
 // The cursor made from images a window shows, with the image it took;
 // a zero id while it shows a shape.
 typedef struct mwinTestCursor
@@ -54,7 +64,7 @@ typedef struct mwinTestPlatform
 {
     mwinTestPending* pending;
     // One per gamepad slot.
-    mwinTestRumble* rumbles;
+    mwinTestPad* pads;
     // One per window slot.
     mwinTestCursor* cursors;
     uint32_t pendingCount;

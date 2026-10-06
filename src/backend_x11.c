@@ -429,4 +429,6 @@ const mwinBackendOps mwinX11Backend = {
     NativeHandles,
     Rumble,
     mwinX11ReleaseCursor,
+    nullptr,
+    nullptr,
 };

@@ -5,7 +5,9 @@
 // no window, facts with raw counts kept to what the state holds, a list
 // in the order they came, mapped and raw buttons and axes posted only
 // when they change, the state,
-// changes merged per gamepad, rumble, ids stale after a disconnect,
+// changes merged per gamepad, rumble, trigger rumble apart from it,
+// motion off until asked for with its angle summed over every sample
+// and started anew by each read, ids stale after a disconnect,
 // button records lost to a full ring answered by a reset, axis records
 // merged, and the gamepad limit.
 
@@ -24,7 +26,7 @@ static mwinGamepadInfo Info(const char* name, bool mapped)
     info.mapped = mapped;
     info.rawButtons = mapped ? 0 : 40;
     info.rawAxes = mapped ? 0 : 3;
-    info.capabilities = mapped ? mwin_padRumble : 0;
+    info.capabilities = mapped ? mwin_padRumble | mwin_padTriggerRumble | mwin_padMotion : 0;
     info.battery = -1;
     return info;
 }
@@ -123,6 +125,69 @@ static void Rumble(mwinContext* context)
     CHECK(mwinSetGamepadRumble(context, s_pads[0], 1.5f, 0.5f, 100) == mwin_errorInvalid &&
               mwinSetGamepadRumble(context, s_pads[0], NAN, 0.5f, 100) == mwin_errorInvalid,
           "strengths from 0 to 1");
+    CHECK(mwinSetGamepadTriggerRumble(context, s_pads[0], 0.75f, 0.0f, 200) == mwin_success &&
+              mwinTestGetTriggerRumble(context, s_pads[0], &low, &high, &duration, &count) ==
+                  mwin_success &&
+              low == 0.75f && high == 0.0f && duration == 200 && count == 1,
+          "trigger rumble");
+    CHECK(mwinTestGetRumble(context, s_pads[0], &low, &high, &duration, &count) == mwin_success &&
+              low == 1.0f && count == 2,
+          "apart from the motors' rumble");
+    CHECK(mwinSetGamepadTriggerRumble(context, s_pads[1], 0.5f, 0.5f, 100) ==
+                  mwin_errorUnsupported &&
+              mwinSetGamepadTriggerRumble(context, s_pads[0], -0.1f, 0.5f, 100) ==
+                  mwin_errorInvalid &&
+              mwinSetGamepadTriggerRumble(nullptr, s_pads[0], 0.5f, 0.5f, 100) == mwin_errorInvalid,
+          "no trigger rumble without trigger motors; strengths from 0 to 1");
+}
+
+static bool Near(float a, float b)
+{
+    return fabsf(a - b) < 1e-5f;
+}
+
+static void Motion(mwinContext* context)
+{
+    const float still[3] = {0.0f, 9.80665f, 0.0f};
+    const float turning[3] = {1.0f, -2.0f, 0.5f};
+    mwinGamepadMotion motion;
+    bool on = true;
+    CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 1000) == mwin_success &&
+              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+              motion.timeNs == 0 && motion.rotation[1] == 0.0f &&
+              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && !on,
+          "motion off when connected: samples left out");
+    CHECK(mwinSetGamepadMotion(context, s_pads[0], true) == mwin_success &&
+              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && on,
+          "motion turned on");
+    // Four samples 10 ms apart: the first only starts the clock.
+    for (uint64_t i = 0; i < 4; i++)
+    {
+        CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 5000000 + i * 10000000) ==
+                  mwin_success,
+              "a sample");
+    }
+    CHECK(mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+              motion.acceleration[1] == 9.80665f && motion.rotationRate[1] == -2.0f &&
+              Near(motion.rotation[0], 0.03f) && Near(motion.rotation[1], -0.06f) &&
+              Near(motion.rotation[2], 0.015f) && motion.timeNs == 35000000,
+          "the latest sample, and the angle summed over 30 ms");
+    // A second later: a gap, which turns the pad by 100 ms of rate only.
+    CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 1035000000) == mwin_success &&
+              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+              Near(motion.rotation[0], 0.1f) && motion.timeNs == 1035000000,
+          "each read starts the angle anew; a gap counts 100 ms");
+    CHECK(mwinSetGamepadMotion(context, s_pads[0], false) == mwin_success &&
+              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+              motion.timeNs == 0 && motion.acceleration[1] == 0.0f &&
+              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && !on,
+          "turned off: all zero");
+    CHECK(mwinSetGamepadMotion(context, s_pads[1], true) == mwin_errorUnsupported &&
+              mwinGetGamepadMotion(context, s_pads[1], &motion) == mwin_errorUnsupported &&
+              mwinGetGamepadMotion(context, s_pads[0], nullptr) == mwin_errorInvalid &&
+              mwinSetGamepadMotion(nullptr, s_pads[0], true) == mwin_errorInvalid &&
+              mwinTestGamepadMotion(context, s_pads[0], nullptr, turning, 0) == mwin_errorInvalid,
+          "no motion without sensors; NULL refused");
 }
 
 static void HotplugStep(Program* program, mwinContext* context, int step)
@@ -152,6 +217,7 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
     {
         CheckPressed(program, context);
         Rumble(context);
+        Motion(context);
         mwinGamepadInfo charged = Info("Pad \xE2\x9C\x93", true);
         charged.battery = 50;
         CHECK(mwinTestChangeGamepad(context, s_pads[0], &charged) == mwin_success &&

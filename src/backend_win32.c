@@ -223,6 +223,15 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 #endif
 }
 
+#ifdef MAUL_WINDOW_GAMEPAD
+static mwinResult TriggerRumble(mwinContext* context, uint32_t slot, float left, float right,
+                                uint32_t durationMs)
+{
+    return mwinWin32PadsTriggerRumble(&PlatformOf(context)->pads, slot, left, right, durationMs,
+                                      mwinWin32Now());
+}
+#endif
+
 const mwinBackendOps mwinWin32Backend = {
     Start,
     Stop,
@@ -236,4 +245,10 @@ const mwinBackendOps mwinWin32Backend = {
     NativeHandles,
     Rumble,
     mwinWin32ReleaseCursor,
+#ifdef MAUL_WINDOW_GAMEPAD
+    TriggerRumble,
+#else
+    nullptr,
+#endif
+    nullptr,
 };

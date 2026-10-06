@@ -282,4 +282,6 @@ const mwinBackendOps mwinMacBackend = {
     NativeHandles,
     Rumble,
     mwinMacReleaseCursor,
+    nullptr,
+    nullptr,
 };

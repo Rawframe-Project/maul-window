@@ -21,6 +21,15 @@ format.
   with a representation per image; Android as a `PointerIcon`.
 - Android serves cursor shape requests, as the system's `PointerIcon`
   of each shape.
+- Trigger rumble and motion as optional gamepad capabilities
+  (mwin-0028): `mwin_padTriggerRumble` and
+  `mwinSetGamepadTriggerRumble` run the triggers' motors apart from the
+  grips'; `mwin_padMotion`, `mwinSetGamepadMotion` and
+  `mwinGetGamepadMotion` read the latest acceleration and rotation rate
+  and the angle turned since the last read, summed over every sample.
+  Windows.Gaming.Input grants trigger rumble to Microsoft's pads from
+  the Xbox One on, and the web to pads whose actuator has
+  `trigger-rumble`; the test backend gives both.
 
 ### Fixed
 

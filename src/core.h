@@ -170,6 +170,9 @@ typedef struct mwinGamepad
     uint64_t arrival;
     mwinGamepadInfo info;
     mwinGamepadState state;
+    // Its motion sensors are on, and their motion since the last read.
+    bool motionOn;
+    mwinGamepadMotion motion;
 } mwinGamepad;
 
 // The rings of the gamepads' records: buttons, and axes.
@@ -303,6 +306,11 @@ void mwinPostGamepadButton(mwinContext* context, uint32_t slot, uint8_t button, 
                            uint64_t timeNs);
 void mwinPostGamepadAxis(mwinContext* context, uint32_t slot, uint8_t axis, float value,
                          uint64_t timeNs);
+// A sample of a gamepad's motion sensors, kept while they are on, in
+// the contract's units and frame, at a time on any steady clock the
+// backend keeps for the gamepad.
+void mwinPostGamepadMotion(mwinContext* context, uint32_t slot, const float acceleration[3],
+                           const float rotationRate[3], uint64_t timeNs);
 mwinGamepadId mwinGamepadIdOf(const mwinContext* context, uint32_t slot);
 int32_t mwinFindGamepad(const mwinContext* context, mwinGamepadId gamepad);
 void mwinReleaseGamepad(mwinContext* context, mwinGamepadId gamepad);

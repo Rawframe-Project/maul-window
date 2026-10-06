@@ -461,4 +461,6 @@ const mwinBackendOps mwinWaylandBackend = {
     NativeHandles,
     Rumble,
     mwinWaylandReleaseCursor,
+    nullptr,
+    nullptr,
 };

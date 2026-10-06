@@ -7,8 +7,10 @@
 // and products from Chrome's and Firefox's ids; their controls posted
 // when their timestamps move and not before, the standard mapping's
 // buttons, sticks and analog triggers placed, raw values kept in range;
-// dual-rumble played and reset; a pad swapped for another at its index
-// between two frames, and one gone.
+// dual-rumble played and reset; a pad with trigger-rumble given trigger
+// rumble, its grips' rumble played with the triggers' as one effect,
+// and the triggers played on alone once the grips' time ran out; a pad
+// swapped for another at its index between two frames, and one gone.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -24,6 +26,7 @@ typedef enum Phase
 {
     phaseFound,
     phaseMoved,
+    phaseTriggers,
     phaseStill,
     phaseSwapped,
     phaseDone,
@@ -34,6 +37,8 @@ typedef struct Program
     Phase phase;
     mwinGamepadId standard;
     mwinGamepadId raw;
+    mwinGamepadId triggers;
+    double triggeredMs;
     mwinEvent records[MAX_RECORDS];
     int count;
 } Program;
@@ -49,10 +54,13 @@ EM_JS(void, Install, (void), {
     const actuator = {effects: ['dual-rumble'],
         playEffect: (type, params) => { effects.push([type, params]); return Promise.resolve('complete'); },
         reset: () => { effects.push(['reset']); return Promise.resolve('complete'); }};
+    const triggers = Object.assign({}, actuator, {effects: ['dual-rumble', 'trigger-rumble']});
     const pads = [
         pad(0, 'Xbox 360 Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)', 'standard', 17,
             4, actuator),
-        pad(1, '54c-9cc-Wireless Controller', "", 3, 2, null)];
+        pad(1, '54c-9cc-Wireless Controller', "", 3, 2, null),
+        pad(2, 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)',
+            'standard', 17, 4, triggers)];
     globalThis.mwinPads = {pad, pads, effects};
     Object.defineProperty(navigator, 'getGamepads', {value: () => pads, configurable: true});
 });
@@ -81,6 +89,22 @@ EM_JS(bool, Played, (const char* expected), {
         params ? `${type} ${params.strongMagnitude} ${params.weakMagnitude} ${params.duration}`
                : type).join(';');
     return text === UTF8ToString(expected);
+});
+
+// Whether the last effect is trigger-rumble with these strengths and a
+// duration in a range; forgets the effects played.
+EM_JS(bool, LastTriggers, (float strong, float weak, float left, float right, uint32_t least,
+                           uint32_t most), {
+    const effects = globalThis.mwinPads.effects;
+    const [type, params] = effects[effects.length - 1] || [];
+    effects.length = 0;
+    return type === 'trigger-rumble' && params.strongMagnitude === strong &&
+        params.weakMagnitude === weak && params.leftTrigger === left &&
+        params.rightTrigger === right && params.duration >= least && params.duration <= most;
+});
+
+EM_JS(double, NowMs, (void), {
+    return performance.now();
 });
 
 // The standard pad disconnected and another at its index; the raw one
@@ -169,6 +193,12 @@ static void CheckFound(Program* program, mwinContext* context)
               info.rawButtons == 3 && info.rawAxes == 2 && info.vendor == 0x054c &&
               info.product == 0x09cc && info.capabilities == 0,
           "the raw pad: Firefox's id, its buttons and axes");
+    const mwinEvent* third = Find(program, mwin_eventGamepadAdded, 2);
+    program->triggers = third != nullptr ? third->data.gamepad : (mwinGamepadId){0};
+    CHECK(third != nullptr &&
+              mwinGetGamepadInfo(context, program->triggers, &info) == mwin_success &&
+              info.capabilities == (mwin_padRumble | mwin_padTriggerRumble),
+          "a pad with trigger-rumble: trigger rumble granted");
     Move();
 }
 
@@ -191,6 +221,16 @@ static void CheckMoved(Program* program, mwinContext* context)
           "dual-rumble played, then reset");
     CHECK(mwinSetGamepadRumble(context, program->raw, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
           "no rumble without an actuator");
+    CHECK(mwinSetGamepadTriggerRumble(context, pad, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
+          "no trigger rumble without trigger-rumble");
+    CHECK(mwinSetGamepadTriggerRumble(context, program->triggers, 0.25f, 0.75f, 300) ==
+                  mwin_success &&
+              LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 300, 300),
+          "trigger rumble as trigger-rumble");
+    CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 100) == mwin_success &&
+              LastTriggers(1.0f, 0.5f, 0.25f, 0.75f, 250, 300),
+          "the grips' rumble played with the triggers' as one effect");
+    program->triggeredMs = NowMs();
     Unstamped();
 }
 
@@ -203,6 +243,15 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseMoved:
         CheckMoved(program, context);
+        break;
+    case phaseTriggers:
+        // Past the grips' 100 ms, short of the triggers' 300.
+        if (NowMs() - program->triggeredMs < 150.0)
+        {
+            return;
+        }
+        CHECK(LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 100, 200),
+              "the grips' time out, the triggers played on alone");
         break;
     case phaseStill:
         CHECK(program->count == 0, "an unchanged timestamp posts nothing");

@@ -140,6 +140,21 @@ MWIN_NODISCARD MWIN_API mwinResult mwinSetGamepadRumble(mwinContext* context, mw
 ```
 Runs a gamepad's motors, the low frequency (heavy) one and the high frequency (light) one, each from 0 (still) to 1, for a time or until the next call: the latest call wins, and a duration of 0 stops them.  @param context     The context. @param gamepad     The gamepad. @param low         The low frequency motor's strength. @param high        The high frequency motor's strength. @param durationMs  How long, in milliseconds. @return `mwin_success`; `mwin_errorUnsupported` for a gamepad without mwin_padRumble; `mwin_errorPlatform` when the platform refused; `mwin_errorStale` for a gamepad no longer connected; `mwin_errorInvalid` for a NULL context or a strength outside 0 to 1. @par Thread safety Main thread only.
 
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinSetGamepadTriggerRumble(mwinContext* context, mwinGamepadId gamepad, float left, float right, uint32_t durationMs);
+```
+Runs the motors in a gamepad's triggers, each from 0 (still) to 1, for a time or until the next call, as mwinSetGamepadRumble runs the others: the latest call wins, a duration of 0 stops them, and the two calls do not touch each other's motors.  @param context     The context. @param gamepad     The gamepad. @param left        The left trigger's motor's strength. @param right       The right trigger's motor's strength. @param durationMs  How long, in milliseconds. @return As mwinSetGamepadRumble, with `mwin_errorUnsupported` for a gamepad without mwin_padTriggerRumble. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinSetGamepadMotion(mwinContext* context, mwinGamepadId gamepad, bool enabled);
+```
+Turns a gamepad's motion sensors on or off. They are off when it connects, as they cost its battery and its link; turning them either way starts its motion anew, all zero.  @param context  The context. @param gamepad  The gamepad. @param enabled  true to turn them on. @return `mwin_success`; `mwin_errorUnsupported` for a gamepad without mwin_padMotion; `mwin_errorPlatform` when the platform refused; `mwin_errorStale` for a gamepad no longer connected; `mwin_errorInvalid` for a NULL context. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinGetGamepadMotion(mwinContext* context, mwinGamepadId gamepad, mwinGamepadMotion* motionOut);
+```
+Reads a gamepad's motion and starts the angle turned anew: the latest acceleration and rotation rate, and the angle turned since the last read. All zero while its sensors are off or before their first sample.  @param context    The context. @param gamepad    The gamepad. @param motionOut  Receives its motion. @return `mwin_success`; `mwin_errorUnsupported` for a gamepad without mwin_padMotion; `mwin_errorStale` for a gamepad no longer connected; `mwin_errorInvalid` for a NULL argument. @par Thread safety Main thread only.
+
 ## `input.h`
 
 Keyboard, mouse, touch and pen. A key has two names: its code, the physical key by its place on a keyboard (the USB HID usage, so "the key right of Tab" is mwin_codeKeyQ on every layout), and its key, what the current layout makes of it. Text is not keys: typed characters arrive as mwin_eventTextInput, which also carries what an input method composed. The cursor's position arrives as mwin_eventCursorMoved in the window's logical units; relative motion from the device arrives separately as mwin_eventRawPointerDelta, unscaled, and keeps coming while the cursor is captured.
@@ -350,6 +365,21 @@ MWIN_NODISCARD MWIN_API mwinResult mwinTestGetRumble(const mwinContext* context,
 Reads the last rumble a gamepad of the test platform was given.  @param context        A context of the test backend. @param gamepad        The gamepad. @param lowOut         Receives the low frequency motor's strength. @param highOut        Receives the high frequency motor's strength. @param durationMsOut  Receives the duration. @param countOut       Receives how many rumbles it was given. @return As mwinTestChangeGamepad. @par Thread safety Main thread only.
 
 ```c
+MWIN_NODISCARD MWIN_API mwinResult mwinTestGetTriggerRumble(const mwinContext* context, mwinGamepadId gamepad, float* leftOut, float* rightOut, uint32_t* durationMsOut, uint32_t* countOut);
+```
+Reads the last trigger rumble a gamepad of the test platform was given.  @param context        A context of the test backend. @param gamepad        The gamepad. @param leftOut        Receives the left trigger's strength. @param rightOut       Receives the right trigger's strength. @param durationMsOut  Receives the duration. @param countOut       Receives how many trigger rumbles it was given. @return As mwinTestChangeGamepad. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinTestGetMotionOn(const mwinContext* context, mwinGamepadId gamepad, bool* onOut);
+```
+Reads whether the test platform was told to turn a gamepad's motion sensors on.  @param context  A context of the test backend. @param gamepad  The gamepad. @param onOut    Receives true while they are on. @return As mwinTestChangeGamepad. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinTestGamepadMotion(mwinContext* context, mwinGamepadId gamepad, const float acceleration[3], const float rotationRate[3], uint64_t timeNs);
+```
+Gives a gamepad's motion sensors a sample, at once, as the platform would; kept only while they are on.  @param context       A context of the test backend. @param gamepad       The gamepad. @param acceleration  In m/s^2, gravity included. @param rotationRate  In radians per second. @param timeNs        When it was taken, on any steady clock. @return As mwinTestRemoveGamepad, with `mwin_errorInvalid` for a NULL array. @par Thread safety Main thread only.
+
+```c
 MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length);
 ```
 Puts bytes on the test platform's clipboard, at once, as another program would: they need not be UTF-8.  @param context  A context of the test backend. @param bytes    The bytes. May be NULL when length is 0. @param length   Their number. @return `mwin_success`; `mwin_errorCapacity` when the allocator has no room; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL context, or NULL bytes with a length. @par Thread safety Main thread only.
@@ -485,4 +515,4 @@ Asks for keyboard focus. Platforms may refuse to take focus from another program
 
 ---
 
-84 functions across 15 headers.
+90 functions across 15 headers.

@@ -88,9 +88,10 @@ static bool Read(void* self, void* pad, mwinPadReading* reading)
     return true;
 }
 
-static bool Vibrate(void* self, void* pad, float low, float high)
+// The grips' motors; no pad is granted the triggers' yet.
+static bool Vibrate(void* self, void* pad, const float motors[4])
 {
-    return mwinAppleRumble(self, (id)pad, low, high);
+    return mwinAppleRumble(self, (id)pad, motors[0], motors[1]);
 }
 
 // The vendor name as UTF-8 that fits, a character never split.

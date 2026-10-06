@@ -23,12 +23,12 @@
 
 // Where the platform block's parts lie, laid out with checked
 // arithmetic: the platform, a pending answer per request slot of every
-// window, and a rumble per gamepad.
+// window, and what each gamepad was given.
 typedef struct PlatformParts
 {
     mwinLayout layout;
     size_t pending;
-    size_t rumbles;
+    size_t pads;
     size_t cursors;
 } PlatformParts;
 
@@ -43,8 +43,8 @@ static PlatformParts PartsOf(const mwinLimits* limits)
     (void)mwinLayoutAdd(&parts.layout, 1, sizeof(mwinTestPlatform), alignof(mwinTestPlatform));
     parts.pending = mwinLayoutAdd(&parts.layout, PendingCapacity(limits), sizeof(mwinTestPending),
                                   alignof(mwinTestPending));
-    parts.rumbles = mwinLayoutAdd(&parts.layout, limits->gamepads, sizeof(mwinTestRumble),
-                                  alignof(mwinTestRumble));
+    parts.pads =
+        mwinLayoutAdd(&parts.layout, limits->gamepads, sizeof(mwinTestPad), alignof(mwinTestPad));
     parts.cursors = mwinLayoutAdd(&parts.layout, limits->windows, sizeof(mwinTestCursor),
                                   alignof(mwinTestCursor));
     return parts;
@@ -70,7 +70,7 @@ static mwinResult Start(mwinContext* context)
     mwinTestPlatform* platform = (mwinTestPlatform*)block;
     platform->pending = (mwinTestPending*)(block + parts.pending);
     platform->pendingCapacity = PendingCapacity(&context->limits);
-    platform->rumbles = (mwinTestRumble*)(block + parts.rumbles);
+    platform->pads = (mwinTestPad*)(block + parts.pads);
     platform->cursors = (mwinTestCursor*)(block + parts.cursors);
     platform->scale = 1.0f;
     context->backendData = platform;
@@ -477,14 +477,30 @@ static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeH
 static mwinResult RumbleGamepad(mwinContext* context, uint32_t slot, float low, float high,
                                 uint32_t durationMs)
 {
-    mwinTestRumble* rumble = &mwinTestPlatformOf(context)->rumbles[slot];
+    mwinTestRumble* rumble = &mwinTestPlatformOf(context)->pads[slot].rumble;
     *rumble = (mwinTestRumble){low, high, durationMs, rumble->count + 1};
     return mwin_success;
 }
 
+static mwinResult RumbleTriggers(mwinContext* context, uint32_t slot, float left, float right,
+                                 uint32_t durationMs)
+{
+    mwinTestRumble* rumble = &mwinTestPlatformOf(context)->pads[slot].triggers;
+    *rumble = (mwinTestRumble){left, right, durationMs, rumble->count + 1};
+    return mwin_success;
+}
+
+static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
+{
+    mwinTestPlatformOf(context)->pads[slot].motion = enabled;
+    return mwin_success;
+}
+
 const mwinBackendOps mwinTestBackend = {
-    Start,      Stop,           Run,           CreateWindow,  DestroyWindow, Submit, Now,
-    MapKeyCode, KeyboardLayout, NativeHandles, RumbleGamepad, ReleaseCursor,
+    Start,          Stop,          Run,           CreateWindow,
+    DestroyWindow,  Submit,        Now,           MapKeyCode,
+    KeyboardLayout, NativeHandles, RumbleGamepad, ReleaseCursor,
+    RumbleTriggers, SetMotion,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
@@ -784,7 +800,7 @@ mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
     {
         return mwin_errorCapacity;
     }
-    mwinTestPlatformOf(context)->rumbles[slot] = (mwinTestRumble){0};
+    mwinTestPlatformOf(context)->pads[slot] = (mwinTestPad){0};
     *gamepadOut = mwinGamepadIdOf(context, (uint32_t)slot);
     return mwin_success;
 }
@@ -837,8 +853,10 @@ mwinResult mwinTestGamepadAxis(mwinContext* context, mwinGamepadId gamepad, uint
     return status;
 }
 
-mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, float* lowOut,
-                             float* highOut, uint32_t* durationMsOut, uint32_t* countOut)
+// Reads one of a test gamepad's rumbles: its motors' or its triggers'.
+static mwinResult GetRumble(const mwinContext* context, mwinGamepadId gamepad, bool triggers,
+                            float* lowOut, float* highOut, uint32_t* durationMsOut,
+                            uint32_t* countOut)
 {
     if (lowOut == nullptr || highOut == nullptr || durationMsOut == nullptr || countOut == nullptr)
     {
@@ -848,11 +866,55 @@ mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, 
     mwinResult status = FindTestGamepad(context, gamepad, &slot);
     if (status == mwin_success)
     {
-        const mwinTestRumble* rumble = &mwinTestPlatformOf(context)->rumbles[slot];
+        const mwinTestPad* pad = &mwinTestPlatformOf(context)->pads[slot];
+        const mwinTestRumble* rumble = triggers ? &pad->triggers : &pad->rumble;
         *lowOut = rumble->low;
         *highOut = rumble->high;
         *durationMsOut = rumble->durationMs;
         *countOut = rumble->count;
+    }
+    return status;
+}
+
+mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, float* lowOut,
+                             float* highOut, uint32_t* durationMsOut, uint32_t* countOut)
+{
+    return GetRumble(context, gamepad, false, lowOut, highOut, durationMsOut, countOut);
+}
+
+mwinResult mwinTestGetTriggerRumble(const mwinContext* context, mwinGamepadId gamepad,
+                                    float* leftOut, float* rightOut, uint32_t* durationMsOut,
+                                    uint32_t* countOut)
+{
+    return GetRumble(context, gamepad, true, leftOut, rightOut, durationMsOut, countOut);
+}
+
+mwinResult mwinTestGetMotionOn(const mwinContext* context, mwinGamepadId gamepad, bool* onOut)
+{
+    if (onOut == nullptr)
+    {
+        return mwinMisuse(context);
+    }
+    int32_t slot = -1;
+    mwinResult status = FindTestGamepad(context, gamepad, &slot);
+    if (status == mwin_success)
+    {
+        *onOut = mwinTestPlatformOf(context)->pads[slot].motion;
+    }
+    return status;
+}
+
+mwinResult mwinTestGamepadMotion(mwinContext* context, mwinGamepadId gamepad,
+                                 const float acceleration[3], const float rotationRate[3],
+                                 uint64_t timeNs)
+{
+    int32_t slot = -1;
+    mwinResult status = acceleration != nullptr && rotationRate != nullptr
+                            ? FindTestGamepad(context, gamepad, &slot)
+                            : mwinMisuse(context);
+    if (status == mwin_success)
+    {
+        mwinPostGamepadMotion(context, (uint32_t)slot, acceleration, rotationRate, timeNs);
     }
     return status;
 }

@@ -269,6 +269,55 @@ extern "C"
                                                          float* highOut, uint32_t* durationMsOut,
                                                          uint32_t* countOut);
 
+    /// Reads the last trigger rumble a gamepad of the test platform was
+    /// given.
+    ///
+    /// @param context        A context of the test backend.
+    /// @param gamepad        The gamepad.
+    /// @param leftOut        Receives the left trigger's strength.
+    /// @param rightOut       Receives the right trigger's strength.
+    /// @param durationMsOut  Receives the duration.
+    /// @param countOut       Receives how many trigger rumbles it was
+    ///                       given.
+    /// @return As mwinTestChangeGamepad.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetTriggerRumble(const mwinContext* context,
+                                                                mwinGamepadId gamepad,
+                                                                float* leftOut, float* rightOut,
+                                                                uint32_t* durationMsOut,
+                                                                uint32_t* countOut);
+
+    /// Reads whether the test platform was told to turn a gamepad's motion
+    /// sensors on.
+    ///
+    /// @param context  A context of the test backend.
+    /// @param gamepad  The gamepad.
+    /// @param onOut    Receives true while they are on.
+    /// @return As mwinTestChangeGamepad.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetMotionOn(const mwinContext* context,
+                                                           mwinGamepadId gamepad, bool* onOut);
+
+    /// Gives a gamepad's motion sensors a sample, at once, as the platform
+    /// would; kept only while they are on.
+    ///
+    /// @param context       A context of the test backend.
+    /// @param gamepad       The gamepad.
+    /// @param acceleration  In m/s^2, gravity included.
+    /// @param rotationRate  In radians per second.
+    /// @param timeNs        When it was taken, on any steady clock.
+    /// @return As mwinTestRemoveGamepad, with `mwin_errorInvalid` for a
+    ///         NULL array.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGamepadMotion(mwinContext* context,
+                                                             mwinGamepadId gamepad,
+                                                             const float acceleration[3],
+                                                             const float rotationRate[3],
+                                                             uint64_t timeNs);
+
     /// Puts bytes on the test platform's clipboard, at once, as another
     /// program would: they need not be UTF-8.
     ///

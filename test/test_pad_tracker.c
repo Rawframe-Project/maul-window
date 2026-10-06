@@ -27,6 +27,8 @@ typedef struct Fake
     int8_t batteries[PADS];
     float low;
     float high;
+    float left;
+    float right;
     bool told;
     int lists;
     int references;
@@ -67,12 +69,14 @@ static bool Read(void* self, void* pad, mwinPadReading* reading)
     return true;
 }
 
-static bool Vibrate(void* self, void* pad, float low, float high)
+static bool Vibrate(void* self, void* pad, const float motors[4])
 {
     (void)self;
     (void)pad;
-    s_fake.low = low;
-    s_fake.high = high;
+    s_fake.low = motors[0];
+    s_fake.high = motors[1];
+    s_fake.left = motors[2];
+    s_fake.right = motors[3];
     return true;
 }
 
@@ -188,8 +192,20 @@ static void CheckRumble(Program* program)
           "rumble, the heavy motor low");
     mwinPadTrackerPump(&s_xbox, 1080 * MS);
     CHECK(s_fake.low == 1.0f, "still running before its time");
+    CHECK(mwinPadTrackerTriggerRumble(&s_xbox, slot, 0.25f, 0.75f, 200, 1090 * MS) ==
+                  mwin_success &&
+              s_fake.left == 0.25f && s_fake.right == 0.75f && s_fake.low == 1.0f,
+          "the triggers' motors with the grips' still running");
     mwinPadTrackerPump(&s_xbox, 1140 * MS);
-    CHECK(s_fake.low == 0.0f && s_fake.high == 0.0f, "stopped when its time runs out");
+    CHECK(s_fake.low == 0.0f && s_fake.high == 0.0f && s_fake.right == 0.75f,
+          "the grips stop when their time runs out, the triggers run on");
+    mwinPadTrackerPump(&s_xbox, 1300 * MS);
+    CHECK(s_fake.left == 0.0f && s_fake.right == 0.0f, "then the triggers stop");
+    CHECK(mwinPadTrackerTriggerRumble(&s_xbox, slot, 0.5f, 0.5f, 0, 1300 * MS) == mwin_success &&
+              s_fake.left == 0.0f &&
+              mwinPadTrackerTriggerRumble(&s_xbox, slot + 1, 0.5f, 0.5f, 100, 1300 * MS) ==
+                  mwin_errorPlatform,
+          "a duration of 0 stops them; a slot it does not own is refused");
 }
 
 // Five more pads: the one the runtime names is found at once, the rest

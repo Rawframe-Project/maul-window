@@ -392,7 +392,7 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
                          uint32_t durationMs)
 {
 #ifdef MAUL_WINDOW_GAMEPAD
-    return mwinWebPadsRumble(&PlatformOf(context)->pads, slot, low, high, durationMs);
+    return mwinWebPadsRumble(&PlatformOf(context)->pads, slot, low, high, durationMs, NowNs());
 #else
     (void)context;
     (void)slot;
@@ -402,6 +402,15 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
     return mwin_errorUnsupported;
 #endif
 }
+
+#ifdef MAUL_WINDOW_GAMEPAD
+static mwinResult TriggerRumble(mwinContext* context, uint32_t slot, float left, float right,
+                                uint32_t durationMs)
+{
+    return mwinWebPadsTriggerRumble(&PlatformOf(context)->pads, slot, left, right, durationMs,
+                                    NowNs());
+}
+#endif
 
 const mwinBackendOps mwinWebBackend = {
     Start,
@@ -416,4 +425,10 @@ const mwinBackendOps mwinWebBackend = {
     NativeHandles,
     Rumble,
     mwinWebReleaseCursor,
+#ifdef MAUL_WINDOW_GAMEPAD
+    TriggerRumble,
+#else
+    nullptr,
+#endif
+    nullptr,
 };

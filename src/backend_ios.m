@@ -412,7 +412,18 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinIOSBackend = {
-    Start,         Stop,    Run,        mwinIOSCreateWindow, mwinIOSDestroyWindow,
-    mwinIOSSubmit, Now,     MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,        nullptr,
+    Start,
+    Stop,
+    Run,
+    mwinIOSCreateWindow,
+    mwinIOSDestroyWindow,
+    mwinIOSSubmit,
+    Now,
+    MapKeyCode,
+    KeyboardLayout,
+    NativeHandles,
+    Rumble,
+    nullptr,
+    nullptr,
+    nullptr,
 };

@@ -222,6 +222,12 @@ Any other is **raw**: numbered buttons and axes, with each hat as two
 axes. Nothing is filtered, so dead zones are the program's.
 `mwinSetGamepadRumble` drives the motors where
 `mwinGetGamepadInfo` says there are some; the latest call wins.
+`mwinSetGamepadTriggerRumble` drives the triggers' motors, on pads with
+`mwin_padTriggerRumble`, apart from the others. On pads with
+`mwin_padMotion`, `mwinSetGamepadMotion` turns the sensors on and
+`mwinGetGamepadMotion` reads the latest acceleration and rotation rate
+with the angle turned since the last read, so a program aiming with the
+gyro reads once a frame and loses no turn.
 
 On Linux gamepads are evdev devices. On Windows, Xbox pads come through
 Windows.Gaming.Input, any number of them with their names and

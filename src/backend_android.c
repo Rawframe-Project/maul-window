@@ -608,4 +608,6 @@ const mwinBackendOps mwinAndroidBackend = {
     NativeHandles,
     Rumble,
     mwinAndroidReleaseCursor,
+    nullptr,
+    nullptr,
 };

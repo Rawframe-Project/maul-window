@@ -15,7 +15,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define DEADLINE_MS 10000u
+// Generous: under wine on a loaded machine a phase has taken over 10 s.
+#define DEADLINE_MS 30000u
 
 typedef enum Phase
 {
@@ -180,6 +181,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {
+        (void)printf("timed out in phase %d\n", (int)program->phase);
         program->timedOut = true;
         return mwin_frameStop;
     }

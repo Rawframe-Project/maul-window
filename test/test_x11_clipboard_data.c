@@ -5,7 +5,8 @@
 // against another client: a data write offers each MIME type as its own
 // target beside its text, a large item in pieces, all named in TARGETS;
 // a data read while the program owns CLIPBOARD answers from its own
-// data, and fails for a type it lacks; a primary write takes PRIMARY
+// data, and fails for a type it lacks; data alone offers no text; a
+// primary write takes PRIMARY
 // apart from CLIPBOARD. Once the other client owns them, a text read and
 // a data read made together are both answered, one after the other; a
 // large item comes in pieces; PRIMARY's text is read; and a data read
@@ -43,6 +44,8 @@ typedef enum Phase
     phasePeerText,
     phaseOwnData,
     phaseOwnMissing,
+    phaseDataOnly,
+    phasePeerRefused,
     phasePrimaryWrite,
     phasePeerPrimary,
     phaseOtherBoth,
@@ -163,6 +166,7 @@ static bool Ready(Program* program, mwinContext* context)
     case phaseTargets:
     case phasePeerPieces:
     case phasePeerText:
+    case phasePeerRefused:
     case phasePeerPrimary:
         return program->peer->gotAll;
     case phaseOtherBoth:
@@ -235,7 +239,20 @@ static void AdvanceOwned(Program* program, mwinContext* context, int outcome)
         ReadData(program, context, "image/gif", &program->request);
         break;
     case phaseOwnMissing:
+    {
         CHECK(outcome == mwin_outcomeFailed, "a type the data lacks fails");
+        mwinClipboardItem item = {PNG, strlen(PNG), s_png, sizeof(s_png)};
+        CHECK(mwinRequestClipboardWriteData(context, program->window, &item, 1,
+                                            &program->request) == mwin_success,
+              "a write of data alone");
+        break;
+    }
+    case phaseDataOnly:
+        CHECK(outcome == mwin_outcomeDone, "the program owns CLIPBOARD with data alone");
+        PeerConvert(peer, peer->clipboard, peer->utf8);
+        break;
+    case phasePeerRefused:
+        CHECK(peer->refused, "data alone offers no text");
         CHECK(mwinRequestPrimaryWrite(context, program->window, "sel", 3, &program->request) ==
                   mwin_success,
               "a primary write");

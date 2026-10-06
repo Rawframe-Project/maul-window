@@ -181,7 +181,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {
-        (void)printf("timed out in phase %d\n", (int)program->phase);
+        (void)printf("timed out in phase %d: mode %d, %s (outcome %d), %gx%g at %g,%g\n",
+                     (int)program->phase, (int)program->mode,
+                     program->completed ? "a request completed" : "no request completed",
+                     (int)program->completion.outcome, (double)program->size.width,
+                     (double)program->size.height, (double)program->position.x,
+                     (double)program->position.y);
         program->timedOut = true;
         return mwin_frameStop;
     }

@@ -411,19 +411,35 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 #endif
 }
 
+#ifdef MAUL_WINDOW_GAMEPAD
+static mwinResult TriggerRumble(mwinContext* context, uint32_t slot, float left, float right,
+                                uint32_t durationMs)
+{
+    mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinPadTrackerTriggerRumble(&platform->pads.tracker, slot, left, right, durationMs,
+                                           mwinIOSNow());
+    }
+}
+
+static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
+{
+    mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinAppleSetMotion(&platform->pads, slot, enabled);
+    }
+}
+#endif
+
 const mwinBackendOps mwinIOSBackend = {
-    Start,
-    Stop,
-    Run,
-    mwinIOSCreateWindow,
-    mwinIOSDestroyWindow,
-    mwinIOSSubmit,
-    Now,
-    MapKeyCode,
-    KeyboardLayout,
-    NativeHandles,
-    Rumble,
-    nullptr,
-    nullptr,
-    nullptr,
+    Start,         Stop,      Run,        mwinIOSCreateWindow, mwinIOSDestroyWindow,
+    mwinIOSSubmit, Now,       MapKeyCode, KeyboardLayout,      NativeHandles,
+    Rumble,        nullptr,
+#ifdef MAUL_WINDOW_GAMEPAD
+    TriggerRumble, SetMotion,
+#else
+    nullptr,       nullptr,
+#endif
 };

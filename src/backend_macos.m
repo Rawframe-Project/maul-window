@@ -269,6 +269,28 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 #endif
 }
 
+#ifdef MAUL_WINDOW_GAMEPAD
+static mwinResult TriggerRumble(mwinContext* context, uint32_t slot, float left, float right,
+                                uint32_t durationMs)
+{
+    mwinMacPlatform* platform = mwinMacPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinPadTrackerTriggerRumble(&platform->pads.tracker, slot, left, right, durationMs,
+                                           mwinMacNow());
+    }
+}
+
+static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
+{
+    mwinMacPlatform* platform = mwinMacPlatformOf(context);
+    @autoreleasepool
+    {
+        return mwinAppleSetMotion(&platform->pads, slot, enabled);
+    }
+}
+#endif
+
 const mwinBackendOps mwinMacBackend = {
     Start,
     Stop,
@@ -282,6 +304,11 @@ const mwinBackendOps mwinMacBackend = {
     NativeHandles,
     Rumble,
     mwinMacReleaseCursor,
+#ifdef MAUL_WINDOW_GAMEPAD
+    TriggerRumble,
+    SetMotion,
+#else
     nullptr,
     nullptr,
+#endif
 };

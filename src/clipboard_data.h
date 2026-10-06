@@ -48,6 +48,10 @@ const mwinClipboardDataItem* mwinFindClipboardItem(const mwinContext* context, c
 bool mwinIsPlainText(const char* mime, size_t length);
 bool mwinSameMime(const char* a, size_t aLength, const char* b, size_t bLength);
 
+// Whether the clipboard offers text: a write gave it text, or gave it no
+// data. An empty text beside data is not offered.
+bool mwinOffersClipboardText(const mwinContext* context);
+
 // Frees the data written, as a text write replaces it.
 void mwinReleaseClipboardData(mwinContext* context);
 

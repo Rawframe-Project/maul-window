@@ -127,13 +127,10 @@ static int OwnedSelection(const mwinX11Platform* platform, xcb_atom_t atom)
     return -1;
 }
 
-// Whether a selection offers text: the primary selection always, the
-// clipboard when a write gave it text or gave it no data. An empty text
-// beside data is not offered.
+// Whether a selection offers text: the primary selection always.
 static bool OffersText(const mwinContext* context, int selection)
 {
-    return selection == mwin_x11Primary || context->clipboardData == nullptr ||
-           context->clipboardOfferLength > 0;
+    return selection == mwin_x11Primary || mwinOffersClipboardText(context);
 }
 
 // The bytes a selection serves: its text (item -1) or an item of the

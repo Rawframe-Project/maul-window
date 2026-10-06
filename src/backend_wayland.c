@@ -155,6 +155,11 @@ static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name, const ch
         platform->idleInhibits = Bind(platform, name, &zwp_idle_inhibit_manager_v1_interface,
                                       version, IDLE_INHIBIT_VERSION);
     }
+    else if (strcmp(interface, zwp_primary_selection_device_manager_v1_interface.name) == 0 &&
+             platform->clipboard.primaryManager == nullptr)
+    {
+        mwinWaylandBindPrimaryManager(platform, name, version);
+    }
     else if (strcmp(interface, xdg_toplevel_icon_manager_v1_interface.name) == 0)
     {
         platform->toplevelIcons = Bind(platform, name, &xdg_toplevel_icon_manager_v1_interface,
@@ -245,6 +250,8 @@ static void Disconnect(mwinWaylandPlatform* platform)
     {
         mwinWaylandReleaseSeat(platform);
         DestroyGlobal(api, platform->clipboard.manager, -1);
+        DestroyGlobal(api, platform->clipboard.primaryManager,
+                      ZWP_PRIMARY_SELECTION_DEVICE_MANAGER_V1_DESTROY);
         mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
         DestroyGlobal(api, platform->shm, -1);

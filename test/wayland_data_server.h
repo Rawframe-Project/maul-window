@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The data device of the test compositor (wayland_server.h), for the
-// clipboard tests: the selection the client sets, with the text types
-// its source offers and the serial it quotes; text another client
-// would offer, which the compositor writes into the client's pipe from
+// clipboard tests: the selection the client sets, with the types its
+// source offers and the serial it quotes; bytes another client would
+// offer as types of its own, which the compositor writes into the client's pipe from
 // a thread of its own; and the client's selection read as another
 // client would, through a pipe the test reads without waiting; and a
 // drag another client makes over the last surface, with its files and
@@ -19,8 +19,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 
-#define DATA_TYPES      4
-#define DATA_TYPE_BYTES 40
+#define DATA_TYPES      8
+#define DATA_TYPE_BYTES 64
 
 typedef struct DataServer DataServer;
 
@@ -34,7 +34,7 @@ typedef struct DataDrag
     bool finished;
 } DataDrag;
 
-// The text types a source offers.
+// The types a source offers.
 typedef struct DataTypes
 {
     DataServer* data;
@@ -352,15 +352,16 @@ static inline DataDrag DataDragState(DataServer* data)
     return drag;
 }
 
-// Another client takes the selection with this text, the client's
-// source cancelled; NULL takes it with nothing.
-static inline void DataOffer(DataServer* data, const char* text, size_t length)
+// Another client takes the selection with bytes of these types, the
+// client's source cancelled; none takes it with nothing.
+static inline void DataOfferTypes(DataServer* data, const char* const* types, int count,
+                                  const char* bytes, size_t length)
 {
     Server* server = data->server;
     pthread_mutex_lock(&server->lock);
     free(data->offered);
     data->offered = malloc(length + 1);
-    memcpy(data->offered, text != nullptr ? text : "", length);
+    memcpy(data->offered, bytes != nullptr ? bytes : "", length);
     data->offeredLength = length;
     if (data->source != nullptr)
     {
@@ -368,20 +369,44 @@ static inline void DataOffer(DataServer* data, const char* text, size_t length)
         data->source = nullptr;
     }
     struct wl_resource* offer = nullptr;
-    if (text != nullptr)
+    if (count > 0)
     {
         offer = wl_resource_create(wl_resource_get_client(data->device), &wl_data_offer_interface,
                                    wl_resource_get_version(data->device), 0);
         wl_resource_set_implementation(offer, &s_dataOffer, data, nullptr);
         wl_data_device_send_data_offer(data->device, offer);
-        // The best text type among others, before a lesser one.
-        wl_data_offer_send_offer(offer, "text/html");
-        wl_data_offer_send_offer(offer, "text/plain;charset=utf-8");
-        wl_data_offer_send_offer(offer, "text/plain");
+        for (int i = 0; i < count; i++)
+        {
+            wl_data_offer_send_offer(offer, types[i]);
+        }
     }
     wl_data_device_send_selection(data->device, offer);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
+}
+
+// Another client takes the selection with this text, the best text type
+// among others before a lesser one; NULL takes it with nothing.
+static inline void DataOffer(DataServer* data, const char* text, size_t length)
+{
+    static const char* const s_textTypes[] = {"text/html", "text/plain;charset=utf-8",
+                                              "text/plain"};
+    DataOfferTypes(data, s_textTypes, text != nullptr ? 3 : 0, text, length);
+}
+
+// Whether the client's source offers a type.
+static inline bool DataSourceHas(DataServer* data, const char* type)
+{
+    pthread_mutex_lock(&data->server->lock);
+    bool has = false;
+    const DataTypes* types =
+        data->source != nullptr ? wl_resource_get_user_data(data->source) : nullptr;
+    for (int i = 0; types != nullptr && i < types->count; i++)
+    {
+        has = has || strcmp(types->types[i], type) == 0;
+    }
+    pthread_mutex_unlock(&data->server->lock);
+    return has;
 }
 
 // The client's selection: the serial it quoted, and whether its source
@@ -412,9 +437,9 @@ static inline bool DataReceived(DataServer* data, const char* type)
     return same;
 }
 
-// Asks the client for its selection's text as another client would: the
-// pipe to read it from, without waiting, or -1.
-static inline int DataRequest(DataServer* data)
+// Asks the client for its selection as a type, as another client would:
+// the pipe to read it from, without waiting, or -1.
+static inline int DataRequestAs(DataServer* data, const char* type)
 {
     int fds[2];
     if (pipe2(fds, O_CLOEXEC) != 0)
@@ -425,12 +450,18 @@ static inline int DataRequest(DataServer* data)
     pthread_mutex_lock(&data->server->lock);
     if (data->source != nullptr)
     {
-        wl_data_source_send_send(data->source, "text/plain;charset=utf-8", fds[1]);
+        wl_data_source_send_send(data->source, type, fds[1]);
         wl_display_flush_clients(data->server->display);
     }
     pthread_mutex_unlock(&data->server->lock);
     close(fds[1]);
     return fds[0];
+}
+
+// Asks the client for its selection's text.
+static inline int DataRequest(DataServer* data)
+{
+    return DataRequestAs(data, "text/plain;charset=utf-8");
 }
 
 #endif // MAUL_WINDOW_TEST_WAYLAND_DATA_SERVER_H

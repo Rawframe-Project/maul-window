@@ -128,6 +128,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/native.c
     src/pad.c
     src/queue.c
+    src/selection_reads.c
     src/services.c
     src/system.c
     src/text.c
@@ -239,6 +240,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         set_tests_properties(wayland PROPERTIES SKIP_RETURN_CODE 77)
         mwin_add_wayland_server_test(wayland_input)
         mwin_add_wayland_server_test(wayland_clipboard)
+        mwin_add_wayland_server_test(wayland_clipboard_data)
         mwin_add_wayland_server_test(wayland_drop)
         mwin_add_wayland_server_test(wayland_services)
         mwin_add_wayland_server_test(wayland_icon)

@@ -97,15 +97,17 @@ pad_map: core pad_db
 pad_tracker: core
 posix_message_box: message_box
 queue: core text
+selection_reads: clipboard_data core
 services: allocator core
 system: core
 text: core
 uri_list: core
 utf8:
-wayland: clicks core linux_pad linux_services monotonic wayland_api wayland_pipe xkb_api xkb_keyboard
+wayland: clicks core linux_pad linux_services monotonic selection_reads wayland_api wayland_pipe xkb_api xkb_keyboard
 wayland_activation: core wayland wayland_api
 wayland_api:
-wayland_clipboard: core monotonic wayland wayland_api wayland_drop wayland_pipe
+wayland_clipboard: clipboard_data core monotonic wayland wayland_api wayland_drop wayland_pipe
+wayland_clipboard_read: clipboard_data core monotonic selection_reads wayland wayland_api wayland_clipboard wayland_pipe
 wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
 wayland_pipe: allocator core
 wayland_cursor: core cursor icon wayland wayland_api
@@ -115,6 +117,7 @@ wayland_keyboard: core evdev wayland wayland_api xkb_api xkb_keyboard
 wayland_output: core wayland wayland_api
 wayland_pointer: core wayland wayland_api wayland_cursor wayland_frame
 wayland_popup: core wayland wayland_api wayland_frame
+wayland_primary: core wayland wayland_api wayland_clipboard
 wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard wayland_pointer wayland_text
 wayland_text: core wayland wayland_api
 wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_text
@@ -149,12 +152,12 @@ win32_services: core win32
 win32_system: core win32
 win32_window: chrome core win32 win32_accessibility win32_clipboard win32_dialog win32_drop win32_icon win32_ime win32_input win32_output win32_pointer win32_services win32_system
 window: core
-x11: clicks core linux_pad linux_services monotonic x11_api x11_scroll xkb_api xkb_keyboard
+x11: clicks core linux_pad linux_services monotonic selection_reads x11_api x11_scroll xkb_api xkb_keyboard
 x11_api:
 x11_scroll:
 x11_chrome: chrome core x11 x11_api
 x11_clipboard: allocator clipboard_data core monotonic x11 x11_api
-x11_clipboard_read: allocator clipboard_data core monotonic x11 x11_api x11_clipboard
+x11_clipboard_read: allocator core monotonic selection_reads x11 x11_api x11_clipboard
 x11_cursor: allocator core cursor icon x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
 x11_icon: allocator core icon x11 x11_api

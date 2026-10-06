@@ -72,6 +72,8 @@ mwin_wayland_protocol(relative-pointer-unstable-v1
     ${MWIN_PROTOCOLS_DIR}/unstable/relative-pointer/relative-pointer-unstable-v1.xml)
 mwin_wayland_protocol(text-input-unstable-v3
     ${MWIN_PROTOCOLS_DIR}/unstable/text-input/text-input-unstable-v3.xml)
+mwin_wayland_protocol(primary-selection-unstable-v1
+    ${MWIN_PROTOCOLS_DIR}/unstable/primary-selection/primary-selection-unstable-v1.xml)
 mwin_wayland_protocol(idle-inhibit-unstable-v1
     ${MWIN_PROTOCOLS_DIR}/unstable/idle-inhibit/idle-inhibit-unstable-v1.xml)
 mwin_wayland_protocol(xdg-activation-v1
@@ -96,11 +98,13 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_activation.c
     src/wayland_api.c
     src/wayland_clipboard.c
+    src/wayland_clipboard_read.c
     src/wayland_cursor.c
     src/wayland_drop.c
     src/wayland_frame.c
     src/wayland_icon.c
     src/wayland_popup.c
+    src/wayland_primary.c
     src/wayland_keyboard.c
     src/wayland_output.c
     src/wayland_pipe.c
@@ -143,6 +147,7 @@ function(mwin_add_wayland_server_test name)
                 unstable/relative-pointer/relative-pointer-unstable-v1
                 unstable/text-input/text-input-unstable-v3
                 unstable/idle-inhibit/idle-inhibit-unstable-v1
+                unstable/primary-selection/primary-selection-unstable-v1
                 unstable/xdg-decoration/xdg-decoration-unstable-v1
                 staging/xdg-activation/xdg-activation-v1
                 stable/viewporter/viewporter

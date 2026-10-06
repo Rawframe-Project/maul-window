@@ -83,6 +83,11 @@ const mwinClipboardDataItem* mwinFindClipboardItem(const mwinContext* context, c
     return nullptr;
 }
 
+bool mwinOffersClipboardText(const mwinContext* context)
+{
+    return context->clipboardData == nullptr || context->clipboardOfferLength > 0;
+}
+
 void mwinReleaseClipboardData(mwinContext* context)
 {
     if (context->clipboardData != nullptr)

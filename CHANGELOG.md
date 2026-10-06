@@ -43,8 +43,10 @@ format.
   type back; `mwinRequestPrimaryWrite`, `mwinRequestPrimaryRead` and
   `mwinGetPrimaryText` keep the selected text apart from the clipboard.
   X11 offers each type as its own target, large items in pieces
-  (INCR), and owns PRIMARY apart from CLIPBOARD; the test backend
-  serves them too, the others answer `mwin_outcomeUnsupported` for now.
+  (INCR), and owns PRIMARY apart from CLIPBOARD; Wayland offers each
+  type on its data source and keeps the primary selection through its
+  protocol where the compositor has it; the test backend serves them
+  too, the others answer `mwin_outcomeUnsupported` for now.
 
 ### Fixed
 

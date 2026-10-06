@@ -13,6 +13,7 @@
 #include "linux_pad.h"
 #include "linux_services.h"
 #include "monotonic.h"
+#include "selection_reads.h"
 #include "x11_api.h"
 #include "x11_scroll.h"
 #include "xkb_keyboard.h"
@@ -165,8 +166,7 @@ enum
 // program owns it and since when, and for CLIPBOARD the atoms of its
 // data's MIME types; the readers its text or an item goes to in pieces
 // (INCR), the selection and the item (-1 the text) each takes; and a
-// read under way, of the kind of request it answers, the target it asked
-// for (a data read's MIME type, kept), its bytes in a block of capacity
+// read under way, what it is of, its bytes in a block of capacity
 // bytes from the allocator.
 typedef struct mwinX11Clipboard
 {
@@ -187,9 +187,7 @@ typedef struct mwinX11Clipboard
     // Waiting for the owner's answer, then for its pieces.
     bool reading;
     bool incremental;
-    mwinRequestKind kind;
-    char mime[MWIN_CLIPBOARD_MIME + 1];
-    uint32_t mimeLength;
+    mwinSelectionRead read;
     uint64_t deadlineNs;
     char* buffer;
     uint32_t used;

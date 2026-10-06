@@ -647,9 +647,13 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
                                        request->value.textInput.enabled,
                                        request->value.textInput.caret);
     case mwin_requestClipboardWrite:
-        return mwinWaylandWriteClipboard(window->platform);
+    case mwin_requestClipboardWriteData:
+    case mwin_requestPrimaryWrite:
+        return mwinWaylandWriteSelection(window->platform, request->kind);
     case mwin_requestClipboardRead:
-        return mwinWaylandReadClipboard(window->platform);
+    case mwin_requestClipboardReadData:
+    case mwin_requestPrimaryRead:
+        return mwinWaylandReadSelection(window->platform, request);
     case mwin_requestOpenUrl:
         return mwinLinuxOpenUrl(&window->platform->services, window->slot, index);
     case mwin_requestRevealFile:

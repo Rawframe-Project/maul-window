@@ -21,6 +21,7 @@
 #include <fractional-scale-v1-protocol.h>
 #include <idle-inhibit-unstable-v1-protocol.h>
 #include <pointer-constraints-unstable-v1-protocol.h>
+#include <primary-selection-unstable-v1-protocol.h>
 #include <relative-pointer-unstable-v1-protocol.h>
 #include <tablet-unstable-v2-protocol.h>
 #include <text-input-unstable-v3-protocol.h>

@@ -4,7 +4,6 @@
 // The X11 clipboard's and primary selection's reads.
 
 #include "allocator.h"
-#include "clipboard_data.h"
 #include "monotonic.h"
 #include "x11_clipboard.h"
 
@@ -13,13 +12,6 @@
 
 // How long a read may take.
 #define DEADLINE_NS 5000000000u
-
-// The kinds of request a read answers, in the order waiting ones start.
-static const mwinRequestKind s_readKinds[] = {
-    mwin_requestClipboardRead,
-    mwin_requestClipboardReadData,
-    mwin_requestPrimaryRead,
-};
 
 void mwinX11EndRead(mwinX11Platform* platform)
 {
@@ -33,45 +25,6 @@ void mwinX11EndRead(mwinX11Platform* platform)
     clipboard->capacity = 0;
     clipboard->reading = false;
     clipboard->incremental = false;
-    clipboard->mimeLength = 0;
-}
-
-// What a read of a kind found, held for the program: the outcome.
-static mwinOutcome Answer(mwinContext* context, mwinRequestKind kind, const char* bytes,
-                          size_t length)
-{
-    switch (kind)
-    {
-    case mwin_requestClipboardReadData:
-        return mwinTakeClipboardData(context, bytes, length);
-    case mwin_requestPrimaryRead:
-        return mwinTakePrimaryText(context, bytes, length);
-    default:
-        return mwinTakeClipboardText(context, bytes, length);
-    }
-}
-
-// A read of what the program owns, answered from its own copy; a type
-// the data written lacks fails.
-static mwinOutcome Own(mwinContext* context, const mwinRequest* request)
-{
-    switch (request->kind)
-    {
-    case mwin_requestClipboardReadData:
-    {
-        const mwinClipboardDataItem* item =
-            mwinFindClipboardItem(context, request->value.text.bytes, request->value.text.length);
-        return item != nullptr
-                   ? mwinTakeClipboardData(
-                         context, mwinClipboardBytesOf(context->clipboardData, item), item->length)
-                   : mwin_outcomeFailed;
-    }
-    case mwin_requestPrimaryRead:
-        return mwinTakePrimaryText(context, context->primaryOffer, context->primaryOfferLength);
-    default:
-        return mwinTakeClipboardText(context, context->clipboardOffer,
-                                     context->clipboardOfferLength);
-    }
 }
 
 // The atom of a MIME type when the X server has one, NONE else: no
@@ -92,10 +45,10 @@ static xcb_atom_t Existing(const mwinX11Platform* platform, const char* name, ui
 static int Start(mwinX11Platform* platform, const mwinRequest* request)
 {
     mwinX11Clipboard* clipboard = &platform->clipboard;
-    int selection = request->kind == mwin_requestPrimaryRead ? mwin_x11Primary : mwin_x11Clipboard;
+    int selection = mwinReadsPrimary(request) ? mwin_x11Primary : mwin_x11Clipboard;
     if (clipboard->owned[selection])
     {
-        return Own(platform->context, request);
+        return mwinAnswerOwnRead(platform->context, request);
     }
     if (clipboard->reading)
     {
@@ -113,16 +66,19 @@ static int Start(mwinX11Platform* platform, const mwinRequest* request)
         {
             return mwin_outcomeFailed;
         }
-        memcpy(clipboard->mime, request->value.text.bytes, request->value.text.length + 1);
-        clipboard->mimeLength = request->value.text.length;
     }
     platform->api.convertSelection(platform->connection, clipboard->window,
                                    mwinX11SelectionAtom(platform, selection), target,
                                    platform->atoms[mwin_atomSelection], platform->inputTime);
     clipboard->reading = true;
-    clipboard->kind = request->kind;
+    mwinBeginSelectionRead(&clipboard->read, request);
     clipboard->deadlineNs = mwinMonotonicNow() + DEADLINE_NS;
     return -1;
+}
+
+static int StartFor(void* platform, const mwinRequest* request)
+{
+    return Start(platform, request);
 }
 
 int mwinX11ReadSelection(mwinX11Platform* platform, const mwinRequest* request)
@@ -130,58 +86,13 @@ int mwinX11ReadSelection(mwinX11Platform* platform, const mwinRequest* request)
     return Start(platform, request);
 }
 
-// Whether the read under way answers a request: one of its kind, and
-// for data of its type.
-static bool Answers(const mwinX11Clipboard* clipboard, const mwinRequest* request)
-{
-    return request->kind == clipboard->kind &&
-           (request->kind != mwin_requestClipboardReadData ||
-            mwinSameMime(request->value.text.bytes, request->value.text.length, clipboard->mime,
-                         clipboard->mimeLength));
-}
-
-// Starts the reads that waited, in window order, as far as one runs;
-// those answered at once are completed.
-static void StartWaiting(mwinX11Platform* platform)
-{
-    mwinContext* context = platform->context;
-    for (uint32_t slot = 0; slot < context->limits.windows && !platform->clipboard.reading; slot++)
-    {
-        const mwinWindow* window = &context->windows[slot];
-        for (size_t i = 0;
-             window->status == mwin_slotLive && i < sizeof(s_readKinds) / sizeof(s_readKinds[0]);
-             i++)
-        {
-            int32_t request =
-                mwinFindActiveRequest(window, context->limits.requestsPerWindow, s_readKinds[i]);
-            int outcome = request >= 0 ? Start(platform, &window->requests[request]) : -1;
-            if (outcome >= 0)
-            {
-                mwinComplete(context, slot, (uint32_t)request, (mwinOutcome)outcome);
-            }
-        }
-    }
-}
-
-// Answers the requests of every window the read answers, ends the read,
-// and starts the next.
+// Answers the requests the read answers, ends the read, and starts the
+// next.
 static void Finish(mwinX11Platform* platform, mwinOutcome outcome)
 {
-    mwinContext* context = platform->context;
-    for (uint32_t slot = 0; slot < context->limits.windows; slot++)
-    {
-        const mwinWindow* window = &context->windows[slot];
-        int32_t request = window->status == mwin_slotLive
-                              ? mwinFindActiveRequest(window, context->limits.requestsPerWindow,
-                                                      platform->clipboard.kind)
-                              : -1;
-        if (request >= 0 && Answers(&platform->clipboard, &window->requests[request]))
-        {
-            mwinComplete(context, slot, (uint32_t)request, outcome);
-        }
-    }
+    mwinFinishSelectionRead(platform->context, &platform->clipboard.read, outcome);
     mwinX11EndRead(platform);
-    StartWaiting(platform);
+    mwinStartWaitingReads(platform->context, StartFor, platform);
 }
 
 // Adds bytes to the read's: false, with the outcome, when they pass the
@@ -272,8 +183,8 @@ static void TakePiece(mwinX11Platform* platform, bool answer)
     else if (!clipboard->incremental || length == 0)
     {
         // The whole of it, or the empty piece that ends the pieces.
-        Finish(platform,
-               Answer(platform->context, clipboard->kind, clipboard->buffer, clipboard->used));
+        Finish(platform, mwinTakeSelectionRead(platform->context, &clipboard->read,
+                                               clipboard->buffer, clipboard->used));
     }
     mwinReleaseSystemMemory(reply);
 }
@@ -288,9 +199,7 @@ void mwinX11OnReadNotify(mwinX11Platform* platform, const xcb_selection_notify_e
     // No owner, or one without the target: empty text, or no data.
     if (notify->property == XCB_ATOM_NONE)
     {
-        Finish(platform, clipboard->kind == mwin_requestClipboardReadData
-                             ? mwin_outcomeFailed
-                             : Answer(platform->context, clipboard->kind, nullptr, 0));
+        Finish(platform, mwinMissedSelectionRead(platform->context, &clipboard->read));
     }
     else
     {

@@ -14,6 +14,7 @@
 #include "linux_pad.h"
 #include "linux_services.h"
 #include "monotonic.h"
+#include "selection_reads.h"
 #include "wayland_api.h"
 #include "wayland_pipe.h"
 #include "xkb_api.h"
@@ -236,12 +237,27 @@ typedef struct mwinWaylandText
     mwinWaylandString commit;
 } mwinWaylandText;
 
-// The most readers served the program's text at once.
+// The most readers served the program's text or data at once.
 #define MWIN_WAYLAND_SENDS 4
 
-// The clipboard: the data device, the selection another client offers
-// and the text type it has, the source while the program owns the
-// selection with the pipes of its readers, and a read under way.
+// The most bytes of MIME types kept of an offer.
+#define MWIN_WAYLAND_TYPE_BYTES 1024
+
+// The MIME types an offer has, each with a NUL after it, as many as fit;
+// those longer than a data read may ask for are left out.
+typedef struct mwinWaylandTypes
+{
+    char bytes[MWIN_WAYLAND_TYPE_BYTES];
+    uint16_t length;
+} mwinWaylandTypes;
+
+// The clipboard and the primary selection (mwin-0029). For the
+// clipboard: the data device, the newest offer and its types until the
+// selection names it, the selection another client offers and its
+// types, and the source while the program owns it. For the primary
+// selection, through its protocol: its device, offers with their best
+// text type, and source. The pipes of the readers of either source,
+// each with its item of the data (-1 the text); and a read under way.
 typedef struct mwinWaylandClipboard
 {
     struct wl_data_device_manager* manager;
@@ -252,16 +268,28 @@ typedef struct mwinWaylandClipboard
     int8_t incomingType;
     // The newest offer has files (text/uri-list).
     bool incomingFiles;
+    mwinWaylandTypes incomingTypes;
     struct wl_data_offer* selection;
     int8_t selectionType;
+    mwinWaylandTypes selectionTypes;
     struct wl_data_source* source;
+    struct zwp_primary_selection_device_manager_v1* primaryManager;
+    struct zwp_primary_selection_device_v1* primaryDevice;
+    struct zwp_primary_selection_offer_v1* primaryIncoming;
+    int8_t primaryIncomingType;
+    struct zwp_primary_selection_offer_v1* primarySelection;
+    int8_t primarySelectionType;
+    struct zwp_primary_selection_source_v1* primarySource;
     struct
     {
         int fd;
         uint32_t offset;
+        bool primary;
+        int8_t item;
     } sends[MWIN_WAYLAND_SENDS];
-    // The read's pipe, and when it fails.
+    // The read's pipe, what it is of, and when it fails.
     mwinWaylandPipe reading;
+    mwinSelectionRead read;
     uint64_t deadlineNs;
 } mwinWaylandClipboard;
 

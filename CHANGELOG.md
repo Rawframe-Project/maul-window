@@ -8,6 +8,12 @@ format.
 
 ## [Unreleased]
 
+### Fixed
+
+- `MWIN_NODISCARD` is `[[nodiscard]]` under MSVC's C++17 compiler too,
+  which keeps `__cplusplus` at 199711L without `/Zc:__cplusplus`; CI
+  compiles every public header with MSVC as C17 and C++17.
+
 ## [0.5.0] - 2026-10-01
 
 The Android backend, the whole contract on NativeActivity with the

@@ -4,7 +4,8 @@
 // The X11 backend's input methods (mwin-0030) against stand-ins for Fcitx 5
 // and IBus on a session bus of the test's own (linux_ime_fake.h), keys
 // driven through XTEST: text input enabled makes an input context and
-// gives it the focus and the caret in root coordinates; "a" taken by the
+// gives it the focus and the caret in root coordinates, and a caret
+// that only widens is told again; "a" taken by the
 // method shows a composition and no key; Return commits it as text; "b",
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away. It runs once
@@ -38,6 +39,7 @@ typedef enum Phase
     phaseCreate,
     phaseFocus,
     phaseContext,
+    phaseMoved,
     phasePreedit,
     phaseCommit,
     phasePassed,
@@ -63,6 +65,7 @@ typedef struct Program
     uint32_t preeditLength;
     int32_t preeditCaret;
     uint32_t segments;
+    mwinPreeditStyle style;
     int preedits;
     int ends;
     bool timedOut;
@@ -110,6 +113,9 @@ static void Collect(Program* program, mwinContext* context)
             program->preeditLength = event.data.preedit.length;
             program->preeditCaret = event.data.preedit.caret;
             program->segments = event.data.preedit.segmentCount;
+            program->style = event.data.preedit.segmentCount > 0
+                                 ? event.data.preedit.segments[0].style
+                                 : mwin_preeditPlain;
         }
         program->records[program->count++] = event;
     }
@@ -172,6 +178,8 @@ static bool Ready(const Program* program)
         return Has(program, mwin_eventFocusGained);
     case phaseContext:
         return s_fakeIme.made != 0 && s_fakeIme.focusIns > 0 && s_fakeIme.caret[3] == 16;
+    case phaseMoved:
+        return s_fakeIme.caret[2] == 4;
     case phasePreedit:
         return program->preedits > 0;
     case phaseCommit:
@@ -208,12 +216,19 @@ static void Advance(Program* program, mwinContext* context)
                   s_fakeIme.caret[1] == y && s_fakeIme.caret[2] == 2,
               "the caret in root coordinates");
         CHECK(s_fakeIme.capabilities != 0, "a composition the program shows asked for");
-        Press(program, KEYCODE_A);
+        mwinRect wider = s_caret;
+        wider.width = 4.0f;
+        CHECK(mwinRequestTextInput(context, program->window, true, wider, nullptr) == mwin_success,
+              "the caret widened");
         break;
     }
+    case phaseMoved:
+        Press(program, KEYCODE_A);
+        break;
     case phasePreedit:
         CHECK(program->preeditLength == 3 && memcmp(program->preedit, IME_KANA, 3) == 0 &&
-                  program->preeditCaret == 3 && program->segments > 0,
+                  program->preeditCaret == 3 && program->segments > 0 &&
+                  program->style == mwin_preeditTarget,
               "a composition, its caret and its segments");
         Press(program, KEYCODE_RETURN);
         break;
@@ -224,6 +239,7 @@ static void Advance(Program* program, mwinContext* context)
               "no key the method took");
         CHECK(s_fakeIme.keycode == (fcitx ? KEYCODE_RETURN : KEYCODE_RETURN - 8u),
               "the key's code as the framework takes it");
+        CHECK(s_fakeIme.releases > 0, "releases told as releases");
         Press(program, KEYCODE_B);
         break;
     case phasePassed:

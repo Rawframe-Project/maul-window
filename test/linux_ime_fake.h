@@ -35,6 +35,8 @@ typedef struct FakeIme
     int resets;
     int32_t caret[4];
     uint32_t keycode;
+    // Key releases the method was told of.
+    int releases;
     uint32_t capabilities;
     bool composing;
 } FakeIme;
@@ -193,6 +195,7 @@ static inline void* FakeImeKey(FakeBus* fake, void* message, bool fcitx)
     {
         release = (state & (1u << 30)) != 0;
     }
+    s_fakeIme.releases += release != 0;
     unsigned taken = keysym == 'a' || (keysym == 0xFF0D && s_fakeIme.composing);
     if (taken && !release && keysym == 'a')
     {

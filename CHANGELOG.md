@@ -8,6 +8,13 @@ format.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-06
+
+The gaps an audit of 0.6.0 against the requirements found: input
+methods on X11, the keys the platform keeps as a typed fact, monitor
+hotplug tested on the platform, and the touch keyboard on Win32, whose
+input methods are recorded as IMM32 (mwin-0032).
+
 ### Added
 
 - The touch keyboard on Win32 (mwin-0033): `mwinRequestVirtualKeyboard`
@@ -20,7 +27,6 @@ format.
   platform, uncertain or never delivered, from a table per platform;
   on the web Chromium's own chords never arrive. `mwinTestSetKeyReach`
   sets the test backend's answers.
-
 - Input methods on X11 (mwin-0030): IBus, through its portal, and
   Fcitx 5 over the session bus, Fcitx first when `XMODIFIERS` names
   it. While a focused window accepts text, keys go to the input method

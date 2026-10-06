@@ -8,8 +8,8 @@ The requirements (section 7) give gamepads to Maul Window: a standard
 location model named by where controls are, raw buttons, axes and hats
 for unknown hardware, an id per connection with its vendor, product,
 name and battery, hotplug records, no dead zones or other filtering,
-and rumble where the latest request wins. W3 makes them an optional
-component and W5 compiles the SDL_GameControllerDB mappings into
+and rumble where the latest request wins. They are an optional
+component, and the SDL_GameControllerDB mappings are compiled into
 tables. This record sets the contract; each platform's gamepads follow
 in their own changes.
 

@@ -8,8 +8,7 @@ The X11 backend turned the wheel by buttons 4 to 7, a whole click each.
 Touchpads and high-resolution wheels report finer movement only
 through the scroll valuators of XInput 2.1. The X server gives an event
 to a client in one form only, so reading valuators from XI2 motion
-means reading all pointer events of a window from XI2. Window decision
-W11 and its research note record the protocol.
+means reading all pointer events of a window from XI2.
 
 ## Decision
 

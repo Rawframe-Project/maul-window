@@ -26,10 +26,10 @@ gesture; and every browser API is JavaScript.
   inside the browser's event (below).
 - **The loop:** `mwinRun` calls init, then gives the frame to
   Emscripten's main loop on `requestAnimationFrame` and does not
-  return, as W6 allows. The frame that stops the program ends the loop,
-  calls quit and frees the context. The core's loop is split for this
-  into start, step and end, which the pumping backends run in a loop
-  of their own.
+  return, as `mwinRun` may where the platform owns the loop. The frame
+  that stops the program ends the loop, calls quit and frees the
+  context. The core's loop is split for this into start, step and end,
+  which the pumping backends run in a loop of their own.
 - **Windows:** a window is a canvas. A window def may name one of the
   page's by a CSS selector; otherwise the backend makes one of the
   def's CSS size and appends it to the body. A canvas gets an id if it
@@ -100,15 +100,15 @@ gesture; and every browser API is JavaScript.
   give clauses without a field, is Chrome's only.
 - **The lifecycle:** a hidden page (`visibilitychange`), one left for
   the back-forward cache (`pagehide`) and a frozen one (`freeze`) are
-  suspended; shown again (`pageshow` from the cache, `resume`) they are
-  resumed. The browser runs no animation frame for a hidden page and
-  may never come back from `pagehide`, so the page's listener calls the
-  backend, which posts Suspending or Resuming and runs the program's
-  frame at once, inside the event, as W2 asks; Suspended or Resumed
-  follows. A frame that stops there ends the program there, quit
-  included. A hidden page also occludes its windows. A canvas taken out
-  of the document (a mutation observer watches) loses its surface until
-  it is back.
+  suspended; shown again (`pageshow` from the cache, `resume`) they
+  are resumed. The browser runs no animation frame for a hidden page
+  and may never come back from `pagehide`, so the page's listener
+  calls the backend, which posts Suspending or Resuming and runs the
+  program's frame at once, inside the event, as critical records ask
+  (mwin-0002); Suspended or Resumed follows. A frame that stops there
+  ends the program there, quit included. A hidden page also occludes
+  its windows. A canvas taken out of the document (a mutation observer
+  watches) loses its surface until it is back.
 - **Facts:** the color scheme and reduced motion from media queries,
   the preferred languages from `navigator.languages`, each read again
   when the page says it changed. The accent, the text scale and power

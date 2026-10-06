@@ -1,4 +1,4 @@
-# The Wayland backend (W7 in the design notes). The protocol code is
+# The Wayland backend (mwin-0005). The protocol code is
 # generated from the protocol XML into the build tree with
 # wayland-scanner: a client header and the interface definitions of each
 # protocol, the core wayland.xml included. Every interface is renamed

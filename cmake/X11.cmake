@@ -1,4 +1,4 @@
-# The X11 backend (W7 in the design notes). libxcb and its extension
+# The X11 backend (mwin-0006). libxcb and its extension
 # libraries are opened at run time; building needs only their headers.
 
 find_package(PkgConfig REQUIRED)

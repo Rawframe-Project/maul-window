@@ -224,6 +224,12 @@ static void StartRandr(mwinX11Platform* platform)
     api->randrSelectInput(platform->connection, platform->screen->root,
                           XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE | XCB_RANDR_NOTIFY_MASK_CRTC_CHANGE |
                               XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
+    // A monitor set or deleted (xrandr --setmonitor, a desktop splitting
+    // a wide display) changes no output: the server tells it only as the
+    // root window's ConfigureNotify.
+    uint32_t mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+    api->changeWindowAttributes(platform->connection, platform->screen->root, XCB_CW_EVENT_MASK,
+                                &mask);
 }
 
 // Connects to the display and learns what the backend needs of it.
@@ -334,12 +340,18 @@ static mwinResult Start(mwinContext* context)
 
 static void Dispatch(mwinX11Platform* platform, const xcb_generic_event_t* event)
 {
+    uint8_t type = event->response_type & 0x7F;
+    if (type == XCB_CONFIGURE_NOTIFY &&
+        ((const xcb_configure_notify_event_t*)event)->window == platform->screen->root)
+    {
+        mwinX11RefreshMonitors(platform);
+        return;
+    }
     if (mwinX11HandleClipboardEvent(platform, event) || mwinX11HandleDropEvent(platform, event) ||
         mwinX11HandleWindowEvent(platform, event) || mwinX11HandleInputEvent(platform, event))
     {
         return;
     }
-    uint8_t type = event->response_type & 0x7F;
     if (platform->randrEvent != 0 &&
         (type == platform->randrEvent + XCB_RANDR_SCREEN_CHANGE_NOTIFY ||
          type == platform->randrEvent + XCB_RANDR_NOTIFY))

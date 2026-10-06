@@ -24,6 +24,14 @@ format.
   committed text as `mwin_eventTextInput`. The candidate window follows
   the caret.
 
+### Fixed
+
+- X11 reports monitors set or deleted through RandR (`xrandr
+  --setmonitor`, a desktop splitting a wide display), which the X
+  server tells only as the root window's ConfigureNotify. Platform
+  tests now plug monitors in and out on Wayland (a `wl_output` of the
+  test compositor) and X11 (a RandR monitor on the X server).
+
 ## [0.6.0] - 2026-10-06
 
 The requirements' optional parts: cursors from images, trigger rumble

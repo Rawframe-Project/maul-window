@@ -9,7 +9,8 @@
 // The window then follows the keyboard through IFrameworkInputPane (on
 // Windows; wine may lack it): its handler, called as Windows would with
 // the keyboard over the lower part of the client area, reports the part
-// covered in logical units; hidden, it reports none.
+// covered in logical units; shown wholly below the window or hidden, it
+// reports none.
 
 #include "test_harness.h"
 #include "win32.h"
@@ -19,6 +20,7 @@
 
 #include <math.h>
 #include <shobjidl.h>
+#include <string.h>
 
 #define DEADLINE_MS 10000u
 
@@ -27,6 +29,8 @@ typedef enum Phase
     phaseCreate,
     phaseShow,
     phaseCovered,
+    phaseOutside,
+    phaseAgain,
     phaseUncovered,
     phaseHide,
     phaseDone,
@@ -44,7 +48,7 @@ typedef struct Program
     float scale;
     float width;
     float height;
-    mwinRect covered[2];
+    mwinRect covered[4];
     int covers;
     bool timedOut;
 } Program;
@@ -60,7 +64,7 @@ static int Outcome(Program* program, mwinContext* context, mwinRequestId request
     {
         const mwinCompletion* completion = &event.data.completion;
         *created = *created || event.type == mwin_eventWindowCreated;
-        if (event.type == mwin_eventVirtualKeyboardChanged && program->covers < 2)
+        if (event.type == mwin_eventVirtualKeyboardChanged && program->covers < 4)
         {
             program->covered[program->covers++] = event.data.rect;
         }
@@ -91,16 +95,17 @@ static IFrameworkInputPaneHandler* Handler(Program* program, mwinContext* contex
 }
 
 // The keyboard over the client area's lower half, wider than the
-// window.
-static void Cover(Program* program, mwinContext* context)
+// window, or wholly below it.
+static void Cover(Program* program, mwinContext* context, bool over)
 {
     mwinWin32Window* window = nullptr;
     IFrameworkInputPaneHandler* handler = Handler(program, context, &window);
     program->advised = window->paneHandler.pane != nullptr;
     POINT origin = {0, 0};
     (void)ClientToScreen(window->hwnd, &origin);
-    RECT keyboard = {origin.x - 50, origin.y + (LONG)window->height / 2,
-                     origin.x + (LONG)window->width + 50, origin.y + (LONG)window->height + 200};
+    LONG top = origin.y + (over ? (LONG)window->height / 2 : (LONG)window->height + 10);
+    RECT keyboard = {origin.x - 50, top, origin.x + (LONG)window->width + 50,
+                     origin.y + (LONG)window->height + 200};
     (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
     program->scale = (float)window->dpi / 96.0f;
     program->width = (float)window->width / program->scale;
@@ -134,10 +139,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         advance = created;
         break;
     case phaseCovered:
-        advance = program->covers >= 1;
-        break;
+    case phaseOutside:
+    case phaseAgain:
     case phaseUncovered:
-        advance = program->covers >= 2;
+        advance = program->covers >= (int)(program->phase - phaseShow);
         break;
     default:
         advance = outcome >= 0;
@@ -149,9 +154,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         {
         case phaseShow:
             program->outcomes[0] = outcome;
-            Cover(program, context);
+            Cover(program, context, true);
             break;
         case phaseCovered:
+            Cover(program, context, false);
+            break;
+        case phaseOutside:
+            Cover(program, context, true);
+            break;
+        case phaseAgain:
             Uncover(program, context);
             break;
         case phaseHide:
@@ -197,12 +208,16 @@ int main(void)
     CHECK(program.advised || program.wine, "the window follows the keyboard on Windows");
     const mwinRect* shown = &program.covered[0];
     float half = (float)(int)(program.height * program.scale / 2.0f) / program.scale;
-    CHECK(program.covers == 2 && shown->x == 0.0f && shown->width == program.width &&
+    CHECK(program.covers == 4 && shown->x == 0.0f && shown->width == program.width &&
               fabsf(shown->y - half) < 0.01f &&
-              fabsf(shown->y + shown->height - program.height) < 0.01f,
-          "shown, the part of the client area it covers");
-    CHECK(program.covers == 2 && program.covered[1].width == 0.0f &&
+              fabsf(shown->y + shown->height - program.height) < 0.01f &&
+              memcmp(&program.covered[2], shown, sizeof(*shown)) == 0,
+          "shown over the window, the part of the client area it covers");
+    CHECK(program.covers == 4 && program.covered[1].width == 0.0f &&
               program.covered[1].height == 0.0f,
+          "shown below the window, none");
+    CHECK(program.covers == 4 && program.covered[3].width == 0.0f &&
+              program.covered[3].height == 0.0f,
           "hidden, none");
     return s_failures == 0 ? 0 : 1;
 }

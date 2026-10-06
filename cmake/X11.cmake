@@ -17,6 +17,7 @@ set(MWIN_X11_SOURCES
     src/backend_x11.c
     src/x11_api.c
     src/x11_clipboard.c
+    src/x11_clipboard_read.c
     src/x11_cursor.c
     src/x11_drop.c
     src/x11_chrome.c

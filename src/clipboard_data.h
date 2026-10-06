@@ -43,8 +43,10 @@ static inline const uint8_t* mwinClipboardBytesOf(const mwinClipboardCopy* copy,
 const mwinClipboardDataItem* mwinFindClipboardItem(const mwinContext* context, const char* mime,
                                                    size_t length);
 
-// Whether a type is text/plain, with parameters or none.
+// Whether a type is text/plain, with parameters or none; whether two
+// types are the same, ASCII case aside.
 bool mwinIsPlainText(const char* mime, size_t length);
+bool mwinSameMime(const char* a, size_t aLength, const char* b, size_t bLength);
 
 // Frees the data written, as a text write replaces it.
 void mwinReleaseClipboardData(mwinContext* context);

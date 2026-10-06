@@ -267,6 +267,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_clipboard PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_clipboard PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_clipboard PROPERTIES SKIP_RETURN_CODE 77)
+        # Its data and PRIMARY likewise.
+        maul_add_test(x11_clipboard_data POSIX)
+        target_compile_definitions(test_x11_clipboard_data PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_clipboard_data PRIVATE PkgConfig::MWIN_TEST_XCB)
         # Window icons read back by the test's own connection.
         maul_add_test(x11_icon POSIX)
         target_compile_definitions(test_x11_icon PRIVATE _POSIX_C_SOURCE=200809L)
@@ -287,9 +291,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_x11_chrome PRIVATE PkgConfig::MWIN_TEST_XCB)
         # The wheel movement of scroll valuators.
         maul_add_test(x11_scroll WHITEBOX)
-        # The tests that move the X server's focus or pointer take turns.
-        set_tests_properties(x11 x11_input x11_clipboard x11_icon x11_drop x11_owned x11_chrome
-                             PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK x11-focus)
+        # The tests that move the X server's focus or pointer, or own its
+        # selections, take turns.
+        set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data x11_icon x11_drop
+                             x11_owned x11_chrome PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK x11-focus)
     endif()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         # Stand-ins for zenity and kdialog on PATH.

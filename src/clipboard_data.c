@@ -53,7 +53,7 @@ static bool IsMime(const char* mime, size_t length)
     return slash > 0 && slash + 1 < end;
 }
 
-static bool SameMime(const char* a, size_t aLength, const char* b, size_t bLength)
+bool mwinSameMime(const char* a, size_t aLength, const char* b, size_t bLength)
 {
     if (aLength != bLength)
     {
@@ -75,7 +75,7 @@ const mwinClipboardDataItem* mwinFindClipboardItem(const mwinContext* context, c
     const mwinClipboardCopy* copy = context->clipboardData;
     for (uint32_t i = 0; copy != nullptr && i < copy->count; i++)
     {
-        if (SameMime(copy->items[i].mime, copy->items[i].mimeLength, mime, length))
+        if (mwinSameMime(copy->items[i].mime, copy->items[i].mimeLength, mime, length))
         {
             return &copy->items[i];
         }
@@ -135,7 +135,7 @@ static bool CheckItems(const mwinClipboardItem* items, size_t count, size_t* tot
         }
         for (size_t j = 0; j < i; j++)
         {
-            if (SameMime(items[j].mime, items[j].mimeLength, item->mime, item->mimeLength))
+            if (mwinSameMime(items[j].mime, items[j].mimeLength, item->mime, item->mimeLength))
             {
                 return false;
             }

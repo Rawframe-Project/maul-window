@@ -500,9 +500,13 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
         // Keys type text whether asked or not; there is no input method.
         return mwin_outcomeDone;
     case mwin_requestClipboardWrite:
-        return mwinX11WriteClipboard(platform);
+    case mwin_requestClipboardWriteData:
+    case mwin_requestPrimaryWrite:
+        return mwinX11WriteSelection(platform, request->kind);
     case mwin_requestClipboardRead:
-        return mwinX11ReadClipboard(platform);
+    case mwin_requestClipboardReadData:
+    case mwin_requestPrimaryRead:
+        return mwinX11ReadSelection(platform, request);
     case mwin_requestOpenUrl:
         return mwinLinuxOpenUrl(&platform->services, window->slot, index);
     case mwin_requestRevealFile:

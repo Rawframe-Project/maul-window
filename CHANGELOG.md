@@ -42,8 +42,9 @@ format.
   `mwinRequestClipboardReadData` and `mwinGetClipboardData` read one
   type back; `mwinRequestPrimaryWrite`, `mwinRequestPrimaryRead` and
   `mwinGetPrimaryText` keep the selected text apart from the clipboard.
-  The test backend serves them; the others answer
-  `mwin_outcomeUnsupported` for now.
+  X11 offers each type as its own target, large items in pieces
+  (INCR), and owns PRIMARY apart from CLIPBOARD; the test backend
+  serves them too, the others answer `mwin_outcomeUnsupported` for now.
 
 ### Fixed
 

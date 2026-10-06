@@ -17,6 +17,8 @@
 #include "x11_scroll.h"
 #include "xkb_keyboard.h"
 
+#include "maul-window/clipboard.h"
+
 // The atoms the backend interns at start, in the order of s_atomNames
 // in backend_x11.c.
 enum
@@ -146,29 +148,48 @@ typedef struct mwinX11Output
     bool seen;
 } mwinX11Output;
 
-// The most readers served the program's text a piece at a time at once.
+// The most readers served the program's text or data a piece at a time
+// at once.
 #define MWIN_X11_SENDS 4
 
-// The clipboard: a hidden window that owns the selection and receives
-// it, made at its first use; the readers the program's text goes to in
-// pieces (INCR); and a read under way, its text in a block of capacity
+// The selections the program owns and reads: CLIPBOARD and PRIMARY.
+enum
+{
+    mwin_x11Clipboard,
+    mwin_x11Primary,
+    MWIN_X11_SELECTIONS,
+};
+
+// The clipboard and the primary selection: a hidden window that owns
+// them and receives them, made at its first use; for each, whether the
+// program owns it and since when, and for CLIPBOARD the atoms of its
+// data's MIME types; the readers its text or an item goes to in pieces
+// (INCR), the selection and the item (-1 the text) each takes; and a
+// read under way, of the kind of request it answers, the target it asked
+// for (a data read's MIME type, kept), its bytes in a block of capacity
 // bytes from the allocator.
 typedef struct mwinX11Clipboard
 {
     xcb_window_t window;
-    bool owned;
-    xcb_timestamp_t ownedTime;
+    bool owned[MWIN_X11_SELECTIONS];
+    xcb_timestamp_t ownedTime[MWIN_X11_SELECTIONS];
+    xcb_atom_t types[MWIN_CLIPBOARD_ITEMS];
     struct
     {
         xcb_window_t requestor;
         xcb_atom_t property;
         xcb_atom_t type;
+        uint8_t selection;
+        int8_t item;
         uint32_t offset;
         uint64_t deadlineNs;
     } sends[MWIN_X11_SENDS];
     // Waiting for the owner's answer, then for its pieces.
     bool reading;
     bool incremental;
+    mwinRequestKind kind;
+    char mime[MWIN_CLIPBOARD_MIME + 1];
+    uint32_t mimeLength;
     uint64_t deadlineNs;
     char* buffer;
     uint32_t used;

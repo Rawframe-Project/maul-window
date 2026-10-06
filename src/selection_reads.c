@@ -112,12 +112,8 @@ void mwinStartWaitingReads(mwinContext* context, mwinStartSelectionRead start, v
         {
             int32_t request =
                 mwinFindActiveRequest(window, context->limits.requestsPerWindow, s_readKinds[i]);
-            int outcome = request >= 0 ? start(backend, &window->requests[request]) : 0;
-            if (request >= 0 && outcome < 0)
-            {
-                return;
-            }
-            if (request >= 0)
+            int outcome = request >= 0 ? start(backend, &window->requests[request]) : -1;
+            if (outcome >= 0)
             {
                 mwinComplete(context, slot, (uint32_t)request, (mwinOutcome)outcome);
             }

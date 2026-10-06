@@ -47,7 +47,9 @@ void mwinFinishSelectionRead(mwinContext* context, const mwinSelectionRead* read
 
 // Starts the reads that waited, in window order, through a backend's
 // start, which answers a request (its outcome, the request completed) or
-// takes it on or finds a read running (-1, which stops the starting).
+// takes it on or finds a read running (-1, the request left to wait);
+// once one read runs, the others wait, but those the program's own copy
+// answers.
 typedef int (*mwinStartSelectionRead)(void* backend, const mwinRequest* request);
 void mwinStartWaitingReads(mwinContext* context, mwinStartSelectionRead start, void* backend);
 

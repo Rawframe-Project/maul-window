@@ -9,7 +9,8 @@
 // answers from its own data, and fails for a type it lacks; data alone
 // offers no text; a primary write sets the primary selection's source
 // apart from the clipboard. Once another client offers them, a text read
-// and a data read made together are both answered, one after the other;
+// and a data read made together are both answered, one after the other,
+// the data by its type among others;
 // a large item is read; the primary selection's text is read; and a data
 // read with no selection fails. Skipped (exit status 77) without
 // XDG_RUNTIME_DIR or xkb data.
@@ -320,7 +321,7 @@ static void AdvanceOwned(Program* program, mwinContext* context, int outcome)
 
 static void Advance(Program* program, mwinContext* context)
 {
-    static const char* const s_pngType[] = {PNG};
+    static const char* const s_pngTypes[] = {"text/html", UTF8, PNG};
     static const char* const s_bigType[] = {BIG};
     int outcome = program->outcome;
     int second = program->secondOutcome;
@@ -331,13 +332,16 @@ static void Advance(Program* program, mwinContext* context)
     {
     case phaseServePrimary:
         CHECK(Got(program, "sel", 3), "another client reads the primary selection");
-        DataOfferTypes(program->data, s_pngType, 1, s_peerPng, sizeof(s_peerPng));
+        DataOfferTypes(program->data, s_pngTypes, 3, s_peerPng, sizeof(s_peerPng));
         break;
     case phaseOtherBoth:
-        CHECK(outcome == mwin_outcomeDone && FoundText(context, false, "", 0),
-              "a text read of data without text is empty");
-        CHECK(second == mwin_outcomeDone && FoundData(context, s_peerPng, sizeof(s_peerPng)),
-              "a data read made with it is answered after it");
+        // The compositor writes its bytes whatever the type.
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundText(context, false, s_peerPng, sizeof(s_peerPng)),
+              "a text read");
+        CHECK(second == mwin_outcomeDone && FoundData(context, s_peerPng, sizeof(s_peerPng)) &&
+                  DataReceived(program->data, PNG),
+              "a data read made with it is answered after it, by its type");
         DataOfferTypes(program->data, s_bigType, 1, program->large, LARGE);
         break;
     case phaseOtherLarge:

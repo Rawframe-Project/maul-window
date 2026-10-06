@@ -322,10 +322,36 @@ window, as opaque pointers:
 - X11: the XCB connection and window;
 - the web: the canvas's selector.
 
-A GPU layer (Maul RHI) makes its surface from them. The library
-includes no graphics API header. A lost surface
-(`mwin_eventSurfaceLost`) ends a generation of handles, and the next
-arrives with `mwin_eventSurfaceRestored`.
+A GPU layer makes its surface from them, and the library includes no
+graphics API header. With Maul RHI the program copies the bundle into
+the surface source of its platform, field for field:
+
+```c
+mwinNativeHandles handles;
+if (mwinGetNativeHandles(context, window, &handles) == mwin_success &&
+    handles.platform == mwin_platformX11)
+{
+    mrhiSurfaceSourceXcb source = {
+        .chain = {.type = mrhi_structSurfaceSourceXcb},
+        .connection = handles.handles.x11.connection,
+        .window = handles.handles.x11.window,
+    };
+    mrhiSurfaceDef def = mrhiDefaultSurfaceDef();
+    def.next = &source.chain;
+    // mrhiCreateSurface(instance, &def, &surface), then configure it
+    // at the window's pixel size (mwinWindowState.pixelSize).
+}
+```
+
+The other platforms copy the same way: Win32's `hinstance` and `hwnd`,
+Wayland's `display` and `surface`, Android's `window`, Apple's
+`layer`, and the web's `selector` and `selectorLength`. Maul RHI's
+guide (section 9) has the whole copy, and its `test/seam` check runs
+it against this library. A lost surface (`mwin_eventSurfaceLost`) ends
+a generation of handles, and the next arrives with
+`mwin_eventSurfaceRestored`: when `surfaceGeneration` changes, the
+program makes a new surface; when the pixel size changes, it
+configures the surface again.
 
 ## 11. Backends and building
 

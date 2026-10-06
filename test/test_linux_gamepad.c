@@ -5,7 +5,9 @@
 // devices made through uinput: an Xbox 360 pad connected before the
 // program starts, mapped by SDL_GameControllerDB, its buttons, sticks,
 // triggers and d-pad hat, and its rumble; a pad of the kernel's layout
-// the database lacks, connected while the program runs; a joystick of
+// the database lacks, connected while the program runs, then its motion
+// sensors device, which grants it motion: samples in units per g and
+// per degree per second, timed by their stamps; a joystick of
 // no known layout, raw, its hat as two axes; and a disconnect. Without
 // a display or /dev/uinput the test is skipped (exit status 77).
 
@@ -32,6 +34,8 @@ typedef enum Phase
     phaseXbox,
     phaseKernel,
     phaseKernelPress,
+    phaseMotionFound,
+    phaseMotion,
     phaseRaw,
     phaseRawPress,
     phaseRumble,
@@ -58,6 +62,7 @@ typedef struct Program
     uint64_t startNs;
     Device xbox;
     Device kernel;
+    Device motion;
     Device raw;
     mwinGamepadId pads[3];
     mwinEvent records[MAX_RECORDS];
@@ -83,14 +88,24 @@ static void Report(const Device* device)
     Emit(device, EV_SYN, SYN_REPORT, 0);
 }
 
-static void Axis(int fd, uint16_t code, int32_t minimum, int32_t maximum)
+static void AxisWith(int fd, uint16_t code, int32_t minimum, int32_t maximum, int32_t resolution)
 {
     struct uinput_abs_setup setup = {.code = code};
     setup.absinfo.minimum = minimum;
     setup.absinfo.maximum = maximum;
+    setup.absinfo.resolution = resolution;
     (void)ioctl(fd, UI_SET_ABSBIT, code);
     (void)ioctl(fd, UI_ABS_SETUP, &setup);
 }
+
+static void Axis(int fd, uint16_t code, int32_t minimum, int32_t maximum)
+{
+    AxisWith(fd, code, minimum, maximum, 0);
+}
+
+// The physical path the kernel pad and its motion device share, as a
+// controller's parts do.
+#define KERNEL_PHYS "maul-test/kernel-pad"
 
 // Answers the force feedback uploads the driver makes, which block until
 // the device answers.
@@ -156,6 +171,10 @@ static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t pro
     }
     Axis(fd, ABS_HAT0X, -1, 1);
     Axis(fd, ABS_HAT0Y, -1, 1);
+    if (vendor == 0x1234 && product == 0x0001)
+    {
+        (void)ioctl(fd, UI_SET_PHYS, KERNEL_PHYS);
+    }
     struct uinput_setup setup = {.id = {BUS_USB, vendor, product, version}};
     setup.ff_effects_max = xbox ? 1 : 0;
     strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
@@ -171,6 +190,49 @@ static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t pro
         (void)pthread_create(&device->thread, nullptr, Feedback, device);
     }
     return true;
+}
+
+// Makes the kernel pad's motion sensors device, as hid-playstation's: 8192
+// units per g, 1024 per degree per second, stamped in microseconds.
+static bool MakeMotion(Device* device)
+{
+    int fd = open("/dev/uinput", O_RDWR);
+    if (fd < 0)
+    {
+        return false;
+    }
+    (void)ioctl(fd, UI_SET_EVBIT, EV_ABS);
+    (void)ioctl(fd, UI_SET_EVBIT, EV_MSC);
+    (void)ioctl(fd, UI_SET_MSCBIT, MSC_TIMESTAMP);
+    (void)ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_ACCELEROMETER);
+    for (uint16_t code = ABS_X; code <= ABS_Z; code++)
+    {
+        AxisWith(fd, code, -32768, 32767, 8192);
+    }
+    for (uint16_t code = ABS_RX; code <= ABS_RZ; code++)
+    {
+        AxisWith(fd, code, -2048000, 2048000, 1024);
+    }
+    (void)ioctl(fd, UI_SET_PHYS, KERNEL_PHYS);
+    struct uinput_setup setup = {.id = {BUS_USB, 0x1234, 0x0001, 1}};
+    strncpy(setup.name, "Kernel Pad Motion Sensors", UINPUT_MAX_NAME_SIZE - 1);
+    if (ioctl(fd, UI_DEV_SETUP, &setup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0)
+    {
+        close(fd);
+        return false;
+    }
+    *device = (Device){.fd = fd};
+    return true;
+}
+
+// A motion sample: still, gravity along y, turning at 90 degrees per
+// second about x.
+static void Sample(const Device* device, int32_t stamp)
+{
+    Emit(device, EV_ABS, ABS_Y, 8192);
+    Emit(device, EV_ABS, ABS_RX, 90 * 1024);
+    Emit(device, EV_MSC, MSC_TIMESTAMP, stamp);
+    Report(device);
 }
 
 static void Destroy(Device* device)
@@ -259,6 +321,11 @@ static bool Ready(const Program* program)
         return Pressed(program, mwin_padDpadUp, false);
     case phaseKernelPress:
         return Pressed(program, mwin_padFaceNorth, false);
+    case phaseMotionFound:
+        return Find(program, mwin_eventGamepadChanged, 0) != nullptr;
+    case phaseMotion:
+        // Frames have read the samples.
+        return NowNs() - program->startNs > 50000000u;
     case phaseRawPress:
         return Find(program, mwin_eventGamepadButtonDown, 0) != nullptr &&
                AxisValue(program, 2, true) == 1.0f;
@@ -327,9 +394,43 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         Report(&program->kernel);
         break;
     case phaseKernelPress:
+    {
+        mwinGamepadInfo info;
+        CHECK(mwinGetGamepadInfo(context, program->pads[1], &info) == mwin_success &&
+                  (info.capabilities & mwin_padMotion) == 0 &&
+                  mwinSetGamepadMotion(context, program->pads[1], true) == mwin_errorUnsupported,
+              "no motion before its sensors come");
+        CHECK(MakeMotion(&program->motion), "its motion sensors device");
+        break;
+    }
+    case phaseMotionFound:
+    {
+        mwinGamepadInfo info;
+        CHECK(mwinGetGamepadInfo(context, program->pads[1], &info) == mwin_success &&
+                  (info.capabilities & mwin_padMotion) != 0,
+              "the sensors device of the same path grants motion");
+        CHECK(mwinSetGamepadMotion(context, program->pads[1], true) == mwin_success,
+              "motion turned on");
+        // Three samples 4 ms apart, the stamps wrapping between them.
+        Sample(&program->motion, -6000);
+        Sample(&program->motion, -2000);
+        Sample(&program->motion, 2000);
+        break;
+    }
+    case phaseMotion:
+    {
+        mwinGamepadMotion motion;
+        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+                  fabsf(motion.acceleration[1] - 9.80665f) < 1e-4f &&
+                  motion.acceleration[0] == 0.0f &&
+                  fabsf(motion.rotationRate[0] - 1.5707964f) < 1e-4f &&
+                  fabsf(motion.rotation[0] - 1.5707964f * 0.008f) < 1e-5f,
+              "gravity in m/s^2, the rate in rad/s, the angle over the stamps' 8 ms");
+        Destroy(&program->motion);
         CHECK(Make(&program->raw, "Stick", 0x1234, 0x0002, 1, s_rawButtons, 2, false),
               "a joystick");
         break;
+    }
     case phaseRaw:
         CheckAdded(program, context, 2, false);
         Emit(&program->raw, EV_KEY, BTN_THUMB, 1);
@@ -413,6 +514,7 @@ int main(void)
     }
     static Program program;
     program.kernel.fd = -1;
+    program.motion.fd = -1;
     program.raw.fd = -1;
     // Connected before the program starts: found when it does.
     if (!Make(&program.xbox, "Xbox Pi", 0x045E, 0x028E, 0x0114, s_xboxButtons, 11, true))
@@ -431,6 +533,7 @@ int main(void)
     }
     Destroy(&program.xbox);
     Destroy(&program.kernel);
+    Destroy(&program.motion);
     Destroy(&program.raw);
     return s_failures == 0 ? 0 : 1;
 }

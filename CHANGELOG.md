@@ -29,7 +29,9 @@ format.
   and the angle turned since the last read, summed over every sample.
   Windows.Gaming.Input grants trigger rumble to Microsoft's pads from
   the Xbox One on, and the web to pads whose actuator has
-  `trigger-rumble`; the test backend gives both.
+  `trigger-rumble`; Linux grants motion to pads whose driver makes a
+  motion sensors device (hid-playstation, hid-nintendo); the test
+  backend gives both.
 
 ### Fixed
 

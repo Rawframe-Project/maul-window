@@ -430,5 +430,9 @@ const mwinBackendOps mwinX11Backend = {
     Rumble,
     mwinX11ReleaseCursor,
     nullptr,
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinLinuxPadsSetMotion,
+#else
     nullptr,
+#endif
 };

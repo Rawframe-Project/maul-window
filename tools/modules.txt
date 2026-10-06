@@ -61,7 +61,8 @@ ios_view: accessibility core ios
 ios_window: core ios
 key_prints:
 linux_bus: dbus_api
-linux_pad: allocator core monotonic pad_db pad_map
+linux_motion: core
+linux_pad: allocator core linux_motion monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
 linux_locale:

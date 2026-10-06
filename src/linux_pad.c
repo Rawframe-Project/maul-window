@@ -222,13 +222,40 @@ static void Resync(mwinLinuxPad* pad)
     }
 }
 
+// The pad's facts in the core, with motion as it has it now.
+static void TellMotion(mwinLinuxPads* pads, const mwinLinuxPad* pad)
+{
+    mwinGamepadInfo info = pads->context->gamepads[pad->slot].info;
+    info.capabilities =
+        (mwinGamepadCapabilities)(pad->motion.fd >= 0 ? info.capabilities | mwin_padMotion
+                                                      : info.capabilities & ~mwin_padMotion);
+    mwinChangeGamepad(pads->context, pad->slot, &info, mwinMonotonicNow());
+}
+
+// A node that is no gamepad may be the motion device of one that has
+// none yet.
+static void OpenMotion(mwinLinuxPads* pads, int node)
+{
+    for (uint32_t i = 0; i < pads->context->limits.gamepads; i++)
+    {
+        mwinLinuxPad* pad = &pads->pads[i];
+        if (pad->fd >= 0 && pad->motion.fd < 0 &&
+            mwinLinuxOpenMotion(&pad->motion, node, &pad->identity))
+        {
+            TellMotion(pads, pad);
+            return;
+        }
+    }
+}
+
 // Opens /dev/input/eventN, and makes it a gamepad if it is one.
 static void Open(mwinLinuxPads* pads, int node)
 {
     mwinLinuxPad* pad = nullptr;
     for (uint32_t i = 0; i < pads->context->limits.gamepads; i++)
     {
-        if (pads->pads[i].fd >= 0 && pads->pads[i].node == node)
+        if (pads->pads[i].fd >= 0 &&
+            (pads->pads[i].node == node || pads->pads[i].motion.node == node))
         {
             return;
         }
@@ -253,9 +280,14 @@ static void Open(mwinLinuxPads* pads, int node)
     if (pad == nullptr || !IsGamepad(&bits))
     {
         close(fd);
+        if (Has(bits.props, INPUT_PROP_ACCELEROMETER))
+        {
+            OpenMotion(pads, node);
+        }
         return;
     }
-    *pad = (mwinLinuxPad){.fd = fd, .node = node, .effect = -1};
+    *pad = (mwinLinuxPad){.fd = fd, .node = node, .effect = -1, .motion = {.fd = -1, .node = -1}};
+    mwinLinuxIdentityOf(fd, &pad->identity);
     // Event times on the clock the records use.
     int clock = CLOCK_MONOTONIC;
     (void)ioctl(fd, EVIOCSCLOCKID, &clock);
@@ -277,9 +309,14 @@ static void Open(mwinLinuxPads* pads, int node)
     info.rawButtons = pad->controls.buttonCount;
     info.rawAxes = (uint8_t)(pad->controls.axisCount + 2 * pad->controls.hatCount);
     info.capabilities = writable && Has(bits.effects, FF_RUMBLE) ? mwin_padRumble : 0;
+    if (mwinLinuxFindMotion(&pad->motion, &pad->identity))
+    {
+        info.capabilities |= mwin_padMotion;
+    }
     int32_t slot = mwinAddGamepad(pads->context, &info, mwinMonotonicNow());
     if (slot < 0)
     {
+        mwinLinuxCloseMotion(&pad->motion);
         close(fd);
         pad->fd = -1;
         return;
@@ -292,6 +329,7 @@ static void Open(mwinLinuxPads* pads, int node)
 static void Close(mwinLinuxPads* pads, mwinLinuxPad* pad)
 {
     mwinRemoveGamepad(pads->context, pad->slot, mwinMonotonicNow());
+    mwinLinuxCloseMotion(&pad->motion);
     close(pad->fd);
     pad->fd = -1;
 }
@@ -421,6 +459,7 @@ void mwinLinuxPadsStop(mwinLinuxPads* pads)
     {
         if (pads->pads[i].fd >= 0)
         {
+            mwinLinuxCloseMotion(&pads->pads[i].motion);
             close(pads->pads[i].fd);
         }
     }
@@ -455,6 +494,12 @@ void mwinLinuxPadsPump(mwinLinuxPads* pads)
         {
             Close(pads, pad);
         }
+        if (pad->fd >= 0 && pad->motion.fd >= 0 &&
+            !mwinLinuxReadMotion(&pad->motion, pads->context, pad->slot))
+        {
+            mwinLinuxCloseMotion(&pad->motion);
+            TellMotion(pads, pad);
+        }
     }
 }
 
@@ -488,4 +533,12 @@ mwinResult mwinLinuxPadsRumble(mwinLinuxPads* pads, uint32_t slot, float low, fl
     }
     return write(pad->fd, &play, sizeof(play)) == (ssize_t)sizeof(play) ? mwin_success
                                                                         : mwin_errorPlatform;
+}
+
+mwinResult mwinLinuxPadsSetMotion(mwinContext* context, uint32_t slot, bool enabled)
+{
+    (void)context;
+    (void)slot;
+    (void)enabled;
+    return mwin_success;
 }

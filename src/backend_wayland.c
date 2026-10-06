@@ -462,5 +462,9 @@ const mwinBackendOps mwinWaylandBackend = {
     Rumble,
     mwinWaylandReleaseCursor,
     nullptr,
+#ifdef MAUL_WINDOW_GAMEPAD
+    mwinLinuxPadsSetMotion,
+#else
     nullptr,
+#endif
 };

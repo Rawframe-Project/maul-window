@@ -7,12 +7,15 @@
 // SDL numbers it, so SDL_GameControllerDB's mappings apply; one the
 // database lacks is mapped by the kernel's gamepad layout when it has
 // one (BTN_SOUTH and the rest), and raw otherwise. Rumble is force
-// feedback, where the device takes it and the node opens for writing.
+// feedback, where the device takes it and the node opens for writing;
+// motion comes from the pad's motion device (linux_motion.h), found with
+// the pad or when it comes after it.
 
 #ifndef MAUL_WINDOW_SRC_LINUX_PAD_H
 #define MAUL_WINDOW_SRC_LINUX_PAD_H
 
 #include "core.h"
+#include "linux_motion.h"
 #include "pad_db.h"
 #include "pad_map.h"
 
@@ -43,6 +46,9 @@ typedef struct mwinLinuxPad
     int32_t maximum[MWIN_LINUX_PAD_AXES];
     // The rumble effect uploaded, or -1.
     int16_t effect;
+    // Who it is, and its motion device (fd -1 for none).
+    mwinLinuxPadIdentity identity;
+    mwinLinuxMotion motion;
 } mwinLinuxPad;
 
 typedef struct mwinLinuxPads
@@ -62,8 +68,11 @@ void mwinLinuxPadsStop(mwinLinuxPads* pads);
 // Reads what the devices and /dev/input say, without waiting.
 void mwinLinuxPadsPump(mwinLinuxPads* pads);
 
-// The backends' rumble.
+// The backends' rumble, and their motion sensors turned on or off: the
+// motion device streams whenever it is open, so turning them is the
+// core's alone.
 mwinResult mwinLinuxPadsRumble(mwinLinuxPads* pads, uint32_t slot, float low, float high,
                                uint32_t durationMs);
+mwinResult mwinLinuxPadsSetMotion(mwinContext* context, uint32_t slot, bool enabled);
 
 #endif // MAUL_WINDOW_SRC_LINUX_PAD_H

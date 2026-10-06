@@ -182,7 +182,9 @@ Typed text is not keys. It arrives as `mwin_eventTextInput`, while the
 window accepts text (`mwinRequestTextInput`, with the caret's rectangle
 for the input method's window). An input method's composition arrives
 as `mwin_eventImePreedit`, with its caret, selection and styled
-segments. The keys it consumes produce no key records.
+segments. The keys it consumes produce no key records. On X11 the
+input method is IBus or Fcitx 5, reached over the session bus
+(mwin-0030); without either, text comes from the keymap.
 `mwinRequestVirtualKeyboard` shows an on-screen keyboard where there is
 one.
 
@@ -362,7 +364,7 @@ configures the surface again.
 | iOS | UIKit with scenes, GameController, CoreHaptics | iOS (`MAUL_WINDOW_IOS`) |
 | Android | NativeActivity with the library's Java, the input queue, the choreographer | Android (`MAUL_WINDOW_ANDROID`) |
 | Wayland | xdg-shell and its extensions, the desktop portal, evdev | Linux (`MAUL_WINDOW_WAYLAND`) |
-| X11 | XCB, XInput 2.1, XKB, XDND, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
+| X11 | XCB, XInput 2.1, XKB, XDND, IBus and Fcitx 5, the desktop portal, evdev | Linux (`MAUL_WINDOW_X11`) |
 | Web | an HTML canvas and the browser's APIs | Emscripten, or wasm32-wasi |
 
 On Linux one build carries both. At run time Wayland is chosen where

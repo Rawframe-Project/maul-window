@@ -327,8 +327,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(linux_power POSIX)
         target_compile_definitions(test_linux_power PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_linux_power PRIVATE ${CMAKE_DL_LIBS})
-        set(MWIN_BUS_TESTS linux_services linux_awake linux_dialog linux_settings linux_power)
+        # Input methods through Fcitx 5 and IBus of the test's own (mwin-0030).
+        maul_add_test(x11_ime POSIX)
+        target_compile_definitions(test_x11_ime PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_ime PRIVATE ${CMAKE_DL_LIBS} PkgConfig::MWIN_TEST_XCB)
+        set(MWIN_BUS_TESTS linux_services linux_awake linux_dialog linux_settings linux_power
+            x11_ime)
         set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES SKIP_RETURN_CODE 77)
+        # It moves the X server's focus, as the X11 tests do.
+        set_tests_properties(x11_ime PROPERTIES RESOURCE_LOCK x11-focus)
         if(MAUL_WINDOW_TSAN)
             set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES
                 ENVIRONMENT "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/test/tsan.supp")

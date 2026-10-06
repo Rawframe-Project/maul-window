@@ -100,6 +100,8 @@ typedef struct FakeBus
     int battery;
     // Started as the system bus.
     bool system;
+    // Another stand-in's answers, tried after these (linux_ime_fake.h).
+    void* (*more)(struct FakeBus* fake, void* message);
 } FakeBus;
 
 enum
@@ -634,7 +636,7 @@ static inline void* FakeAnswer(FakeBus* fake, void* message)
         fake->closed = fake->closed || strcmp(fake->path(message), fake->handle) == 0;
         return fake->newReturn(message);
     }
-    return nullptr;
+    return fake->more != nullptr ? fake->more(fake, message) : nullptr;
 }
 
 // Answers what the services were asked.

@@ -15,6 +15,7 @@ endif()
 
 set(MWIN_X11_SOURCES
     src/backend_x11.c
+    src/linux_ime.c
     src/x11_api.c
     src/x11_clipboard.c
     src/x11_clipboard_read.c

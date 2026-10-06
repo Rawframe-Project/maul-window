@@ -8,6 +8,16 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Input methods on X11 (mwin-0030): IBus, through its portal, and
+  Fcitx 5 over the session bus, Fcitx first when `XMODIFIERS` names
+  it. While a focused window accepts text, keys go to the input method
+  and are held in order until it answers, at most 100 ms; a key it
+  takes is dropped, compositions arrive as `mwin_eventImePreedit` and
+  committed text as `mwin_eventTextInput`. The candidate window follows
+  the caret.
+
 ## [0.6.0] - 2026-10-06
 
 The requirements' optional parts: cursors from images, trigger rumble

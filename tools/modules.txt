@@ -63,6 +63,7 @@ ios_view: accessibility core ios
 ios_window: core ios
 key_prints:
 linux_bus: dbus_api
+linux_ime: core linux_bus monotonic utf8
 linux_motion: core
 linux_pad: allocator core linux_motion monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list
@@ -153,7 +154,7 @@ win32_services: core win32
 win32_system: core win32
 win32_window: chrome core win32 win32_accessibility win32_clipboard win32_dialog win32_drop win32_icon win32_ime win32_input win32_output win32_pointer win32_services win32_system
 window: core
-x11: clicks core linux_pad linux_services monotonic selection_reads x11_api x11_scroll xkb_api xkb_keyboard
+x11: clicks core linux_ime linux_pad linux_services monotonic selection_reads x11_api x11_scroll xkb_api xkb_keyboard
 x11_api:
 x11_scroll:
 x11_chrome: chrome core x11 x11_api
@@ -162,7 +163,7 @@ x11_clipboard_read: allocator core monotonic selection_reads x11 x11_api x11_cli
 x11_cursor: allocator core cursor icon x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
 x11_icon: allocator core icon x11 x11_api
-x11_input: allocator core evdev x11 x11_api x11_chrome x11_scroll xkb_api xkb_keyboard
+x11_input: allocator core evdev linux_ime x11 x11_api x11_chrome x11_scroll xkb_api xkb_keyboard
 x11_output: allocator core x11 x11_api
 x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_icon x11_input x11_output
 xkb_api:

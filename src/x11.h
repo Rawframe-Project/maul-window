@@ -10,6 +10,7 @@
 
 #include "clicks.h"
 #include "core.h"
+#include "linux_ime.h"
 #include "linux_pad.h"
 #include "linux_services.h"
 #include "monotonic.h"
@@ -104,16 +105,22 @@ typedef struct mwinX11Window
     // A popup's place from its owner's corner, in pixels.
     int32_t offsetX;
     int32_t offsetY;
+    // Whether the program takes text in it, and its caret, in window
+    // coordinates (mwinRequestTextInput).
+    bool textInput;
+    mwinRect caret;
 } mwinX11Window;
 
-// The core keyboard through XKB: the device, XKB's event code, and the
-// keys held, which tell the X server's repeats from new presses.
+// The core keyboard through XKB: the device, XKB's event code, the
+// keys held, which tell the X server's repeats from new presses, and
+// the window with the keyboard's focus, or -1.
 typedef struct mwinX11Keyboard
 {
     mwinXkbKeyboard xkb;
     int32_t device;
     uint8_t event;
     uint8_t held[32];
+    int32_t focus;
 } mwinX11Keyboard;
 
 // The core pointer: the window it is over, or -1, where, the buttons
@@ -243,6 +250,8 @@ struct mwinX11Platform
     mwinX11Drag drag;
     // Addresses, files and the bus (linux_services.c).
     mwinLinuxServices services;
+    // The input method over the session bus (linux_ime.c, W40).
+    mwinLinuxIme ime;
     // The time of the latest key or button event, which taking the
     // selection quotes.
     xcb_timestamp_t inputTime;

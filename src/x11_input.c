@@ -152,9 +152,16 @@ static void OnKey(mwinX11Platform* platform, const xcb_key_press_event_t* event,
     record.timeNs = mwinMonotonicFromMilliseconds(event->time);
     record.data.key = (mwinKeyEvent){code, keyboard->xkb.modifiers,
                                      mwinXkbKeyOf(&keyboard->xkb, evdev, code), repeat};
-    mwinPost(platform->context, (uint32_t)slot, &record);
     char text[MWIN_XKB_TEXT_BYTES];
     uint32_t length = pressed ? mwinXkbType(&keyboard->xkb, evdev, !repeat, text) : 0;
+    // An input method may take the key: it answers later (mwin-0030).
+    uint32_t keysym = platform->xkbApi.stateKeyGetOneSym(keyboard->xkb.state, event->detail);
+    if (mwinImeOffer(&platform->ime, (uint32_t)slot, keysym, event->detail, event->state, &record,
+                     text, length, mwinMonotonicNow()))
+    {
+        return;
+    }
+    mwinPost(platform->context, (uint32_t)slot, &record);
     if (length > 0)
     {
         mwinEvent typed = {0};
@@ -570,6 +577,34 @@ bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_
     default:
         return false;
     }
+}
+
+void mwinX11FollowIme(mwinX11Platform* platform)
+{
+    int32_t slot = platform->keyboard.focus;
+    const mwinX11Window* window = slot >= 0 ? &platform->windows[slot] : nullptr;
+    mwinRect caret = {0};
+    if (window == nullptr || !window->textInput)
+    {
+        mwinImeFocus(&platform->ime, -1, caret);
+        return;
+    }
+    // The input method places its candidates in root coordinates.
+    const mwinX11Api* api = &platform->api;
+    float scale = platform->scale;
+    xcb_translate_coordinates_reply_t* reply = api->translateCoordinatesReply(
+        platform->connection,
+        api->translateCoordinates(platform->connection, window->window, platform->screen->root,
+                                  (int16_t)(window->caret.x * scale),
+                                  (int16_t)(window->caret.y * scale)),
+        nullptr);
+    if (reply != nullptr)
+    {
+        caret = (mwinRect){(float)reply->dst_x, (float)reply->dst_y, window->caret.width * scale,
+                           window->caret.height * scale};
+    }
+    mwinReleaseSystemMemory(reply);
+    mwinImeFocus(&platform->ime, slot, caret);
 }
 
 void mwinX11ForgetKeys(mwinX11Platform* platform)

@@ -330,6 +330,11 @@ void mwinX11DestroyWindow(mwinContext* context, uint32_t slot)
         platform->api.destroyWindow(platform->connection, window->window);
     }
     *window = (mwinX11Window){.monitor = -1, .modeRequest = -1};
+    if (platform->keyboard.focus == (int32_t)slot)
+    {
+        platform->keyboard.focus = -1;
+        mwinX11FollowIme(platform);
+    }
 }
 
 // Asks the window manager for a mode, which _NET_WM_STATE answers.
@@ -497,7 +502,11 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
     case mwin_requestCursorImage:
         return mwinX11SetCursorImage(platform, window->slot, request->value.cursor);
     case mwin_requestTextInput:
-        // Keys type text whether asked or not; there is no input method.
+        // Keys type text whether asked or not; an input method takes
+        // them while it is asked (mwin-0030).
+        window->textInput = request->value.textInput.enabled;
+        window->caret = request->value.textInput.caret;
+        mwinX11FollowIme(platform);
         return mwin_outcomeDone;
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardWriteData:
@@ -722,6 +731,10 @@ static void OnFocus(mwinX11Platform* platform, const xcb_focus_in_event_t* event
     {
         mwinX11ForgetKeys(platform);
     }
+    platform->keyboard.focus = gained                             ? slot
+                               : platform->keyboard.focus == slot ? -1
+                                                                  : platform->keyboard.focus;
+    mwinX11FollowIme(platform);
     PostType(platform, (uint32_t)slot, gained ? mwin_eventFocusGained : mwin_eventFocusLost);
     mwinX11CursorFocus(platform, (uint32_t)slot, gained);
     if (!gained && platform->context->windows[slot].def.kind == mwin_windowMenu)

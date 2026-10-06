@@ -41,6 +41,8 @@ typedef struct Program
     mwinWindowMode mode;
     mwinCompletion completion;
     bool completed;
+    // Maximize requests made again after the platform undid one.
+    int retries;
     bool timedOut;
 } Program;
 
@@ -85,6 +87,18 @@ static bool Ready(const Program* program)
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
+}
+
+// Whether the platform maximized the window and restored it before the
+// program looked: the request done, a mode change seen, and the window
+// windowed again (the queue keeps only the latest mode). Under wine a
+// late answer from the X server to the move before does this now and
+// then; Windows itself does not.
+static bool MaximizeUndone(const Program* program)
+{
+    return program->phase == phaseMaximize && program->completed &&
+           program->completion.kind == mwin_requestMode && Seen(program, mwin_eventModeChanged) &&
+           program->mode == mwin_modeWindowed;
 }
 
 static HWND WindowOf(mwinContext* context, mwinWindowId window)
@@ -179,14 +193,27 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
+    else if (MaximizeUndone(program) && program->retries < 3)
+    {
+        program->retries += 1;
+        (void)printf("the platform undid the maximize; asking again\n");
+        program->seen = 0;
+        program->completed = false;
+        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, nullptr) ==
+                  mwin_success,
+              "maximize again");
+    }
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {
-        (void)printf("timed out in phase %d: mode %d, %s (outcome %d), %gx%g at %g,%g\n",
+        (void)printf("timed out in phase %d: mode %d, %s (kind %d, outcome %d), %gx%g at %g,%g, "
+                     "zoomed %d, mode changes seen %d\n",
                      (int)program->phase, (int)program->mode,
                      program->completed ? "a request completed" : "no request completed",
-                     (int)program->completion.outcome, (double)program->size.width,
-                     (double)program->size.height, (double)program->position.x,
-                     (double)program->position.y);
+                     (int)program->completion.kind, (int)program->completion.outcome,
+                     (double)program->size.width, (double)program->size.height,
+                     (double)program->position.x, (double)program->position.y,
+                     (int)IsZoomed(WindowOf(context, program->window)),
+                     (int)Seen(program, mwin_eventModeChanged));
         program->timedOut = true;
         return mwin_frameStop;
     }

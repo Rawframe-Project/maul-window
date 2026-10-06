@@ -460,5 +460,5 @@ const mwinBackendOps mwinWaylandBackend = {
     KeyboardLayout,
     NativeHandles,
     Rumble,
-    nullptr,
+    mwinWaylandReleaseCursor,
 };

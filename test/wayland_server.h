@@ -6,13 +6,14 @@
 // are configured activated at their first commit; a seat with a
 // keyboard whose keymap is compiled from RMLVO names, a pointer and a
 // touch screen; subsurfaces and shared memory, with the shell requests
-// a client's own frame makes; cursor shapes, pointer constraints and
-// relative motion,
-// with what the client asked for kept in the Cursor state; and a text
-// input whose committed state is kept in TextState. The
-// test drives the seat through the Server functions, which take the
-// server's lock; the thread dispatches the clients' requests between
-// them.
+// a client's own frame makes; cursor shapes, cursor surfaces with the
+// size, buffer scale and first pixel of their shared memory and, for a
+// test that adds the viewporter, their viewport's destination; pointer
+// constraints and relative motion, with what the client asked for kept
+// in the Cursor state; and a text input whose committed state is kept
+// in TextState. The test drives the seat through the Server functions,
+// which take the server's lock; the thread dispatches the clients'
+// requests between them.
 
 #ifndef MAUL_WINDOW_TEST_WAYLAND_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_SERVER_H
@@ -26,6 +27,7 @@
 #include <sys/mman.h>
 #include <text-input-unstable-v3-server-protocol.h>
 #include <unistd.h>
+#include <viewporter-server-protocol.h>
 #include <wayland-server.h>
 #include <xdg-shell-server-protocol.h>
 #include <xkbcommon/xkbcommon.h>
@@ -39,7 +41,34 @@ typedef struct Cursor
     int hides;
     bool locked;
     bool confined;
+    // set_cursor calls with a surface, and the last one's hotspot and
+    // what its surface held: buffer size, buffer scale, first pixel and
+    // viewport destination (0 for none).
+    int images;
+    int32_t hotspotX;
+    int32_t hotspotY;
+    int32_t width;
+    int32_t height;
+    int32_t scale;
+    uint32_t pixel;
+    int32_t destinationWidth;
+    int32_t destinationHeight;
 } Cursor;
+
+// What a surface was last given: an attached shared memory buffer's
+// size and first pixel, its buffer scale and its viewport destination.
+typedef struct SurfaceState
+{
+    struct wl_resource* surface;
+    int32_t width;
+    int32_t height;
+    int32_t scale;
+    uint32_t pixel;
+    int32_t destinationWidth;
+    int32_t destinationHeight;
+} SurfaceState;
+
+#define SERVER_SURFACES 16
 
 // The text input state the client last committed.
 typedef struct TextState
@@ -86,6 +115,7 @@ typedef struct Server
     struct wl_resource* touch;
     struct wl_resource* relative;
     Cursor cursor;
+    SurfaceState surfaces[SERVER_SURFACES];
     struct wl_resource* textInput;
     // What the client asked for since its last commit, and what holds.
     TextState pendingText;
@@ -114,14 +144,51 @@ static inline void ServerDestroyResource(struct wl_client* client, struct wl_res
     wl_resource_destroy(resource);
 }
 
-static inline void ServerNoAttach(struct wl_client* client, struct wl_resource* resource,
-                                  struct wl_resource* buffer, int32_t x, int32_t y)
+// A surface's state, made on first use; NULL past SERVER_SURFACES.
+static inline SurfaceState* ServerSurfaceState(Server* server, struct wl_resource* surface)
+{
+    for (int i = 0; i < SERVER_SURFACES; i++)
+    {
+        if (server->surfaces[i].surface == nullptr)
+        {
+            server->surfaces[i] = (SurfaceState){.surface = surface, .scale = 1};
+        }
+        if (server->surfaces[i].surface == surface)
+        {
+            return &server->surfaces[i];
+        }
+    }
+    return nullptr;
+}
+
+static inline void ServerAttach(struct wl_client* client, struct wl_resource* resource,
+                                struct wl_resource* buffer, int32_t x, int32_t y)
 {
     (void)client;
-    (void)resource;
-    (void)buffer;
     (void)x;
     (void)y;
+    SurfaceState* state = ServerSurfaceState(wl_resource_get_user_data(resource), resource);
+    struct wl_shm_buffer* shm = buffer != nullptr ? wl_shm_buffer_get(buffer) : nullptr;
+    if (state == nullptr || shm == nullptr)
+    {
+        return;
+    }
+    wl_shm_buffer_begin_access(shm);
+    state->width = wl_shm_buffer_get_width(shm);
+    state->height = wl_shm_buffer_get_height(shm);
+    memcpy(&state->pixel, wl_shm_buffer_get_data(shm), sizeof(state->pixel));
+    wl_shm_buffer_end_access(shm);
+}
+
+static inline void ServerSetBufferScale(struct wl_client* client, struct wl_resource* resource,
+                                        int32_t scale)
+{
+    (void)client;
+    SurfaceState* state = ServerSurfaceState(wl_resource_get_user_data(resource), resource);
+    if (state != nullptr)
+    {
+        state->scale = scale;
+    }
 }
 
 static inline void ServerNoRect(struct wl_client* client, struct wl_resource* resource, int32_t x,
@@ -191,11 +258,11 @@ static inline void ServerCommit(struct wl_client* client, struct wl_resource* re
 
 static const struct wl_surface_interface s_serverSurface = {
     .destroy = ServerDestroyResource,
-    .attach = ServerNoAttach,
+    .attach = ServerAttach,
     .damage = ServerNoRect,
     .commit = ServerCommit,
     .set_buffer_transform = ServerNoInt,
-    .set_buffer_scale = ServerNoInt,
+    .set_buffer_scale = ServerSetBufferScale,
     .damage_buffer = ServerNoRect,
     .offset = ServerNoTwoInts,
 };
@@ -388,10 +455,22 @@ static inline void ServerSetCursor(struct wl_client* client, struct wl_resource*
 {
     (void)client;
     (void)serial;
-    (void)x;
-    (void)y;
     Server* server = wl_resource_get_user_data(resource);
     server->cursor.hides += surface == nullptr;
+    SurfaceState* state = surface != nullptr ? ServerSurfaceState(server, surface) : nullptr;
+    if (state != nullptr)
+    {
+        Cursor* cursor = &server->cursor;
+        cursor->images += 1;
+        cursor->hotspotX = x;
+        cursor->hotspotY = y;
+        cursor->width = state->width;
+        cursor->height = state->height;
+        cursor->scale = state->scale;
+        cursor->pixel = state->pixel;
+        cursor->destinationWidth = state->destinationWidth;
+        cursor->destinationHeight = state->destinationHeight;
+    }
 }
 
 static const struct wl_pointer_interface s_serverPointer = {
@@ -735,6 +814,67 @@ static inline bool ServerCompileKeymap(Server* server, const char* layout, const
         xkb_context_unref(context);
     }
     return server->keymap != nullptr;
+}
+
+static inline void ServerSetSource(struct wl_client* client, struct wl_resource* resource,
+                                   wl_fixed_t x, wl_fixed_t y, wl_fixed_t width, wl_fixed_t height)
+{
+    (void)client;
+    (void)resource;
+    (void)x;
+    (void)y;
+    (void)width;
+    (void)height;
+}
+
+static inline void ServerSetDestination(struct wl_client* client, struct wl_resource* resource,
+                                        int32_t width, int32_t height)
+{
+    (void)client;
+    SurfaceState* state = wl_resource_get_user_data(resource);
+    if (state != nullptr)
+    {
+        state->destinationWidth = width;
+        state->destinationHeight = height;
+    }
+}
+
+static const struct wp_viewport_interface s_serverViewport = {
+    .destroy = ServerDestroyResource,
+    .set_source = ServerSetSource,
+    .set_destination = ServerSetDestination,
+};
+
+static inline void ServerGetViewport(struct wl_client* client, struct wl_resource* resource,
+                                     uint32_t id, struct wl_resource* surface)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    struct wl_resource* viewport =
+        wl_resource_create(client, &wp_viewport_interface, wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(viewport, &s_serverViewport, ServerSurfaceState(server, surface),
+                                   nullptr);
+}
+
+static const struct wp_viewporter_interface s_serverViewporter = {
+    .destroy = ServerDestroyResource,
+    .get_viewport = ServerGetViewport,
+};
+
+static inline void ServerBindViewporter(struct wl_client* client, void* data, uint32_t version,
+                                        uint32_t id)
+{
+    struct wl_resource* resource =
+        wl_resource_create(client, &wp_viewporter_interface, (int)version, id);
+    wl_resource_set_implementation(resource, &s_serverViewporter, data, nullptr);
+}
+
+// Offers the viewporter, for a test that wants it, before the client
+// connects.
+static inline void ServerAddViewporter(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_global_create(server->display, &wp_viewporter_interface, 1, server, ServerBindViewporter);
+    pthread_mutex_unlock(&server->lock);
 }
 
 // Starts the compositor on a new socket, which WAYLAND_DISPLAY then

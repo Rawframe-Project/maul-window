@@ -105,7 +105,7 @@ wayland_api:
 wayland_clipboard: core monotonic wayland wayland_api wayland_drop wayland_pipe
 wayland_drop: core monotonic uri_list wayland wayland_api wayland_pipe
 wayland_pipe: allocator core
-wayland_cursor: core wayland wayland_api
+wayland_cursor: core cursor icon wayland wayland_api
 wayland_frame: chrome core wayland wayland_api wayland_cursor
 wayland_icon: core icon wayland wayland_api
 wayland_keyboard: core evdev wayland wayland_api xkb_api xkb_keyboard

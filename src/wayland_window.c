@@ -640,6 +640,8 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
         return mwinWaylandSetCursorMode(window->platform, window->slot, request->value.code);
     case mwin_requestCursorShape:
         return mwinWaylandSetCursorShape(window->platform, window->slot, request->value.code);
+    case mwin_requestCursorImage:
+        return mwinWaylandSetCursorImage(window->platform, window->slot, request->value.cursor);
     case mwin_requestTextInput:
         return mwinWaylandSetTextInput(window->platform, window->slot,
                                        request->value.textInput.enabled,

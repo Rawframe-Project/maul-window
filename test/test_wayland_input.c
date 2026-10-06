@@ -8,9 +8,11 @@
 // focus goes while a key is held. The pointer: entering, the last motion
 // of a frame, quick clicks counted, high-resolution wheel steps counted
 // once, and leaving; and a touch stroke. The cursor: a shape through
-// the cursor shape protocol, hiding, capture as a locked pointer with
-// raw relative motion, and release. The input method: enabling with
-// the caret, a composition, its commit, and disabling. The frame the
+// the cursor shape protocol, a cursor made from images on a surface of
+// shared memory sized by a viewport, the default shape once it is
+// destroyed, hiding, capture as a locked pointer with raw relative
+// motion, and release. The input method: enabling with the caret, a
+// composition, its commit, and disabling. The frame the
 // backend draws, as the compositor offers no server-side decorations:
 // the window geometry with the caption, and the caption moving the
 // window, its close button, a resize edge and a double click, none of
@@ -21,8 +23,10 @@
 #include "wayland_server.h"
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 
 #include <linux/input-event-codes.h>
+#include <string.h>
 #include <time.h>
 
 #define DEADLINE_NS 5000000000ull
@@ -44,6 +48,8 @@ typedef enum Phase
     phaseWheel,
     phaseTouch,
     phaseShape,
+    phaseImage,
+    phaseDestroyed,
     phaseHidden,
     phaseCaptured,
     phaseRaw,
@@ -67,6 +73,7 @@ typedef struct Program
     Phase phase;
     uint64_t startNs;
     mwinWindowId window;
+    mwinCursorId cursor;
     // The records since the phase began; their text is copied.
     mwinEvent records[MAX_RECORDS];
     int count;
@@ -164,6 +171,8 @@ static bool CursorReady(Phase phase, Cursor cursor)
     {
     case phaseShape:
         return cursor.shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT;
+    case phaseImage:
+        return cursor.images > 0;
     case phaseHidden:
         return cursor.hides > 0;
     case phaseCaptured:
@@ -200,7 +209,11 @@ static bool Ready(const Program* program)
         return Turned(program) <= -1.0f;
     case phaseTouch:
         return First(program, mwin_eventTouchUp) != nullptr;
+    case phaseDestroyed:
+        // No request: the destroyed cursor's window shows the default.
+        return ServerCursor(program->server).shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
     case phaseShape:
+    case phaseImage:
     case phaseHidden:
     case phaseCaptured:
     case phaseVisible:
@@ -339,6 +352,30 @@ static void AdvanceText(Program* program, mwinContext* context)
     }
 }
 
+// A cursor of two images: red at 16 pixels, green at 32.
+static uint8_t s_red[16 * 16 * 4];
+static uint8_t s_green[32 * 32 * 4];
+
+static mwinCursorDef CursorDef(mwinIconImage images[2])
+{
+    for (size_t i = 0; i < sizeof(s_green); i += 4)
+    {
+        memcpy(&s_green[i], (const uint8_t[]){0, 255, 0, 255}, 4);
+        if (i < sizeof(s_red))
+        {
+            memcpy(&s_red[i], (const uint8_t[]){255, 0, 0, 255}, 4);
+        }
+    }
+    images[0] = (mwinIconImage){16, 16, 16 * 4, s_red};
+    images[1] = (mwinIconImage){32, 32, 32 * 4, s_green};
+    mwinCursorDef def = mwinDefaultCursorDef();
+    def.images = images;
+    def.imageCount = 2;
+    def.hotspotX = 3;
+    def.hotspotY = 5;
+    return def;
+}
+
 // The cursor's phases.
 static void AdvanceCursor(Program* program, mwinContext* context)
 {
@@ -347,7 +384,27 @@ static void AdvanceCursor(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseShape:
+    {
         CHECK(done, "the shape through the cursor shape protocol");
+        mwinIconImage images[2];
+        mwinCursorDef def = CursorDef(images);
+        CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
+                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                      mwin_success,
+              "a cursor made from images");
+        break;
+    }
+    case phaseImage:
+    {
+        Cursor cursor = ServerCursor(program->server);
+        CHECK(done && cursor.width == 16 && cursor.height == 16 && cursor.scale == 1 &&
+                  cursor.destinationWidth == 16 && cursor.destinationHeight == 16 &&
+                  cursor.hotspotX == 3 && cursor.hotspotY == 5 && cursor.pixel == 0xFFFF0000u,
+              "the image for scale 1 in shared memory, its viewport and hotspot");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
+        break;
+    }
+    case phaseDestroyed:
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,
               "hide");
@@ -557,6 +614,8 @@ int main(void)
     {
         return 77;
     }
+    // Cursors made from images are sized by a viewport.
+    ServerAddViewporter(&server);
     // The compose table of the locale.
     setenv("LANG", "en_US.UTF-8", 1);
     Program program = {.server = &server};

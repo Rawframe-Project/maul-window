@@ -97,10 +97,12 @@ typedef struct mwinWaylandWindow
     bool minimized;
     // A mode request waits for the compositor's next configure, or -1.
     int32_t modeRequest;
-    // The cursor the program asked for over the window, and the pointer
-    // constraint its mode needs.
+    // The cursor the program asked for over the window: a shape, or a
+    // cursor made from images when cursorImage is live (mwin-0027); and
+    // the pointer constraint its mode needs.
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
+    mwinCursorId cursorImage;
     struct zwp_locked_pointer_v1* locked;
     struct zwp_confined_pointer_v1* confined;
     // The window accepts text, and where its caret is.
@@ -185,6 +187,15 @@ typedef struct mwinWaylandCursorTheme
     int32_t scale;
     struct wl_surface* surface;
 } mwinWaylandCursorTheme;
+
+// The surface cursors made from images show on (mwin-0027), its
+// viewport where there is a viewporter, and the buffer attached to it.
+typedef struct mwinWaylandImageCursor
+{
+    struct wl_surface* surface;
+    struct wp_viewport* viewport;
+    struct wl_buffer* buffer;
+} mwinWaylandImageCursor;
 
 // The most touches followed at once.
 #define MWIN_WAYLAND_TOUCHES 16
@@ -302,6 +313,7 @@ struct mwinWaylandPlatform
     // Without it, focus requests are unsupported.
     struct xdg_activation_v1* activation;
     mwinWaylandCursorTheme cursorTheme;
+    mwinWaylandImageCursor imageCursor;
     // The first seat, its registry name, and its keyboard. libxkbcommon
     // loads with the context; without it there is no keyboard.
     struct wl_seat* seat;
@@ -327,12 +339,12 @@ struct mwinWaylandPlatform
     char* title;
 };
 
-// The integer scale an image needs over a window: its scale, rounded
-// up. Cursor images and the frame are drawn at it.
 // Shared memory of a size, mapped for writing: its descriptor, or -1
 // (wayland_frame.c).
 int mwinWaylandMapMemory(size_t bytes, void** memory);
 
+// The integer scale an image needs over a window: its scale, rounded
+// up. Cursor images and the frame are drawn at it.
 static inline int32_t mwinWaylandImageScale(const mwinWaylandWindow* window)
 {
     return window->scale120 != 0 ? (int32_t)((window->scale120 + 119u) / 120u)

@@ -14,9 +14,10 @@ format.
   four RGBA images of one cursor, for scale 1 and higher scales, at
   most 128 pixels a side, with a hotspot; `mwinRequestCursorImage`
   shows one over a window and `mwinDestroyCursor` ends it. The
-  context's `cursors` limit, default 16, bounds them. The test, Win32
-  and X11 backends serve them (X11 through RENDER, whose development
-  files the build now names); the others answer the request
+  context's `cursors` limit, default 16, bounds them. The test, Win32,
+  X11 and Wayland backends serve them (X11 through RENDER, whose
+  development files the build now names; Wayland as shared memory on a
+  surface a viewport sizes); the others answer the request
   `mwin_outcomeUnsupported` for now.
 
 ### Fixed

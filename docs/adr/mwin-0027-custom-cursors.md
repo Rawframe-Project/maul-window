@@ -47,6 +47,10 @@ styles, not bitmaps.
 - **Where there is none.** iOS answers the request
   `mwin_outcomeUnsupported`, as it answers shapes; the cursor is still
   made, so portable code needs no branch.
+- **Android** shows shapes and images alike as the activity view's
+  `PointerIcon`, so its shape requests, unsupported before, are served
+  too; Android has no progress icon, which is the wait icon there. A
+  new activity shows the window's cursor again.
 - **Limits and backends.** The context's `cursors` limit (default 16)
   sizes the slots at creation. Backends make their platform objects
   lazily, per image, the first time a window shows it, and give them

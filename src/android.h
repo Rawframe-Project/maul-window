@@ -44,6 +44,10 @@ typedef struct mwinAndroidWindow
     mwinRect caret;
     mwinInsets safeArea;
     mwinRect covered;
+    // The cursor asked for: a shape, or a cursor made from images when
+    // cursorImage is live (mwin-0027).
+    mwinCursorShape cursorShape;
+    mwinCursorId cursorImage;
 } mwinAndroidWindow;
 
 // The window's insets as the activity last told them, in pixels: the
@@ -64,7 +68,7 @@ typedef struct mwinAndroidInsets
 // and the library's methods that show the keyboard and drop the input
 // method's composition; its services and facts helpers
 // (maul.window.Services and maul.window.Facts, global references) and
-// their methods.
+// their methods; the activity's methods for the pointer's icon.
 typedef struct mwinAndroidJava
 {
     JNIEnv* env;
@@ -79,6 +83,9 @@ typedef struct mwinAndroidJava
     jclass facts;
     jmethodID readFacts;
     jmethodID readLocales;
+    jmethodID showPointerShape;
+    jmethodID showPointer;
+    jmethodID makePointer;
 } mwinAndroidJava;
 
 // The key codes the backend keeps a state of: the keyboard's usages up
@@ -321,6 +328,15 @@ mwinOutcome mwinAndroidWriteClipboard(const mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidReadClipboard(const mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidOpenUrl(const mwinAndroidPlatform* platform, const mwinRequest* request);
 void mwinAndroidApplyAwake(const mwinAndroidPlatform* platform, bool awake);
+
+// The mouse pointer's icon over the view (android_cursor.c): the Java
+// activity's methods found at the start; the icon shown again for a new
+// activity; the shape and image requests; the backend's releaseCursor.
+bool mwinAndroidFindCursors(mwinAndroidPlatform* platform);
+void mwinAndroidApplyCursor(mwinAndroidPlatform* platform);
+mwinOutcome mwinAndroidSetCursorShape(mwinAndroidPlatform* platform, mwinCursorShape shape);
+mwinOutcome mwinAndroidSetCursorImage(mwinAndroidPlatform* platform, mwinCursorId cursor);
+void mwinAndroidReleaseCursor(mwinContext* context, uint32_t slot);
 
 // Input methods, the keyboard and the insets (android_text.c): the Java
 // activity's native methods registered and its methods found, at the

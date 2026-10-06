@@ -423,10 +423,15 @@ static void Attach(mwinAndroidPlatform* platform, ANativeActivity* activity)
     callbacks->onInputQueueDestroyed = OnInputQueueDestroyed;
     callbacks->onConfigurationChanged = OnConfigurationChanged;
     AConfiguration_fromAssetManager(platform->configuration, activity->assetManager);
-    // A window kept awake keeps the joining activity's display awake too.
+    // A window kept awake keeps the joining activity's display awake too,
+    // and its cursor shows over the joining activity's view.
     if (platform->slot >= 0 && platform->context->windows[platform->slot].state.awake)
     {
         mwinAndroidApplyAwake(platform, true);
+    }
+    if (platform->slot >= 0)
+    {
+        mwinAndroidApplyCursor(platform);
     }
 }
 
@@ -513,11 +518,12 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    bool found =
-        mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
-        mwinAndroidFindServices(platform, activity) && mwinAndroidFindDialogs(platform, activity) &&
-        mwinAndroidFindDrops(platform, activity) && mwinAndroidFindFacts(platform, activity) &&
-        mwinAndroidFindAccessibility(platform, activity);
+    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
+                 mwinAndroidFindCursors(platform) && mwinAndroidFindServices(platform, activity) &&
+                 mwinAndroidFindDialogs(platform, activity) &&
+                 mwinAndroidFindDrops(platform, activity) &&
+                 mwinAndroidFindFacts(platform, activity) &&
+                 mwinAndroidFindAccessibility(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif
@@ -601,5 +607,5 @@ const mwinBackendOps mwinAndroidBackend = {
     KeyboardLayout,
     NativeHandles,
     Rumble,
-    nullptr,
+    mwinAndroidReleaseCursor,
 };

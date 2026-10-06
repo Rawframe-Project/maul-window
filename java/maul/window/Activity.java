@@ -6,6 +6,7 @@ package maul.window;
 import android.app.NativeActivity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.os.Bundle;
@@ -13,6 +14,7 @@ import android.text.Editable;
 import android.text.InputType;
 import android.text.Selection;
 import android.view.KeyEvent;
+import android.view.PointerIcon;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -27,7 +29,8 @@ import android.view.inputmethod.InputMethodManager;
  * platform's NativeActivity hands the library its window's surface and
  * input queue; this class adds what the library's C cannot do itself:
  * a view that input methods type into, the window drawn behind the
- * system's bars with their insets told, and the on-screen keyboard.
+ * system's bars with their insets told, the on-screen keyboard, and the
+ * mouse pointer's icon over the view.
  * Name it, or a subclass of it, in the manifest, with the program's
  * native library as {@code android.app.lib_name}.
  */
@@ -43,6 +46,8 @@ public class Activity extends NativeActivity {
     View field;
     private boolean keyboard;
     private int purpose;
+    // The pointer icon asked for, which a view made later takes too.
+    private PointerIcon pointer;
     // Counts the input method's starts: a connection from an earlier one
     // drops its composition rather than commit it.
     private int generation;
@@ -58,6 +63,7 @@ public class Activity extends NativeActivity {
         window.setStatusBarColor(Color.TRANSPARENT);
         window.setNavigationBarColor(Color.TRANSPARENT);
         field = new Field(this);
+        field.setPointerIcon(pointer);
         setContentView(field);
         field.setOnDragListener(new Drops(this));
         field.requestFocus();
@@ -112,6 +118,31 @@ public class Activity extends NativeActivity {
     void restartInput() {
         generation += 1;
         getSystemService(InputMethodManager.class).restartInput(field);
+    }
+
+    /** Shows a system pointer icon over the view; called by the library. */
+    void showPointerShape(int type) {
+        showPointer(PointerIcon.getSystemIcon(this, type));
+    }
+
+    /**
+     * Shows a pointer icon over the view, now or once the view is made;
+     * called by the library.
+     */
+    void showPointer(PointerIcon icon) {
+        pointer = icon;
+        if (field != null) {
+            field.setPointerIcon(icon);
+        }
+    }
+
+    /**
+     * A pointer icon from ARGB pixels with straight alpha, rows from the
+     * top, and a hotspot in them; called by the library.
+     */
+    PointerIcon makePointer(int[] argb, int width, int height, float x, float y) {
+        return PointerIcon.create(
+                Bitmap.createBitmap(argb, width, height, Bitmap.Config.ARGB_8888), x, y);
     }
 
     // The library's functions, registered by it at its start. Each takes

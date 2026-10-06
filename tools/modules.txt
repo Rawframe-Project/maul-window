@@ -5,6 +5,7 @@ allocator:
 android: android_copy android_motion android_pad_map answer core
 android_access: accessibility android core
 android_copy: allocator core
+android_cursor: android core cursor icon
 android_dialog: android android_copy answer core dialog
 android_drop: allocator android android_copy core
 android_input: android android_keys android_motion core evdev key_prints

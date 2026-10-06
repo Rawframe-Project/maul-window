@@ -14,12 +14,13 @@ format.
   four RGBA images of one cursor, for scale 1 and higher scales, at
   most 128 pixels a side, with a hotspot; `mwinRequestCursorImage`
   shows one over a window and `mwinDestroyCursor` ends it. The
-  context's `cursors` limit, default 16, bounds them. The test, Win32,
-  X11, Wayland, web and macOS backends serve them (X11 through RENDER,
-  whose development files the build now names; Wayland as shared memory
-  on a surface a viewport sizes; the web as PNG in a CSS `image-set()`;
-  macOS as an NSCursor with a representation per image); the others
-  answer the request `mwin_outcomeUnsupported` for now.
+  context's `cursors` limit, default 16, bounds them. Every backend
+  but iOS serves them: X11 through RENDER, whose development files the
+  build now names; Wayland as shared memory on a surface a viewport
+  sizes; the web as PNG in a CSS `image-set()`; macOS as an NSCursor
+  with a representation per image; Android as a `PointerIcon`.
+- Android serves cursor shape requests, as the system's `PointerIcon`
+  of each shape.
 
 ### Fixed
 

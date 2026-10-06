@@ -17,6 +17,7 @@
 #include "win32_output.h"
 #include "win32_services.h"
 #include "win32_system.h"
+#include "win32_touch_keyboard.h"
 #include "win32_window.h"
 
 #include <string.h>
@@ -112,6 +113,7 @@ static void Stop(mwinContext* context)
     mwinWin32PadsStop(&platform->pads);
 #endif
     mwinWin32KeepAwake(platform, false);
+    mwinWin32StopTouchKeyboard(platform);
     mwinWin32StopOle(platform);
     mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;

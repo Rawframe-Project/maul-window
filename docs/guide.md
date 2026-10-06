@@ -366,7 +366,7 @@ configures the surface again.
 
 | Backend | Platform API | Built when |
 | --- | --- | --- |
-| Win32 | user32, Raw Input, IMM32, OLE drag and drop, Windows.Gaming.Input, XInput | Windows |
+| Win32 | user32, Raw Input, IMM32, the touch keyboard's InputPane, OLE drag and drop, Windows.Gaming.Input, XInput | Windows |
 | macOS | AppKit, Text Input Sources, GameController, CoreHaptics, IOKit | macOS (`MAUL_WINDOW_MACOS`) |
 | iOS | UIKit with scenes, GameController, CoreHaptics | iOS (`MAUL_WINDOW_IOS`) |
 | Android | NativeActivity with the library's Java, the input queue, the choreographer | Android (`MAUL_WINDOW_ANDROID`) |

@@ -37,3 +37,4 @@ are listed in [README.md](README.md).
 | [mwin-0030](mwin-0030-x11-input-methods.md) | Input methods on X11 | Accepted |
 | [mwin-0031](mwin-0031-keys-the-platform-keeps.md) | Keys the platform keeps | Accepted |
 | [mwin-0032](mwin-0032-win32-input-methods.md) | Input methods on Win32 through IMM32 | Accepted |
+| [mwin-0033](mwin-0033-win32-touch-keyboard.md) | The touch keyboard and input purpose on Win32 | Accepted |

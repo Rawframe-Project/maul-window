@@ -525,12 +525,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Custom chrome and hit regions read back from Windows.
         maul_add_test(win32_chrome)
         target_link_libraries(test_win32_chrome PRIVATE user32)
+        # The touch keyboard shown and hidden through the window's InputPane.
+        maul_add_test(win32_touch_keyboard)
+        target_link_libraries(test_win32_touch_keyboard PRIVATE user32)
         # The accessibility root handed to UI Automation.
         maul_add_test(win32_accessibility)
         target_link_libraries(test_win32_accessibility PRIVATE user32 ole32 oleaut32 uuid)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
                              win32_clipboard win32_drop win32_services win32_dialog win32_owned
-                             win32_chrome
+                             win32_chrome win32_touch_keyboard
                              PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()

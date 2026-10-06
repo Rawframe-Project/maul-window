@@ -157,6 +157,15 @@ struct mwinWin32Platform
     // tried (win32_accessibility.c).
     LRESULT(WINAPI* uiaReturn)(HWND, WPARAM, LPARAM, void*);
     bool uiaTried;
+    // msctf and combase, and what the touch keyboard uses of them, once
+    // a request loaded them (win32_touch_keyboard.c).
+    HMODULE msctf;
+    HMODULE combase;
+    HRESULT(WINAPI* setInputScope)(HWND, int);
+    HRESULT(WINAPI* activate)(void*, const IID*, void**);
+    HRESULT(WINAPI* makeString)(const WCHAR*, UINT32, void**);
+    HRESULT(WINAPI* deleteString)(void*);
+    bool keyboardTried;
 };
 
 // The logical units per pixel of a DPI.

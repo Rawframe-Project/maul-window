@@ -26,8 +26,15 @@ keyboard and the input method read it.
   `InputPane` for desktop windows.
 - msctf and the runtime's activation are loaded at the first request,
   so nothing is linked and older Windows run as before.
-- The part of the window the keyboard covers is not yet reported on
-  Win32.
+- The part of the window the keyboard covers comes from
+  `IFrameworkInputPane` (Windows 8 and later), which a window advises
+  at its first request: its handler gets the keyboard's place on the
+  screen in pixels as it shows and nothing as it hides, and the
+  backend reports the part of the client area it covers, in logical
+  units, as `mwin_eventVirtualKeyboardChanged`. This classic COM
+  interface gives pixels on the screen; the InputPane's own
+  `OccludedRect` would need a runtime delegate and leaves its units
+  for desktop windows undocumented.
 
 ## Consequences
 

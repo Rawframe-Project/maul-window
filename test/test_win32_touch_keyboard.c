@@ -6,14 +6,19 @@
 // the window's InputPane answers (done where the keyboard shows, denied
 // where a hardware keyboard is attached), so the request is never
 // unsupported there. Under wine, which may have no InputPane, it may be.
+// The window then follows the keyboard through IFrameworkInputPane (on
+// Windows; wine may lack it): its handler, called as Windows would with
+// the keyboard over the lower part of the client area, reports the part
+// covered in logical units; hidden, it reports none.
 
 #include "test_harness.h"
+#include "win32.h"
 
 #include "maul-window/event.h"
 #include "maul-window/input.h"
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <math.h>
+#include <shobjidl.h>
 
 #define DEADLINE_MS 10000u
 
@@ -21,6 +26,8 @@ typedef enum Phase
 {
     phaseCreate,
     phaseShow,
+    phaseCovered,
+    phaseUncovered,
     phaseHide,
     phaseDone,
 } Phase;
@@ -33,12 +40,19 @@ typedef struct Program
     Phase phase;
     bool wine;
     int outcomes[2];
+    bool advised;
+    float scale;
+    float width;
+    float height;
+    mwinRect covered[2];
+    int covers;
     bool timedOut;
 } Program;
 
 // The outcome of the request's completion, drained from the stream, or
-// -1; whether the window was made, in *created.
-static int Outcome(mwinContext* context, mwinRequestId request, bool* created)
+// -1; whether the window was made, in *created; the covered parts
+// reported, in the program.
+static int Outcome(Program* program, mwinContext* context, mwinRequestId request, bool* created)
 {
     mwinEvent event;
     int outcome = -1;
@@ -46,6 +60,10 @@ static int Outcome(mwinContext* context, mwinRequestId request, bool* created)
     {
         const mwinCompletion* completion = &event.data.completion;
         *created = *created || event.type == mwin_eventWindowCreated;
+        if (event.type == mwin_eventVirtualKeyboardChanged && program->covers < 2)
+        {
+            program->covered[program->covers++] = event.data.rect;
+        }
         if (event.type == mwin_eventRequestCompleted &&
             completion->request.index1 == request.index1 &&
             completion->request.generation == request.generation)
@@ -62,6 +80,40 @@ static bool Answered(int outcome, bool wine)
            (wine && outcome == mwin_outcomeUnsupported);
 }
 
+// The window's handler, called as Windows would call it.
+static IFrameworkInputPaneHandler* Handler(Program* program, mwinContext* context,
+                                           mwinWin32Window** windowOut)
+{
+    mwinWin32Window* window =
+        &((mwinWin32Platform*)context->backendData)->windows[program->window.index1 - 1];
+    *windowOut = window;
+    return (IFrameworkInputPaneHandler*)&window->paneHandler;
+}
+
+// The keyboard over the client area's lower half, wider than the
+// window.
+static void Cover(Program* program, mwinContext* context)
+{
+    mwinWin32Window* window = nullptr;
+    IFrameworkInputPaneHandler* handler = Handler(program, context, &window);
+    program->advised = window->paneHandler.pane != nullptr;
+    POINT origin = {0, 0};
+    (void)ClientToScreen(window->hwnd, &origin);
+    RECT keyboard = {origin.x - 50, origin.y + (LONG)window->height / 2,
+                     origin.x + (LONG)window->width + 50, origin.y + (LONG)window->height + 200};
+    (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
+    program->scale = (float)window->dpi / 96.0f;
+    program->width = (float)window->width / program->scale;
+    program->height = (float)window->height / program->scale;
+}
+
+static void Uncover(Program* program, mwinContext* context)
+{
+    mwinWin32Window* window = nullptr;
+    IFrameworkInputPaneHandler* handler = Handler(program, context, &window);
+    (void)handler->lpVtbl->Hiding(handler, TRUE);
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
@@ -74,15 +126,41 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     bool created = false;
-    int outcome = Outcome(context, program->request, &created);
-    bool advance = program->phase == phaseCreate ? created : outcome >= 0;
+    int outcome = Outcome(program, context, program->request, &created);
+    bool advance = false;
+    switch (program->phase)
+    {
+    case phaseCreate:
+        advance = created;
+        break;
+    case phaseCovered:
+        advance = program->covers >= 1;
+        break;
+    case phaseUncovered:
+        advance = program->covers >= 2;
+        break;
+    default:
+        advance = outcome >= 0;
+        break;
+    }
     if (advance)
     {
-        if (program->phase != phaseCreate)
+        switch (program->phase)
         {
-            program->outcomes[program->phase - phaseShow] = outcome;
+        case phaseShow:
+            program->outcomes[0] = outcome;
+            Cover(program, context);
+            break;
+        case phaseCovered:
+            Uncover(program, context);
+            break;
+        case phaseHide:
+            program->outcomes[1] = outcome;
+            break;
+        default:
+            break;
         }
-        if (program->phase != phaseHide)
+        if (program->phase == phaseCreate || program->phase == phaseUncovered)
         {
             bool show = program->phase == phaseCreate;
             CHECK(mwinRequestVirtualKeyboard(context, program->window, show, mwin_purposeNumber,
@@ -116,5 +194,15 @@ int main(void)
           "the program runs to its end");
     CHECK(Answered(program.outcomes[0], program.wine), "showing answered by the InputPane");
     CHECK(Answered(program.outcomes[1], program.wine), "hiding answered by the InputPane");
+    CHECK(program.advised || program.wine, "the window follows the keyboard on Windows");
+    const mwinRect* shown = &program.covered[0];
+    float half = (float)(int)(program.height * program.scale / 2.0f) / program.scale;
+    CHECK(program.covers == 2 && shown->x == 0.0f && shown->width == program.width &&
+              fabsf(shown->y - half) < 0.01f &&
+              fabsf(shown->y + shown->height - program.height) < 0.01f,
+          "shown, the part of the client area it covers");
+    CHECK(program.covers == 2 && program.covered[1].width == 0.0f &&
+              program.covered[1].height == 0.0f,
+          "hidden, none");
     return s_failures == 0 ? 0 : 1;
 }

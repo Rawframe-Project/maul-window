@@ -13,7 +13,8 @@ format.
 - The touch keyboard on Win32 (mwin-0033): `mwinRequestVirtualKeyboard`
   shows and hides it through the window's InputPane (Windows 10 1607
   and later), denied where a hardware keyboard is attached, and the
-  purpose sets the window's input scope.
+  purpose sets the window's input scope. The part of the window it
+  covers comes as `mwin_eventVirtualKeyboardChanged`.
 - Keys the platform keeps (mwin-0031): `mwinGetKeyReach` tells whether
   a chord, a key with modifiers, is delivered, shared with the
   platform, uncertain or never delivered, from a table per platform;

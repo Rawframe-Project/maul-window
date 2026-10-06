@@ -51,6 +51,18 @@ typedef struct mwinWin32DropTarget
     int32_t y;
 } mwinWin32DropTarget;
 
+// A window's handler of the touch keyboard's showing and hiding:
+// IFrameworkInputPaneHandler's methods first, so a pointer to it is one
+// to the interface (win32_touch_keyboard.c); the input pane it is
+// advised with, and the cookie, while it is.
+typedef struct mwinWin32PaneHandler
+{
+    const void* methods;
+    mwinWin32Window* window;
+    struct IFrameworkInputPane* pane;
+    DWORD cookie;
+} mwinWin32PaneHandler;
+
 struct mwinWin32Window
 {
     mwinWin32Platform* platform;
@@ -107,6 +119,10 @@ struct mwinWin32Window
     // The program was told the pointer is over the window; over the
     // regions Windows handles its records still come.
     bool pointerInside;
+    // The touch keyboard's handler, and the part of the client area in
+    // logical units it was last reported to cover.
+    mwinWin32PaneHandler paneHandler;
+    mwinRect covered;
 };
 
 // A monitor by its HMONITOR, which Windows keeps while it is connected.

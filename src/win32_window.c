@@ -610,6 +610,7 @@ void mwinWin32DestroyWindow(mwinContext* context, uint32_t slot)
     if (hwnd != nullptr)
     {
         mwinWin32DetachDrop(window);
+        mwinWin32DetachPane(window);
         mwinWin32ForgetObject(window);
     }
     // The window's last messages find no window of the program's; its

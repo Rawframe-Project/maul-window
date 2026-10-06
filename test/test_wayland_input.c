@@ -50,6 +50,8 @@ typedef enum Phase
     phaseTouch,
     phaseShape,
     phaseImage,
+    phaseShapeAgain,
+    phaseImageAgain,
     phaseDestroyed,
     phaseHidden,
     phaseCaptured,
@@ -173,7 +175,10 @@ static bool CursorReady(Phase phase, Cursor cursor)
     case phaseShape:
         return cursor.shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT;
     case phaseImage:
-        return cursor.images > 0;
+    case phaseImageAgain:
+        return cursor.surfaceShown;
+    case phaseShapeAgain:
+        return !cursor.surfaceShown && cursor.shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT;
     case phaseHidden:
         return cursor.hides > 0;
     case phaseCaptured:
@@ -215,6 +220,8 @@ static bool Ready(const Program* program)
         return ServerCursor(program->server).shape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
     case phaseShape:
     case phaseImage:
+    case phaseShapeAgain:
+    case phaseImageAgain:
     case phaseHidden:
     case phaseCaptured:
     case phaseVisible:
@@ -379,9 +386,21 @@ static void AdvanceCursor(Program* program, mwinContext* context)
                   cursor.destinationHeight == 16 && cursor.hotspotX == 3 && cursor.hotspotY == 5 &&
                   cursor.pixel == 0xFFFF0000u,
               "the image for scale 1 in shared memory, its viewport and hotspot");
-        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
+        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                  mwin_success,
+              "a shape again");
         break;
     }
+    case phaseShapeAgain:
+        CHECK(done, "the shape in the image's place");
+        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                  mwin_success,
+              "the image again");
+        break;
+    case phaseImageAgain:
+        CHECK(done, "the image in the shape's place");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
+        break;
     case phaseDestroyed:
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,

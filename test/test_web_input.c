@@ -33,6 +33,8 @@ typedef enum Phase
     phaseWheel,
     phaseShape,
     phaseImage,
+    phaseShapeAgain,
+    phaseImageAgain,
     phaseHidden,
     phaseConfined,
     phaseTouch,
@@ -251,6 +253,20 @@ static void AdvancePointer(Program* program, mwinContext* context)
     case phaseImage:
         CHECK(outcome == mwin_outcomeDone && CursorIsImages(program->selector),
               "the images as PNG in an image-set, with the hotspot");
+        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                  mwin_success,
+              "a shape again");
+        break;
+    case phaseShapeAgain:
+        CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "text"),
+              "the shape in the image's place");
+        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                  mwin_success,
+              "the images again");
+        break;
+    case phaseImageAgain:
+        CHECK(outcome == mwin_outcomeDone && CursorIsImages(program->selector),
+              "the images in the shape's place");
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   CursorIs(program->selector, "default"),
               "destroyed, the default shape");

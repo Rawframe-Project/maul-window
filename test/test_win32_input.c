@@ -39,6 +39,8 @@ typedef enum Phase
     phaseWheel,
     phaseShape,
     phaseImage,
+    phaseShapeAgain,
+    phaseImageAgain,
     phaseConfine,
     phaseRelease,
     phaseCapture,
@@ -253,12 +255,20 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         break;
     }
     case phaseImage:
+    case phaseImageAgain:
     {
         HCURSOR shown = GetCursor();
         CHECK(outcome == mwin_outcomeDone && shown != nullptr &&
                   shown != LoadCursorA(nullptr, IDC_IBEAM) &&
                   shown != LoadCursorA(nullptr, IDC_ARROW),
               "the cursor made from images over the window");
+        if (program->phase == phaseImage)
+        {
+            CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                      mwin_success,
+                  "a shape again");
+            break;
+        }
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   GetCursor() == LoadCursorA(nullptr, IDC_ARROW),
               "destroyed: the default shape");
@@ -269,6 +279,13 @@ static void AdvanceCursor(Program* program, mwinContext* context)
               "the text cursor again; confine and hide");
         break;
     }
+    case phaseShapeAgain:
+        CHECK(outcome == mwin_outcomeDone && GetCursor() == LoadCursorA(nullptr, IDC_IBEAM),
+              "the shape in the image's place");
+        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                  mwin_success,
+              "the images again");
+        break;
     case phaseConfine:
         CHECK(outcome == mwin_outcomeDone && GetCursor() == nullptr &&
                   ClipIs(ClientOnScreen(program->hwnd)),

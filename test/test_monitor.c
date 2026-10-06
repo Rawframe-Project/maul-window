@@ -140,6 +140,12 @@ static void LimitStep(Program* program, mwinContext* context, int step)
               mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
               info.nameLength == 10,
           "and one ill-formed within, its part before");
+    memset(cut.name, 'a', MWIN_MONITOR_NAME_BYTES);
+    cut.nameLength = MWIN_MONITOR_NAME_BYTES + 1;
+    CHECK(mwinTestChangeMonitor(context, s_monitors[1], &cut) == mwin_success &&
+              mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
+              info.nameLength == MWIN_MONITOR_NAME_BYTES,
+          "a length past the name's bytes read as the name's bytes");
     mwinEvent move = {.type = mwin_eventDisplayChanged, .window = Create(context, nullptr)};
     move.data.monitor = (mwinMonitorId){5, 1};
     CHECK(mwinTestPost(context, &move) == mwin_errorStale, "no move to an unknown monitor");

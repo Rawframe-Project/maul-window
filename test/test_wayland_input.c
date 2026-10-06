@@ -397,9 +397,10 @@ static void AdvanceCursor(Program* program, mwinContext* context)
     case phaseImage:
     {
         Cursor cursor = ServerCursor(program->server);
-        CHECK(done && cursor.width == 16 && cursor.height == 16 && cursor.scale == 1 &&
-                  cursor.destinationWidth == 16 && cursor.destinationHeight == 16 &&
-                  cursor.hotspotX == 3 && cursor.hotspotY == 5 && cursor.pixel == 0xFFFF0000u,
+        CHECK(done && cursor.surfaceShown && cursor.width == 16 && cursor.height == 16 &&
+                  cursor.scale == 1 && cursor.destinationWidth == 16 &&
+                  cursor.destinationHeight == 16 && cursor.hotspotX == 3 && cursor.hotspotY == 5 &&
+                  cursor.pixel == 0xFFFF0000u,
               "the image for scale 1 in shared memory, its viewport and hotspot");
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
         break;

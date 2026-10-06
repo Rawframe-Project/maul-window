@@ -43,7 +43,8 @@ typedef struct Cursor
     bool confined;
     // set_cursor calls with a surface, and the last one's hotspot and
     // what its surface held: buffer size, buffer scale, first pixel and
-    // viewport destination (0 for none).
+    // viewport destination (0 for none); and whether a surface is what
+    // shows, not a shape or nothing.
     int images;
     int32_t hotspotX;
     int32_t hotspotY;
@@ -53,6 +54,7 @@ typedef struct Cursor
     uint32_t pixel;
     int32_t destinationWidth;
     int32_t destinationHeight;
+    bool surfaceShown;
 } Cursor;
 
 // What a surface was last given: an attached shared memory buffer's
@@ -457,6 +459,7 @@ static inline void ServerSetCursor(struct wl_client* client, struct wl_resource*
     (void)serial;
     Server* server = wl_resource_get_user_data(resource);
     server->cursor.hides += surface == nullptr;
+    server->cursor.surfaceShown = surface != nullptr;
     SurfaceState* state = surface != nullptr ? ServerSurfaceState(server, surface) : nullptr;
     if (state != nullptr)
     {
@@ -523,6 +526,7 @@ static inline void ServerSetShape(struct wl_client* client, struct wl_resource* 
     (void)serial;
     Server* server = wl_resource_get_user_data(resource);
     server->cursor.shape = shape;
+    server->cursor.surfaceShown = false;
 }
 
 static const struct wp_cursor_shape_device_v1_interface s_serverShapeDevice = {

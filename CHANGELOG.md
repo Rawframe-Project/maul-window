@@ -15,10 +15,11 @@ format.
   most 128 pixels a side, with a hotspot; `mwinRequestCursorImage`
   shows one over a window and `mwinDestroyCursor` ends it. The
   context's `cursors` limit, default 16, bounds them. The test, Win32,
-  X11, Wayland and web backends serve them (X11 through RENDER, whose
-  development files the build now names; Wayland as shared memory on a
-  surface a viewport sizes; the web as PNG in a CSS `image-set()`); the
-  others answer the request `mwin_outcomeUnsupported` for now.
+  X11, Wayland, web and macOS backends serve them (X11 through RENDER,
+  whose development files the build now names; Wayland as shared memory
+  on a surface a viewport sizes; the web as PNG in a CSS `image-set()`;
+  macOS as an NSCursor with a representation per image); the others
+  answer the request `mwin_outcomeUnsupported` for now.
 
 ### Fixed
 

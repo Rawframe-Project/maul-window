@@ -70,7 +70,7 @@ linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog
 macos: apple_pad core
 macos_chrome: chrome core macos
-macos_cursor: core macos
+macos_cursor: core cursor icon macos
 macos_dialog: answer core dialog macos
 macos_drop: core macos
 macos_icon: core icon macos

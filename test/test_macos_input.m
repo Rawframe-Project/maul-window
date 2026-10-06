@@ -4,10 +4,13 @@
 // The macOS backend's input against AppKit (a CI runner's session): key
 // presses and releases by virtual key code with the layout's meaning,
 // typed text, a modifier's press and release, mouse buttons with their
-// click counts and a drag, the wheel, and the cursor requests. No real
+// click counts and a drag, the wheel, and the cursor requests, with a
+// cursor made from images that a shape replaces and that leaves the
+// arrow when destroyed. No real
 // input can be made without permissions, so the test makes NSEvents and
 // hands them to the window as AppKit would; the wheel's go to the view.
 
+#include "cursor_images.h"
 #include "test_harness.h"
 
 #include "maul-window/event.h"
@@ -37,6 +40,7 @@ typedef struct Program
     int phase;
     uint64_t startNs;
     mwinWindowId window;
+    mwinCursorId cursor;
     bool shown;
     Record records[MAX_RECORDS];
     size_t count;
@@ -262,6 +266,53 @@ static void CheckCursors(const Program* program)
     }
 }
 
+// Whether the application's cursor is the one made from images: the
+// first image's size in points, the hot spot, and a representation of
+// each image. The drag before left the pointer over the view.
+static bool ShowsImages(void)
+{
+    NSCursor* cursor = [NSCursor currentCursor];
+    return NSEqualSizes(cursor.image.size, NSMakeSize(16.0, 16.0)) &&
+           NSEqualPoints(cursor.hotSpot, NSMakePoint(3.0, 5.0)) &&
+           cursor.image.representations.count == 2;
+}
+
+static const Record* Completed(const Program* program)
+{
+    size_t at = 0;
+    return Find(program, &at, mwin_eventRequestCompleted);
+}
+
+// The cursor made from images: shown, replaced by a shape, shown again,
+// and destroyed.
+static void AdvanceImages(Program* program, mwinContext* context)
+{
+    const Record* completed = Completed(program);
+    bool done = completed != nullptr && completed->outcome == mwin_outcomeDone;
+    switch (program->phase)
+    {
+    case 5:
+        CHECK(done && ShowsImages(), "the cursor made from images over the view");
+        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                  mwin_success,
+              "a shape again");
+        break;
+    case 6:
+        CHECK(done && [NSCursor currentCursor] == [NSCursor IBeamCursor],
+              "the shape in the images' place");
+        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                  mwin_success,
+              "the images again");
+        break;
+    default:
+        CHECK(done && ShowsImages(), "the images in the shape's place");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
+                  [NSCursor currentCursor] == [NSCursor arrowCursor],
+              "destroyed: the arrow");
+        break;
+    }
+}
+
 // Each phase sends its events at once, and the next frame reads what
 // they posted.
 static void Advance(Program* program, mwinContext* context)
@@ -297,9 +348,18 @@ static void Advance(Program* program, mwinContext* context)
         RequestCursors(context, program->window);
         break;
     case 4:
+    {
         CheckCursors(program);
+        mwinIconImage images[2];
+        mwinCursorDef def = CursorImagesDef(images);
+        CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
+                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                      mwin_success,
+              "a cursor made from images");
         break;
+    }
     default:
+        AdvanceImages(program, context);
         break;
     }
     program->phase += 1;
@@ -332,7 +392,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     bool pending = (program->phase == 3 && program->keyWindow &&
                     Find(program, &at, mwin_eventKeyUp) == nullptr) ||
-                   (program->phase == 4 && completions < 5);
+                   (program->phase == 4 && completions < 5) ||
+                   (program->phase > 4 && completions < 1);
     bool waiting = pending && NowNs() - program->startNs < DEADLINE_NS;
     if (program->shown && !waiting)
     {
@@ -346,7 +407,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 5 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 8 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -359,6 +420,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 5, "every phase ran");
+    CHECK(program.phase == 8, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

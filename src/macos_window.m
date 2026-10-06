@@ -482,6 +482,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwinMacSetCursorMode(platform, slot, request->value.code);
     case mwin_requestCursorShape:
         return mwinMacSetCursorShape(platform, slot, request->value.code);
+    case mwin_requestCursorImage:
+        return mwinMacSetCursorImage(platform, slot, request->value.cursor);
     case mwin_requestTextInput:
         return mwinMacSetTextInput(platform, slot, request->value.textInput.enabled,
                                    request->value.textInput.caret);

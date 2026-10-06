@@ -5,9 +5,10 @@
 // which types, moves the mouse, touches and draws with a pen as the test
 // asks: keys with their codes, meanings and text, Shift, a repeat, a
 // named key, the pointer entering and moving, a double click, the wheel,
-// cursor shapes, a hidden cursor, no confinement, a touch, a pen, and a
+// cursor shapes, a cursor made from images, a hidden cursor, no confinement, a touch, a pen, and a
 // captured cursor with raw motion after a click.
 
+#include "cursor_images.h"
 #include "test_harness.h"
 #include "web_js.h"
 
@@ -31,6 +32,7 @@ typedef enum Phase
     phaseClicks,
     phaseWheel,
     phaseShape,
+    phaseImage,
     phaseHidden,
     phaseConfined,
     phaseTouch,
@@ -47,6 +49,7 @@ typedef struct Program
     Phase phase;
     double startMs;
     mwinWindowId window;
+    mwinCursorId cursor;
     char selector[128];
     mwinEvent records[MAX_RECORDS];
     int count;
@@ -60,6 +63,15 @@ EM_JS_DEPS(test_web_input, "$UTF8ToString");
 // clang-format off
 EM_JS(bool, CursorIs, (const char* selector, const char* cursor), {
     return document.querySelector(UTF8ToString(selector)).style.cursor === UTF8ToString(cursor);
+});
+
+// Whether the canvas's cursor is images as PNG, each with its scale,
+// and the hotspot.
+EM_JS(bool, CursorIsImages, (const char* selector), {
+    const cursor = document.querySelector(UTF8ToString(selector)).style.cursor;
+    const parts = cursor.split('data:image/png;base64,');
+    return parts.length === 3 && parts[0] === 'image-set(url("' &&
+        parts[1].endsWith('") 1x, url("') && parts[2].endsWith('") 2x) 3 5, auto');
 });
 // clang-format on
 
@@ -225,8 +237,23 @@ static void AdvancePointer(Program* program, mwinContext* context)
               "a text cursor");
         break;
     case phaseShape:
+    {
         CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "text"),
               "the text cursor over the canvas");
+        mwinIconImage images[2];
+        mwinCursorDef def = CursorImagesDef(images);
+        CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
+                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                      mwin_success,
+              "a cursor made from images");
+        break;
+    }
+    case phaseImage:
+        CHECK(outcome == mwin_outcomeDone && CursorIsImages(program->selector),
+              "the images as PNG in an image-set, with the hotspot");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
+                  CursorIs(program->selector, "default"),
+              "destroyed, the default shape");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,
               "hide");
@@ -273,8 +300,9 @@ static void AdvanceCapture(Program* program, mwinContext* context)
         break;
     }
     default:
-        CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "text"),
-              "released: the text cursor again");
+        // The destroyed cursor left the default shape.
+        CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "default"),
+              "released: the shape again");
         break;
     }
 }

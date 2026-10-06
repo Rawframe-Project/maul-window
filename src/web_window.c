@@ -6,6 +6,7 @@
 #include "web_window.h"
 
 #include "web_clipboard.h"
+#include "web_cursor.h"
 #include "web_drop.h"
 #include "web_input.h"
 #include "web_js.h"
@@ -175,6 +176,8 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         return mwinWebSetCursorMode(PlatformOf(context), slot, request->value.code);
     case mwin_requestCursorShape:
         return mwinWebSetCursorShape(PlatformOf(context), slot, request->value.code);
+    case mwin_requestCursorImage:
+        return mwinWebSetCursorImage(PlatformOf(context), slot, request->value.cursor);
     case mwin_requestTextInput:
         return mwinWebSetTextInput(PlatformOf(context), slot, request->value.textInput.enabled,
                                    request->value.textInput.caret);

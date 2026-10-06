@@ -5,6 +5,7 @@
 
 #include "web_input.h"
 
+#include "web_cursor.h"
 #include "web_js.h"
 
 #include "maul-unicode/encoding.h"
@@ -199,13 +200,6 @@ EM_JS(int, mwinPageLockPointer, (const mwinContext* context, uint32_t slot, bool
     return 0;
 });
 
-EM_JS(void, mwinPageSetCursor, (const mwinContext* context, uint32_t slot, int shape, bool hidden), {
-    const shapes = ['default', 'text', 'pointer', 'crosshair', 'move', 'ew-resize', 'ns-resize',
-                    'nesw-resize', 'nwse-resize', 'not-allowed', 'wait', 'progress'];
-    Module.mwinWeb.get(context).canvases[slot].canvas.style.cursor =
-        hidden ? 'none' : shapes[shape];
-});
-
 EM_JS(int, mwinPageKeyMeaning, (const mwinContext* context, int code), {
     const input = Module.mwinWeb.get(context).input;
     const name = input.names[code];
@@ -343,8 +337,7 @@ static void AnswerLock(mwinWebPlatform* platform, uint32_t slot, bool locked, bo
     if (!failed && locked == wanted)
     {
         platform->windows[slot].cursorMode = mode;
-        mwinPageSetCursor(context, slot, platform->windows[slot].cursorShape,
-                          mode != mwin_cursorVisible);
+        mwinWebApplyCursor(platform, slot);
         mwinComplete(context, slot, (uint32_t)request, mwin_outcomeDone);
     }
     else if (failed)
@@ -402,16 +395,7 @@ int mwinWebSetCursorMode(mwinWebPlatform* platform, uint32_t slot, mwinCursorMod
         return answer < 0 ? mwin_outcomeUnsupported : -1;
     }
     platform->windows[slot].cursorMode = mode;
-    mwinPageSetCursor(platform->context, slot, platform->windows[slot].cursorShape,
-                      mode != mwin_cursorVisible);
-    return mwin_outcomeDone;
-}
-
-int mwinWebSetCursorShape(mwinWebPlatform* platform, uint32_t slot, mwinCursorShape shape)
-{
-    mwinWebWindow* window = &platform->windows[slot];
-    window->cursorShape = shape;
-    mwinPageSetCursor(platform->context, slot, shape, window->cursorMode != mwin_cursorVisible);
+    mwinWebApplyCursor(platform, slot);
     return mwin_outcomeDone;
 }
 

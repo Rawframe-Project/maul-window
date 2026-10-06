@@ -23,10 +23,9 @@ void mwinWebWatchCanvas(const mwinContext* context, uint32_t slot);
 // Handles an input record.
 void mwinWebHandleInputRecord(mwinWebPlatform* platform, const mwinWebRecord* record);
 
-// Carries out a cursor request: its outcome, or -1 when the page
+// Carries out a cursor mode request: its outcome, or -1 when the page
 // answers later.
 int mwinWebSetCursorMode(mwinWebPlatform* platform, uint32_t slot, mwinCursorMode mode);
-int mwinWebSetCursorShape(mwinWebPlatform* platform, uint32_t slot, mwinCursorShape shape);
 
 // The backend's mapKeyCode.
 mwinKey mwinWebMapKeyCode(const mwinContext* context, mwinKeyCode code);

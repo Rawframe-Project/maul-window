@@ -35,10 +35,12 @@ typedef struct mwinWebWindow
     mwinPixelSize pixels;
     float scale;
     bool fullscreen;
-    // The cursor the program asked for, the buttons held, the last
+    // The cursor the program asked for (a shape, or a cursor made from
+    // images when cursorImage is live), the buttons held, the last
     // press, and the pen's flags at its last record.
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
+    mwinCursorId cursorImage;
     uint8_t buttons;
     mwinClickCounter clicks;
     mwinPenFlags penFlags;

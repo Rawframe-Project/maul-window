@@ -9,6 +9,7 @@
 // another client then meets, and a captured one with XInput 2's raw motion. Without DISPLAY the
 // test is skipped (exit status 77).
 
+#include "cursor_images.h"
 #include "test_harness.h"
 
 #include "maul-window/event.h"
@@ -155,30 +156,6 @@ static bool CanGrabSoon(Program* program)
     return false;
 }
 
-// A cursor of two images: red at 16 pixels, green at 32.
-static uint8_t s_red[16 * 16 * 4];
-static uint8_t s_green[32 * 32 * 4];
-
-static mwinCursorDef CursorDef(mwinIconImage images[2])
-{
-    for (size_t i = 0; i < sizeof(s_green); i += 4)
-    {
-        memcpy(&s_green[i], (const uint8_t[]){0, 255, 0, 255}, 4);
-        if (i < sizeof(s_red))
-        {
-            memcpy(&s_red[i], (const uint8_t[]){255, 0, 0, 255}, 4);
-        }
-    }
-    images[0] = (mwinIconImage){16, 16, 16 * 4, s_red};
-    images[1] = (mwinIconImage){32, 32, 32 * 4, s_green};
-    mwinCursorDef def = mwinDefaultCursorDef();
-    def.images = images;
-    def.imageCount = 2;
-    def.hotspotX = 3;
-    def.hotspotY = 5;
-    return def;
-}
-
 // Whether the X server shows the red image, by XFixes.
 static bool ShowsRed(Program* program)
 {
@@ -280,7 +257,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
     {
         CHECK(outcome == mwin_outcomeDone, "the shape from the theme or the cursor font");
         mwinIconImage images[2];
-        mwinCursorDef def = CursorDef(images);
+        mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
                   mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
                       mwin_success,

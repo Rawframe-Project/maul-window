@@ -12,6 +12,7 @@
 #include "backend.h"
 #include "web.h"
 #include "web_clipboard.h"
+#include "web_cursor.h"
 #include "web_drop.h"
 #include "web_input.h"
 #include "web_js.h"
@@ -403,7 +404,16 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinWebBackend = {
-    Start,         Stop,    Run,        mwinWebCreateWindow, mwinWebDestroyWindow,
-    mwinWebSubmit, Now,     MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,        nullptr,
+    Start,
+    Stop,
+    Run,
+    mwinWebCreateWindow,
+    mwinWebDestroyWindow,
+    mwinWebSubmit,
+    Now,
+    MapKeyCode,
+    KeyboardLayout,
+    NativeHandles,
+    Rumble,
+    mwinWebReleaseCursor,
 };

@@ -8,6 +8,12 @@ format.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-06
+
+The requirements' optional parts: cursors from images, trigger rumble
+and motion for gamepads, and clipboard data by MIME type with the
+primary selection.
+
 ### Added
 
 - Cursors made from images (mwin-0027): `mwinCreateCursor` takes up to
@@ -35,7 +41,6 @@ format.
   GameController to pads with a gyroscope (GCMotion), and Android 12
   and later to pads with an accelerometer and a gyroscope; the test
   backend gives both.
-
 - Clipboard data by MIME type and the primary selection (mwin-0029):
   `mwinRequestClipboardWriteData` offers up to four typed items, one of
   them text, their bytes passed through unconverted;

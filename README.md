@@ -26,20 +26,23 @@ generated from the headers.
 
 ## Status
 
-0.5.0 is the current release. It has the whole contract on seven
+0.6.0 is the current release. It has the whole contract on seven
 backends, Win32, macOS, iOS, Android, Wayland, X11 and the web (with
 Emscripten or as plain wasm32-wasi), and a headless test backend:
 
 1. Windows, their modes and styles, monitors and per-monitor scale, and
    the platform's loop, owned by the program or by the platform.
 2. The keyboard, text input and input methods, the mouse, touch and
-   pen, cursors and pointer capture.
-3. Gamepads with rumble, mapped by SDL_GameControllerDB: Xbox pads
-   through Windows.Gaming.Input (XInput before Windows 10) and generic
-   HID pads on Windows, GameController on macOS and iOS, Android's input
+   pen, cursors (the system's shapes or the program's images) and
+   pointer capture.
+3. Gamepads with rumble, and trigger rumble and motion where the pad
+   has them, mapped by SDL_GameControllerDB: Xbox pads through
+   Windows.Gaming.Input (XInput before Windows 10) and generic HID pads
+   on Windows, GameController on macOS and iOS, Android's input
    devices, evdev on Linux, the Gamepad API on the web.
-4. The clipboard, drag and drop, file dialogs, message boxes, opening
-   addresses, revealing files and keeping the display awake.
+4. The clipboard (text, data by MIME type, and the primary selection
+   on X11 and Wayland), drag and drop, file dialogs, message boxes,
+   opening addresses, revealing files and keeping the display awake.
 5. Owned windows, popups and custom chrome, and the hooks for
    accessibility adapters.
 6. System facts (theme, accent, motion, text scale, power) and the

@@ -8,6 +8,16 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Cursors made from images (mwin-0027): `mwinCreateCursor` takes up to
+  four RGBA images of one cursor, for scale 1 and higher scales, at
+  most 128 pixels a side, with a hotspot; `mwinRequestCursorImage`
+  shows one over a window and `mwinDestroyCursor` ends it. The
+  context's `cursors` limit, default 16, bounds them. The test and
+  Win32 backends serve them; the others answer the request
+  `mwin_outcomeUnsupported` for now.
+
 ### Fixed
 
 - `MWIN_NODISCARD` is `[[nodiscard]]` under MSVC's C++17 compiler too,

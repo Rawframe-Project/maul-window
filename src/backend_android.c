@@ -601,4 +601,5 @@ const mwinBackendOps mwinAndroidBackend = {
     KeyboardLayout,
     NativeHandles,
     Rumble,
+    nullptr,
 };

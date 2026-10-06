@@ -403,7 +403,7 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinWebBackend = {
-    Start,         Stop, Run,        mwinWebCreateWindow, mwinWebDestroyWindow,
-    mwinWebSubmit, Now,  MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,
+    Start,         Stop,    Run,        mwinWebCreateWindow, mwinWebDestroyWindow,
+    mwinWebSubmit, Now,     MapKeyCode, KeyboardLayout,      NativeHandles,
+    Rumble,        nullptr,
 };

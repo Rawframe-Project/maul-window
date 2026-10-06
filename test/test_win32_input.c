@@ -4,12 +4,14 @@
 // The Win32 backend's input against Windows (a CI runner's desktop, or
 // wine), driven through SendInput: keys with their codes, meanings and
 // text, Shift, a repeat, text outside the BMP, the pointer entering and
-// moving, a double click, the wheel, cursor shapes, a hidden and
-// confined cursor, and a captured one with raw motion.
+// moving, a double click, the wheel, cursor shapes, a cursor made from
+// images and its end, a hidden and confined cursor, and a captured one
+// with raw motion.
 
 #include "test_harness.h"
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 #include "maul-window/native.h"
 
 #include <string.h>
@@ -36,6 +38,7 @@ typedef enum Phase
     phaseClicks,
     phaseWheel,
     phaseShape,
+    phaseImage,
     phaseConfine,
     phaseRelease,
     phaseCapture,
@@ -56,6 +59,7 @@ typedef struct Program
     uint32_t textLength;
     bool entered;
     bool timedOut;
+    mwinCursorId cursor;
 } Program;
 
 static void Send(INPUT input)
@@ -229,12 +233,42 @@ static void AdvanceCursor(Program* program, mwinContext* context)
               "a text cursor");
         break;
     case phaseShape:
+    {
         CHECK(outcome == mwin_outcomeDone && GetCursor() == LoadCursorA(nullptr, IDC_IBEAM),
               "the system's text cursor over the window");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfinedHidden, nullptr) ==
-                  mwin_success,
-              "confine and hide");
+        static uint8_t small[32 * 32 * 4];
+        static uint8_t large[64 * 64 * 4];
+        memset(small, 0xFF, sizeof(small));
+        memset(large, 0xFF, sizeof(large));
+        mwinIconImage images[2] = {{32, 32, 32 * 4, small}, {64, 64, 64 * 4, large}};
+        mwinCursorDef def = mwinDefaultCursorDef();
+        def.images = images;
+        def.imageCount = 2;
+        def.hotspotX = 4;
+        def.hotspotY = 4;
+        CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
+                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+                      mwin_success,
+              "a cursor made from images");
         break;
+    }
+    case phaseImage:
+    {
+        HCURSOR shown = GetCursor();
+        CHECK(outcome == mwin_outcomeDone && shown != nullptr &&
+                  shown != LoadCursorA(nullptr, IDC_IBEAM) &&
+                  shown != LoadCursorA(nullptr, IDC_ARROW),
+              "the cursor made from images over the window");
+        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
+                  GetCursor() == LoadCursorA(nullptr, IDC_ARROW),
+              "destroyed: the default shape");
+        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+                      mwin_success &&
+                  mwinRequestCursorMode(context, program->window, mwin_cursorConfinedHidden,
+                                        nullptr) == mwin_success,
+              "the text cursor again; confine and hide");
+        break;
+    }
     case phaseConfine:
         CHECK(outcome == mwin_outcomeDone && GetCursor() == nullptr &&
                   ClipIs(ClientOnScreen(program->hwnd)),

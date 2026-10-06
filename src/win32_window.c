@@ -807,6 +807,8 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         return mwinWin32SetCursorMode(window, request->value.code);
     case mwin_requestCursorShape:
         return mwinWin32SetCursorShape(window, request->value.code);
+    case mwin_requestCursorImage:
+        return mwinWin32SetCursorImage(window, request->value.cursor);
     case mwin_requestTextInput:
         return mwinWin32SetTextInput(window, request->value.textInput.enabled,
                                      request->value.textInput.caret);

@@ -13,6 +13,7 @@
 #include "allocator.h"
 #include "backend.h"
 #include "core.h"
+#include "cursor.h"
 
 #include "maul-unicode/encoding.h"
 #include "maul-window/test.h"
@@ -28,6 +29,7 @@ typedef struct PlatformParts
     mwinLayout layout;
     size_t pending;
     size_t rumbles;
+    size_t cursors;
 } PlatformParts;
 
 static uint32_t PendingCapacity(const mwinLimits* limits)
@@ -43,6 +45,8 @@ static PlatformParts PartsOf(const mwinLimits* limits)
                                   alignof(mwinTestPending));
     parts.rumbles = mwinLayoutAdd(&parts.layout, limits->gamepads, sizeof(mwinTestRumble),
                                   alignof(mwinTestRumble));
+    parts.cursors = mwinLayoutAdd(&parts.layout, limits->windows, sizeof(mwinTestCursor),
+                                  alignof(mwinTestCursor));
     return parts;
 }
 
@@ -67,6 +71,7 @@ static mwinResult Start(mwinContext* context)
     platform->pending = (mwinTestPending*)(block + parts.pending);
     platform->pendingCapacity = PendingCapacity(&context->limits);
     platform->rumbles = (mwinTestRumble*)(block + parts.rumbles);
+    platform->cursors = (mwinTestCursor*)(block + parts.cursors);
     platform->scale = 1.0f;
     context->backendData = platform;
     return mwin_success;
@@ -126,8 +131,35 @@ static void CreateWindow(mwinContext* context, uint32_t slot)
 
 static void DestroyWindow(mwinContext* context, uint32_t slot)
 {
-    (void)context;
-    (void)slot;
+    mwinTestPlatformOf(context)->cursors[slot] = (mwinTestCursor){0};
+}
+
+// Shows a cursor made from images over the window in a slot, taking the
+// image for the platform's scale and marking it made.
+static mwinOutcome ShowCursor(mwinContext* context, uint32_t slot, mwinCursorId id)
+{
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    mwinCursor* cursor = mwinFindCursor(context, id);
+    if (cursor == nullptr)
+    {
+        return mwin_outcomeFailed;
+    }
+    uint32_t image = mwinCursorImageFor(cursor, platform->scale);
+    cursor->nativeId[image] = 1;
+    platform->cursors[slot] = (mwinTestCursor){id, image};
+    return mwin_outcomeDone;
+}
+
+static void ReleaseCursor(mwinContext* context, uint32_t cursor)
+{
+    mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    for (uint32_t slot = 0; slot < context->limits.windows; slot++)
+    {
+        if (platform->cursors[slot].cursor.index1 == cursor + 1)
+        {
+            platform->cursors[slot] = (mwinTestCursor){0};
+        }
+    }
 }
 
 static void Submit(mwinContext* context, uint32_t slot, uint32_t request)
@@ -294,6 +326,11 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     case mwin_requestIcon:
         mwinTestSetIcon(context, request);
         break;
+    case mwin_requestCursorShape:
+        mwinTestPlatformOf(context)->cursors[slot] = (mwinTestCursor){0};
+        break;
+    case mwin_requestCursorImage:
+        return ShowCursor(context, slot, request->value.cursor);
     default:
         break; // the cursor changes on screen, with nothing to report
     }
@@ -447,7 +484,7 @@ static mwinResult RumbleGamepad(mwinContext* context, uint32_t slot, float low, 
 
 const mwinBackendOps mwinTestBackend = {
     Start,      Stop,           Run,           CreateWindow,  DestroyWindow, Submit, Now,
-    MapKeyCode, KeyboardLayout, NativeHandles, RumbleGamepad,
+    MapKeyCode, KeyboardLayout, NativeHandles, RumbleGamepad, ReleaseCursor,
 };
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
@@ -818,4 +855,29 @@ mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, 
         *countOut = rumble->count;
     }
     return status;
+}
+
+mwinResult mwinTestGetCursor(const mwinContext* context, mwinWindowId window,
+                             mwinCursorId* cursorOut, uint32_t* imageOut)
+{
+    if (context == nullptr || cursorOut == nullptr)
+    {
+        return mwin_errorInvalid;
+    }
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    if (mwinFindWindow(context, window) == nullptr)
+    {
+        return mwin_errorStale;
+    }
+    const mwinTestCursor* shown = &platform->cursors[window.index1 - 1];
+    *cursorOut = shown->cursor;
+    if (imageOut != nullptr)
+    {
+        *imageOut = shown->image;
+    }
+    return mwin_success;
 }

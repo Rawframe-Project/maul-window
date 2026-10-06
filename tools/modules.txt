@@ -25,7 +25,7 @@ backend:
 backend_android: allocator android backend core
 backend_ios: allocator backend core ios
 backend_macos: allocator backend core macos
-backend_test: allocator backend core
+backend_test: allocator backend core cursor
 backend_test_services: accessibility allocator backend backend_test core dialog icon
 backend_wayland: allocator backend core wayland wayland_api wayland_clipboard wayland_drop wayland_cursor wayland_keyboard wayland_output wayland_seat wayland_text wayland_window xkb_api
 backend_web: allocator backend core web web_clipboard web_drop web_input web_js web_pad web_page web_services web_text web_window
@@ -35,7 +35,7 @@ base:
 chrome: core
 clicks:
 clipboard: allocator core utf8
-context: allocator backend core
+context: allocator backend core cursor
 core: backend file_list
 dbus_api:
 dialog: allocator core file_list
@@ -44,6 +44,7 @@ evdev:
 file_list: allocator
 gamepad: core
 icon: allocator core
+cursor: allocator core icon
 input: core
 ios: apple_pad core
 ios_dialog: answer core dialog ios
@@ -132,7 +133,7 @@ win32_dialog: allocator core dialog win32
 win32_drop: allocator core win32
 win32_icon: core icon win32
 win32_ime: core win32
-win32_input: core win32
+win32_input: core cursor win32 win32_icon
 win32_message_box: message_box
 win32_output: core win32
 win32_pad: core pad_tracker win32_base win32_hid win32_wgi

@@ -31,3 +31,4 @@ are listed in [README.md](README.md).
 | [mwin-0024](mwin-0024-macos-backend.md) | The macOS backend | Accepted |
 | [mwin-0025](mwin-0025-ios-backend.md) | The iOS backend | Accepted |
 | [mwin-0026](mwin-0026-android-backend.md) | The Android backend | Accepted |
+| [mwin-0027](mwin-0027-custom-cursors.md) | Cursors made from images | Accepted |

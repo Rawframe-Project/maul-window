@@ -205,6 +205,7 @@ extern "C"
         mwin_requestIcon = 21,
         mwin_requestHitRegions = 22,
         mwin_requestAccessibilityRoot = 23,
+        mwin_requestCursorImage = 24,
     };
 
     // How a request ended.

@@ -120,6 +120,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/accessibility.c
     src/chrome.c
     src/icon.c
+    src/cursor.c
     src/input.c
     src/message_box.c
     src/monitor.c
@@ -207,6 +208,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(services)
         maul_add_test(dialog)
         maul_add_test(icon WHITEBOX)
+        maul_add_test(cursor WHITEBOX)
         maul_add_test(owned)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)

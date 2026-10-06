@@ -165,6 +165,26 @@ MWIN_NODISCARD MWIN_API mwinResult mwinRequestCursorShape(mwinContext* context, 
 Asks for one of the system's cursor images over a window.  @param context     The context. @param window      The window. @param shape       One of the mwin_shape values. @param requestOut  Receives the request's id. May be NULL. @return As mwinRequestTitle, with `mwin_errorInvalid` for an unknown shape. @par Thread safety Main thread only.
 
 ```c
+mwinCursorDef mwinDefaultCursorDef(void);
+```
+Returns the default cursor def: no images, the hotspot at 0, 0.  @return The def, with a valid cookie. @par Thread safety Safe from any thread.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinCreateCursor(mwinContext* context, const mwinCursorDef* def, mwinCursorId* cursorOut);
+```
+Makes a cursor from images, to show over windows with mwinRequestCursorImage. Each window takes the image for its scale: the smallest at least the first image's size times the scale, else the largest, its hotspot scaled with it.  @param context    The context. @param def        The images and hotspot. @param cursorOut  Receives the cursor's id. @return `mwin_success`; `mwin_errorInvalid` for a NULL argument, a def without its cookie, no images or more than MWIN_CURSOR_IMAGES, an image without pixels, with no width or height or more than MWIN_CURSOR_SIZE, or a stride below its width times 4, an image not wider than the one before, or a hotspot outside the first image; `mwin_errorCapacity` past the limit's cursors or when the allocator fails. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinDestroyCursor(mwinContext* context, mwinCursorId cursor);
+```
+Destroys a cursor. Windows showing it show the default shape.  @param context  The context. @param cursor   The cursor. @return `mwin_success`; `mwin_errorInvalid` for a NULL context; `mwin_errorStale` for an id that is not live. @par Thread safety Main thread only.
+
+```c
+MWIN_NODISCARD MWIN_API mwinResult mwinRequestCursorImage(mwinContext* context, mwinWindowId window, mwinCursorId cursor, mwinRequestId* requestOut);
+```
+Asks for a cursor made with mwinCreateCursor over a window, in place of a shape until a shape is asked for again. Platforms without image cursors (iOS) answer mwin_outcomeUnsupported.  @param context     The context. @param window      The window. @param cursor      The cursor. @param requestOut  Receives the request's id. May be NULL. @return As mwinRequestTitle, with `mwin_errorStale` for a cursor that is not live. @par Thread safety Main thread only.
+
+```c
 mwinKey mwinMapKeyCode(const mwinContext* context, mwinKeyCode code);
 ```
 Returns what a physical key means under the current keyboard layout, as a key record would carry it.  @param context  The context. @param code     A physical key. @return The key; 0 for a NULL context, an unknown code or a key the layout gives no meaning. @par Thread safety Main thread only.
@@ -370,6 +390,11 @@ MWIN_NODISCARD MWIN_API mwinResult mwinTestGetIcon(const mwinContext* context, u
 Reads the icon the backend was last given: how many images, and a checksum of them in order, 64-bit FNV-1a over each image's width and height (4 bytes each, least significant first) and its pixels, packed.  @param context     A context of the test backend. @param countOut    Receives the images, 0 before any icon. @param checksumOut Receives the checksum. @return `mwin_success`; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL argument. @par Thread safety Main thread only.
 
 ```c
+MWIN_NODISCARD MWIN_API mwinResult mwinTestGetCursor(const mwinContext* context, mwinWindowId window, mwinCursorId* cursorOut, uint32_t* imageOut);
+```
+Reads the cursor made from images a window shows, with the image it took for the test backend's scale (mwin-0027).  @param context    A context of the test backend. @param window     The window. @param cursorOut  Receives the cursor; a zero id while the window shows a shape. @param imageOut   Receives the image's index. May be NULL. @return `mwin_success`; `mwin_errorStale` for a window that no longer exists; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL argument. @par Thread safety Main thread only.
+
+```c
 MWIN_NODISCARD MWIN_API mwinResult mwinTestAskAccessibility(mwinContext* context, mwinWindowId window);
 ```
 Plays an accessibility client asking the window for its tree, as a screen reader would: the first time, mwin_eventAccessibilityRequested follows.  @param context A context of the test backend. @param window  The window. @return `mwin_success`; `mwin_errorStale` for a window that no longer exists; `mwin_errorUnsupported` for a context of another backend; `mwin_errorInvalid` for a NULL context. @par Thread safety Main thread only.
@@ -460,4 +485,4 @@ Asks for keyboard focus. Platforms may refuse to take focus from another program
 
 ---
 
-79 functions across 15 headers.
+84 functions across 15 headers.

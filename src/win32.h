@@ -74,9 +74,11 @@ struct mwinWin32Window
     // Borderless full screen, and the placement to come back to.
     bool fullscreen;
     WINDOWPLACEMENT restore;
-    // The cursor the program asked for over the window.
+    // The cursor the program asked for over the window: a shape, or a
+    // cursor made from images when cursorImage is live (mwin-0027).
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
+    mwinCursorId cursorImage;
     // The pointer is over the window (a leave is asked for), the
     // buttons held, and the last press.
     bool tracking;

@@ -12,7 +12,7 @@
 
 #include "maul-window/services.h"
 
-#define MWIN_TEST_KINDS (mwin_requestAccessibilityRoot + 1)
+#define MWIN_TEST_KINDS (mwin_requestCursorImage + 1)
 
 // The bytes of the paths a dialog chooses, and of the last dialog's
 // description.
@@ -42,11 +42,21 @@ typedef struct mwinTestRumble
     uint32_t count;
 } mwinTestRumble;
 
+// The cursor made from images a window shows, with the image it took;
+// a zero id while it shows a shape.
+typedef struct mwinTestCursor
+{
+    mwinCursorId cursor;
+    uint32_t image;
+} mwinTestCursor;
+
 typedef struct mwinTestPlatform
 {
     mwinTestPending* pending;
     // One per gamepad slot.
     mwinTestRumble* rumbles;
+    // One per window slot.
+    mwinTestCursor* cursors;
     uint32_t pendingCount;
     uint32_t pendingCapacity;
     mwinEvent reports[MWIN_TEST_REPORTS];

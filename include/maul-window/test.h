@@ -12,6 +12,7 @@
 #define MAUL_WINDOW_TEST_H
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 #include "maul-window/monitor.h"
 #include "maul-window/system.h"
 
@@ -400,6 +401,24 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestGetIcon(const mwinContext* context,
                                                        uint32_t* countOut, uint64_t* checksumOut);
+
+    /// Reads the cursor made from images a window shows, with the image it
+    /// took for the test backend's scale (mwin-0027).
+    ///
+    /// @param context    A context of the test backend.
+    /// @param window     The window.
+    /// @param cursorOut  Receives the cursor; a zero id while the window
+    ///                   shows a shape.
+    /// @param imageOut   Receives the image's index. May be NULL.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetCursor(const mwinContext* context,
+                                                         mwinWindowId window,
+                                                         mwinCursorId* cursorOut,
+                                                         uint32_t* imageOut);
 
     /// Plays an accessibility client asking the window for its tree, as a
     /// screen reader would: the first time, mwin_eventAccessibilityRequested

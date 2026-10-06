@@ -270,7 +270,7 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinMacBackend = {
-    Start,         Stop, Run,        mwinMacCreateWindow, mwinMacDestroyWindow,
-    mwinMacSubmit, Now,  MapKeyCode, KeyboardLayout,      NativeHandles,
-    Rumble,
+    Start,         Stop,    Run,        mwinMacCreateWindow, mwinMacDestroyWindow,
+    mwinMacSubmit, Now,     MapKeyCode, KeyboardLayout,      NativeHandles,
+    Rumble,        nullptr,
 };

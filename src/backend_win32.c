@@ -224,7 +224,16 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 }
 
 const mwinBackendOps mwinWin32Backend = {
-    Start,           Stop, Run,        mwinWin32CreateWindow, mwinWin32DestroyWindow,
-    mwinWin32Submit, Now,  MapKeyCode, KeyboardLayout,        NativeHandles,
+    Start,
+    Stop,
+    Run,
+    mwinWin32CreateWindow,
+    mwinWin32DestroyWindow,
+    mwinWin32Submit,
+    Now,
+    MapKeyCode,
+    KeyboardLayout,
+    NativeHandles,
     Rumble,
+    mwinWin32ReleaseCursor,
 };

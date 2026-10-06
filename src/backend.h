@@ -38,6 +38,10 @@ typedef struct mwinBackendOps
     // Runs the motors of the gamepad in a slot, which has mwin_padRumble.
     mwinResult (*rumble)(mwinContext* context, uint32_t slot, float low, float high,
                          uint32_t durationMs);
+    // Frees what the backend made for the cursor in a slot, which is being
+    // destroyed, and shows the default shape over the windows showing it;
+    // NULL for a backend that makes nothing for cursors.
+    void (*releaseCursor)(mwinContext* context, uint32_t cursor);
 } mwinBackendOps;
 
 // The loop of a backend that pumps: init, then pump and frame until a

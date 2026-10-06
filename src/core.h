@@ -18,6 +18,7 @@
 #include "file_list.h"
 
 #include "maul-window/event.h"
+#include "maul-window/input.h"
 #include "maul-window/monitor.h"
 #include "maul-window/system.h"
 
@@ -114,6 +115,8 @@ typedef struct mwinRequest
         struct mwinIconCopy* icon;
         // An accessibility root (accessibility.h).
         void* root;
+        // A cursor made from images (cursor.h).
+        mwinCursorId cursor;
     } value;
 } mwinRequest;
 
@@ -210,6 +213,8 @@ struct mwinContext
     // One per gamepad slot, the rings of their records, and the arrivals
     // counted.
     mwinGamepad* gamepads;
+    // One per cursor slot (cursor.h).
+    struct mwinCursor* cursors;
     mwinRing gamepadRings[2];
     uint64_t arrivals;
     mwinSystemFacts facts;

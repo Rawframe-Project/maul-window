@@ -191,7 +191,10 @@ units; buttons carry the count of quick clicks they complete. The wheel
 turns in detents, fractional for touchpads and smooth wheels.
 `mwin_eventRawPointerDelta` is the device's own motion. It keeps coming
 while `mwinRequestCursorMode` captures the cursor, as a first-person
-camera needs. `mwinRequestCursorShape` picks the system's cursors.
+camera needs. `mwinRequestCursorShape` picks the system's cursors;
+`mwinCreateCursor` makes one from images, the first at scale 1 and the
+others for higher scales, and `mwinRequestCursorImage` shows it over a
+window, which takes the image for its scale.
 
 **Touch and pen.** These are records of their own, with ids,
 pressure, tilt and the pen's buttons.

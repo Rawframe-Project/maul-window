@@ -118,6 +118,9 @@ typedef struct mwinAndroidPad
     uint32_t slot;
     mwinAndroidPadLayout layout;
     int8_t battery;
+    // The latest acceleration and rotation rate its sensors gave.
+    float acceleration[3];
+    float rotationRate[3];
 } mwinAndroidPad;
 
 // The gamepads followed, and when they were last looked for; the
@@ -136,6 +139,8 @@ typedef struct mwinAndroidPads
     jmethodID ranges;
     jmethodID battery;
     jmethodID rumble;
+    jmethodID hasMotion;
+    jmethodID motion;
     jintArray keys;
 } mwinAndroidPads;
 
@@ -271,12 +276,14 @@ void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
 // Gamepads (android_pad.c): the Java helper found, at the start; the
 // gamepads looked for every half second and when an event comes from
 // one not followed; an event of a gamepad followed, true when it was
-// one; the motors run; everything let go, the motors stopped.
+// one; the motors run; the motion sensors turned on or off; everything
+// let go, the motors and sensors stopped.
 bool mwinAndroidFindPads(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidPumpPads(mwinAndroidPlatform* platform, uint64_t nowNs);
 bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event);
 mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float low, float high,
                              uint32_t durationMs);
+mwinResult mwinAndroidSetMotion(mwinAndroidPlatform* platform, uint32_t slot, bool enabled);
 void mwinAndroidStopPads(mwinAndroidPlatform* platform);
 
 // File dialogs (android_dialog.c): the Java helper found and its

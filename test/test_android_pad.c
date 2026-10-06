@@ -199,9 +199,10 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
         CHECK(info.mapped == (i < 2), "the gamepads mapped, the joystick raw");
         CHECK(i < 2 || (info.rawButtons == 8 && info.rawAxes == 2),
               "the joystick's eight buttons and two axes");
-        CHECK(info.capabilities == 0 && info.battery == -1, "no motors, no battery");
-        CHECK(mwinSetGamepadRumble(context, id, 0.5f, 0.5f, 100) == mwin_errorUnsupported,
-              "no rumble without motors");
+        CHECK(info.capabilities == 0 && info.battery == -1, "no motors, sensors or battery");
+        CHECK(mwinSetGamepadRumble(context, id, 0.5f, 0.5f, 100) == mwin_errorUnsupported &&
+                  mwinSetGamepadMotion(context, id, true) == mwin_errorUnsupported,
+              "no rumble without motors, no motion without sensors");
     }
 }
 

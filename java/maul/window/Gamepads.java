@@ -4,6 +4,10 @@
 package maul.window;
 
 import android.hardware.BatteryState;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
@@ -11,14 +15,20 @@ import android.os.VibratorManager;
 import android.view.InputDevice;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * What the library asks Android about gamepads, which its C reaches only
- * through Java: the gamepads connected, what each is and has, its battery
- * and its motors. Called by the library on the main thread only.
+ * through Java: the gamepads connected, what each is and has, its battery,
+ * its motors and its motion sensors. Called by the library on the main
+ * thread only.
  */
 final class Gamepads {
+    // The motion listeners of the gamepads whose sensors are on, by id.
+    private static final Map<Integer, Motion> MOTIONS = new HashMap<>();
+
     private Gamepads() {
     }
 
@@ -167,5 +177,71 @@ final class Gamepads {
             }
         }
         return motors.length > 0;
+    }
+
+    // A gamepad's accelerometer and gyroscope (Android 12 and later), or
+    // null where it lacks either.
+    private static Sensor[] sensors(int id) {
+        InputDevice device = InputDevice.getDevice(id);
+        if (device == null || Build.VERSION.SDK_INT < 31) {
+            return null;
+        }
+        SensorManager manager = device.getSensorManager();
+        Sensor accelerometer = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        Sensor gyroscope = manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        return accelerometer != null && gyroscope != null
+                ? new Sensor[] {accelerometer, gyroscope}
+                : null;
+    }
+
+    /** Whether a gamepad has an accelerometer and a gyroscope. */
+    static boolean hasMotion(int id) {
+        return sensors(id) != null;
+    }
+
+    /**
+     * Turns a gamepad's motion sensors on, each sample handed to the
+     * library on the main thread, or off: false when it has none.
+     */
+    static boolean motion(int id, boolean on) {
+        Motion listening = MOTIONS.remove(id);
+        if (listening != null) {
+            listening.manager.unregisterListener(listening);
+        }
+        Sensor[] sensors = on ? sensors(id) : null;
+        if (sensors == null) {
+            return !on;
+        }
+        Motion motion = new Motion(InputDevice.getDevice(id).getSensorManager(), id);
+        for (Sensor sensor : sensors) {
+            motion.manager.registerListener(motion, sensor, SensorManager.SENSOR_DELAY_GAME);
+        }
+        MOTIONS.put(id, motion);
+        return true;
+    }
+
+    /** Hands the library a sample: a gyroscope's when gyro, in m/s^2 or rad/s. */
+    static native void nativeMotion(long program, int id, boolean gyro, float x, float y, float z,
+            long timeNs);
+
+    private static final class Motion implements SensorEventListener {
+        final SensorManager manager;
+        final int id;
+
+        Motion(SensorManager manager, int id) {
+            this.manager = manager;
+            this.id = id;
+        }
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            boolean gyro = event.sensor.getType() == Sensor.TYPE_GYROSCOPE;
+            nativeMotion(Activity.program, id, gyro, event.values[0], event.values[1],
+                    event.values[2], event.timestamp);
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
     }
 }

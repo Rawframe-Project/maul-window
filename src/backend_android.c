@@ -595,6 +595,13 @@ static mwinResult Rumble(mwinContext* context, uint32_t slot, float low, float h
 #endif
 }
 
+#ifdef MAUL_WINDOW_GAMEPAD
+static mwinResult SetMotion(mwinContext* context, uint32_t slot, bool enabled)
+{
+    return mwinAndroidSetMotion(mwinAndroidPlatformOf(context), slot, enabled);
+}
+#endif
+
 const mwinBackendOps mwinAndroidBackend = {
     Start,
     Stop,
@@ -609,5 +616,9 @@ const mwinBackendOps mwinAndroidBackend = {
     Rumble,
     mwinAndroidReleaseCursor,
     nullptr,
+#ifdef MAUL_WINDOW_GAMEPAD
+    SetMotion,
+#else
     nullptr,
+#endif
 };

@@ -32,8 +32,9 @@ format.
   `trigger-rumble`, and GameController to pads whose haptics reach
   their triggers; Linux grants motion to pads whose driver makes a
   motion sensors device (hid-playstation, hid-nintendo), and
-  GameController to pads with a gyroscope (GCMotion); the test backend
-  gives both.
+  GameController to pads with a gyroscope (GCMotion), and Android 12
+  and later to pads with an accelerometer and a gyroscope; the test
+  backend gives both.
 
 ### Fixed
 

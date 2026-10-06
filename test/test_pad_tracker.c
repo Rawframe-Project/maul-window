@@ -258,8 +258,13 @@ static void CheckRemoved(Program* program)
     CHECK(Count(program, mwin_eventGamepadRemoved) == 1 && s_xbox.count == PADS - 1 &&
               s_fake.references == PADS - 1,
           "a pad gone is removed and let go");
+    CHECK(mwinPadTrackerTriggerRumble(&s_xbox, s_xbox.pads[0].slot, 0.5f, 0.5f, 1000, 0) ==
+                  mwin_success &&
+              s_fake.left == 0.5f,
+          "the triggers running at the stop");
     mwinPadTrackerStop(&s_xbox);
-    CHECK(s_fake.references == 0, "every reference let go at the stop");
+    CHECK(s_fake.references == 0 && s_fake.left == 0.0f && s_fake.right == 0.0f,
+          "every reference let go at the stop, the motors stilled");
 }
 
 static void Step(Program* program, mwinContext* context, int step)

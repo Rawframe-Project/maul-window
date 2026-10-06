@@ -23,6 +23,9 @@ format.
   its whole characters before the cut or the fault; it used to arrive
   empty when the cut split a character (X11, Wayland) or, on Windows,
   whenever it did not fit.
+- Gamepad names likewise: a device's name cut inside a character by the
+  backend (evdev, the web) keeps its whole characters instead of
+  arriving empty.
 
 ## [0.7.0] - 2026-10-06
 

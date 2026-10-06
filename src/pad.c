@@ -27,16 +27,16 @@ int32_t mwinFindGamepad(const mwinContext* context, mwinGamepadId gamepad)
                : -1;
 }
 
-// Keeps a gamepad's facts, with a name that is not UTF-8 left empty and
-// raw counts kept to what the state holds.
+// Keeps a gamepad's facts: its name cut to its longest well-formed
+// prefix (a device's bytes, which a backend may cut inside a character)
+// and raw counts kept to what the state holds.
 static void Store(mwinGamepad* gamepad, const mwinGamepadInfo* info)
 {
     gamepad->info = *info;
-    if (info->nameLength > MWIN_GAMEPAD_NAME_BYTES ||
-        muniValidateUtf8(info->name, info->nameLength).status != muni_success)
-    {
-        gamepad->info.nameLength = 0;
-    }
+    uint32_t length =
+        info->nameLength < MWIN_GAMEPAD_NAME_BYTES ? info->nameLength : MWIN_GAMEPAD_NAME_BYTES;
+    muniTextResult valid = muniValidateUtf8(info->name, length);
+    gamepad->info.nameLength = valid.status == muni_success ? length : (uint32_t)valid.offset;
     uint8_t buttons =
         info->rawButtons < MWIN_GAMEPAD_RAW_BUTTONS ? info->rawButtons : MWIN_GAMEPAD_RAW_BUTTONS;
     uint8_t axes = info->rawAxes < MWIN_GAMEPAD_RAW_AXES ? info->rawAxes : MWIN_GAMEPAD_RAW_AXES;

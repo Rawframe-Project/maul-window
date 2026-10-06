@@ -323,6 +323,19 @@ static void LimitStep(Program* program, mwinContext* context, int step)
     CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
               mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success && info.nameLength == 0,
           "a name that is not UTF-8 is left empty");
+    memset(info.name, 'p', 62);
+    memcpy(info.name + 62, "\xE2\x9C", 2);
+    info.nameLength = MWIN_GAMEPAD_NAME_BYTES;
+    CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
+              mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success &&
+              info.nameLength == 62 && info.name[61] == 'p',
+          "a name cut inside a character keeps its whole characters");
+    memset(info.name, 'p', MWIN_GAMEPAD_NAME_BYTES);
+    info.nameLength = MWIN_GAMEPAD_NAME_BYTES + 1;
+    CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
+              mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success &&
+              info.nameLength == MWIN_GAMEPAD_NAME_BYTES,
+          "a length past the name's bytes read as the name's bytes");
     CHECK(mwinGetGamepadInfo(context, (mwinGamepadId){9, 1}, &info) == mwin_errorStale &&
               mwinGetGamepadInfo(context, s_pads[0], nullptr) == mwin_errorInvalid,
           "unknown ids and missing arguments");

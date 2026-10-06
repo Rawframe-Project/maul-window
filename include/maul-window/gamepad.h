@@ -97,7 +97,8 @@ extern "C"
     // What the platform tells about a gamepad.
     typedef struct mwinGamepadInfo
     {
-        // UTF-8, not NUL-terminated.
+        // UTF-8, not NUL-terminated; a longer name, or one with ill-formed
+        // bytes, is cut to the whole characters before the cut or the fault.
         char name[MWIN_GAMEPAD_NAME_BYTES];
         uint32_t nameLength;
         // The USB vendor and product ids, 0 where unknown.

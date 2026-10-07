@@ -337,6 +337,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Stand-ins for zenity and kdialog on PATH.
         maul_add_test(message_box POSIX)
         target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
+        # Linux input event codes as key codes.
+        maul_add_test(evdev WHITEBOX)
         # The preferred locales the environment names.
         maul_add_test(linux_locale WHITEBOX)
         if(TARGET test_linux_locale)

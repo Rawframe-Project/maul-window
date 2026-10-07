@@ -3,9 +3,9 @@
 //
 // The Wayland backend's input against the test compositor of
 // wayland_server.h. The keyboard: keys with their codes, meanings and
-// text, the modifiers, repeat, a compose sequence (a dead key), a
-// change of layout group with its record and new meanings, and the
-// reset when focus goes while a key is held. A released key repeats no
+// text (a space's too), the modifiers, repeat, a compose sequence (a
+// dead key), a change of layout group with its record and new
+// meanings, and the reset when focus goes while a key is held. A released key repeats no
 // more, a key without text types nothing, and a key pressed before the
 // focus came and released while it is here leaves nothing to reset. The
 // pointer: entering, the last motion of a frame, quick clicks counted,
@@ -624,11 +624,12 @@ static void Advance(Program* program, mwinContext* context)
                   CountOf(program, mwin_eventTextInput, false) == 0,
               "a key without text types nothing");
         // us(intl): the apostrophe is a dead acute.
+        Press(server, KEY_SPACE);
         Press(server, KEY_APOSTROPHE);
         Press(server, KEY_E);
         break;
     case phaseCompose:
-        CHECK(TextIs(program, "\xC3\xA9"), "a dead key composes");
+        CHECK(TextIs(program, " \xC3\xA9"), "a space types, and a dead key composes");
         ServerModifiers(server, 0, 1);
         break;
     case phaseLayout:

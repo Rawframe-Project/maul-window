@@ -9,9 +9,10 @@
 // folder as bytes, answered with file URIs; SaveFile with the name,
 // closed by the user; a folder; a dialog closed when its window goes;
 // a URI of no local file failed; zenity where the portal refuses.
-// Without a bus, zenity: its arguments, a choice of several, closed,
-// failing, past the limits, and missing. Skipped (exit status 77)
-// without an X server.
+// Without a bus, zenity: its arguments, a choice of several, closed, a
+// save with no title or folder given its name alone, failing, a choice
+// of exactly the limits and one past them, and missing. Skipped (exit
+// status 77) without an X server.
 
 #include "linux_bus_fake.h"
 #include "test_harness.h"
@@ -33,7 +34,7 @@ static char s_directory[] = "/tmp/mwin-dialog-XXXXXX";
 
 static const mwinFileFilter s_filters[] = {
     {"Images", 6, "png;JPG", 7},
-    {"Text", 4, "txt", 3},
+    {"Archives", 8, "zip;Z", 5},
 };
 
 typedef struct Step
@@ -56,6 +57,8 @@ typedef struct Step
     const char* asked;
     // The window is destroyed while the portal shows the dialog.
     bool destroy;
+    // The dialog has no title and no folder.
+    bool bare;
 } Step;
 
 typedef struct Program
@@ -118,14 +121,14 @@ static bool Asked(mwinContext* context, const Program* program, const char* expe
     return strcmp(program->fake->chooser, text) == 0;
 }
 
-static mwinFileDialogDef Def(mwinDialogKind kind)
+static mwinFileDialogDef Def(mwinDialogKind kind, bool bare)
 {
     mwinFileDialogDef def = mwinDefaultFileDialogDef();
     def.kind = kind;
-    def.title = "Pick";
-    def.titleLength = 4;
-    def.folder = "/tmp/a b";
-    def.folderLength = 8;
+    def.title = bare ? nullptr : "Pick";
+    def.titleLength = bare ? 0 : 4;
+    def.folder = bare ? nullptr : "/tmp/a b";
+    def.folderLength = bare ? 0 : 8;
     def.name = "out.txt";
     def.nameLength = 7;
     def.filters = s_filters;
@@ -150,7 +153,7 @@ static void Begin(mwinContext* context, Program* program)
         program->fake->refuseChooser = step->refuse;
         program->chosen = program->fake->chosen;
     }
-    mwinFileDialogDef def = Def(step->kind);
+    mwinFileDialogDef def = Def(step->kind, step->bare);
     CHECK(mwinRequestFileDialog(context, program->window, &def, &program->request) == mwin_success,
           step->what);
     program->asked = true;
@@ -272,10 +275,11 @@ static void Run(const Step* steps, int count, FakeBus* fake, uint32_t dialogByte
 }
 
 #define FILTERS                                                                                    \
-    "filters=Images:*.[pP][nN][gG],*.[jJ][pP][gG],|Text:*.[tT][xX][tT],|;"                         \
+    "filters=Images:*.[pP][nN][gG],*.[jJ][pP][gG],|Archives:*.[zZ][iI][pP],*.[zZ],|;"              \
     "current_filter=Images:*.[pP][nN][gG],*.[jJ][pP][gG],;"
 #define ZENITY_FILTERS                                                                             \
-    "--file-filter=Images | *.[pP][nN][gG] *.[jJ][pP][gG]\n--file-filter=Text | *.[tT][xX][tT]\n"
+    "--file-filter=Images | *.[pP][nN][gG] *.[jJ][pP][gG]\n"                                       \
+    "--file-filter=Archives | *.[zZ][iI][pP] *.[zZ]\n"
 
 static const char* const s_chosen[] = {"file:///tmp/a%20b/x.png", "file:///tmp/%C3%A9.JPG"};
 static const char* const s_folder[] = {"file:///tmp"};
@@ -340,11 +344,24 @@ static const Step s_zenity[] = {
      .outcome = mwin_outcomeCancelled,
      .asked =
          "--file-selection\n--title=Pick\n--save\n--filename=/tmp/a b/out.txt\n" ZENITY_FILTERS},
+    {.what = "a save with no title or folder, its name alone",
+     .kind = mwin_dialogSave,
+     .bare = true,
+     .status = "1",
+     .outcome = mwin_outcomeCancelled,
+     .asked = "--file-selection\n--save\n--filename=out.txt\n" ZENITY_FILTERS},
     {.what = "zenity failing failed",
      .kind = mwin_dialogFolder,
      .status = "5",
      .outcome = mwin_outcomeFailed,
      .asked = "--file-selection\n--title=Pick\n--directory\n--filename=/tmp/a b/\n"},
+    {.what = "a choice of exactly the limits",
+     .kind = mwin_dialogOpen,
+     .output = "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n",
+     .outcome = mwin_outcomeDone,
+     .files = "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     .filesLength = 32,
+     .asked = "--file-selection\n--title=Pick\n--filename=/tmp/a b/\n" ZENITY_FILTERS},
     {.what = "a choice past the limits too large",
      .kind = mwin_dialogOpen,
      .output = "/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n",
@@ -392,7 +409,7 @@ int main(void)
     }
     FakeStop(&fake);
     (void)setenv("XDG_RUNTIME_DIR", s_directory, 1);
-    Run(s_zenity, 4, nullptr, 32, "dialogs by zenity");
+    Run(s_zenity, 6, nullptr, 32, "dialogs by zenity");
     (void)setenv("PATH", none, 1);
     Run(s_none, 1, nullptr, 1u << 20, "dialogs without zenity");
     (void)remove(path);

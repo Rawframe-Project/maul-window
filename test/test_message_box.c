@@ -4,8 +4,8 @@
 // The message box on Linux against stand-ins for zenity and kdialog on
 // PATH, scripts that write their arguments down and exit as told: the
 // text as arguments, never through a shell; OK, Yes and No; an error
-// of zenity's own; kdialog where zenity is missing; none where both
-// are; and defs refused before anything runs.
+// of zenity's own; kdialog where zenity is missing, the longest title
+// whole; none where both are; and defs refused before anything runs.
 
 #include "test_harness.h"
 
@@ -92,6 +92,15 @@ static void CheckKdialog(void)
     CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && accepted &&
               Ran("kdialog\n--title\nMaul\n--error\nIt's $HOME; \xC3\xA9\n"),
           "kdialog where zenity is missing");
+    static char longest[MWIN_MESSAGE_TITLE_BYTES + 1];
+    memset(longest, 'T', MWIN_MESSAGE_TITLE_BYTES);
+    error.title = longest;
+    error.titleLength = MWIN_MESSAGE_TITLE_BYTES;
+    char expected[MWIN_MESSAGE_TITLE_BYTES + 64];
+    (void)snprintf(expected, sizeof(expected),
+                   "kdialog\n--title\n%s\n--error\nIt's $HOME; \xC3\xA9\n", longest);
+    CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && Ran(expected),
+          "the longest title whole");
     mwinMessageBoxDef question = Def(mwin_messageInfo, mwin_buttonsOkCancel);
     setenv("MWIN_EXIT", "2", 1);
     CHECK(mwinShowMessageBox(&question, &accepted) == mwin_success && !accepted &&

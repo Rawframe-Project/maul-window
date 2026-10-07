@@ -241,8 +241,8 @@ static const Step s_withoutBus[] = {
 };
 
 static const Step s_withBus[] = {
-    {"a file shown by the file manager", mwin_requestRevealFile, "/tmp/a b/\xC3\xA9.txt", nullptr,
-     false, mwin_outcomeDone, nullptr, "file:///tmp/a%20b/%C3%A9.txt"},
+    {"a file shown by the file manager", mwin_requestRevealFile, "/tmp/a b/z\xC3\xA9.txt", nullptr,
+     false, mwin_outcomeDone, nullptr, "file:///tmp/a%20b/z%C3%A9.txt"},
     {"its folder opened when the file manager refuses", mwin_requestRevealFile,
      "/tmp/a b/\xC3\xA9.txt", nullptr, true, mwin_outcomeDone, "/tmp/a b",
      "file:///tmp/a%20b/%C3%A9.txt"},

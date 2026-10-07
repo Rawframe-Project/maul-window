@@ -10,8 +10,8 @@
 // - settings of the wrong type left alone;
 // - KDE's answer: no preference as an unknown theme, and reduced motion
 //   from an animation factor of 0 given as text ("0.0"), then of 1.5;
-//   factors of text that is no number as none; a factor of 0 as a
-//   number;
+//   factors of text that is no number (a point alone, two points) as
+//   none; a factor of 0 as a number;
 // - no answer: the facts left as they were, and no change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
 // libdbus-1.
@@ -88,7 +88,7 @@ static void Change(FakeBus* fake, int phase)
     const char* darkText = "1";
     const double plain = 1.0;
     // A factor, and the theme that marks the phase.
-    const char* factors[3] = {"1.5", ".", "0x"};
+    const char* factors[3] = {"1.5", ".", "0.0.0"};
     const double off = 0.0;
     if (fake->desktop == fakeKde && phase < 3)
     {

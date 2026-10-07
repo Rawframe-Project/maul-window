@@ -17,7 +17,7 @@ jobs:
     name: checks
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install tools
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
@@ -88,7 +88,7 @@ jobs:
           - { name: linux-minimal,       os: ubuntu-24.04, cc: gcc-14,   cxx: g++-14,     config: Release, extra: "-DMAUL_WINDOW_WAYLAND=OFF -DMAUL_WINDOW_X11=OFF -DMAUL_WINDOW_GAMEPAD=OFF" }
           - { name: macos-clang,         os: macos-15,     cc: clang,    cxx: clang++,    config: Release, extra: "" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install compilers
         if: runner.os == 'Linux'
         # A mirror's stalled download is retried; a hang ends here.
@@ -140,7 +140,7 @@ jobs:
     name: fuzz
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install compilers
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
@@ -172,7 +172,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Configure
         run: cmake -B build -T ClangCL -D${PREFIX}_WERROR=ON
       - name: Build
@@ -193,7 +193,7 @@ jobs:
     name: ios-simulator
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Boot a simulator
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c '
@@ -231,7 +231,7 @@ jobs:
       # Where avdmanager writes the device and the emulator reads it.
       ANDROID_AVD_HOME: /home/runner/.android/avd
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Boot the emulator
         timeout-minutes: 15
         run: |
@@ -273,7 +273,7 @@ jobs:
     name: web-wasi
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Toolchain
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
@@ -298,8 +298,8 @@ jobs:
     name: web-emscripten
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: mymindstorm/setup-emsdk@v14
+      - uses: actions/checkout@v7
+      - uses: emscripten-core/setup-emsdk@v16
       - name: Configure
         run: emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
       - name: Build

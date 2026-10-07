@@ -9,7 +9,9 @@
 // UTF8_STRING, delivers the paths (a URI of another scheme left out)
 // and the text repaired, and finishes; types past three come from the
 // source's XdndTypeList; a drag of neither is refused and not
-// reported. Skipped (exit status 77) without DISPLAY.
+// reported. Under a drop limit that is no whole number of 32-bit words,
+// a text of exactly the limit is delivered whole. Skipped (exit status
+// 77) without DISPLAY.
 
 #include "test_harness.h"
 
@@ -81,6 +83,8 @@ typedef struct Source
     // The targets the program converted to, in order.
     xcb_atom_t asked[4];
     int askedCount;
+    // The text served as UTF8_STRING.
+    const char* text;
 } Source;
 
 typedef enum Phase
@@ -102,8 +106,14 @@ typedef struct Program
     mwinWindowId window;
     mwinEvent records[MAX_RECORDS];
     int count;
+    // The run under the drop limit: a drag of text dropped at once.
+    bool limited;
     bool timedOut;
 } Program;
+
+// The drop limit of the limited run, and a text of exactly it.
+#define LIMIT 10u
+static const char s_limited[] = "0123456789";
 
 static const char s_files[] = "file:///tmp/a.txt\r\nfile:///tmp/%C3%A9.png\r\nhttp://x/y\r\n";
 
@@ -191,7 +201,7 @@ static void Serve(Source* source, const xcb_selection_request_event_t* request)
 {
     const xcb_atom_t* atoms = source->atoms;
     const char* text = request->target == atoms[atomUriList] ? s_files
-                       : request->target == atoms[atomUtf8]  ? "hi\xC3("
+                       : request->target == atoms[atomUtf8]  ? source->text
                                                              : nullptr;
     if (source->askedCount < 4)
     {
@@ -316,6 +326,18 @@ static void CheckDrop(Program* program, mwinContext* context)
     Position(source, 5, 5);
 }
 
+static void CheckLimited(const Program* program, mwinContext* context)
+{
+    const mwinEvent* dropped = Find(program, mwin_eventDropped, 0);
+    char bytes[LIMIT];
+    size_t length = 0;
+    CHECK(dropped != nullptr &&
+              mwinGetDroppedText(context, dropped->data.drop.drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
+              length == LIMIT && memcmp(bytes, s_limited, LIMIT) == 0,
+          "a text of exactly the limit delivered whole");
+}
+
 static bool Ready(Program* program)
 {
     const Source* source = program->source;
@@ -346,8 +368,13 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         static const int types[] = {atomUriList, atomUtf8, atomHtml};
-        Enter(source, types, 3);
+        Enter(source, program->limited ? types + 1 : types, program->limited ? 1 : 3);
         Position(source, 10, 20);
+        if (program->limited)
+        {
+            Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
+            program->phase = phaseEnter;
+        }
         break;
     }
     case phaseEnter:
@@ -360,6 +387,12 @@ static void Advance(Program* program, mwinContext* context)
         Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
         break;
     case phaseDrop:
+        if (program->limited)
+        {
+            CheckLimited(program, context);
+            program->phase = phaseNeither;
+            break;
+        }
         CheckDrop(program, context);
         break;
     case phaseTypeList:
@@ -437,6 +470,7 @@ int main(void)
         return 77;
     }
     unsetenv("WAYLAND_DISPLAY");
+    source.text = "hi\xC3(";
     Program program = {.source = &source};
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
@@ -445,6 +479,15 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
+    // A new window, and a source that has heard nothing of it.
+    source.target = 0;
+    source.finished = false;
+    source.askedCount = 0;
+    source.text = s_limited;
+    program = (Program){.source = &source, .limited = true};
+    def.context.limits.dropBytes = LIMIT;
+    CHECK(mwinRun(&def) == mwin_success && !program.timedOut && program.phase == phaseDone,
+          "the limited run");
     xcb_disconnect(source.connection);
     return s_failures == 0 ? 0 : 1;
 }

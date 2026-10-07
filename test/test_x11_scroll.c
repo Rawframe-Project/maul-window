@@ -9,10 +9,14 @@
 // - valuators of other devices, or not for scrolling, move nothing, and
 //   an event with none of them is not a scroll;
 // - a restart counts from the next value again;
-// - valuators of no increment, and past the table, are left out.
+// - valuators of no increment, and past the table, are left out;
+// - an event with more values than its mask sets reads no word past
+//   the mask.
 
 #include "test_harness.h"
 #include "x11_scroll.h"
+
+#include <stdlib.h>
 
 // A value as 32.32 fixed point: the whole part rounded down, and the
 // fraction above it.
@@ -72,5 +76,15 @@ int main(void)
         mwinX11AddScrollAxis(&scroll, 9, (uint16_t)i, false, Fixed(1.0));
     }
     CHECK(scroll.count == MWIN_X11_SCROLL_AXES, "valuators past the table left out");
+    // One word on the heap, exactly: the sanitizer builds would report a
+    // read past it.
+    uint32_t* word = malloc(sizeof(uint32_t));
+    if (word != nullptr)
+    {
+        *word = 0x1u;
+        CHECK(!mwinX11Scrolled(&scroll, 8, word, 1, two, 2, &x, &y),
+              "more values than the mask sets, and no word past it read");
+        free(word);
+    }
     return s_failures == 0 ? 0 : 1;
 }

@@ -4,10 +4,13 @@
 // The X11 backend's input against a real X server (Xvfb in CI), driven
 // through XTEST from a connection of the test's own: keys with their
 // codes, meanings and text, Shift, the X server's repeats, the pointer
-// entering and moving, a double click, the wheel, cursor shapes, a
-// cursor made from images as XFixes reads it back, a hidden cursor, a confined one whose grab
-// another client then meets, and a captured one with XInput 2's raw motion. Without DISPLAY the
-// test is skipped (exit status 77).
+// entering and moving, a double click with the buttons held, the
+// wheel's buttons up and to the sides, the back button and a tenth one
+// left out, cursor shapes other than the default, a cursor made from
+// images as XFixes reads it back, a hidden cursor, a confined one whose
+// grab another client then meets and that left the pointer where it
+// was, and a captured one kept in the middle, with XInput 2's raw
+// motion. Without DISPLAY the test is skipped (exit status 77).
 
 #include "cursor_images.h"
 #include "test_harness.h"
@@ -15,6 +18,7 @@
 #include "maul-window/event.h"
 #include "maul-window/input.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -39,6 +43,8 @@ typedef enum Phase
     phasePointer,
     phaseClicks,
     phaseWheel,
+    phaseSideWheel,
+    phaseBack,
     phaseShape,
     phaseImage,
     phaseShapeAgain,
@@ -64,6 +70,8 @@ typedef struct Program
     int count;
     char text[64];
     uint32_t textLength;
+    // The size and hotspot of the cursor the window shows by default.
+    uint64_t defaultGlyph;
     bool timedOut;
 } Program;
 
@@ -159,6 +167,54 @@ static bool CanGrabSoon(Program* program)
 }
 
 // Whether the X server shows the red image, by XFixes.
+// The size and hotspot of the cursor shown.
+static uint64_t Glyph(const Program* program)
+{
+    xcb_xfixes_get_cursor_image_reply_t* reply = xcb_xfixes_get_cursor_image_reply(
+        program->connection, xcb_xfixes_get_cursor_image(program->connection), nullptr);
+    uint64_t glyph = reply != nullptr
+                         ? (uint64_t)reply->width << 48 | (uint64_t)reply->height << 32 |
+                               (uint64_t)reply->xhot << 16 | reply->yhot
+                         : 0;
+    free(reply);
+    return glyph;
+}
+
+// Whether the cursor shown is another than the default, soon: the X
+// server takes the program's requests and the test's in either order.
+static bool ShowsOtherSoon(const Program* program)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        if (Glyph(program) != program->defaultGlyph)
+        {
+            return true;
+        }
+        struct timespec pause = {0, 5000000};
+        (void)nanosleep(&pause, nullptr);
+    }
+    return false;
+}
+
+// Whether the pointer is at a place of the root window, soon.
+static bool PointerAtSoon(const Program* program, int16_t x, int16_t y)
+{
+    for (int i = 0; i < 100; i++)
+    {
+        xcb_query_pointer_reply_t* pointer = xcb_query_pointer_reply(
+            program->connection, xcb_query_pointer(program->connection, program->root), nullptr);
+        bool there = pointer != nullptr && pointer->root_x == x && pointer->root_y == y;
+        free(pointer);
+        if (there)
+        {
+            return true;
+        }
+        struct timespec pause = {0, 5000000};
+        (void)nanosleep(&pause, nullptr);
+    }
+    return false;
+}
+
 static bool ShowsRed(Program* program)
 {
     xcb_xfixes_get_cursor_image_reply_t* reply = xcb_xfixes_get_cursor_image_reply(
@@ -205,6 +261,10 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventButtonUp, 1) != nullptr;
     case phaseWheel:
         return Find(program, mwin_eventWheel, 0) != nullptr;
+    case phaseSideWheel:
+        return Find(program, mwin_eventWheel, 1) != nullptr;
+    case phaseBack:
+        return Find(program, mwin_eventButtonUp, 0) != nullptr;
     case phaseRaw:
         return Find(program, mwin_eventRawPointerDelta, 0) != nullptr;
     case phaseDestroyed:
@@ -232,6 +292,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
         const mwinEvent* moved = Find(program, mwin_eventCursorMoved, 0);
         CHECK(moved->data.pointer.position.x == 100.0f && moved->data.pointer.position.y == 120.0f,
               "the pointer moves in the window's units");
+        CHECK(Find(program, mwin_eventCursorEntered, 0) != nullptr, "the pointer enters");
+        program->defaultGlyph = Glyph(program);
         for (int i = 0; i < 2; i++)
         {
             Fake(program, XCB_BUTTON_PRESS, 1, 0, 0);
@@ -244,6 +306,9 @@ static void AdvancePointer(Program* program, mwinContext* context)
                   Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2 &&
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonLeft,
               "a quick second click is a double click");
+        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons == 1 &&
+                  Find(program, mwin_eventButtonUp, 0)->data.pointer.buttons == 0,
+              "the left button held while down");
         Fake(program, XCB_BUTTON_PRESS, 4, 0, 0);
         Fake(program, XCB_BUTTON_RELEASE, 4, 0, 0);
         break;
@@ -251,13 +316,40 @@ static void AdvancePointer(Program* program, mwinContext* context)
         CHECK(Find(program, mwin_eventWheel, 0)->data.wheel.y == 1.0f &&
                   Find(program, mwin_eventButtonDown, 0) == nullptr,
               "button 4 turns the wheel away from the user");
+        for (uint8_t button = 6; button <= 7; button++)
+        {
+            Fake(program, XCB_BUTTON_PRESS, button, 0, 0);
+            Fake(program, XCB_BUTTON_RELEASE, button, 0, 0);
+        }
+        break;
+    case phaseSideWheel:
+    {
+        const mwinWheelEvent* left = &Find(program, mwin_eventWheel, 0)->data.wheel;
+        const mwinWheelEvent* right = &Find(program, mwin_eventWheel, 1)->data.wheel;
+        CHECK(left->x == -1.0f && left->y == 0.0f && right->x == 1.0f && right->y == 0.0f,
+              "buttons 6 and 7 turn it left and right");
+        // The X server's pointer has ten buttons: the tenth is no one's.
+        for (uint8_t button = 10; button >= 8; button -= 2)
+        {
+            Fake(program, XCB_BUTTON_PRESS, button, 0, 0);
+            Fake(program, XCB_BUTTON_RELEASE, button, 0, 0);
+        }
+        break;
+    }
+    case phaseBack:
+        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonBack &&
+                  Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons ==
+                      1u << (mwin_buttonBack - 1) &&
+                  Find(program, mwin_eventButtonDown, 1) == nullptr,
+              "button 8 the back button, and the tenth left out");
         CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
     case phaseShape:
     {
-        CHECK(outcome == mwin_outcomeDone, "the shape from the theme or the cursor font");
+        CHECK(outcome == mwin_outcomeDone && ShowsOtherSoon(program),
+              "the shape from the theme or the cursor font");
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
@@ -300,12 +392,15 @@ static void AdvancePointer(Program* program, mwinContext* context)
         break;
     case phaseRelease:
         CHECK(outcome == mwin_outcomeDone && CanGrabSoon(program), "released: the grab goes");
+        // Requests sent after the confinement's have been taken.
+        CHECK(PointerAtSoon(program, 100, 120), "confined, the pointer stayed where it was");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
                   mwin_success,
               "capture");
         break;
     case phaseCapture:
         CHECK(outcome == mwin_outcomeDone && !CanGrab(program), "captured: grabbed and hidden");
+        CHECK(PointerAtSoon(program, 320, 240), "captured, the pointer kept in the middle");
         // Relative motion, as a mouse makes it.
         Fake(program, XCB_MOTION_NOTIFY, 1, 5, -3);
         break;
@@ -393,6 +488,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (NowNs() - program->startNs > DEADLINE_NS)
     {
+        (void)printf("timed out in phase %d\n", (int)program->phase);
         program->timedOut = true;
         return mwin_frameStop;
     }

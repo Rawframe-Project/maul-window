@@ -11,7 +11,8 @@
 // - size limits with a minimum under a pixel kept at one pixel, and a
 //   maximum of one side leaving the other free;
 // - an opacity set, and lifted at 1;
-// - a client message other than WM_PROTOCOLS no close request;
+// - a client message other than WM_PROTOCOLS no close request, and
+//   WM_DELETE_WINDOW one, _NET_WM_PING answered to the root window;
 // - both maximized states set by the window manager a maximized mode;
 // - a maximized mode asked of the window manager by adding both states,
 //   the test's check window naming itself as a running window manager's
@@ -55,6 +56,8 @@ enum
     atomOpacity,
     atomDelete,
     atomCheck,
+    atomProtocols,
+    atomPing,
     atomCount,
 };
 
@@ -71,11 +74,15 @@ typedef struct Program
     int created;
     // The requests done since the step began.
     int completed;
-    bool maximized;
+    // The mode last reported for the window that resizes since the
+    // window manager's state, -1 before any.
+    int mode;
     bool closeAsked;
     // The _NET_WM_STATE message asking for the fixed window's maximized
     // states, its action.
     int maximizeAction;
+    // The answer to _NET_WM_PING came back to the root window.
+    bool pong;
     bool done;
 } Program;
 
@@ -99,9 +106,10 @@ static void Collect(mwinContext* context, Program* program)
         program->created += event.type == mwin_eventWindowCreated;
         program->completed += event.type == mwin_eventRequestCompleted &&
                               event.data.completion.outcome == mwin_outcomeDone;
-        program->maximized = program->maximized || (event.type == mwin_eventModeChanged &&
-                                                    event.data.mode == mwin_modeMaximized &&
-                                                    Same(event.window, program->ids[0]));
+        if (event.type == mwin_eventModeChanged && Same(event.window, program->ids[0]))
+        {
+            program->mode = event.data.mode;
+        }
         program->closeAsked = program->closeAsked || event.type == mwin_eventCloseRequested;
     }
     xcb_generic_event_t* got = nullptr;
@@ -114,6 +122,11 @@ static void Collect(mwinContext* context, Program* program)
         {
             program->maximizeAction = (int)message->data.data32[0];
         }
+        program->pong = program->pong || ((got->response_type & 0x7F) == XCB_CLIENT_MESSAGE &&
+                                          message->window == program->root &&
+                                          message->type == program->atoms[atomProtocols] &&
+                                          message->data.data32[0] == program->atoms[atomPing] &&
+                                          message->data.data32[2] == program->windows[0]);
         free(got);
     }
 }
@@ -157,7 +170,8 @@ static bool Above(const Program* program, xcb_window_t window)
     return count == 1 && states[0] == program->atoms[atomAbove];
 }
 
-static void Send(const Program* program, xcb_window_t window, xcb_atom_t type, uint32_t value)
+static void Send(const Program* program, xcb_window_t window, xcb_atom_t type, uint32_t value,
+                 uint32_t subject)
 {
     union
     {
@@ -169,6 +183,7 @@ static void Send(const Program* program, xcb_window_t window, xcb_atom_t type, u
     event.message.window = window;
     event.message.type = type;
     event.message.data.data32[0] = value;
+    event.message.data.data32[2] = subject;
     xcb_send_event(program->connection, 0, window, XCB_EVENT_MASK_NO_EVENT, event.bytes);
 }
 
@@ -226,8 +241,10 @@ static bool Settled(const Program* program)
                hints[hintFlags] != 0 && !Opaque(program);
     case 2:
         return program->completed == 1 && Opaque(program);
+    case 3:
+        return program->mode == mwin_modeMaximized && program->maximizeAction >= 0;
     default:
-        return program->maximized && program->maximizeAction >= 0;
+        return program->closeAsked && program->pong;
     }
 }
 
@@ -254,7 +271,8 @@ static void Advance(mwinContext* context, Program* program)
     {
         // Before the state, so that the program has read it once the
         // mode arrives.
-        Send(program, program->windows[0], atoms[atomState], atoms[atomDelete]);
+        Send(program, program->windows[0], atoms[atomState], atoms[atomDelete], 0);
+        program->mode = -1;
         const xcb_atom_t states[2] = {atoms[atomVertical], atoms[atomHorizontal]};
         xcb_change_property(program->connection, XCB_PROP_MODE_REPLACE, program->windows[0],
                             atoms[atomState], XCB_ATOM_ATOM, 32, 2, states);
@@ -264,9 +282,15 @@ static void Advance(mwinContext* context, Program* program)
               "a maximized mode asked");
         break;
     }
-    default:
+    case 3:
         CHECK(!program->closeAsked, "another client message no close request");
         CHECK(program->maximizeAction == 1, "a maximized mode asked by adding both states");
+        Send(program, program->windows[0], atoms[atomProtocols], atoms[atomDelete], 0);
+        Send(program, program->windows[0], atoms[atomProtocols], atoms[atomPing],
+             program->windows[0]);
+        xcb_flush(program->connection);
+        break;
+    default:
         program->done = true;
         break;
     }
@@ -368,7 +392,7 @@ int main(void)
     {
         return 77;
     }
-    Program program = {.maximizeAction = -1};
+    Program program = {.mode = -1, .maximizeAction = -1};
     program.connection = xcb_connect(nullptr, nullptr);
     if (xcb_connection_has_error(program.connection) != 0)
     {
@@ -381,7 +405,9 @@ int main(void)
                                                  "_NET_WM_STATE_MAXIMIZED_HORZ",
                                                  "_NET_WM_WINDOW_OPACITY",
                                                  "WM_DELETE_WINDOW",
-                                                 "_NET_SUPPORTING_WM_CHECK"};
+                                                 "_NET_SUPPORTING_WM_CHECK",
+                                                 "WM_PROTOCOLS",
+                                                 "_NET_WM_PING"};
     for (int i = 0; i < atomCount; i++)
     {
         program.atoms[i] = Intern(program.connection, names[i]);

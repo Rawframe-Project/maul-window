@@ -379,7 +379,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # display.
         maul_add_test(linux_gamepad POSIX)
         target_compile_definitions(test_linux_gamepad PRIVATE _GNU_SOURCE)
-        set_tests_properties(linux_gamepad PROPERTIES SKIP_RETURN_CODE 77)
+        set_tests_properties(linux_gamepad PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK uinput)
+        # Where both backends are built, the X11 one too, Wayland's
+        # display hidden; the pads of one run would be the other's.
+        if(MAUL_WINDOW_WAYLAND AND MAUL_WINDOW_X11)
+            add_test(NAME linux_gamepad_x11 COMMAND test_linux_gamepad)
+            set_tests_properties(linux_gamepad_x11 PROPERTIES SKIP_RETURN_CODE 77
+                                 ENVIRONMENT_MODIFICATION "WAYLAND_DISPLAY=unset:"
+                                 RESOURCE_LOCK uinput)
+        endif()
     endif()
     if(MAUL_WINDOW_WEB)
         # Runs in headless Chrome through puppeteer, which the runner

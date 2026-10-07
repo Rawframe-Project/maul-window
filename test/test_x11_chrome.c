@@ -10,7 +10,9 @@
 //   the program is told of neither it nor its release;
 // - a press on a maximize button is the program's;
 // - a double click on a caption asks _NET_WM_STATE for both maximized
-//   states.
+//   states, the program told of neither click;
+// - a press held on a caption leaves the pointer to the window manager's
+//   grab.
 // Skipped (exit status 77) without an X server.
 
 #include "test_harness.h"
@@ -104,9 +106,9 @@ static void Collect(mwinContext* context, Program* program)
     }
 }
 
-// A left click at a point of the client area in logical units (the
+// A left press at a point of the client area in logical units (the
 // test's X server has a scale of 1).
-static void Click(const Program* program, int16_t x, int16_t y)
+static void Press(const Program* program, int16_t x, int16_t y)
 {
     xcb_connection_t* connection = program->connection;
     int16_t rootX = (int16_t)(program->origin.x + x);
@@ -134,9 +136,35 @@ static void Click(const Program* program, int16_t x, int16_t y)
     }
     CHECK(there, "the pointer at the click's place");
     xcb_test_fake_input(connection, XCB_BUTTON_PRESS, 1, XCB_CURRENT_TIME, program->root, 0, 0, 0);
-    xcb_test_fake_input(connection, XCB_BUTTON_RELEASE, 1, XCB_CURRENT_TIME, program->root, 0, 0,
-                        0);
     xcb_flush(connection);
+}
+
+static void Release(const Program* program)
+{
+    xcb_test_fake_input(program->connection, XCB_BUTTON_RELEASE, 1, XCB_CURRENT_TIME, program->root,
+                        0, 0, 0);
+    xcb_flush(program->connection);
+}
+
+static void Click(const Program* program, int16_t x, int16_t y)
+{
+    Press(program, x, y);
+    Release(program);
+}
+
+// Whether the test, as the window manager, takes the pointer.
+static bool Grabs(const Program* program)
+{
+    xcb_grab_pointer_reply_t* reply = xcb_grab_pointer_reply(
+        program->connection,
+        xcb_grab_pointer(program->connection, 0, program->root, XCB_EVENT_MASK_BUTTON_RELEASE,
+                         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_NONE, XCB_NONE,
+                         XCB_CURRENT_TIME),
+        nullptr);
+    bool grabbed = reply != nullptr && reply->status == XCB_GRAB_STATUS_SUCCESS;
+    free(reply);
+    xcb_ungrab_pointer(program->connection, XCB_CURRENT_TIME);
+    return grabbed;
 }
 
 static uint32_t Property(const Program* program, xcb_atom_t property, int index)
@@ -191,8 +219,10 @@ static bool Settled(const Program* program)
         return program->moveresizes == 2;
     case 5:
         return program->downs == 1 && program->ups == 1;
-    default:
+    case 6:
         return program->states == 1;
+    default:
+        return program->moveresizes == 4;
     }
 }
 
@@ -231,11 +261,17 @@ static void Next(mwinContext* context, Program* program)
         Click(program, 100, 10);
         Click(program, 100, 10);
         break;
-    default:
+    case 6:
         CHECK(program->moveresizes == 3 && program->state[0] == 1 &&
                   program->state[1] == program->atoms[atomMaximizedVert] &&
-                  program->state[2] == program->atoms[atomMaximizedHorz],
+                  program->state[2] == program->atoms[atomMaximizedHorz] && program->downs == 1 &&
+                  program->ups == 1,
               "a double click on a caption asks for both maximized states");
+        Press(program, 100, 10);
+        break;
+    default:
+        CHECK(Grabs(program), "a press held on a caption leaves the pointer to the window manager");
+        Release(program);
         program->done = true;
         break;
     }
@@ -269,7 +305,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                                        "the caption's move",
                                        "the edge's resize",
                                        "the maximize button's press and release",
-                                       "the caption's double click"};
+                                       "the caption's double click",
+                                       "the caption's held press"};
     Program* program = user;
     Collect(context, program);
     Relocate(context, program);

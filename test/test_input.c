@@ -196,6 +196,178 @@ static void TestOverflow(void)
     CHECK(RunWith(&program, def) == mwin_success, "the program runs");
 }
 
+// A pen's button is discrete input: when its storage is full it is lost
+// to a reset like a key.
+static void PenStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
+            CHECK(mwinTestPost(context, &key) == mwin_success, "four keys fill the storage");
+        }
+        mwinEvent up = {.type = mwin_eventPenButtonUp, .window = window};
+        CHECK(mwinTestPost(context, &up) == mwin_success, "then a pen's button");
+        return;
+    }
+    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventKeyDown,
+                                             mwin_eventKeyDown, mwin_eventKeyDown,
+                                             mwin_eventInputStateReset};
+    CHECK(Types(program, expected, 5), "the button is lost to a reset");
+    program->done = true;
+}
+
+static void TestPenButtonOverflow(void)
+{
+    Program program = {.step = PenStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.inputPerWindow = 4;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+// A notification that replaces a waiting one moves to the end; the
+// records after the replaced one keep their places in the stream.
+static void ReplaceStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        mwinEvent first = {.type = mwin_eventResized, .window = window};
+        first.data.size = (mwinSize){10.0f, 10.0f};
+        mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
+        mwinEvent moved = {.type = mwin_eventMoved, .window = window};
+        moved.data.position = (mwinPosition){5.0f, 5.0f};
+        mwinEvent second = first;
+        second.data.size = (mwinSize){20.0f, 20.0f};
+        CHECK(mwinTestPost(context, &first) == mwin_success &&
+                  mwinTestPost(context, &key) == mwin_success &&
+                  mwinTestPost(context, &moved) == mwin_success &&
+                  mwinTestPost(context, &second) == mwin_success,
+              "a size, a key, a move and a new size");
+        return;
+    }
+    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventMoved, mwin_eventResized};
+    CHECK(Types(program, expected, 3) && program->events[2].data.size.width == 20.0f,
+          "the key and the move in their places, the newer size last");
+    program->done = true;
+}
+
+static void TestReplacedNotification(void)
+{
+    Program program = {.step = ReplaceStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+// A merged record counts its samples up to UINT16_MAX and stays there.
+// 65 frames of 1024 reports, the most a frame takes, make 66560 moves.
+enum
+{
+    SampleSteps = 65,
+    ReportsPerFrame = 1024,
+};
+
+static void SampleStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        Drain(program, context);
+    }
+    if (step <= SampleSteps)
+    {
+        for (int i = 0; i < ReportsPerFrame; i++)
+        {
+            mwinEvent move = {.type = mwin_eventCursorMoved, .window = window};
+            move.data.pointer.position = (mwinPosition){(float)i, (float)step};
+            (void)mwinTestPost(context, &move);
+        }
+        return;
+    }
+    Drain(program, context);
+    int moves = 0;
+    const mwinEvent* last = nullptr;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        moves += program->events[i].type == mwin_eventCursorMoved;
+        last = program->events[i].type == mwin_eventCursorMoved ? &program->events[i] : last;
+    }
+    CHECK(moves == 4 && last != nullptr && last->samples == UINT16_MAX &&
+              last->data.pointer.position.y == (float)SampleSteps,
+          "the newest position, its samples counted up to the most");
+    program->done = true;
+}
+
+static void TestSampleCount(void)
+{
+    Program program = {.step = SampleStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.inputPerWindow = 4;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+// A composition may have MWIN_MAX_PREEDIT_SEGMENTS segments.
+static void SegmentStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        const char* text = "abcdefghijklmnopqrstuvwxyz012345";
+        mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS];
+        for (uint32_t i = 0; i < MWIN_MAX_PREEDIT_SEGMENTS; i++)
+        {
+            segments[i] = (mwinPreeditSegment){i, 1, mwin_preeditUnderline};
+        }
+        mwinEvent preedit = {.type = mwin_eventImePreedit, .window = window};
+        preedit.data.preedit = (mwinPreeditEvent){text,     MWIN_MAX_PREEDIT_SEGMENTS, -1, 0, 0,
+                                                  segments, MWIN_MAX_PREEDIT_SEGMENTS};
+        CHECK(mwinTestPost(context, &preedit) == mwin_success,
+              "a composition of the most segments");
+        return;
+    }
+    bool found = false;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        const mwinPreeditEvent* preedit = &program->events[i].data.preedit;
+        found = found || (program->events[i].type == mwin_eventImePreedit &&
+                          preedit->segmentCount == MWIN_MAX_PREEDIT_SEGMENTS &&
+                          preedit->segments[MWIN_MAX_PREEDIT_SEGMENTS - 1].start ==
+                              MWIN_MAX_PREEDIT_SEGMENTS - 1);
+    }
+    CHECK(found, "it arrives with every segment");
+    program->done = true;
+}
+
+static void TestMostSegments(void)
+{
+    Program program = {.step = SegmentStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 static void TouchStep(Program* program, mwinContext* context, int step)
 {
     mwinWindowId window = program->windows[0];
@@ -364,6 +536,10 @@ int main(void)
     TestKeysAndText();
     TestTextStorage();
     TestOverflow();
+    TestPenButtonOverflow();
+    TestReplacedNotification();
+    TestSampleCount();
+    TestMostSegments();
     TestTouches();
     TestRefusalsAndLayout();
     TestCursor();

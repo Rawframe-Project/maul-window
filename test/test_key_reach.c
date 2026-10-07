@@ -49,8 +49,10 @@ static void TestMatching(void)
               Is(&table, mwin_codeSpace, meta, mwin_keyReachUncertain),
           "any key, the first rule that matches winning");
     CHECK(Is(&table, mwin_codeMetaLeft, meta, mwin_keyReachDelivered) &&
-              Is(&table, mwin_codeControlRight, meta, mwin_keyReachDelivered),
-          "any key leaves out the modifier keys");
+              Is(&table, mwin_codeControlRight, meta, mwin_keyReachDelivered) &&
+              Is(&table, mwin_codeControlLeft, meta, mwin_keyReachDelivered) &&
+              Is(&table, mwin_codeMetaRight, meta, mwin_keyReachDelivered),
+          "any key leaves out the modifier keys, the first and the last included");
     CHECK(Is(&table, mwin_codeKeyB, 0, mwin_keyReachDelivered), "no rule: delivered");
 }
 

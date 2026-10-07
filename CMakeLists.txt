@@ -220,6 +220,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)
         maul_add_test(key_reach WHITEBOX)
+        maul_add_test(text WHITEBOX)
         # Android's pointers as records, on every platform: elsewhere the test
         # builds the backend's translator itself.
         maul_add_test(android_motion WHITEBOX)

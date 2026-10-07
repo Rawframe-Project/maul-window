@@ -226,6 +226,95 @@ static void TestCloseAndDestroy(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+// Destroying a window takes its records out of the critical ring and
+// leaves another window's there.
+static void CriticalStep(Program* program, mwinContext* context, int step)
+{
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        program->windows[1] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        Drain(program, context);
+        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
+        mwinEvent other = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
+        CHECK(mwinTestPost(context, &lost) == mwin_success &&
+                  mwinTestPost(context, &other) == mwin_success,
+              "both windows lose their surfaces");
+        return;
+    }
+    if (step == 2)
+    {
+        return; // the critical frame after the first record leaves it waiting
+    }
+    // In the critical frame after the second record both wait; the first
+    // window goes before they are read.
+    CHECK(mwinDestroyWindow(context, program->windows[0]) == mwin_success, "destroy the first");
+    Drain(program, context);
+    int first = 0;
+    int second = 0;
+    int destroyed = 0;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        const mwinEvent* event = &program->events[i];
+        first +=
+            event->type == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[0]);
+        second +=
+            event->type == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[1]);
+        destroyed += event->type == mwin_eventWindowDestroyed;
+    }
+    CHECK(first == 0 && second == 1 && destroyed == 1,
+          "the destroyed window's record goes, the other's stays");
+    program->done = true;
+}
+
+static void TestDestroyedCritical(void)
+{
+    Program program = {.step = CriticalStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+// Destroying a window drops its waiting notifications but keeps the
+// completions, the cancelled one included.
+static void DropStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        Drain(program, context);
+        mwinEvent resized = {.type = mwin_eventResized, .window = window};
+        resized.data.size = (mwinSize){30.0f, 30.0f};
+        CHECK(mwinTestPost(context, &resized) == mwin_success &&
+                  mwinTestHold(context, true) == mwin_success &&
+                  mwinRequestMode(context, window, mwin_modeMaximized, &program->requests[0]) ==
+                      mwin_success,
+              "a size waits, a request in flight");
+        return;
+    }
+    CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy with the size waiting");
+    Drain(program, context);
+    static const mwinEventType expected[] = {mwin_eventRequestCompleted, mwin_eventWindowDestroyed};
+    CHECK(Types(program, expected, 2) &&
+              program->events[0].data.completion.outcome == mwin_outcomeCancelled,
+          "the size goes, the cancelled request stays");
+    CHECK(mwinTestHold(context, false) == mwin_success, "release");
+    program->done = true;
+}
+
+static void TestDestroyDropsNotifications(void)
+{
+    Program program = {.step = DropStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 static void LimitStep(Program* program, mwinContext* context, int step)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
@@ -463,6 +552,8 @@ int main(void)
     TestSuperseding();
     TestAnswers();
     TestCloseAndDestroy();
+    TestDestroyedCritical();
+    TestDestroyDropsNotifications();
     TestLimits();
     TestOrderAndCoalescing();
     TestRefusals();

@@ -22,15 +22,7 @@ jobs:
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
         run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
-          # The runner's sources read this mirror list: the Azure mirror,
-          # kernel.org's, then Ubuntu's own archive, the timeout moving a
-          # stalled one on to the next (the Azure mirror stalled for hours
-          # on 2026-09-30; on 2026-10-07 the archive stopped answering, and
-          # the Azure mirror did for some runners).
-          printf '%s\tpriority:%d\n' http://azure.archive.ubuntu.com/ubuntu/ 1 \
-            http://mirrors.edge.kernel.org/ubuntu/ 2 http://archive.ubuntu.com/ubuntu/ 3 |
-            sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          bash .github/apt-mirrors.sh
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 clang-tidy-20 ninja-build libwayland-dev wayland-protocols \
             libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
@@ -99,15 +91,7 @@ jobs:
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
         run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
-          # The runner's sources read this mirror list: the Azure mirror,
-          # kernel.org's, then Ubuntu's own archive, the timeout moving a
-          # stalled one on to the next (the Azure mirror stalled for hours
-          # on 2026-09-30; on 2026-10-07 the archive stopped answering, and
-          # the Azure mirror did for some runners).
-          printf '%s\tpriority:%d\n' http://azure.archive.ubuntu.com/ubuntu/ 1 \
-            http://mirrors.edge.kernel.org/ubuntu/ 2 http://archive.ubuntu.com/ubuntu/ 3 |
-            sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          bash .github/apt-mirrors.sh
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-14 g++-14 clang-20 ninja-build libwayland-dev \
             wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
@@ -155,15 +139,7 @@ jobs:
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
         run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
-          # The runner's sources read this mirror list: the Azure mirror,
-          # kernel.org's, then Ubuntu's own archive, the timeout moving a
-          # stalled one on to the next (the Azure mirror stalled for hours
-          # on 2026-09-30; on 2026-10-07 the archive stopped answering, and
-          # the Azure mirror did for some runners).
-          printf '%s\tpriority:%d\n' http://azure.archive.ubuntu.com/ubuntu/ 1 \
-            http://mirrors.edge.kernel.org/ubuntu/ 2 http://archive.ubuntu.com/ubuntu/ 3 |
-            sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          bash .github/apt-mirrors.sh
           sudo apt-get update -q
           sudo apt-get install -y -q clang-20 ninja-build libwayland-dev wayland-protocols \
             libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
@@ -293,15 +269,7 @@ jobs:
         # A mirror's stalled download is retried; a hang ends here.
         timeout-minutes: 15
         run: |
-          echo 'Acquire::Retries "5"; Acquire::http::Timeout "20";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
-          # The runner's sources read this mirror list: the Azure mirror,
-          # kernel.org's, then Ubuntu's own archive, the timeout moving a
-          # stalled one on to the next (the Azure mirror stalled for hours
-          # on 2026-09-30; on 2026-10-07 the archive stopped answering, and
-          # the Azure mirror did for some runners).
-          printf '%s\tpriority:%d\n' http://azure.archive.ubuntu.com/ubuntu/ 1 \
-            http://mirrors.edge.kernel.org/ubuntu/ 2 http://archive.ubuntu.com/ubuntu/ 3 |
-            sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          bash .github/apt-mirrors.sh
           sudo apt-get update && sudo apt-get install -y clang-20 lld-20 wasi-libc libclang-rt-20-dev-wasm32
       - name: Configure
         run: >

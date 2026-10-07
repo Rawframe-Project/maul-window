@@ -350,8 +350,9 @@ static void Advance(Program* program, mwinContext* context)
         PrimaryOffer(program->primary, "peer sel", 8);
         break;
     case phaseOtherPrimary:
-        CHECK(outcome == mwin_outcomeDone && FoundText(context, true, "peer sel", 8),
-              "another client's primary selection read");
+        CHECK(outcome == mwin_outcomeDone && FoundText(context, true, "peer sel", 8) &&
+                  PrimaryAskedFor(program->primary, "text/plain;charset=utf-8"),
+              "another client's primary selection read, as its best type, though announced twice");
         DataOffer(program->data, nullptr, 0);
         break;
     case phaseNothing:

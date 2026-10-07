@@ -10,6 +10,10 @@ format.
 
 ### Fixed
 
+- On Wayland, a compositor that announces the same selection twice
+  keeps it: the clipboard used to let the offer go and then read from
+  it, which crashed the program, and the primary selection forgot the
+  type of its text and read none.
 - On X11, a window manager counts as running only when the window the
   root's `_NET_SUPPORTING_WM_CHECK` names names itself, as EWMH has it
   (mwin-0006). The property a window manager leaves behind when it

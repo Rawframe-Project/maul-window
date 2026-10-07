@@ -54,10 +54,13 @@ static void OnSelection(void* data, struct zwp_primary_selection_device_v1* devi
     (void)device;
     mwinWaylandPlatform* platform = data;
     mwinWaylandClipboard* clipboard = &platform->clipboard;
-    if (clipboard->primarySelection != offer)
+    // The selection announced again keeps its offer and what is known of
+    // it.
+    if (offer == clipboard->primarySelection)
     {
-        DestroyOffer(&platform->api, clipboard->primarySelection);
+        return;
     }
+    DestroyOffer(&platform->api, clipboard->primarySelection);
     bool known = offer != nullptr && offer == clipboard->primaryIncoming;
     clipboard->primarySelection = offer;
     clipboard->primarySelectionType = known ? clipboard->primaryIncomingType : -1;

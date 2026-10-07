@@ -31,9 +31,11 @@ struct PrimaryServer
     struct wl_resource* device;
     // The client's source that holds the selection, or NULL.
     struct wl_resource* source;
-    // The text the compositor offers as another client's.
+    // The text the compositor offers as another client's, and the type
+    // the client last asked it for.
     char* offered;
     size_t offeredLength;
+    char asked[DATA_TYPE_BYTES];
 };
 
 static inline void PrimarySourceOffer(struct wl_client* client, struct wl_resource* resource,
@@ -116,8 +118,8 @@ static inline void PrimaryReceive(struct wl_client* client, struct wl_resource* 
                                   const char* type, int32_t fd)
 {
     (void)client;
-    (void)type;
     PrimaryServer* primary = wl_resource_get_user_data(resource);
+    (void)snprintf(primary->asked, sizeof(primary->asked), "%s", type);
     DataWrite* job = malloc(sizeof(DataWrite));
     *job = (DataWrite){fd, malloc(primary->offeredLength + 1), primary->offeredLength};
     memcpy(job->text, primary->offered, primary->offeredLength);
@@ -146,7 +148,9 @@ static inline void PrimaryStop(PrimaryServer* primary)
 }
 
 // Another client takes the selection with this text, the client's
-// source cancelled.
+// source cancelled: offered as text/plain;charset=utf-8 and then as
+// plain text, which the client should not prefer, and the selection
+// announced twice, as compositors may.
 static inline void PrimaryOffer(PrimaryServer* primary, const char* text, size_t length)
 {
     Server* server = primary->server;
@@ -166,9 +170,20 @@ static inline void PrimaryOffer(PrimaryServer* primary, const char* text, size_t
     wl_resource_set_implementation(offer, &s_primaryOffer, primary, nullptr);
     zwp_primary_selection_device_v1_send_data_offer(primary->device, offer);
     zwp_primary_selection_offer_v1_send_offer(offer, "text/plain;charset=utf-8");
+    zwp_primary_selection_offer_v1_send_offer(offer, "text/plain");
+    zwp_primary_selection_device_v1_send_selection(primary->device, offer);
     zwp_primary_selection_device_v1_send_selection(primary->device, offer);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
+}
+
+// The type the client last asked the offered text for.
+static inline bool PrimaryAskedFor(PrimaryServer* primary, const char* type)
+{
+    pthread_mutex_lock(&primary->server->lock);
+    bool asked = strcmp(primary->asked, type) == 0;
+    pthread_mutex_unlock(&primary->server->lock);
+    return asked;
 }
 
 // Whether the client's source holds the selection offering a type.

@@ -380,6 +380,8 @@ static inline void DataOfferTypes(DataServer* data, const char* const* types, in
             wl_data_offer_send_offer(offer, types[i]);
         }
     }
+    // Announced twice, as compositors may: the second keeps the first.
+    wl_data_device_send_selection(data->device, offer);
     wl_data_device_send_selection(data->device, offer);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);

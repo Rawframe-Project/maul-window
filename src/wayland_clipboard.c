@@ -158,6 +158,12 @@ static void OnSelection(void* data, struct wl_data_device* device, struct wl_dat
     (void)device;
     mwinWaylandPlatform* platform = data;
     mwinWaylandClipboard* clipboard = &platform->clipboard;
+    // The selection announced again keeps its offer and what is known of
+    // it.
+    if (offer == clipboard->selection)
+    {
+        return;
+    }
     DestroyOffer(&platform->api, clipboard->selection);
     clipboard->selection = offer;
     bool known = offer != nullptr && offer == clipboard->incoming;

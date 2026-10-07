@@ -16,6 +16,7 @@
 #include "maul-window/clipboard.h"
 #include "maul-window/test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #define LIMIT 16
@@ -72,6 +73,23 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     CHECK(mwinRequestClipboardWriteData(context, window, pastLimit, 2, nullptr) ==
               mwin_errorCapacity,
           "past the limit in all");
+    // Types alike but for case, Z included, each alone in a heap
+    // allocation of its length so that AddressSanitizer sees a read past.
+    char* lower = malloc(3);
+    char* upper = malloc(3);
+    if (lower != nullptr && upper != nullptr)
+    {
+        memcpy(lower, "a/z", 3);
+        memcpy(upper, "A/Z", 3);
+        mwinClipboardItem alike[2] = {{lower, 3, "a", 1}, {upper, 3, "b", 1}};
+        CHECK(Refused(context, window, alike, 2), "a type twice, told apart only by case");
+    }
+    free(lower);
+    free(upper);
+    mwinClipboardItem atLimit[2] = {Item("image/png", "0123456789", 10),
+                                    Item("text/plain", "012345", 6)};
+    CHECK(mwinRequestClipboardWriteData(context, window, atLimit, 2, nullptr) == mwin_success,
+          "the limit in all exactly");
     CHECK(mwinRequestClipboardReadData(context, window, "text/plain", 10, nullptr) ==
                   mwin_errorInvalid &&
               mwinRequestClipboardReadData(context, window, "TEXT/PLAIN; charset=utf-8", 25,
@@ -172,6 +190,10 @@ static void Step(Program* program, mwinContext* context, int step)
                   mwinTestGetClipboardData(context, "image/png", 9, nullptr, 0, &length) ==
                       mwin_errorInvalid,
               "the text alone, the data gone");
+        CHECK(mwinRequestPrimaryWrite(context, window, nullptr, 0, nullptr) == mwin_success &&
+                  mwinRequestPrimaryWrite(context, window, "0123456789abcdef", LIMIT, nullptr) ==
+                      mwin_success,
+              "an empty primary selection, and one of the limit exactly");
         CHECK(mwinRequestPrimaryWrite(context, window, "sel", 3, &program->requests[7]) ==
                       mwin_success &&
                   mwinRequestPrimaryWrite(context, window, "a\xC3", 2, nullptr) ==
@@ -202,7 +224,11 @@ static void Step(Program* program, mwinContext* context, int step)
                   mwinGetPrimaryText(context, text, sizeof(text), &length) == mwin_success &&
                   length == 5 && memcmp(text, "a\xEF\xBF\xBD(", 5) == 0,
               "repaired");
-        CHECK(mwinTestSetPrimary(context, "\xFF\xFF\xFF\xFF\xFF\xFF", 6) == mwin_success &&
+        // The limit exactly, one byte of it not UTF-8: three once repaired.
+        CHECK(mwinTestSetPrimary(context,
+                                 "\xFF"
+                                 "abcdefghijklmno",
+                                 LIMIT) == mwin_success &&
                   mwinRequestPrimaryRead(context, window, &program->requests[9]) == mwin_success,
               "a selection past the limit once repaired");
         break;

@@ -10,6 +10,7 @@
 
 #include "test_program.h"
 
+#include <math.h>
 #include <string.h>
 
 static mwinEvent Preedit(mwinWindowId window, const char* text, int32_t caret,
@@ -131,6 +132,11 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
                                nullptr) == mwin_errorInvalid,
           "a negative caret");
+    CHECK(mwinRequestTextInput(context, window, true, (mwinRect){INFINITY, 0.0f, 1.0f, 1.0f},
+                               nullptr) == mwin_errorInvalid &&
+              mwinRequestTextInput(context, window, true, (mwinRect){0.0f, NAN, 1.0f, 1.0f},
+                                   nullptr) == mwin_errorInvalid,
+          "a caret whose place is not finite");
     // "a", U+3042 in three bytes, "b": a caret inside the character, a
     // selection backwards and past the end, a segment reaching into the
     // character, one past the text and one empty.

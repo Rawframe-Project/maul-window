@@ -460,6 +460,10 @@ static void CursorStep(Program* program, mwinContext* context, int step)
               program->events[1].data.completion.kind == mwin_requestCursorShape &&
               program->events[1].data.completion.outcome == mwin_outcomeDone,
           "each answered");
+    CHECK(mwinRequestCursorMode(context, window, mwin_cursorConfinedHidden, nullptr) ==
+                  mwin_success &&
+              mwinRequestCursorShape(context, window, mwin_shapeProgress, nullptr) == mwin_success,
+          "the last mode and the last shape");
     program->done = true;
 }
 
@@ -510,6 +514,8 @@ static void KeyReachStep(Program* program, mwinContext* context, int step)
                   mwin_success &&
               Reach(context, mwin_codeKeyA, mwin_modAlt) == mwin_keyReachNever,
           "32 chords, a set one changed when full");
+    CHECK(mwinGetKeyReach(context, mwin_codeMetaRight, 0, &reach) == mwin_success,
+          "an answer for the last key");
     CHECK(mwinGetKeyReach(context, mwin_codeUnknown, 0, &reach) == mwin_errorInvalid &&
               mwinGetKeyReach(context, mwin_codeMetaRight + 1, 0, &reach) == mwin_errorInvalid &&
               mwinGetKeyReach(context, mwin_codeKeyA, 0, nullptr) == mwin_errorInvalid &&

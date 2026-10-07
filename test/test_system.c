@@ -107,7 +107,7 @@ static void WindowFactsStep(Program* program, mwinContext* context, int step)
               "the state has both");
         CHECK(mwinTestSetAnswer(context, mwin_requestVirtualKeyboard, mwin_outcomeUnsupported) ==
                       mwin_success &&
-                  mwinRequestVirtualKeyboard(context, window, false, mwin_purposeText, nullptr) ==
+                  mwinRequestVirtualKeyboard(context, window, false, mwin_purposeUrl, nullptr) ==
                       mwin_success,
               "a platform without one");
         return;

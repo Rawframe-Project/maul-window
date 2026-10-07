@@ -13,6 +13,7 @@
 
 #include "maul-window/test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static uint8_t s_small[16 * 16 * 4];
@@ -61,6 +62,18 @@ static void CheckRefusals(mwinContext* context)
               Refused(context, Def(narrower, 2)) && Refused(context, outside),
           "defs refused at the call");
     CHECK(mwinGetContextMisuse(context) == misuse + 8, "each counted");
+    // The most images, each wider than the one before.
+    static uint8_t pixels[48 * 48 * 4];
+    const mwinIconImage four[MWIN_CURSOR_IMAGES] = {
+        {16, 16, 16 * 4, pixels},
+        {24, 24, 24 * 4, pixels},
+        {32, 32, 32 * 4, pixels},
+        {48, 48, 48 * 4, pixels},
+    };
+    mwinCursorDef most = Def(four, MWIN_CURSOR_IMAGES);
+    CHECK(mwinCreateCursor(context, &most, &cursor) == mwin_success &&
+              mwinDestroyCursor(context, cursor) == mwin_success,
+          "a cursor of the most images");
 }
 
 static int Outcome(const Program* program, int request)
@@ -165,8 +178,13 @@ static void Step(Program* program, mwinContext* context, int step)
 static void CheckPick(void)
 {
     mwinIconCopyImage images[3] = {{16, 16, nullptr}, {24, 24, nullptr}, {32, 32, nullptr}};
-    static max_align_t storage[(sizeof(mwinIconCopy) + sizeof(images)) / sizeof(max_align_t) + 1];
-    mwinIconCopy* copy = (mwinIconCopy*)storage;
+    // Exactly the copy's size, so that AddressSanitizer sees a read past
+    // its last image.
+    mwinIconCopy* copy = malloc(sizeof(mwinIconCopy) + sizeof(images));
+    if (copy == nullptr)
+    {
+        return;
+    }
     copy->count = 3;
     memcpy(copy->images, images, sizeof(images));
     mwinCursor cursor = {.generation = 1, .images = copy, .hotspotX = 5, .hotspotY = 15};
@@ -182,6 +200,7 @@ static void CheckPick(void)
     CHECK(x == 7 && y == 22, "rounded down");
     mwinCursorHotspotOf(&cursor, 0, &x, &y);
     CHECK(x == 5 && y == 15, "as given on the first");
+    free(copy);
 }
 
 int main(void)

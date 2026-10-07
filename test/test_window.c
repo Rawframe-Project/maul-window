@@ -315,6 +315,110 @@ static void TestDestroyDropsNotifications(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+// Requests at the edges: an empty title with no bytes, a title of the
+// most bytes that is not UTF-8, visibility, a window made maximized,
+// and every request slot of a window used twice over.
+static void EdgeStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    mwinWindowState state;
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        mwinWindowDef def = mwinDefaultWindowDef();
+        def.size = (mwinSize){640.0f, 480.0f};
+        def.mode = mwin_modeMaximized;
+        CHECK(mwinCreateWindow(context, &def, &program->windows[1], nullptr) == mwin_success,
+              "a window made maximized");
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        static char title[1024];
+        memset(title, 'a', sizeof(title));
+        title[0] = (char)0xFF;
+        CHECK(mwinRequestTitle(context, window, title, sizeof(title), nullptr) == mwin_errorInvalid,
+              "a title of the most bytes, not UTF-8, is misuse");
+        CHECK(mwinRequestTitle(context, window, nullptr, 0, nullptr) == mwin_success &&
+                  mwinRequestVisible(context, window, false, nullptr) == mwin_success,
+              "an empty title, and hiding");
+        return;
+    }
+    if (step == 2)
+    {
+        int completions = 0;
+        for (int i = 0; i < program->eventCount; i++)
+        {
+            completions += program->events[i].type == mwin_eventRequestCompleted &&
+                           program->events[i].data.completion.outcome == mwin_outcomeDone;
+        }
+        CHECK(completions == 2 && mwinGetWindowState(context, window, &state) == mwin_success &&
+                  !state.visible,
+              "both carried out");
+    }
+    // Twice, every request slot: each is free again once its completion
+    // is read.
+    if (step == 2 || step == 3)
+    {
+        bool all = true;
+        for (int i = 0; i < 32; i++)
+        {
+            all = all && mwinRequestSize(context, window, (mwinSize){100.0f + (float)i, 100.0f},
+                                         nullptr) == mwin_success;
+        }
+        CHECK(all, "32 requests");
+        return;
+    }
+    program->done = true;
+}
+
+static void TestRequestEdges(void)
+{
+    Program program = {.step = EdgeStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
+// Destroying a window cancels its own requests only.
+static void NeighbourStep(Program* program, mwinContext* context, int step)
+{
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        program->windows[1] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        CHECK(mwinTestHold(context, true) == mwin_success &&
+                  mwinRequestSize(context, program->windows[0], (mwinSize){10.0f, 10.0f},
+                                  nullptr) == mwin_success &&
+                  mwinRequestSize(context, program->windows[1], (mwinSize){20.0f, 20.0f},
+                                  &program->requests[0]) == mwin_success &&
+                  mwinDestroyWindow(context, program->windows[0]) == mwin_success &&
+                  mwinTestHold(context, false) == mwin_success,
+              "a request each, then the first window goes");
+        return;
+    }
+    bool done = false;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        const mwinEvent* event = &program->events[i];
+        done = done || (event->type == mwin_eventRequestCompleted &&
+                        SameId(event->data.completion.request, program->requests[0]) &&
+                        event->data.completion.outcome == mwin_outcomeDone);
+    }
+    CHECK(done, "the other window's request is carried out");
+    program->done = true;
+}
+
+static void TestDestroyLeavesNeighbours(void)
+{
+    Program program = {.step = NeighbourStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 static void LimitStep(Program* program, mwinContext* context, int step)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
@@ -554,6 +658,8 @@ int main(void)
     TestCloseAndDestroy();
     TestDestroyedCritical();
     TestDestroyDropsNotifications();
+    TestRequestEdges();
+    TestDestroyLeavesNeighbours();
     TestLimits();
     TestOrderAndCoalescing();
     TestRefusals();

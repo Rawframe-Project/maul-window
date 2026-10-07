@@ -12,6 +12,12 @@
 
 #include <math.h>
 
+enum
+{
+    AllStyles =
+        mwin_styleResizable | mwin_styleDecorated | mwin_styleAlwaysOnTop | mwin_styleCustomChrome,
+};
+
 static void PropertyStep(Program* program, mwinContext* context, int step)
 {
     mwinWindowId window = program->windows[0];
@@ -28,11 +34,11 @@ static void PropertyStep(Program* program, mwinContext* context, int step)
                   state.style == (mwin_styleResizable | mwin_styleDecorated) &&
                   state.opacity == 1.0f,
               "a new window's style and opacity");
+        // The most equal to the least, and every style flag.
         CHECK(mwinRequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
-                                    (mwinSize){0.0f, 0.0f}, nullptr) == mwin_success &&
+                                    (mwinSize){320.0f, 200.0f}, nullptr) == mwin_success &&
                   mwinRequestAspectRatio(context, window, 16, 9, nullptr) == mwin_success &&
-                  mwinRequestStyle(context, window, mwin_styleAlwaysOnTop, nullptr) ==
-                      mwin_success &&
+                  mwinRequestStyle(context, window, AllStyles, nullptr) == mwin_success &&
                   mwinRequestOpacity(context, window, 0.5f, nullptr) == mwin_success,
               "property requests");
         CHECK(mwinRequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
@@ -52,12 +58,12 @@ static void PropertyStep(Program* program, mwinContext* context, int step)
     {
         CHECK(program->eventCount == 4 &&
                   mwinGetWindowState(context, window, &state) == mwin_success &&
-                  state.style == mwin_styleAlwaysOnTop && state.opacity == 0.5f,
+                  state.style == AllStyles && state.opacity == 0.5f,
               "carried out, the state follows");
         CHECK(mwinTestSetAnswer(context, mwin_requestOpacity, mwin_outcomeUnsupported) ==
                       mwin_success &&
-                  mwinRequestOpacity(context, window, 0.25f, nullptr) == mwin_success,
-              "a platform without blending");
+                  mwinRequestOpacity(context, window, 1.0f, nullptr) == mwin_success,
+              "a platform without blending, asked for the most");
         return;
     }
     CHECK(program->eventCount == 1 &&

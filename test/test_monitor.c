@@ -58,6 +58,8 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
         CHECK(mwinGetMonitors(context, listed, 4, &count) == mwin_success && count == 2 &&
                   SameMonitor(listed[0], s_monitors[1]) && SameMonitor(listed[1], s_monitors[0]),
               "a snapshot, the primary first");
+        CHECK(mwinGetMonitors(context, listed, 2, &count) == mwin_success && count == 2,
+              "a list that fits exactly");
         CHECK(mwinGetMonitors(context, listed, 1, &count) == mwin_errorCapacity && count == 2,
               "a short list says how many");
         CHECK(mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
@@ -164,9 +166,47 @@ static void TestLimit(void)
     CHECK(RunWith(&program, def) == mwin_errorInvalid, "notifications must cover the monitors");
 }
 
+// A removed monitor's slot is free again once its removal is read.
+static void ReuseStep(Program* program, mwinContext* context, int step)
+{
+    mwinMonitorInfo info = Info("M", false, 1.0f);
+    mwinMonitorId id;
+    if (step == 0)
+    {
+        CHECK(mwinTestAddMonitor(context, &info, &s_monitors[0]) == mwin_success &&
+                  mwinTestAddMonitor(context, &info, &s_monitors[1]) == mwin_success,
+              "two monitors fill the slots");
+        return;
+    }
+    Drain(program, context);
+    if (step == 1)
+    {
+        CHECK(mwinTestRemoveMonitor(context, s_monitors[0]) == mwin_success &&
+                  mwinTestAddMonitor(context, &info, &id) == mwin_errorCapacity,
+              "the slot waits for its removal to be read");
+        return;
+    }
+    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventMonitorRemoved,
+          "the removal read");
+    CHECK(mwinTestAddMonitor(context, &info, &s_monitors[2]) == mwin_success &&
+              s_monitors[2].index1 == s_monitors[0].index1 &&
+              s_monitors[2].generation != s_monitors[0].generation,
+          "then its slot takes a new monitor");
+    program->done = true;
+}
+
+static void TestSlotReuse(void)
+{
+    Program program = {.step = ReuseStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.monitors = 2;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
 int main(void)
 {
     TestHotplug();
     TestLimit();
+    TestSlotReuse();
     return s_failures == 0 ? 0 : 1;
 }

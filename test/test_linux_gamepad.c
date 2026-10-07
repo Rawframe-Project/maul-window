@@ -8,8 +8,10 @@
 // the database lacks, connected while the program runs, then its motion
 // sensors device, which grants it motion: samples in units per g and
 // per degree per second, timed by their stamps; a joystick of
-// no known layout, raw, its hat as two axes; and a disconnect. Without
-// a display or /dev/uinput the test is skipped (exit status 77).
+// no known layout, raw, its hat as two axes; a disconnect; and the pad
+// again, its sensors device there before it, which grants it motion from
+// the start. Without a display or /dev/uinput the test is skipped (exit
+// status 77).
 
 #include "test_harness.h"
 
@@ -40,6 +42,8 @@ typedef enum Phase
     phaseRawPress,
     phaseRumble,
     phaseRemove,
+    phaseSensorsAlone,
+    phaseSensorsFirst,
     phaseDone,
 } Phase;
 
@@ -318,6 +322,7 @@ static bool Ready(const Program* program)
     case phaseStart:
     case phaseKernel:
     case phaseRaw:
+    case phaseSensorsFirst:
         return Find(program, mwin_eventGamepadAdded, 0) != nullptr;
     case phaseXbox:
         return Pressed(program, mwin_padDpadUp, false);
@@ -326,7 +331,8 @@ static bool Ready(const Program* program)
     case phaseMotionFound:
         return Find(program, mwin_eventGamepadChanged, 0) != nullptr;
     case phaseMotion:
-        // Frames have read the samples.
+    case phaseSensorsAlone:
+        // Frames have read the samples, or seen the device come.
         return NowNs() - program->startNs > 50000000u;
     case phaseRawPress:
         return Find(program, mwin_eventGamepadButtonDown, 0) != nullptr &&
@@ -459,11 +465,25 @@ static void AdvanceOthers(Program* program, mwinContext* context)
               "no rumble without motors");
         Destroy(&program->kernel);
         break;
-    default:
+    case phaseRemove:
         CHECK(Find(program, mwin_eventGamepadRemoved, 0)->data.gamepad.index1 ==
                   program->pads[1].index1,
               "a disconnect");
+        CHECK(MakeMotion(&program->motion), "the sensors device alone");
         break;
+    case phaseSensorsAlone:
+        CHECK(Make(&program->kernel, "Kernel Pad", 0x1234, 0x0001, 1, s_kernelButtons, 8, false),
+              "the pad again, after its sensors device");
+        break;
+    default:
+    {
+        mwinGamepadInfo info;
+        mwinGamepadId pad = Find(program, mwin_eventGamepadAdded, 0)->data.gamepad;
+        CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success &&
+                  (info.capabilities & mwin_padMotion) != 0,
+              "the sensors device there before it grants motion from the start");
+        break;
+    }
     }
 }
 

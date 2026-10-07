@@ -93,6 +93,19 @@ static const mwinEvent* Find(const Program* program, mwinEventType type, int nth
     return nullptr;
 }
 
+// The drag records among the drained ones: other records (the page's
+// focus moving under a loaded machine) may come too.
+static int DragRecords(const Program* program)
+{
+    int count = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        mwinEventType type = program->records[i].type;
+        count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
+    }
+    return count;
+}
+
 static bool DragAt(const mwinEvent* event, float x, float y)
 {
     return event != nullptr && event->data.drag.position.x == x &&
@@ -161,7 +174,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(!DragEvents(program->selector, 2), "a drag of neither left to the page");
         break;
     default:
-        CHECK(program->count == 0, "and not reported");
+        CHECK(DragRecords(program) == 0, "and not reported");
         break;
     }
     program->phase += 1;

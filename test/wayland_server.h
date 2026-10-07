@@ -92,6 +92,8 @@ typedef struct Shell
     uint32_t resizeEdge;
     int menus;
     int maximizes;
+    // The largest size the client last asked for, 0 for a free side.
+    int32_t maxSize[2];
     // The subsurfaces made, with their surfaces and places.
     int parts;
 } Shell;
@@ -116,6 +118,13 @@ typedef struct Server
     struct wl_resource* pointer;
     struct wl_resource* touch;
     struct wl_resource* relative;
+    // The seat's global and the client's seat; the devices made and
+    // released, and the seats released.
+    struct wl_global* seatGlobal;
+    struct wl_resource* seat;
+    int devicesMade;
+    int devicesReleased;
+    int seatsReleased;
     Cursor cursor;
     SurfaceState surfaces[SERVER_SURFACES];
     struct wl_resource* textInput;
@@ -337,11 +346,20 @@ static inline void ServerMaximize(struct wl_client* client, struct wl_resource* 
     server->shell.maximizes += 1;
 }
 
+static inline void ServerMaxSize(struct wl_client* client, struct wl_resource* resource,
+                                 int32_t width, int32_t height)
+{
+    (void)client;
+    Server* server = wl_resource_get_user_data(resource);
+    server->shell.maxSize[0] = width;
+    server->shell.maxSize[1] = height;
+}
+
 static const struct xdg_toplevel_interface s_serverToplevel = {
     .destroy = ServerDestroyResource,
     .set_title = ServerNoString,
     .set_app_id = ServerNoString,
-    .set_max_size = ServerNoTwoInts,
+    .set_max_size = ServerMaxSize,
     .set_min_size = ServerNoTwoInts,
     .show_window_menu = ServerMenu,
     .move = ServerMove,
@@ -420,6 +438,24 @@ static inline void ServerBindWmBase(struct wl_client* client, void* data, uint32
     wl_resource_set_implementation(resource, &s_serverWmBase, data, nullptr);
 }
 
+// A device gone, released by the client or with it; the server forgets
+// it.
+static inline void ServerDeviceReleased(struct wl_resource* resource)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->devicesReleased += 1;
+    server->keyboard = server->keyboard == resource ? nullptr : server->keyboard;
+    server->pointer = server->pointer == resource ? nullptr : server->pointer;
+    server->touch = server->touch == resource ? nullptr : server->touch;
+}
+
+static inline void ServerSeatReleased(struct wl_resource* resource)
+{
+    Server* server = wl_resource_get_user_data(resource);
+    server->seatsReleased += 1;
+    server->seat = server->seat == resource ? nullptr : server->seat;
+}
+
 static const struct wl_keyboard_interface s_serverKeyboard = {
     .release = ServerDestroyResource,
 };
@@ -446,7 +482,9 @@ static inline void ServerGetKeyboard(struct wl_client* client, struct wl_resourc
     Server* server = wl_resource_get_user_data(resource);
     server->keyboard =
         wl_resource_create(client, &wl_keyboard_interface, wl_resource_get_version(resource), id);
-    wl_resource_set_implementation(server->keyboard, &s_serverKeyboard, server, nullptr);
+    wl_resource_set_implementation(server->keyboard, &s_serverKeyboard, server,
+                                   ServerDeviceReleased);
+    server->devicesMade += 1;
     ServerSendKeymap(server);
     wl_keyboard_send_repeat_info(server->keyboard, server->repeatRate, server->repeatDelay);
 }
@@ -487,7 +525,8 @@ static inline void ServerGetPointer(struct wl_client* client, struct wl_resource
     Server* server = wl_resource_get_user_data(resource);
     server->pointer =
         wl_resource_create(client, &wl_pointer_interface, wl_resource_get_version(resource), id);
-    wl_resource_set_implementation(server->pointer, &s_serverPointer, server, nullptr);
+    wl_resource_set_implementation(server->pointer, &s_serverPointer, server, ServerDeviceReleased);
+    server->devicesMade += 1;
 }
 
 static const struct wl_touch_interface s_serverTouch = {
@@ -500,7 +539,8 @@ static inline void ServerGetTouch(struct wl_client* client, struct wl_resource* 
     Server* server = wl_resource_get_user_data(resource);
     server->touch =
         wl_resource_create(client, &wl_touch_interface, wl_resource_get_version(resource), id);
-    wl_resource_set_implementation(server->touch, &s_serverTouch, server, nullptr);
+    wl_resource_set_implementation(server->touch, &s_serverTouch, server, ServerDeviceReleased);
+    server->devicesMade += 1;
 }
 
 static const struct wl_seat_interface s_serverSeat = {
@@ -513,8 +553,10 @@ static const struct wl_seat_interface s_serverSeat = {
 static inline void ServerBindSeat(struct wl_client* client, void* data, uint32_t version,
                                   uint32_t id)
 {
+    Server* server = data;
     struct wl_resource* resource = wl_resource_create(client, &wl_seat_interface, version, id);
-    wl_resource_set_implementation(resource, &s_serverSeat, data, nullptr);
+    wl_resource_set_implementation(resource, &s_serverSeat, data, ServerSeatReleased);
+    server->seat = resource;
     wl_seat_send_capabilities(resource, WL_SEAT_CAPABILITY_KEYBOARD | WL_SEAT_CAPABILITY_POINTER |
                                             WL_SEAT_CAPABILITY_TOUCH);
 }
@@ -900,7 +942,8 @@ static inline bool ServerStart(Server* server, const char* layout, const char* v
     wl_global_create(server->display, &wl_compositor_interface, 4, server, ServerBindCompositor);
     server->shellGlobal =
         wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
-    wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
+    server->seatGlobal =
+        wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
     wl_global_create(server->display, &wp_cursor_shape_manager_v1_interface, 1, server,
                      ServerBindShapes);
     wl_global_create(server->display, &zwp_pointer_constraints_v1_interface, 1, server,
@@ -1102,6 +1145,15 @@ static inline void ServerTextEnter(Server* server)
     pthread_mutex_unlock(&server->lock);
 }
 
+// The seat's text input leaves the last surface made.
+static inline void ServerTextLeave(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    zwp_text_input_v3_send_leave(server->textInput, server->surface);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
 // The input method's next state: a composition with its cursor (NULL
 // for none) and committed text (NULL for none), applied by done.
 static inline void ServerCompose(Server* server, const char* preedit, int32_t begin, int32_t end,
@@ -1132,6 +1184,53 @@ static inline TextState ServerText(Server* server)
 static inline void ServerPointerLeave(Server* server)
 {
     ServerPointerLeaveFrom(server, nullptr);
+}
+
+// Configures the toplevel again, as a compositor that resizes it or
+// changes its states does: a size of 0 leaves it to the client.
+static inline void ServerConfigure(Server* server, int32_t width, int32_t height,
+                                   const uint32_t* states, int count)
+{
+    pthread_mutex_lock(&server->lock);
+    struct wl_array array;
+    wl_array_init(&array);
+    for (int i = 0; i < count; i++)
+    {
+        *(uint32_t*)wl_array_add(&array, sizeof(uint32_t)) = states[i];
+    }
+    xdg_toplevel_send_configure(server->toplevel, width, height, &array);
+    wl_array_release(&array);
+    xdg_surface_send_configure(server->xdgSurface, ++server->serial);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// The seat's devices change, as when a keyboard is unplugged.
+static inline void ServerCapabilities(Server* server, uint32_t capabilities)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_seat_send_capabilities(server->seat, capabilities);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// The seat goes, its global removed.
+static inline void ServerRemoveSeat(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_global_remove(server->seatGlobal);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// The devices made and released so far, and the seats released.
+static inline void ServerDevices(Server* server, int* madeOut, int* releasedOut, int* seatsOut)
+{
+    pthread_mutex_lock(&server->lock);
+    *madeOut = server->devicesMade;
+    *releasedOut = server->devicesReleased;
+    *seatsOut = server->seatsReleased;
+    pthread_mutex_unlock(&server->lock);
 }
 
 static inline Shell ServerShell(Server* server)

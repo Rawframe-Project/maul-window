@@ -247,11 +247,16 @@ static void Check(mwinContext* context, Program* program)
         trimmed[strlen(trimmed) - 1] = '\0';
         char paths[MAX_PATH * 3];
         size_t length = 0;
-        CHECK(program->outcome == mwin_outcomeDone &&
-                  mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                     nullptr) == mwin_success &&
-                  _stricmp(paths, trimmed) == 0,
-              "a folder chosen");
+        bool chosen = program->outcome == mwin_outcomeDone &&
+                      mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                         nullptr) == mwin_success &&
+                      _stricmp(paths, trimmed) == 0;
+        if (!chosen)
+        {
+            (void)printf("folder dialog: outcome %d, chose \"%.*s\", expected \"%s\"\n",
+                         (int)program->outcome, (int)length, paths, trimmed);
+        }
+        CHECK(chosen, "a folder chosen");
         break;
     }
     case phaseSupersede:

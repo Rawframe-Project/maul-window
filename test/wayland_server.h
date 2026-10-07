@@ -121,6 +121,7 @@ typedef struct Server
     // The seat's global and the client's seat; the devices made and
     // released, and the seats released.
     struct wl_global* seatGlobal;
+    struct wl_global* shapesGlobal;
     struct wl_resource* seat;
     int devicesMade;
     int devicesReleased;
@@ -923,6 +924,16 @@ static inline void ServerAddViewporter(Server* server)
     pthread_mutex_unlock(&server->lock);
 }
 
+// Takes the cursor shape protocol away, for a test that wants cursors
+// from a theme, before the client connects.
+static inline void ServerRemoveShapes(Server* server)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_global_destroy(server->shapesGlobal);
+    server->shapesGlobal = nullptr;
+    pthread_mutex_unlock(&server->lock);
+}
+
 // Starts the compositor on a new socket, which WAYLAND_DISPLAY then
 // names. False when it cannot.
 static inline bool ServerStart(Server* server, const char* layout, const char* variant)
@@ -944,8 +955,8 @@ static inline bool ServerStart(Server* server, const char* layout, const char* v
         wl_global_create(server->display, &xdg_wm_base_interface, 5, server, ServerBindWmBase);
     server->seatGlobal =
         wl_global_create(server->display, &wl_seat_interface, 8, server, ServerBindSeat);
-    wl_global_create(server->display, &wp_cursor_shape_manager_v1_interface, 1, server,
-                     ServerBindShapes);
+    server->shapesGlobal = wl_global_create(server->display, &wp_cursor_shape_manager_v1_interface,
+                                            1, server, ServerBindShapes);
     wl_global_create(server->display, &zwp_pointer_constraints_v1_interface, 1, server,
                      ServerBindConstraints);
     wl_global_create(server->display, &zwp_relative_pointer_manager_v1_interface, 1, server,

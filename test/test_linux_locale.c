@@ -7,11 +7,13 @@
 // - codesets dropped; @latin, @cyrillic and @valencia kept as script
 //   and variant, other modifiers dropped; UN M.49 territories kept;
 // - names of no language left out;
-// - tags that do not fit left out whole.
+// - tags that do not fit left out whole;
+// - the messages locale taken from LC_ALL, else LC_MESSAGES, else LANG.
 
 #include "linux_locale.h"
 #include "test_harness.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static bool Gives(const char* language, const char* messages, size_t capacity, const char* expected)
@@ -27,6 +29,8 @@ int main(void)
 {
     CHECK(Gives("de_DE:de:en", "de_DE.UTF-8", 64, "de-DE,de,en"),
           "LANGUAGE in order, then the messages locale, without repeats");
+    CHECK(Gives("de:de", "fr_FR", 64, "de,fr-FR") && Gives("fr:de", "de", 64, "fr,de"),
+          "no repeat of a list's only tag, or of its last");
     CHECK(Gives(nullptr, "pt_BR.UTF-8", 64, "pt-BR") && Gives("", "fr_FR", 64, "fr-FR"),
           "the messages locale alone");
     CHECK(Gives("de:en", "C", 64, "") && Gives("de:en", "C.UTF-8", 64, "") &&
@@ -42,11 +46,27 @@ int main(void)
     CHECK(Gives(nullptr, "es_419.UTF-8", 64, "es-419") && Gives(nullptr, "EN_gb", 64, "en-GB") &&
               Gives(nullptr, "fil_PH", 64, "fil-PH"),
           "UN M.49 territories, cases and three-letter languages");
+    CHECK(Gives(nullptr, "ZU_za", 64, "zu-ZA"), "cases at the end of the alphabet");
     CHECK(Gives("x:e1:english:de_D:de_DEU:de_12::de", "de_DE", 64, "de,de-DE"),
           "names of no language left out");
     CHECK(Gives("de_DE:fr_FR:it", "en_US", 12, "de-DE,fr-FR") &&
               Gives("de_DE:it", "en_US", 4, "it") && Gives("de_DE:it", "en_US", 8, "de-DE,it") &&
-              Gives("de_DE:it", "en_US", 1, "") && Gives("de_DE:it", "en_US", 7, "de-DE"),
-          "tags that do not fit left out whole");
+              Gives("de_DE:it", "en_US", 1, "") && Gives("de_DE:it", "en_US", 7, "de-DE") &&
+              Gives("de_DE:it", "en_US", 5, "de-DE"),
+          "tags that do not fit left out whole, a first that just fits kept");
+    char out[64];
+    (void)unsetenv("LC_ALL");
+    (void)unsetenv("LANGUAGE");
+    (void)setenv("LC_MESSAGES", "fr_FR.UTF-8", 1);
+    (void)setenv("LANG", "de_DE.UTF-8", 1);
+    size_t length = mwinLinuxLocales(out, sizeof(out));
+    CHECK(length == 5 && memcmp(out, "fr-FR", 5) == 0, "LC_MESSAGES before LANG");
+    (void)setenv("LC_ALL", "it_IT.UTF-8", 1);
+    length = mwinLinuxLocales(out, sizeof(out));
+    CHECK(length == 5 && memcmp(out, "it-IT", 5) == 0, "LC_ALL before both");
+    (void)unsetenv("LC_ALL");
+    (void)setenv("LC_MESSAGES", "", 1);
+    length = mwinLinuxLocales(out, sizeof(out));
+    CHECK(length == 5 && memcmp(out, "de-DE", 5) == 0, "an empty LC_MESSAGES unheeded");
     return s_failures == 0 ? 0 : 1;
 }

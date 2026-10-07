@@ -259,6 +259,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_wayland_server_test(wayland_states)
         mwin_add_wayland_server_test(wayland_text)
         mwin_add_wayland_server_test(wayland_seat)
+        mwin_add_wayland_server_test(wayland_theme)
         # The pipes other clients write into, read against their limits.
         maul_add_test(wayland_pipe WHITEBOX POSIX)
         if(TARGET test_wayland_pipe)
@@ -338,6 +339,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
         # The preferred locales the environment names.
         maul_add_test(linux_locale WHITEBOX)
+        if(TARGET test_linux_locale)
+            target_compile_definitions(test_linux_locale PRIVATE _POSIX_C_SOURCE=200809L)
+        endif()
     endif()
     if(MAUL_WINDOW_X11)
         # xdg-open on PATH and a session bus of the test's own; X11, and

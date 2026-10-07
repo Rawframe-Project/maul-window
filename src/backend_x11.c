@@ -121,22 +121,22 @@ static bool InternAtoms(mwinX11Platform* platform)
     return interned;
 }
 
-// A property of the root window, or NULL; the caller releases it.
-static xcb_get_property_reply_t* RootProperty(const mwinX11Platform* platform, xcb_atom_t property,
-                                              xcb_atom_t type, uint32_t longs)
+// A property of a window, or NULL; the caller releases it.
+static xcb_get_property_reply_t* WindowProperty(const mwinX11Platform* platform,
+                                                xcb_window_t window, xcb_atom_t property,
+                                                xcb_atom_t type, uint32_t longs)
 {
     const mwinX11Api* api = &platform->api;
     return api->getPropertyReply(
         platform->connection,
-        api->getProperty(platform->connection, 0, platform->screen->root, property, type, 0, longs),
-        nullptr);
+        api->getProperty(platform->connection, 0, window, property, type, 0, longs), nullptr);
 }
 
 // The scale desktops set through Xft.dpi, 1 where it is not set.
 static float ReadScale(const mwinX11Platform* platform)
 {
-    xcb_get_property_reply_t* reply =
-        RootProperty(platform, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING, 16384);
+    xcb_get_property_reply_t* reply = WindowProperty(
+        platform, platform->screen->root, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING, 16384);
     float scale = 1.0f;
     if (reply != nullptr)
     {
@@ -147,14 +147,27 @@ static float ReadScale(const mwinX11Platform* platform)
     return scale;
 }
 
-// Whether an EWMH window manager runs: the root names its check window.
+// The check window a window names, 0 for none.
+static xcb_window_t CheckWindow(const mwinX11Platform* platform, xcb_window_t window)
+{
+    xcb_get_property_reply_t* reply = WindowProperty(
+        platform, window, platform->atoms[mwin_atomNetSupportingWmCheck], XCB_ATOM_WINDOW, 1);
+    xcb_window_t check = 0;
+    if (reply != nullptr && platform->api.getPropertyValueLength(reply) == sizeof(check))
+    {
+        memcpy(&check, platform->api.getPropertyValue(reply), sizeof(check));
+    }
+    mwinReleaseSystemMemory(reply);
+    return check;
+}
+
+// Whether an EWMH window manager runs: the root names its check window,
+// which names itself. A window manager that quit leaves the root's
+// property behind, naming a window gone.
 static bool HasWindowManager(const mwinX11Platform* platform)
 {
-    xcb_get_property_reply_t* reply =
-        RootProperty(platform, platform->atoms[mwin_atomNetSupportingWmCheck], XCB_ATOM_WINDOW, 1);
-    bool found = reply != nullptr && platform->api.getPropertyValueLength(reply) >= 4;
-    mwinReleaseSystemMemory(reply);
-    return found;
+    xcb_window_t check = CheckWindow(platform, platform->screen->root);
+    return check != 0 && CheckWindow(platform, check) == check;
 }
 
 // Asks for RandR 1.5 and its screen change events.

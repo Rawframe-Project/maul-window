@@ -40,9 +40,10 @@ binary must run there as on Wayland.
 - **Modes** belong to the window manager: a mode request asks it
   through `_NET_WM_STATE` (or ICCCM's `WM_CHANGE_STATE` to minimize)
   and is answered done when `_NET_WM_STATE` shows the mode, denied
-  after half a second. Without an EWMH window manager
-  (`_NET_SUPPORTING_WM_CHECK`), mode requests are answered
-  unsupported. Focus goes through `_NET_ACTIVE_WINDOW`, or straight to
+  after half a second. Without an EWMH window manager (the root's
+  `_NET_SUPPORTING_WM_CHECK` naming a window that names itself, so
+  that the property a window manager leaves behind when it quits does
+  not count), mode requests are answered unsupported. Focus goes through `_NET_ACTIVE_WINDOW`, or straight to
   the X server without a window manager.
 - **Monitors:** RandR 1.5's monitor list, each monitor by the atom of
   its name, with the primary RandR names or else the first, and its

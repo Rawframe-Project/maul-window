@@ -8,6 +8,15 @@ format.
 
 ## [Unreleased]
 
+### Fixed
+
+- On X11, a window manager counts as running only when the window the
+  root's `_NET_SUPPORTING_WM_CHECK` names names itself, as EWMH has it
+  (mwin-0006). The property a window manager leaves behind when it
+  quits used to count, and mode requests then waited for a window
+  manager that was gone, to be denied, instead of being answered
+  unsupported.
+
 ## [0.8.0] - 2026-10-06
 
 Text from outside the program made safe to slice, and screen readers on

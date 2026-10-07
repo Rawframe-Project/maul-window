@@ -74,6 +74,12 @@ static void CheckRefusals(mwinContext* context)
     CHECK(mwinCreateCursor(context, &most, &cursor) == mwin_success &&
               mwinDestroyCursor(context, cursor) == mwin_success,
           "a cursor of the most images");
+    static uint8_t largest[MWIN_CURSOR_SIZE * MWIN_CURSOR_SIZE * 4];
+    const mwinIconImage side = {MWIN_CURSOR_SIZE, MWIN_CURSOR_SIZE, MWIN_CURSOR_SIZE * 4, largest};
+    mwinCursorDef widest = Def(&side, 1);
+    CHECK(mwinCreateCursor(context, &widest, &cursor) == mwin_success &&
+              mwinDestroyCursor(context, cursor) == mwin_success,
+          "an image of the most side");
 }
 
 static int Outcome(const Program* program, int request)

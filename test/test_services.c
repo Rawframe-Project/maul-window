@@ -8,13 +8,15 @@
 // revealed, and the window kept awake, its state saying so while a
 // refusal leaves it; and the text of a request cancelled with its
 // window, or never answered at the context's end, given back (the
-// sanitizer builds would report a leak).
+// sanitizer builds would report a leak), and for a stale window given
+// back with the size it was lent.
 
 #include "test_program.h"
 
 #include "maul-window/services.h"
 #include "maul-window/test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 // An absolute path on the platform built for, and its bytes.
@@ -63,6 +65,7 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               Refused(context, window, "javascript:alert(1)", 19) &&
               Refused(context, window, "http://\xC3", 8) &&
               Refused(context, window, s_long, sizeof(s_long)) &&
+              Refused(context, window, nullptr, 8) &&
               mwinRequestOpenUrl(nullptr, window, "http://a", 8, nullptr) == mwin_errorInvalid,
           "addresses this does not open refused at the call");
     CHECK(mwinRequestRevealFile(context, window, "a/b", 3, nullptr) == mwin_errorInvalid &&
@@ -154,8 +157,50 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+// An allocator that keeps the bytes it lends, so that a block given back
+// with another size shows.
+static size_t s_live = 0;
+
+static void* CountAlloc(size_t size, size_t alignment, void* context)
+{
+    (void)alignment;
+    (void)context;
+    s_live += size;
+    return malloc(size);
+}
+
+static void CountFree(void* memory, size_t size, size_t alignment, void* context)
+{
+    (void)alignment;
+    (void)context;
+    s_live -= size;
+    free(memory);
+}
+
+// A request for a stale window gives its copy of the address back whole.
+static void StaleStep(Program* program, mwinContext* context, int step)
+{
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        CHECK(mwinDestroyWindow(context, program->windows[0]) == mwin_success, "destroyed");
+        return;
+    }
+    CHECK(mwinRequestOpenUrl(context, program->windows[0], "https://a", 9, nullptr) ==
+                  mwin_errorStale &&
+              mwinRequestRevealFile(context, program->windows[0], PATH("/tmp"), nullptr) ==
+                  mwin_errorStale,
+          "an address and a path for a window gone");
+    program->done = true;
+}
+
 int main(void)
 {
+    Program stale = {.step = StaleStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.allocator = (mwinAllocator){CountAlloc, CountFree, nullptr};
+    CHECK(RunWith(&stale, def) == mwin_success && stale.done && s_live == 0,
+          "every byte given back as lent");
     Program program = {.step = Step};
     CHECK(Run(&program) == mwin_success && program.done, "the program runs");
     return s_failures == 0 ? 0 : 1;

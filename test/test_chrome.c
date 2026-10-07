@@ -4,7 +4,7 @@
 // Custom chrome on the test backend. The custom chrome style is a style
 // like the others. Hit regions are refused at the call when there are
 // too many, when they are not finite, when their size is negative or
-// when their kind is unknown. The regions are copied at the call, done
+// when their kind is unknown; one of no size is taken. The regions are copied at the call, done
 // on the test backend, and replaced by the next call, and none clears
 // them. A new window has none, also in the slot of one that had some.
 // The one hit test every backend makes: the last region holding a point, with each rect's left and
@@ -103,6 +103,11 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckRefusals(context, program->windows[0]);
         CHECK(window->regionCount == 0 && mwinHitAt(window, 1.0f, 1.0f) == mwin_hitClient,
               "a new window has no regions");
+        // The regions asked for next replace this one.
+        mwinHitRegion empty = {{5.0f, 5.0f, 0.0f, 0.0f}, mwin_hitCaption};
+        CHECK(mwinRequestHitRegions(context, program->windows[0], &empty, 1, nullptr) ==
+                  mwin_success,
+              "a region of no size");
         mwinHitRegion regions[4];
         memcpy(regions, s_regions, sizeof(regions));
         CHECK(mwinRequestHitRegions(context, program->windows[0], regions, 4,

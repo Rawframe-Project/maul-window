@@ -7,7 +7,9 @@
 // and the drop marked truncated, and its text repaired; a drag that
 // leaves; files past droppedFiles and paths past dropBytes left out
 // whole, text past dropBytes left out; a later drop making an earlier
-// number stale; and a drop on a window that went, delivered to no one.
+// number stale; a buffer that fits exactly, a drop without text, and
+// text of dropBytes exactly kept whole; and a drop on a window that
+// went, delivered to no one.
 
 #include "test_program.h"
 
@@ -92,6 +94,15 @@ static void CheckLimits(Program* program, mwinContext* context)
     CHECK(program->eventCount == 1 && drop->fileCount == FILES && drop->textLength == 0 &&
               drop->truncated && Copied(context, drop->drop, false, "/f1\0/f2\0/f3\0", 12),
           "files past droppedFiles and text past dropBytes left out");
+    char twelve[12];
+    char four[4];
+    size_t length = 0;
+    CHECK(
+        mwinGetDroppedFiles(context, drop->drop, twelve, sizeof(twelve), &length) == mwin_success &&
+            length == 12 &&
+            mwinGetDroppedText(context, drop->drop, four, sizeof(four), &length) == mwin_success &&
+            length == 0,
+        "a buffer that fits exactly, and no text to copy");
     CHECK(mwinGetDroppedFiles(context, program->requests[1].index1, nullptr, 0, &(size_t){0}) ==
               mwin_errorStale,
           "a later drop makes the earlier number stale");
@@ -155,8 +166,36 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+// Text of dropBytes exactly is whole, and the drop not truncated.
+static void ExactStep(Program* program, mwinContext* context, int step)
+{
+    Drain(program, context);
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        CHECK(mwinTestDrop(context, program->windows[0], (mwinPosition){0}, "/y\0", 3,
+                           "0123456789abcdefghijklmnopqrstuv", BYTES) == mwin_success,
+              "a drop of text of the limit exactly");
+        return;
+    }
+    const mwinDropEvent* drop = &program->events[0].data.drop;
+    CHECK(program->eventCount == 1 && drop->fileCount == 1 && drop->textLength == BYTES &&
+              !drop->truncated &&
+              Copied(context, drop->drop, true, "0123456789abcdefghijklmnopqrstuv", BYTES),
+          "the text whole, nothing truncated");
+    program->done = true;
+}
+
 int main(void)
 {
+    Program exact = {.step = ExactStep};
+    mwinContextDef exactDef = mwinDefaultContextDef();
+    exactDef.limits.dropBytes = BYTES;
+    CHECK(RunWith(&exact, exactDef) == mwin_success && exact.done, "the exact program runs");
     Program program = {.step = Step};
     mwinContextDef def = mwinDefaultContextDef();
     def.limits.droppedFiles = FILES;

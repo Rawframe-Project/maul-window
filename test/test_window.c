@@ -4,7 +4,10 @@
 // The window contract against the test backend: creation and its
 // notifications, requests paired with exactly one completion after the
 // notifications they caused, superseding, the answers a platform may
-// give, close and destroy, stale ids, the named limits, one ordered
+// give, close and destroy (a window's own critical records, waiting
+// notifications and requests going, another's staying), the critical
+// ring full and a critical frame that stops, stale ids, the named
+// limits and their bounds exactly, one ordered
 // stream across windows, coalescing, timestamps, refusals, and every
 // byte of memory returned. Each test is a program: its frame function
 // runs one step per frame, and the test backend pumps between frames.
@@ -419,6 +422,73 @@ static void TestDestroyLeavesNeighbours(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+// The critical ring holds a lost surface of every window and a lifecycle
+// record at once.
+static void FullCriticalStep(Program* program, mwinContext* context, int step)
+{
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        program->windows[1] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        Drain(program, context);
+        mwinEvent first = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
+        mwinEvent second = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
+        mwinEvent suspending = {.type = mwin_eventSuspending};
+        CHECK(mwinTestPost(context, &first) == mwin_success &&
+                  mwinTestPost(context, &second) == mwin_success &&
+                  mwinTestPost(context, &suspending) == mwin_success,
+              "both surfaces lost, then the program suspended");
+        return;
+    }
+    if (step < 5)
+    {
+        return; // the critical frames leave the records waiting
+    }
+    Drain(program, context);
+    // Suspending resets each window's input after them.
+    static const mwinEventType expected[] = {mwin_eventSurfaceLost, mwin_eventSurfaceLost,
+                                             mwin_eventSuspending, mwin_eventInputStateReset,
+                                             mwin_eventInputStateReset};
+    CHECK(Types(program, expected, 5), "all three wait in the critical ring");
+    program->done = true;
+}
+
+static void TestFullCriticalRing(void)
+{
+    Program program = {.step = FullCriticalStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.windows = 2;
+    CHECK(RunWith(&program, def) == mwin_success, "the program runs");
+}
+
+// A critical frame that stops the program is its last frame.
+static void StopStep(Program* program, mwinContext* context, int step)
+{
+    CHECK(!program->done, "no frame after the one that stopped");
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    if (step == 1)
+    {
+        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
+        CHECK(mwinTestPost(context, &lost) == mwin_success, "the surface goes");
+        return;
+    }
+    program->done = true; // in the critical frame of the lost surface
+}
+
+static void TestStopInCriticalFrame(void)
+{
+    Program program = {.step = StopStep};
+    CHECK(Run(&program) == mwin_success && program.frame == 3, "the program runs three frames");
+}
+
 static void LimitStep(Program* program, mwinContext* context, int step)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
@@ -635,6 +705,19 @@ static void TestRunAndMemory(void)
     def = mwinDefaultContextDef();
     def.limits.notificationsPerWindow = 20;
     CHECK(RunWith(&program, def) == mwin_errorInvalid, "limits below the bound");
+    // The notifications on both bounds exactly: three a monitor, four a
+    // gamepad and four of the context's own (84 for the default 16
+    // monitors and 8 gamepads), and 15 beyond the requests.
+    def.limits.notificationsPerWindow = 84;
+    def.limits.requestsPerWindow = 69;
+    program = (Program){.step = CreationStep};
+    CHECK(RunWith(&program, def) == mwin_success, "limits on their bounds");
+    def.limits.requestsPerWindow = 70;
+    CHECK(RunWith(&program, def) == mwin_errorInvalid, "a request past the bound");
+    def = mwinDefaultContextDef();
+    def.limits.inputPerWindow = 0;
+    CHECK(RunWith(&program, def) == mwin_errorInvalid, "no room for input");
+    def = mwinDefaultContextDef();
     mwinAppDef app = mwinDefaultAppDef();
     CHECK(mwinRun(&app) == mwin_errorInvalid, "an app without functions");
     app.init = Init;
@@ -660,6 +743,8 @@ int main(void)
     TestDestroyDropsNotifications();
     TestRequestEdges();
     TestDestroyLeavesNeighbours();
+    TestFullCriticalRing();
+    TestStopInCriticalFrame();
     TestLimits();
     TestOrderAndCoalescing();
     TestRefusals();

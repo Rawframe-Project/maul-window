@@ -4,7 +4,8 @@
 // The file dialog contract on the test backend: defs refused at the
 // call (a wrong cookie or kind, text that is not UTF-8, a folder that
 // is not absolute, filters without a name, with a dot, a wildcard, an
-// empty extension, or too many); a dialog's def copied as asked, its
+// empty extension, or too many, while the most are taken, and a
+// share's folder outside Windows); a dialog's def copied as asked, its
 // paths copied out under its request and stale under any other; a
 // cancelled dialog, one past the limits and one choosing nothing,
 // which keep the last paths; a folder dialog without filters, whose
@@ -107,6 +108,27 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               RefusesExtensions(context, window, "p?g") &&
               RefusesExtensions(context, window, "a b"),
           "extensions with a dot, a wildcard, a space or an empty one refused");
+    // The most filters, with a share's folder where Windows names one;
+    // the dialog asked for next supersedes this one.
+    mwinFileFilter filters[MWIN_DIALOG_FILTERS];
+    for (int i = 0; i < MWIN_DIALOG_FILTERS; i++)
+    {
+        filters[i] = s_filters[1];
+    }
+    mwinFileDialogDef most = Def(mwin_dialogOpenMany);
+    most.filters = filters;
+    most.filterCount = MWIN_DIALOG_FILTERS;
+    mwinFileDialogDef share = Def(mwin_dialogOpenMany);
+    share.folder = "\\\\server\\share";
+    share.folderLength = 14;
+#ifdef _WIN32
+    most.folder = share.folder;
+    most.folderLength = share.folderLength;
+#else
+    CHECK(Refused(context, window, &share), "a share's path is not absolute here");
+#endif
+    CHECK(mwinRequestFileDialog(context, window, &most, nullptr) == mwin_success,
+          "the most filters");
 }
 
 static bool Described(mwinContext* context, const char* expected)

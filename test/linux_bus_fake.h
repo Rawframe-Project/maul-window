@@ -18,14 +18,15 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <spawn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <unistd.h>
 
 extern char** environ;
 
@@ -170,19 +171,39 @@ static inline bool FakeStart(FakeBus* fake, const char* directory)
     (void)snprintf(argument, sizeof(argument), "--config-file=%s", path);
     char* arguments[] = {(char*)"/usr/bin/dbus-daemon", argument, (char*)"--nofork",
                          (char*)"--nopidfile", nullptr};
-    // Its output goes nowhere, so a test that dies never leaves it
-    // holding the pipes of whoever runs the test.
-    posix_spawn_file_actions_t actions;
-    (void)posix_spawn_file_actions_init(&actions);
-    (void)posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
-    (void)posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
-    int spawned = posix_spawn(&fake->daemon, arguments[0], &actions, nullptr, arguments, environ);
-    (void)posix_spawn_file_actions_destroy(&actions);
-    if (spawned != 0)
+    if (access(arguments[0], X_OK) != 0)
+    {
+        return false;
+    }
+    // The bus dies with the thread that starts it, the test's main one: a
+    // test a sanitizer or a timeout ends never stops it, and orphaned
+    // buses each hold an inotify instance until the user has none left
+    // for the gamepad watch. Its output goes nowhere, so it never holds
+    // the pipes of whoever runs the test either. Between fork and exec
+    // only async-signal-safe calls.
+    pid_t parent = getpid();
+    pid_t child = fork();
+    if (child == 0)
+    {
+        int null = open("/dev/null", O_WRONLY);
+        if (null >= 0)
+        {
+            (void)dup2(null, 1);
+            (void)dup2(null, 2);
+        }
+        if (prctl(PR_SET_PDEATHSIG, SIGTERM) != 0 || getppid() != parent)
+        {
+            _exit(1);
+        }
+        (void)execve(arguments[0], arguments, environ);
+        _exit(127);
+    }
+    if (child < 0)
     {
         fake->daemon = 0;
         return false;
     }
+    fake->daemon = child;
     (void)snprintf(path, sizeof(path), "%s/bus", directory);
     struct stat status;
     for (int i = 0; i < 500 && stat(path, &status) != 0; i++)

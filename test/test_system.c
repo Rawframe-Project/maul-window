@@ -19,6 +19,7 @@ static void FactsStep(Program* program, mwinContext* context, int step)
                   facts.theme == mwin_themeUnknown && facts.textScale == 1.0f &&
                   facts.onBattery == mwin_unknown,
               "nothing known at first");
+        CHECK(mwinTestSetLocales(context, "tr-TR,en-GB", 11) == mwin_success, "locales");
         facts.theme = mwin_themeDark;
         facts.hasAccent = true;
         facts.accent = 0x3D7EFFFFu;
@@ -28,16 +29,16 @@ static void FactsStep(Program* program, mwinContext* context, int step)
         facts.onBattery = mwin_yes;
         CHECK(mwinTestSetSystemFacts(context, &facts) == mwin_success, "on battery");
         CHECK(mwinTestSetSystemFacts(context, &facts) == mwin_success, "the same again");
-        CHECK(mwinTestSetLocales(context, "tr-TR,en-GB", 11) == mwin_success &&
-                  mwinTestSetLocales(context, "tr-TR,en-GB", 11) == mwin_success,
-              "locales, twice");
+        // The same again after the facts: a record would move behind them.
+        CHECK(mwinTestSetLocales(context, "tr-TR,en-GB", 11) == mwin_success,
+              "the same locales again");
         return;
     }
     Drain(program, context);
     if (step == 1)
     {
-        static const mwinEventType expected[] = {mwin_eventThemeChanged, mwin_eventPowerChanged,
-                                                 mwin_eventLocaleChanged};
+        static const mwinEventType expected[] = {mwin_eventLocaleChanged, mwin_eventThemeChanged,
+                                                 mwin_eventPowerChanged};
         CHECK(Types(program, expected, 3), "one record per change, merged, none for no change");
         mwinEvent layout = {.type = mwin_eventKeyboardLayoutChanged};
         CHECK(mwinTestPost(context, &layout) == mwin_success, "the layout changes");
@@ -56,6 +57,18 @@ static void FactsStep(Program* program, mwinContext* context, int step)
     CHECK(mwinGetPreferredLocales(context, locales, 3, &length) == mwin_errorCapacity &&
               length == 11,
           "a short buffer");
+    CHECK(mwinGetPreferredLocales(context, locales, 11, &length) == mwin_success && length == 11 &&
+              mwinGetPreferredLocales(context, nullptr, 0, &length) == mwin_errorCapacity &&
+              length == 11,
+          "a buffer of the length exactly, and none to measure with");
+    CHECK(mwinTestSetLocales(context, "en-GB,tr-TR", 11) == mwin_success &&
+              mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+              length == 11 && memcmp(locales, "en-GB,tr-TR", 11) == 0,
+          "another order of the same length");
+    CHECK(mwinTestSetLocales(context, nullptr, 0) == mwin_success &&
+              mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+              length == 0,
+          "no locales");
     static char longList[300];
     memset(longList, 'a', sizeof(longList));
     CHECK(mwinTestSetLocales(context, longList, sizeof(longList)) == mwin_errorCapacity &&

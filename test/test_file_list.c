@@ -8,7 +8,8 @@
 // and URIs sit alone in heap allocations of their length, and the
 // allocator gives exact blocks, so AddressSanitizer sees a read past
 // any of them. A whole text/uri-list goes into a drop: comments and
-// empty lines are skipped, other schemes truncate it.
+// empty lines are skipped, other schemes truncate it; and the rest of
+// a drop as it is gathered.
 
 #include "file_list.h"
 #include "test_program.h"
@@ -167,6 +168,20 @@ static void GatherStep(Program* program, mwinContext* context, int step)
     Gather(context, "http://x/y\nfile:///d");
     CHECK(drop->files.count == 1 && Holds(&drop->files, "/d", 3) && drop->truncated,
           "another scheme truncates, the last line needs no end");
+    // Windows hands paths and text in UTF-16; text set twice keeps the
+    // second, the first given back.
+    static const uint16_t path[] = {'C', ':', '\\', 0xE9};
+    static const uint16_t text[] = {'h', 0xE9};
+    mwinBeginDrop(context);
+    mwinAddDroppedFileUtf16(context, path, 4);
+    mwinSetDroppedTextUtf16(context, text, 2);
+    CHECK(drop->files.count == 1 && Holds(&drop->files, "C:\\\xC3\xA9", 6) &&
+              drop->textLength == 3 && memcmp(drop->text, "h\xC3\xA9", 3) == 0 && !drop->truncated,
+          "a UTF-16 path and text");
+    mwinSetDroppedText(context, "ab", 2);
+    mwinSetDroppedText(context, "cde", 3);
+    CHECK(drop->textLength == 3 && memcmp(drop->text, "cde", 3) == 0 && !drop->truncated,
+          "the later text");
     mwinBeginDrop(context);
     program->done = true;
 }

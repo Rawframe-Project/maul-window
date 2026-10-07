@@ -4,7 +4,9 @@
 // The clipboard's contract on the test backend: a write copied at the
 // call and put on the platform's clipboard at the next pump, a later
 // write superseding a waiting one; text refused at the call when it is
-// not UTF-8 or past the limit; a read's text copied out, ill-formed
+// not UTF-8 or past the limit, taken when empty or of the limit
+// exactly; a read's text copied out, UTF-8 and UTF-16 of the limit
+// exactly whole, ill-formed
 // UTF-8 and UTF-16 repaired, too large before and after repair, the
 // text of the last done read kept through a refusal or a read too
 // large; an empty clipboard read as empty; a read cancelled with its
@@ -53,6 +55,10 @@ static void Read(Program* program, mwinContext* context, int request)
 static void Write(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->windows[0];
+    CHECK(mwinRequestClipboardWrite(context, window, nullptr, 0, nullptr) == mwin_success &&
+              mwinRequestClipboardWrite(context, window, "0123456789abcdef", LIMIT, nullptr) ==
+                  mwin_success,
+          "empty text, and text of the limit exactly");
     CHECK(mwinRequestClipboardWrite(context, window, "h\xC3\xA9llo", 6, &program->requests[1]) ==
                   mwin_success &&
               mwinRequestClipboardWrite(context, window, "second", 6, &program->requests[2]) ==
@@ -186,8 +192,49 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+// Text of the limit exactly, in UTF-8 and in UTF-16, is read whole and
+// copied into a buffer of its length.
+static void ExactStep(Program* program, mwinContext* context, int step)
+{
+    static const char text[] = "0123456789abcdef";
+    static const uint16_t units[LIMIT] = {'f', 'e', 'd', 'c', 'b', 'a', '9', '8',
+                                          '7', '6', '5', '4', '3', '2', '1', '0'};
+    char found[LIMIT];
+    size_t length = 0;
+    Drain(program, context);
+    switch (step)
+    {
+    case 0:
+        program->windows[0] = Create(context, nullptr);
+        break;
+    case 1:
+        CHECK(mwinTestSetClipboard(context, text, LIMIT) == mwin_success, "set");
+        Read(program, context, 0);
+        break;
+    case 2:
+        CHECK(Outcome(program, 0, mwin_requestClipboardRead) == mwin_outcomeDone &&
+                  mwinGetClipboardText(context, found, sizeof(found), &length) == mwin_success &&
+                  length == LIMIT && memcmp(found, text, LIMIT) == 0,
+              "UTF-8 of the limit exactly");
+        CHECK(mwinTestSetClipboardUtf16(context, units, LIMIT) == mwin_success, "set UTF-16");
+        Read(program, context, 1);
+        break;
+    default:
+        CHECK(Outcome(program, 1, mwin_requestClipboardRead) == mwin_outcomeDone &&
+                  mwinGetClipboardText(context, found, sizeof(found), &length) == mwin_success &&
+                  length == LIMIT && memcmp(found, "fedcba9876543210", LIMIT) == 0,
+              "UTF-16 of the limit exactly");
+        program->done = true;
+        break;
+    }
+}
+
 int main(void)
 {
+    Program exact = {.step = ExactStep};
+    mwinContextDef exactDef = mwinDefaultContextDef();
+    exactDef.limits.clipboardBytes = LIMIT;
+    CHECK(RunWith(&exact, exactDef) == mwin_success && exact.done, "the exact program runs");
     Program program = {.step = Step};
     mwinContextDef def = mwinDefaultContextDef();
     def.limits.clipboardBytes = LIMIT;

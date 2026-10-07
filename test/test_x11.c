@@ -5,7 +5,8 @@
 // manager): the window a creation makes and its mapping, the monitors
 // from RandR, the native handles, size and place as the X server
 // reports them, hiding and showing, and the requests a server without a
-// window manager cannot carry out. Without DISPLAY the test is skipped
+// window manager cannot carry out; and a Wayland display that cannot
+// be reached giving way to X11. Without DISPLAY the test is skipped
 // (exit status 77).
 
 #include "test_harness.h"
@@ -193,6 +194,43 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
 }
 
+static mwinResult QuickInit(mwinContext* context, void* user)
+{
+    (void)context;
+    *(bool*)user = true;
+    return mwin_success;
+}
+
+static mwinFrameResult QuickFrame(mwinContext* context, void* user)
+{
+    (void)context;
+    (void)user;
+    return mwin_frameStop;
+}
+
+// A Wayland display that cannot be reached gives way to X11, and with
+// neither reachable the run fails as the last one did.
+static void TestFallback(void)
+{
+    // setenv may overwrite what getenv returned.
+    char display[64];
+    snprintf(display, sizeof(display), "%s", getenv("DISPLAY"));
+    bool started = false;
+    mwinAppDef def = mwinDefaultAppDef();
+    def.init = QuickInit;
+    def.frame = QuickFrame;
+    def.user = &started;
+    // No gamepads: the quick runs leave the input devices to the gamepad
+    // test running beside this one.
+    def.context.limits.gamepads = 0;
+    setenv("WAYLAND_DISPLAY", "mwin-no-such-display", 1);
+    CHECK(mwinRun(&def) == mwin_success && started, "past an unreachable Wayland display to X11");
+    started = false;
+    setenv("DISPLAY", ":4242", 1);
+    CHECK(mwinRun(&def) == mwin_errorPlatform && !started, "neither display reachable");
+    setenv("DISPLAY", display, 1);
+}
+
 int main(void)
 {
     const char* display = getenv("DISPLAY");
@@ -200,6 +238,7 @@ int main(void)
     {
         return 77;
     }
+    TestFallback();
     // X11 even where a Wayland session runs.
     unsetenv("WAYLAND_DISPLAY");
     Program program = {0};

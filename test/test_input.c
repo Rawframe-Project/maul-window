@@ -3,10 +3,13 @@
 //
 // The input contract against the test backend: keys and text in order,
 // text that stays valid through its frame and wraps in its storage,
-// discrete input that resets instead of vanishing, motion, deltas and
-// wheel turns that merge when their storage is full, touches merged
-// only with their own, refused records, the keyboard layout, cursor
-// requests, and the chords the platform keeps.
+// discrete input that resets instead of vanishing, a pen's button
+// included, motion, deltas and wheel turns that merge when their
+// storage is full, samples counted up to UINT16_MAX, a replaced
+// notification keeping the records after it in place, a composition of
+// the most segments, touches merged only with their own, refused
+// records, the keyboard layout, cursor requests, and the chords the
+// platform keeps.
 
 #include "test_program.h"
 

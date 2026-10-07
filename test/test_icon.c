@@ -147,6 +147,11 @@ static void CheckPick(void)
               mwinIconFor(icon, 33) == &icon->images[0] &&
               mwinIconFor(icon, 64) == &icon->images[0],
           "the smallest image at least as large, else the largest");
+    // Two of one side, too small either way: the first stays.
+    icon->images[0] = (mwinIconCopyImage){16, 8, nullptr};
+    icon->images[1] = (mwinIconCopyImage){8, 16, nullptr};
+    icon->count = 2;
+    CHECK(mwinIconFor(icon, 64) == &icon->images[0], "of two the same, the first");
     icon->count = 0;
     CHECK(mwinIconFor(icon, 16) == nullptr, "none without images");
 }

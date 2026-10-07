@@ -18,4 +18,6 @@ for mirror in http://azure.archive.ubuntu.com/ubuntu/ http://mirrors.edge.kernel
         silent+="${mirror}"$'\n'
     fi
 done
-printf '%s%s' "${answering}" "${silent}" | sudo tee /etc/apt/apt-mirrors.txt
+# Without priorities apt spreads its requests over every mirror.
+printf '%s%s' "${answering}" "${silent}" | awk '{print $0 "\tpriority:" NR}' |
+    sudo tee /etc/apt/apt-mirrors.txt

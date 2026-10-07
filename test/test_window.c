@@ -88,6 +88,9 @@ static void RequestStep(Program* program, mwinContext* context, int step)
     CHECK(mwinTestGetTitle(context, window, title, sizeof(title), &length) == mwin_success &&
               length == 3 && memcmp(title, "Neu", 3) == 0,
           "the platform shows the new title");
+    CHECK(mwinTestGetTitle(context, window, nullptr, 0, &length) == mwin_errorCapacity &&
+              length == 3,
+          "its length without a buffer");
     program->done = true;
 }
 

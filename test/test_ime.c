@@ -84,7 +84,11 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         Post(context, (mwinEvent){.type = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"\xE6\xBC\xA2", 3}});
-        Post(context, Preedit(window, "", -1, nullptr, 0));
+        // The composition ends empty, its text NULL as some platforms
+        // hand it.
+        mwinEvent ended = Preedit(window, "", -1, nullptr, 0);
+        ended.data.preedit.text = nullptr;
+        Post(context, ended);
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a'));
         return;
     }

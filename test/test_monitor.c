@@ -152,7 +152,10 @@ static void LimitStep(Program* program, mwinContext* context, int step)
     move.data.monitor = (mwinMonitorId){5, 1};
     CHECK(mwinTestPost(context, &move) == mwin_errorStale, "no move to an unknown monitor");
     mwinEvent added = {.type = mwin_eventMonitorAdded};
-    CHECK(mwinTestPost(context, &added) == mwin_errorInvalid, "hotplug is not a report");
+    mwinEvent changed = {.type = mwin_eventMonitorChanged};
+    CHECK(mwinTestPost(context, &added) == mwin_errorInvalid &&
+              mwinTestPost(context, &changed) == mwin_errorInvalid,
+          "hotplug is not a report, a change neither");
     program->done = true;
 }
 

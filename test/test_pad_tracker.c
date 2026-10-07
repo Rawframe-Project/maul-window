@@ -8,7 +8,10 @@
 // batteries, and a battery's change; their buttons, sticks and
 // triggers, read only when the reading's time moves, and kept in their
 // ranges; rumble, stopped when its time runs out; a removal; and every
-// reference the runtime gave let go.
+// reference the runtime gave let go. Then on a fresh stand-in: a pad
+// plugged in again after its removal found again, its old slot no
+// longer its own; every pad gone at once; and the grips' motors alone
+// stilled at the stop.
 
 #include "pad_tracker.h"
 #include "test_program.h"
@@ -298,9 +301,76 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+static const mwinPadRuntime s_runtime = {nullptr, List,     Release, Read,
+                                         Vibrate, Describe, Battery, Changed};
+
+// Plugs pads in or out and has the runtime say so.
+static void Plug(int first, int last, bool connected, uint64_t nowNs)
+{
+    for (int i = first; i <= last; i++)
+    {
+        s_fake.connected[i] = connected;
+    }
+    s_fake.told = true;
+    mwinPadTrackerPump(&s_xbox, nowNs);
+}
+
+static void ReplugStep(Program* program, mwinContext* context, int step)
+{
+    static uint32_t s_second = 0;
+    if (step > 0)
+    {
+        Drain(program, context);
+    }
+    switch (step)
+    {
+    case 0:
+        mwinPadTrackerStart(&s_xbox, context, &s_runtime);
+        Plug(2, 3, true, 1000 * MS);
+        break;
+    case 1:
+        CHECK(Count(program, mwin_eventGamepadAdded) == 2 && s_xbox.count == 2, "two pads");
+        s_second = s_xbox.pads[1].slot;
+        Plug(3, 3, false, 1010 * MS);
+        break;
+    case 2:
+        CHECK(Count(program, mwin_eventGamepadRemoved) == 1 && s_xbox.count == 1 &&
+                  !mwinPadTrackerOwns(&s_xbox, s_second) &&
+                  mwinPadTrackerRumble(&s_xbox, s_second, 1.0f, 1.0f, 100, 1010 * MS) ==
+                      mwin_errorPlatform,
+              "the second gone, its slot no longer the tracker's");
+        Plug(3, 3, true, 1020 * MS);
+        break;
+    case 3:
+        CHECK(Count(program, mwin_eventGamepadAdded) == 1 && s_xbox.count == 2,
+              "plugged in again, found again");
+        Plug(2, 3, false, 1030 * MS);
+        break;
+    case 4:
+        CHECK(Count(program, mwin_eventGamepadRemoved) == 2 && s_xbox.count == 0,
+              "a list of none removes them all");
+        Plug(2, 2, true, 1040 * MS);
+        break;
+    default:
+        CHECK(Count(program, mwin_eventGamepadAdded) == 1 &&
+                  mwinPadTrackerRumble(&s_xbox, s_xbox.pads[0].slot, 1.0f, 0.5f, 1000, 1040 * MS) ==
+                      mwin_success &&
+                  s_fake.low == 1.0f,
+              "the grips running at the stop");
+        mwinPadTrackerStop(&s_xbox);
+        CHECK(s_fake.low == 0.0f && s_fake.high == 0.0f && s_fake.references == 0,
+              "stilled, and every reference let go");
+        program->done = true;
+        break;
+    }
+}
+
 int main(void)
 {
     Program program = {.step = Step};
     CHECK(Run(&program) == mwin_success && program.done, "the program runs");
+    s_fake = (Fake){0};
+    Program replug = {.step = ReplugStep};
+    CHECK(Run(&replug) == mwin_success && replug.done, "the second program runs");
     return s_failures == 0 ? 0 : 1;
 }

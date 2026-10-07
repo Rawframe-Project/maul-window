@@ -209,7 +209,8 @@ static void Step(Program* program, mwinContext* context, int step)
         size_t length = 0;
         CHECK(Outcome(program, 7) == mwin_outcomeDone &&
                   mwinTestGetPrimary(context, text, sizeof(text), &length) == mwin_success &&
-                  length == 3 && memcmp(text, "sel", 3) == 0 && PlatformText(context, "only"),
+                  length == 3 && memcmp(text, "sel", 3) == 0 && PlatformText(context, "only") &&
+                  mwinTestGetPrimary(context, text, 3, &length) == mwin_success,
               "the primary selection apart from the clipboard");
         CHECK(mwinTestSetPrimary(context, "a\xC3(", 3) == mwin_success &&
                   mwinRequestPrimaryRead(context, window, &program->requests[8]) == mwin_success,

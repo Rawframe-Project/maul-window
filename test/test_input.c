@@ -71,6 +71,31 @@ static void TestKeysAndText(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+// The test platform takes 65536 bytes of report text a frame, a report
+// that fills them exactly included.
+static void FullReportStep(Program* program, mwinContext* context, int step)
+{
+    static char text[65537];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    memset(text, 'a', sizeof(text));
+    mwinEvent full = {.type = mwin_eventTextInput, .window = program->windows[0]};
+    full.data.text = (mwinTextEvent){text, 65537};
+    CHECK(mwinTestPost(context, &full) == mwin_errorCapacity, "a byte past the report text");
+    full.data.text.length = 65536;
+    CHECK(mwinTestPost(context, &full) == mwin_success, "the report text filled exactly");
+    program->done = true;
+}
+
+static void TestFullReport(void)
+{
+    Program program = {.step = FullReportStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 // Takes one record of the stream.
 static mwinEvent Next(mwinContext* context)
 {
@@ -543,6 +568,7 @@ static void TestKeyReach(void)
 int main(void)
 {
     TestKeysAndText();
+    TestFullReport();
     TestTextStorage();
     TestOverflow();
     TestPenButtonOverflow();

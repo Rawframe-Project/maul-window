@@ -14,6 +14,7 @@
 #include "test_program.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 static mwinGamepadInfo Info(const char* name, bool mapped)
@@ -53,6 +54,19 @@ static void CheckAdded(Program* program, mwinContext* context)
           "a list in the order they came");
     CHECK(mwinGetGamepads(context, listed, 1, &count) == mwin_errorCapacity && count == 2,
           "a short list says how many");
+    // Exact heap lists, so that AddressSanitizer sees a write past one.
+    mwinGamepadId* one = malloc(sizeof(mwinGamepadId));
+    mwinGamepadId* two = malloc(2 * sizeof(mwinGamepadId));
+    if (one != nullptr && two != nullptr)
+    {
+        CHECK(mwinGetGamepads(context, one, 1, &count) == mwin_errorCapacity && count == 2 &&
+                  SamePad(one[0], s_pads[0]) &&
+                  mwinGetGamepads(context, two, 2, &count) == mwin_success && count == 2 &&
+                  SamePad(two[1], s_pads[1]),
+              "a list of one, and one that fits exactly");
+    }
+    free(one);
+    free(two);
     mwinGamepadInfo info;
     CHECK(mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success && info.mapped &&
               info.nameLength == 7 && memcmp(info.name, "Pad \xE2\x9C\x93", 7) == 0 &&

@@ -56,6 +56,12 @@ static bool Refused(mwinContext* context, mwinWindowId window, const char* url, 
 
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
 {
+    char opened[8];
+    size_t length = 99;
+    CHECK(mwinTestGetOpened(context, mwin_requestRevealFile, opened, sizeof(opened), &length) ==
+                  mwin_success &&
+              length == 0,
+          "nothing revealed yet");
     static char s_long[MWIN_ADDRESS_BYTES + 1];
     memcpy(s_long, "https://", 8);
     memset(s_long + 8, 'a', sizeof(s_long) - 8);

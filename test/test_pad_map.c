@@ -7,7 +7,10 @@
 //   driving their halves, held to -1 and 1 with an axis too;
 // - triggers from a whole axis and from a half;
 // - a raw gamepad's buttons, axes, and hats as two axes after them;
-// - a device's range as an axis's, held to -1 and 1, and an empty one 0.
+// - controls past a pad's counts, which nothing reads;
+// - a device's range as an axis's, held to -1 and 1, and an empty one 0;
+// and a database's lookup: the exact version, else another, and none
+// for another device or one past every entry.
 
 #include "pad_map.h"
 #include "test_program.h"
@@ -15,9 +18,12 @@
 #include "maul-window/gamepad.h"
 
 #include <math.h>
+#include <stdlib.h>
 
 static int32_t s_mapped = -1;
 static int32_t s_raw = -1;
+static int32_t s_shortMapped = -1;
+static int32_t s_shortRaw = -1;
 
 static bool Near(float a, float b)
 {
@@ -82,6 +88,46 @@ static void PostRaw(mwinContext* context)
     mwinPostPadControls(context, (uint32_t)s_raw, &controls, 1);
 }
 
+// Controls past a pad's counts hold stale values, which nothing reads: a
+// mapping naming a button or an axis the device lacks, and a raw pad
+// reporting fewer than its info says.
+static void PostShort(mwinContext* context)
+{
+    static mwinPadMapping mapping;
+    mapping.sources[mwin_padFaceSouth] = Button(3);
+    mapping.sources[mwin_padFaceNorth] = Axis(5, 1, false);
+    mapping.sources[MWIN_GAMEPAD_BUTTONS + mwin_padStickLeftX] = Axis(5, 0, false);
+    mwinPadControls mapped = {.mapping = &mapping,
+                              .buttonCount = 3,
+                              .axisCount = 5,
+                              .buttons = {false, false, false, true},
+                              .axes = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.9f}};
+    mwinPostPadControls(context, (uint32_t)s_shortMapped, &mapped, 1);
+    mwinPadControls raw = {.buttonCount = 2,
+                           .axisCount = 2,
+                           .hatCount = 0,
+                           .buttons = {false, true, true},
+                           .axes = {0.5f, -0.25f, 0.75f},
+                           .hats = {2}};
+    mwinPostPadControls(context, (uint32_t)s_shortRaw, &raw, 1);
+}
+
+static void CheckShort(const mwinContext* context)
+{
+    mwinGamepadState mapped;
+    mwinGamepadState raw;
+    CHECK(mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_shortMapped),
+                              &mapped) == mwin_success &&
+              mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_shortRaw), &raw) ==
+                  mwin_success,
+          "states");
+    CHECK(mapped.buttons == 0 && Near(mapped.axes[mwin_padStickLeftX], 0.0f),
+          "a mapping past the device's buttons and axes reads nothing");
+    CHECK(raw.buttons == 2u && Near(raw.axes[0], 0.5f) && Near(raw.axes[1], -0.25f) &&
+              Near(raw.axes[2], 0.0f) && Near(raw.axes[3], 0.0f),
+          "a raw pad's controls past its counts read nothing");
+}
+
 static void CheckMapped(const mwinContext* context)
 {
     mwinGamepadState state;
@@ -124,12 +170,19 @@ static void Step(Program* program, mwinContext* context, int step)
         info = (mwinGamepadInfo){.rawButtons = 3, .rawAxes = 4};
         s_raw = mwinAddGamepad(context, &info, 1);
         CHECK(s_mapped >= 0 && s_raw >= 0, "two gamepads");
+        info = (mwinGamepadInfo){.mapped = true};
+        s_shortMapped = mwinAddGamepad(context, &info, 1);
+        info = (mwinGamepadInfo){.rawButtons = 4, .rawAxes = 6};
+        s_shortRaw = mwinAddGamepad(context, &info, 1);
+        CHECK(s_shortMapped >= 0 && s_shortRaw >= 0, "two more");
         PostMapped(context);
         PostRaw(context);
+        PostShort(context);
         break;
     default:
         CheckMapped(context);
         CheckRaw(context);
+        CheckShort(context);
         CHECK(Near(mwinPadNormalize(5, 0, 10), 0.0f) && Near(mwinPadNormalize(0, 0, 10), -1.0f) &&
                   Near(mwinPadNormalize(10, 0, 10), 1.0f),
               "a device's range as an axis's");
@@ -141,8 +194,31 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+// The entries sit alone in a heap allocation of their count, so that
+// AddressSanitizer sees a read past the last.
+static void TestFindMapping(void)
+{
+    static const mwinPadMapping mappings[2] = {{.halves = 0}, {.halves = 0}};
+    mwinPadEntry* entries = malloc(2 * sizeof(mwinPadEntry));
+    if (entries == nullptr)
+    {
+        return;
+    }
+    entries[0] = (mwinPadEntry){3, 0x045E, 0x028E, 0x0110, 0};
+    entries[1] = (mwinPadEntry){3, 0x054C, 0x09CC, 0x8111, 1};
+    mwinPadDatabase database = {entries, 2, mappings, nullptr};
+    CHECK(mwinFindPadMapping(&database, 3, 0x045E, 0x028E, 0x0110) == &mappings[0] &&
+              mwinFindPadMapping(&database, 3, 0x054C, 0x09CC, 0x0100) == &mappings[1],
+          "the exact version, else another");
+    CHECK(mwinFindPadMapping(&database, 3, 0x045E, 0x028F, 0x0110) == nullptr &&
+              mwinFindPadMapping(&database, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF) == nullptr,
+          "none for another device, past every entry too");
+    free(entries);
+}
+
 int main(void)
 {
+    TestFindMapping();
     Program program = {.step = Step};
     CHECK(Run(&program) == mwin_success && program.done, "the program runs");
     return s_failures == 0 ? 0 : 1;

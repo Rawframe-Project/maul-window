@@ -5,8 +5,10 @@
 // wayland_server.h with an output of wayland_output_server.h: a
 // wl_output plugged in while the program runs arrives as a monitor with
 // its name, place, mode, physical size and scale; a new mode and scale
-// change it; unplugged, it is removed and its id goes stale. Skipped
-// (exit status 77) without XDG_RUNTIME_DIR or xkb data.
+// change it; a second output's monitor is the one the window's surface
+// enters; a physical size and refresh rate below zero read as unknown,
+// and a scale of zero as 1; unplugged, it is removed and its id goes
+// stale. Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_output_server.h"
@@ -25,6 +27,10 @@ typedef enum Phase
     phaseCreate,
     phaseAdded,
     phaseChanged,
+    phaseOther,
+    phaseEntered,
+    phaseOdd,
+    phaseOtherGone,
     phaseRemoved,
     phaseDone,
 } Phase;
@@ -33,6 +39,8 @@ typedef struct Program
 {
     Server* server;
     OutputServer output;
+    OutputServer other;
+    mwinMonitorId otherMonitor;
     Phase phase;
     uint64_t startNs;
     mwinWindowId window;
@@ -82,7 +90,13 @@ static bool Ready(const Program* program)
     case phaseAdded:
         return Find(program, mwin_eventMonitorAdded) != nullptr;
     case phaseChanged:
+    case phaseOdd:
         return Find(program, mwin_eventMonitorChanged) != nullptr;
+    case phaseOther:
+        return Find(program, mwin_eventMonitorAdded) != nullptr;
+    case phaseEntered:
+        return Find(program, mwin_eventDisplayChanged) != nullptr;
+    case phaseOtherGone:
     case phaseRemoved:
         return Find(program, mwin_eventMonitorRemoved) != nullptr;
     default:
@@ -115,6 +129,28 @@ static void Advance(Program* program, mwinContext* context)
                   mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
                   info.bounds.width == 1920 && info.bounds.height == 1080 && info.scale == 1.0f,
               "a new mode and scale change the same monitor");
+        OutputAdd(&program->other, program->server, "TEST-2", 0, 0, 1920, 1080, 1);
+        break;
+    case phaseOther:
+        program->otherMonitor = Find(program, mwin_eventMonitorAdded)->data.monitor;
+        OutputEnter(&program->other);
+        break;
+    case phaseEntered:
+        CHECK(Same(Find(program, mwin_eventDisplayChanged)->data.monitor, program->otherMonitor),
+              "the window on the monitor its surface enters");
+        OutputChangeFacts(&program->output, -1, -1, -1, 0);
+        break;
+    case phaseOdd:
+        CHECK(Same(Find(program, mwin_eventMonitorChanged)->data.monitor, program->monitor) &&
+                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+                  info.widthMm == 0 && info.heightMm == 0 && info.refreshMilliHz == 0 &&
+                  info.scale == 1.0f,
+              "a size and refresh below zero unknown, and a scale of zero 1");
+        OutputRemove(&program->other);
+        break;
+    case phaseOtherGone:
+        CHECK(Same(Find(program, mwin_eventMonitorRemoved)->data.monitor, program->otherMonitor),
+              "the second output unplugged");
         OutputRemove(&program->output);
         break;
     default:

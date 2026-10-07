@@ -3,16 +3,20 @@
 //
 // The Wayland backend's input against the test compositor of
 // wayland_server.h. The keyboard: keys with their codes, meanings and
-// text, the modifiers, repeat, a compose sequence (a dead key), a change
-// of layout group with its record and new meanings, and the reset when
-// focus goes while a key is held. The pointer: entering, the last motion
-// of a frame, quick clicks counted, high-resolution wheel steps counted
-// once, and leaving; and a touch stroke. The cursor: a shape through
-// the cursor shape protocol, a cursor made from images on a surface of
-// shared memory sized by a viewport, the default shape once it is
-// destroyed, hiding, capture as a locked pointer with raw relative
-// motion, and release. The input method: enabling with the caret, a
-// composition, its commit, and disabling. The frame the
+// text, the modifiers, repeat, a compose sequence (a dead key), a
+// change of layout group with its record and new meanings, and the
+// reset when focus goes while a key is held. A released key repeats no
+// more, a key without text types nothing, and a key pressed before the
+// focus came and released while it is here leaves nothing to reset. The
+// pointer: entering, the last motion of a frame, quick clicks counted,
+// high-resolution wheel steps counted once, to the right too, an older
+// compositor's discrete steps, a continuous distance to the right, and
+// leaving with a button held reset; and a touch stroke. The cursor: a
+// shape through the cursor shape protocol, a cursor made from images on
+// a surface of shared memory sized by a viewport, the default shape
+// once it is destroyed, hiding, capture as a locked pointer with raw
+// relative motion, and release. The input method: enabling with the
+// caret, a composition, its commit, and disabling. The frame the
 // backend draws, as the compositor offers no server-side decorations:
 // the window geometry with the caption, and the caption moving the
 // window, its close button, a resize edge and a double click, none of
@@ -40,13 +44,19 @@ typedef enum Phase
     phaseKeys,
     phaseShift,
     phaseRepeat,
+    phaseReleased,
+    phaseArrow,
     phaseCompose,
     phaseLayout,
     phaseLeave,
+    phaseStray,
     phasePointerEnter,
     phaseMotion,
     phaseClicks,
     phaseWheel,
+    phaseSideWheel,
+    phaseDiscrete,
+    phaseSideScroll,
     phaseTouch,
     phaseShape,
     phaseImage,
@@ -122,6 +132,20 @@ static int CountOf(const Program* program, mwinEventType type, bool repeat)
     return count;
 }
 
+// The repeats that came after a key's release.
+static int RepeatsAfterRelease(const Program* program)
+{
+    bool released = false;
+    int repeats = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* event = &program->records[i];
+        released = released || event->type == mwin_eventKeyUp;
+        repeats += released && event->type == mwin_eventKeyDown && event->data.key.repeat;
+    }
+    return repeats;
+}
+
 static const mwinEvent* First(const Program* program, mwinEventType type)
 {
     for (int i = 0; i < program->count; i++)
@@ -142,6 +166,18 @@ static float Turned(const Program* program)
     {
         turned +=
             program->records[i].type == mwin_eventWheel ? program->records[i].data.wheel.y : 0.0f;
+    }
+    return turned;
+}
+
+// The wheel's movement to the right in the phase's records.
+static float TurnedRight(const Program* program)
+{
+    float turned = 0.0f;
+    for (int i = 0; i < program->count; i++)
+    {
+        turned +=
+            program->records[i].type == mwin_eventWheel ? program->records[i].data.wheel.x : 0.0f;
     }
     return turned;
 }
@@ -201,6 +237,13 @@ static bool Ready(const Program* program)
         return CountOf(program, mwin_eventKeyUp, false) >= (program->phase == phaseCompose ? 2 : 1);
     case phaseRepeat:
         return CountOf(program, mwin_eventKeyDown, true) >= 2;
+    case phaseReleased:
+    case phaseStray:
+        // Long enough for several repeats, or the backend's reset.
+        return CountOf(program, mwin_eventKeyUp, false) >= 1 &&
+               NowNs() - program->startNs >= 150000000u;
+    case phaseArrow:
+        return CountOf(program, mwin_eventKeyUp, false) >= 1;
     case phaseLayout:
         return First(program, mwin_eventKeyboardLayoutChanged) != nullptr;
     case phaseLeave:
@@ -213,6 +256,10 @@ static bool Ready(const Program* program)
         return CountOf(program, mwin_eventButtonUp, false) >= 2;
     case phaseWheel:
         return Turned(program) <= -1.0f;
+    case phaseSideWheel:
+    case phaseDiscrete:
+    case phaseSideScroll:
+        return First(program, mwin_eventWheel) != nullptr;
     case phaseTouch:
         return First(program, mwin_eventTouchUp) != nullptr;
     case phaseDestroyed:
@@ -230,7 +277,8 @@ static bool Ready(const Program* program)
     case phaseRaw:
         return First(program, mwin_eventRawPointerDelta) != nullptr;
     case phasePointerLeave:
-        return First(program, mwin_eventCursorLeft) != nullptr;
+        return First(program, mwin_eventCursorLeft) != nullptr &&
+               First(program, mwin_eventInputStateReset) != nullptr;
     case phaseTextEnable:
     case phaseTextDisable:
     {
@@ -428,6 +476,8 @@ static void AdvanceCursor(Program* program, mwinContext* context)
     }
     case phaseVisible:
         CHECK(done, "released: the lock goes");
+        // Leaving with a button held, whose release will not come.
+        ServerButton(program->server, BTN_LEFT, true);
         ServerPointerLeave(program->server);
         break;
     default:
@@ -481,6 +531,20 @@ static void AdvancePointer(Program* program, mwinContext* context)
     case phaseWheel:
         CHECK(Turned(program) == -1.0f,
               "two half steps toward the user make one detent, counted once");
+        ServerAxisTurn(server, WL_POINTER_AXIS_HORIZONTAL_SCROLL, 120, 0, 15.0);
+        break;
+    case phaseSideWheel:
+        CHECK(TurnedRight(program) == 1.0f && Turned(program) == 0.0f,
+              "a high-resolution step to the right, not its distance");
+        ServerAxisTurn(server, WL_POINTER_AXIS_VERTICAL_SCROLL, 0, 2, 10.0);
+        break;
+    case phaseDiscrete:
+        CHECK(Turned(program) == -2.0f, "an older compositor's discrete steps, not its distance");
+        ServerAxisTurn(server, WL_POINTER_AXIS_HORIZONTAL_SCROLL, 0, 0, 25.0);
+        break;
+    case phaseSideScroll:
+        CHECK(TurnedRight(program) == 2.5f && Turned(program) == 0.0f,
+              "a continuous distance to the right, in detents");
         ServerTouchStroke(server, 7);
         break;
     case phaseTouch:
@@ -539,11 +603,20 @@ static void Advance(Program* program, mwinContext* context)
         }
         CHECK(repeats >= 2 && typed, "a held key repeats, and each repeat types");
         ServerKey(server, KEY_A, false);
+        break;
+    }
+    case phaseReleased:
+        CHECK(RepeatsAfterRelease(program) == 0, "a released key repeats no more");
+        Press(server, KEY_LEFT);
+        break;
+    case phaseArrow:
+        CHECK(CountOf(program, mwin_eventKeyDown, false) == 1 &&
+                  CountOf(program, mwin_eventTextInput, false) == 0,
+              "a key without text types nothing");
         // us(intl): the apostrophe is a dead acute.
         Press(server, KEY_APOSTROPHE);
         Press(server, KEY_E);
         break;
-    }
     case phaseCompose:
         CHECK(TextIs(program, "\xC3\xA9"), "a dead key composes");
         ServerModifiers(server, 0, 1);
@@ -562,6 +635,15 @@ static void Advance(Program* program, mwinContext* context)
     }
     case phaseLeave:
         CHECK(CountOf(program, mwin_eventKeyUp, false) == 0, "no release comes alone");
+        // A key held since before the focus came, released while it is
+        // here: no key of the focus is held when it goes.
+        ServerEnter(server);
+        ServerKey(server, KEY_B, false);
+        ServerLeave(server);
+        break;
+    case phaseStray:
+        CHECK(First(program, mwin_eventInputStateReset) == nullptr,
+              "a release of a key pressed before the focus came leaves nothing to reset");
         ServerPointerEnter(server, 10.0, 20.0);
         break;
     default:

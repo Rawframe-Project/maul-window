@@ -1035,6 +1035,28 @@ static inline void ServerWheel(Server* server, int32_t steps120)
     pthread_mutex_unlock(&server->lock);
 }
 
+// A wheel turn on an axis, in a frame: by value120 120ths of a detent,
+// or by discrete detents as a compositor of wl_pointer 5 to 7 sends
+// them, with a continuous distance; zeros are left out.
+static inline void ServerAxisTurn(Server* server, uint32_t axis, int32_t value120, int32_t discrete,
+                                  double distance)
+{
+    pthread_mutex_lock(&server->lock);
+    wl_pointer_send_axis_source(server->pointer, WL_POINTER_AXIS_SOURCE_WHEEL);
+    if (value120 != 0)
+    {
+        wl_pointer_send_axis_value120(server->pointer, axis, value120);
+    }
+    if (discrete != 0)
+    {
+        wl_pointer_send_axis_discrete(server->pointer, axis, discrete);
+    }
+    wl_pointer_send_axis(server->pointer, 1000, axis, wl_fixed_from_double(distance));
+    wl_pointer_send_frame(server->pointer);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
 // A touch goes down, moves and lifts.
 static inline void ServerTouchStroke(Server* server, int32_t id)
 {

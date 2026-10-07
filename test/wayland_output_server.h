@@ -5,7 +5,8 @@
 // adds, changes and removes while the client runs, as a monitor plugged
 // in, set to another mode and unplugged. It sends its geometry, current
 // mode, scale and name (wl_output 4) to every client that binds it, and
-// sends them again when it changes.
+// sends them again when it changes; it tells the window's surface when
+// the surface is shown on it.
 
 #ifndef MAUL_WINDOW_TEST_WAYLAND_OUTPUT_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_OUTPUT_SERVER_H
@@ -24,14 +25,18 @@ typedef struct OutputServer
     int32_t width;
     int32_t height;
     int32_t scale;
+    int32_t widthMm;
+    int32_t heightMm;
+    int32_t refresh;
     const char* name;
 } OutputServer;
 
 static inline void OutputSend(const OutputServer* output, struct wl_resource* resource)
 {
-    wl_output_send_geometry(resource, output->x, output->y, 300, 200, WL_OUTPUT_SUBPIXEL_UNKNOWN,
-                            "Maul", "Test", WL_OUTPUT_TRANSFORM_NORMAL);
-    wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width, output->height, 60000);
+    wl_output_send_geometry(resource, output->x, output->y, output->widthMm, output->heightMm,
+                            WL_OUTPUT_SUBPIXEL_UNKNOWN, "Maul", "Test", WL_OUTPUT_TRANSFORM_NORMAL);
+    wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT, output->width, output->height,
+                        output->refresh);
     wl_output_send_scale(resource, output->scale);
     wl_output_send_name(resource, output->name);
     wl_output_send_description(resource, "A test monitor");
@@ -81,6 +86,9 @@ static inline void OutputAdd(OutputServer* output, Server* server, const char* n
                              .width = width,
                              .height = height,
                              .scale = scale,
+                             .widthMm = 300,
+                             .heightMm = 200,
+                             .refresh = 60000,
                              .name = name};
     output->global = wl_global_create(server->display, &wl_output_interface, 4, output, OutputBind);
     pthread_mutex_unlock(&server->lock);
@@ -101,6 +109,43 @@ static inline void OutputChange(OutputServer* output, int32_t width, int32_t hei
         }
     }
     pthread_mutex_unlock(&output->server->lock);
+}
+
+// Sets another physical size, refresh rate and scale, which a test
+// makes ones out of their range.
+static inline void OutputChangeFacts(OutputServer* output, int32_t widthMm, int32_t heightMm,
+                                     int32_t refresh, int32_t scale)
+{
+    pthread_mutex_lock(&output->server->lock);
+    output->widthMm = widthMm;
+    output->heightMm = heightMm;
+    output->refresh = refresh;
+    output->scale = scale;
+    for (int i = 0; i < OUTPUT_RESOURCES; i++)
+    {
+        if (output->resources[i] != nullptr)
+        {
+            OutputSend(output, output->resources[i]);
+        }
+    }
+    pthread_mutex_unlock(&output->server->lock);
+}
+
+// Tells the window's surface it is shown on the monitor.
+static inline void OutputEnter(OutputServer* output)
+{
+    Server* server = output->server;
+    pthread_mutex_lock(&server->lock);
+    struct wl_client* client = wl_resource_get_client(server->surface);
+    for (int i = 0; i < OUTPUT_RESOURCES; i++)
+    {
+        if (output->resources[i] != nullptr &&
+            wl_resource_get_client(output->resources[i]) == client)
+        {
+            wl_surface_send_enter(server->surface, output->resources[i]);
+        }
+    }
+    pthread_mutex_unlock(&server->lock);
 }
 
 // Unplugs it: the registry announces the global's removal. The global

@@ -15,13 +15,13 @@
 // shape through the cursor shape protocol, a cursor made from images on
 // a surface of shared memory sized by a viewport, the default shape
 // once it is destroyed, hiding, capture as a locked pointer with raw
-// relative motion, and release. The input method: enabling with the
-// caret, a composition, its commit, and disabling. The frame the
-// backend draws, as the compositor offers no server-side decorations:
-// the window geometry with the caption, and the caption moving the
-// window, its close button, a resize edge and a double click, none of
-// which reaches the program as pointer input. Skipped (exit status 77)
-// without XDG_RUNTIME_DIR or xkb data.
+// relative motion, confinement as a confined pointer, and release. The
+// input method: enabling with the caret, a composition, its commit, and
+// disabling. The frame the backend draws, as the compositor offers no
+// server-side decorations: the window geometry with the caption, and
+// the caption moving the window, its close button, a resize edge and a
+// double click, none of which reaches the program as pointer input.
+// Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "cursor_images.h"
 #include "test_harness.h"
@@ -66,6 +66,7 @@ typedef enum Phase
     phaseHidden,
     phaseCaptured,
     phaseRaw,
+    phaseConfined,
     phaseVisible,
     phasePointerLeave,
     phaseTextEnable,
@@ -219,8 +220,10 @@ static bool CursorReady(Phase phase, Cursor cursor)
         return cursor.hides > 0;
     case phaseCaptured:
         return cursor.locked;
+    case phaseConfined:
+        return cursor.confined && !cursor.locked;
     default:
-        return !cursor.locked;
+        return !cursor.locked && !cursor.confined;
     }
 }
 
@@ -271,6 +274,7 @@ static bool Ready(const Program* program)
     case phaseImageAgain:
     case phaseHidden:
     case phaseCaptured:
+    case phaseConfined:
     case phaseVisible:
         return First(program, mwin_eventRequestCompleted) != nullptr &&
                CursorReady(program->phase, ServerCursor(program->server));
@@ -469,13 +473,19 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         const mwinEvent* delta = First(program, mwin_eventRawPointerDelta);
         CHECK(delta->data.delta.x == 3.0f && delta->data.delta.y == -2.0f,
               "raw deltas, before acceleration");
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfined, nullptr) ==
+                  mwin_success,
+              "confine");
+        break;
+    case phaseConfined:
+        CHECK(done, "confined as a confined pointer, the lock gone");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");
         break;
     }
     case phaseVisible:
-        CHECK(done, "released: the lock goes");
+        CHECK(done, "released: the confinement goes");
         // Leaving with a button held, whose release will not come.
         ServerButton(program->server, BTN_LEFT, true);
         ServerPointerLeave(program->server);

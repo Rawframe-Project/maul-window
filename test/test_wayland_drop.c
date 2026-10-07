@@ -8,8 +8,9 @@
 // left out, localhost and percent-escapes understood, a URI of another
 // scheme left out and the drop marked truncated), its text repaired,
 // and the drop finished; a drag of neither refused and not reported; a
-// drag of text that leaves. Skipped (exit status 77) without
-// XDG_RUNTIME_DIR or xkb data.
+// drag of text that leaves, reported left after it entered; a drop of
+// a file and text read whole, not marked truncated. Skipped (exit
+// status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_data_server.h"
@@ -30,6 +31,7 @@ typedef enum Phase
     phaseDrop,
     phaseNeither,
     phaseLeave,
+    phaseClean,
     phaseDone,
 } Phase;
 
@@ -113,6 +115,21 @@ static void CheckDrop(Program* program, mwinContext* context)
     DataDragEnter(program->data, 5.0, 5.0, nullptr, nullptr);
 }
 
+// Whether the drag that entered left after it.
+static bool LeftAfterEntering(const Program* program)
+{
+    bool entered = false;
+    for (int i = 0; i < program->count; i++)
+    {
+        entered = entered || program->records[i].type == mwin_eventDragEntered;
+        if (entered && program->records[i].type == mwin_eventDragLeft)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool Ready(Program* program)
 {
     switch (program->phase)
@@ -120,14 +137,14 @@ static bool Ready(Program* program)
     case phaseCreate:
         return Find(program, mwin_eventWindowCreated) != nullptr;
     case phaseDrop:
+    case phaseClean:
         return Find(program, mwin_eventDropped) != nullptr && DataDragState(program->data).finished;
     case phaseNeither:
         // The client's refusal has reached the compositor.
         return NowNs() - program->startNs >= SETTLE_NS && DataDragState(program->data).accepts >= 1;
     default:
         // The client's accept reaches the compositor at its next pump.
-        return Find(program, mwin_eventDragLeft) != nullptr &&
-               DataDragState(program->data).accepts >= 1;
+        return LeftAfterEntering(program) && DataDragState(program->data).accepts >= 1;
     }
 }
 
@@ -154,10 +171,21 @@ static void Advance(Program* program, mwinContext* context)
         DataDragEnd(data, false);
         break;
     }
-    default:
+    case phaseLeave:
         CHECK(DragAt(Find(program, mwin_eventDragEntered), 5.0f, 5.0f, mwin_dragText) &&
                   strcmp(DataDragState(data).accepted, "text/plain;charset=utf-8") == 0,
               "a drag of text that leaves");
+        DataDragEnter(data, 5.0, 5.0, "file:///tmp/x\r\n", "y");
+        DataDragEnd(data, true);
+        break;
+    case phaseClean:
+    {
+        const mwinDropEvent* drop = &Find(program, mwin_eventDropped)->data.drop;
+        CHECK(drop->fileCount == 1 && !drop->truncated,
+              "a drop of a file and text read whole, not truncated");
+        break;
+    }
+    default:
         break;
     }
     program->phase += 1;

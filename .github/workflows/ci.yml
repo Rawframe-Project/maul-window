@@ -136,14 +136,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install compilers
-        # A mirror's stalled download is retried; a hang ends here.
+        # A mirror's stalled download is retried; a hang ends here. Without
+        # clang's recommends (llvm-20-dev alone is 50 MB, which a slow
+        # mirror took past the timeout); libFuzzer's runtime is one of them.
         timeout-minutes: 15
         run: |
           bash .github/apt-mirrors.sh
           sudo apt-get update -q
-          sudo apt-get install -y -q clang-20 ninja-build libwayland-dev wayland-protocols \
-            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
-            libxcb-xinput-dev libxkbcommon-x11-dev
+          sudo apt-get install -y -q --no-install-recommends clang-20 libclang-rt-20-dev \
+            ninja-build libwayland-dev wayland-protocols libxkbcommon-dev libxcb1-dev \
+            libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev libxcb-xinput-dev \
+            libxkbcommon-x11-dev
       - name: Build
         run: |
           cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \

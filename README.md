@@ -26,7 +26,7 @@ generated from the headers.
 
 ## Status
 
-0.8.0 is the current release. It has the whole contract on seven
+0.8.1 is the current release. It has the whole contract on seven
 backends, Win32, macOS, iOS, Android, Wayland, X11 and the web (with
 Emscripten or as plain wasm32-wasi), and a headless test backend:
 

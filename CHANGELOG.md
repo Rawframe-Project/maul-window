@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-08
+
+Fixes the mutation sweep of the Wayland and X11 backends found.
+
 ### Fixed
 
 - On Wayland, a compositor that announces the same selection twice

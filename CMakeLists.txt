@@ -292,6 +292,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_drop PRIVATE PkgConfig::MWIN_TEST_XCB)
         set_tests_properties(x11_drop PROPERTIES SKIP_RETURN_CODE 77)
+        # Reads at the edges of the clipboard's limit.
+        maul_add_test(x11_clipboard_limits POSIX)
+        target_compile_definitions(test_x11_clipboard_limits PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_clipboard_limits PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # Readers of large texts, more than are served at once.
+        maul_add_test(x11_clipboard_readers POSIX)
+        target_compile_definitions(test_x11_clipboard_readers PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_clipboard_readers PRIVATE PkgConfig::MWIN_TEST_XCB)
         # Owned windows and popups read back by the test's own connection.
         maul_add_test(x11_owned POSIX)
         target_compile_definitions(test_x11_owned PRIVATE _POSIX_C_SOURCE=200809L)
@@ -307,10 +315,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_x11_monitor PRIVATE PkgConfig::MWIN_TEST_RANDR)
         # The wheel movement of scroll valuators.
         maul_add_test(x11_scroll WHITEBOX)
+        # The scale of Xft.dpi.
+        maul_add_test(x11_resources WHITEBOX)
         # The tests that move the X server's focus or pointer, or own its
         # selections, take turns.
-        set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data x11_icon x11_drop
-                             x11_owned x11_chrome x11_monitor PROPERTIES SKIP_RETURN_CODE 77
+        set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data
+                             x11_clipboard_limits x11_clipboard_readers x11_icon x11_drop x11_owned x11_chrome
+                             x11_monitor PROPERTIES SKIP_RETURN_CODE 77
                              RESOURCE_LOCK x11-focus)
     endif()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)

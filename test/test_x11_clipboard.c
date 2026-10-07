@@ -5,7 +5,8 @@
 // connection of the test's: a write takes CLIPBOARD, and the other
 // client reads it as UTF8_STRING and asks its TARGETS; a read while the
 // program owns it answers from its own text; a large text goes to the
-// other client in pieces (INCR) as text/plain;charset=utf-8; once the
+// other client in pieces (INCR) as text/plain;charset=utf-8, and one of
+// the largest piece whole; once the
 // other client owns CLIPBOARD, its text is read, repaired, whole and in
 // pieces, too large past the limit, and empty with no owner. Skipped
 // (exit status 77) without DISPLAY.
@@ -25,6 +26,8 @@
 #define SETTLE_NS   50000000ull
 #define LIMIT       (256u * 1024u)
 #define LARGE       (200u * 1024u)
+// The largest text sent whole.
+#define WHOLE (64u * 1024u)
 
 typedef enum Phase
 {
@@ -35,6 +38,8 @@ typedef enum Phase
     phaseOwnRead,
     phaseLargeWrite,
     phasePeerPieces,
+    phaseWholeWrite,
+    phasePeerWhole,
     phaseOtherText,
     phaseTooLarge,
     phasePieces,
@@ -114,6 +119,7 @@ static bool Ready(Program* program, mwinContext* context)
     case phasePeerRead:
     case phaseTargets:
     case phasePeerPieces:
+    case phasePeerWhole:
         return program->peer->gotAll;
     case phaseOtherText:
     case phaseTooLarge:
@@ -186,6 +192,16 @@ static void Advance(Program* program, mwinContext* context)
             program->startNs = NowNs();
             return;
         }
+        Write(program, context, program->large, WHOLE);
+        break;
+    case phaseWholeWrite:
+        CHECK(outcome == mwin_outcomeDone, "a write of the largest piece");
+        PeerConvert(peer, peer->clipboard, peer->utf8);
+        break;
+    case phasePeerWhole:
+        CHECK(!peer->incremental && peer->gotLength == WHOLE &&
+                  memcmp(peer->got, program->large, WHOLE) == 0,
+              "a text of the largest piece goes whole");
         PeerOwn(peer, peer->clipboard, peer->utf8, "A\xC3(", 3);
         break;
     case phaseOtherText:

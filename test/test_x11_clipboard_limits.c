@@ -5,7 +5,8 @@
 // clipboardBytes limit that is no whole number of 32-bit words: an
 // empty text read as empty; a text of exactly the limit read whole; one
 // byte more too large; and a text the allocator has no room for failed.
-// Skipped (exit status 77) without DISPLAY.
+// The clipboard's hidden window made, the window's own events still
+// arrive. Skipped (exit status 77) without DISPLAY.
 
 #include "test_harness.h"
 #include "x11_peer.h"
@@ -32,6 +33,7 @@ typedef enum Phase
     phaseExact,
     phaseOver,
     phaseRefused,
+    phaseResized,
     phaseDone,
 } Phase;
 
@@ -44,6 +46,7 @@ typedef struct Program
     mwinRequestId request;
     int outcome;
     bool created;
+    bool resized;
     bool reading;
     bool timedOut;
 } Program;
@@ -83,6 +86,7 @@ static void Collect(Program* program, mwinContext* context)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created = program->created || event.type == mwin_eventWindowCreated;
+        program->resized = program->resized || event.type == mwin_eventPixelSizeChanged;
         if (event.type == mwin_eventRequestCompleted &&
             completion->request.index1 == program->request.index1 &&
             completion->request.generation == program->request.generation)
@@ -107,6 +111,10 @@ static bool Ready(Program* program, mwinContext* context)
     if (program->phase == phaseCreate)
     {
         return program->created;
+    }
+    if (program->phase == phaseResized)
+    {
+        return program->resized;
     }
     if (!program->reading && NowNs() - program->startNs >= SETTLE_NS)
     {
@@ -143,9 +151,15 @@ static void Advance(Program* program, mwinContext* context)
         PeerOwn(peer, peer->clipboard, peer->utf8, s_text, REFUSED);
         s_refuse = true;
         break;
-    default:
+    case phaseRefused:
         CHECK(outcome == mwin_outcomeFailed, "a text the allocator has no room for failed");
         s_refuse = false;
+        program->resized = false;
+        CHECK(mwinRequestSize(context, program->window, (mwinSize){300.0f, 200.0f}, nullptr) ==
+                  mwin_success,
+              "a new size");
+        break;
+    default:
         break;
     }
     program->phase += 1;

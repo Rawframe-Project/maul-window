@@ -151,6 +151,13 @@ monitors: their bounds and work area in pixels, physical size, scale,
 refresh rate, whether each is the primary one, and HDR facts. Hotplug and
 changes arrive as `mwin_eventMonitorAdded`, `Removed` and `Changed`.
 
+The HDR facts say what each platform tells (mwin-0036): Win32, Wayland
+(with the color manager) and Android give luminances in nits; X11 the
+EDID's, with HDR output never on; macOS and iOS the headroom alone; the
+web only whether the screen shows HDR. `headroom`, the peak over SDR
+white, is there wherever it can be known. Variable refresh is told on
+X11 (`vrr_capable`), macOS, iOS and Android 16, and false elsewhere.
+
 `mwinGetSystemFacts` gives the user's theme, accent color, reduced
 motion, text scale, power source and power saving, and whether Windows
 shows snap layouts. Changes arrive as `mwin_eventThemeChanged` and

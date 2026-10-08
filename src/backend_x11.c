@@ -66,6 +66,8 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "_NET_WM_WINDOW_TYPE_POPUP_MENU",
     "_NET_WM_WINDOW_TYPE_TOOLTIP",
     "_NET_WM_MOVERESIZE",
+    "EDID",
+    "vrr_capable",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)
@@ -195,7 +197,8 @@ static void StartRandr(mwinX11Platform* platform)
     platform->randrEvent = extension->first_event;
     api->randrSelectInput(platform->connection, platform->screen->root,
                           XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE | XCB_RANDR_NOTIFY_MASK_CRTC_CHANGE |
-                              XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
+                              XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE |
+                              XCB_RANDR_NOTIFY_MASK_OUTPUT_PROPERTY);
     // A monitor set or deleted (xrandr --setmonitor, a desktop splitting
     // a wide display) changes no output: the server tells it only as the
     // root window's ConfigureNotify.

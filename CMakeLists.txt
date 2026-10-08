@@ -117,6 +117,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
     src/context.c
     src/dialog.c
     src/drop.c
+    src/edid.c
     src/file_list.c
     src/accessibility.c
     src/chrome.c
@@ -220,6 +221,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)
         maul_add_test(key_reach WHITEBOX)
+    maul_add_test(edid WHITEBOX)
         maul_add_test(text WHITEBOX)
         maul_add_test(file_list WHITEBOX)
         maul_add_test(selection WHITEBOX)
@@ -321,6 +323,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_monitor POSIX)
         target_compile_definitions(test_x11_monitor PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_monitor PRIVATE PkgConfig::MWIN_TEST_RANDR)
+        # The facts an output's properties give.
+        maul_add_test(x11_monitor_facts POSIX)
+        target_compile_definitions(test_x11_monitor_facts PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_monitor_facts PRIVATE PkgConfig::MWIN_TEST_RANDR m)
         # The wheel movement of scroll valuators.
         maul_add_test(x11_scroll WHITEBOX)
         # The scale of Xft.dpi.
@@ -329,7 +335,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # selections, take turns.
         set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data
                              x11_clipboard_limits x11_clipboard_readers x11_hints x11_icon
-                             x11_drop x11_owned x11_chrome x11_monitor PROPERTIES
+                             x11_drop x11_owned x11_chrome x11_monitor x11_monitor_facts PROPERTIES
                              SKIP_RETURN_CODE 77
                              RESOURCE_LOCK x11-focus)
     endif()
@@ -596,7 +602,7 @@ if(MAUL_WINDOW_FUZZ)
     # the sanitizers watch its code, not only the targets'.
     target_compile_options(maul-window PRIVATE -fsanitize=fuzzer-no-link,address,undefined)
     target_link_options(maul-window PUBLIC -fsanitize=address,undefined)
-    set(MWIN_FUZZ_AREAS payload preedit)
+    set(MWIN_FUZZ_AREAS edid payload preedit)
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         list(APPEND MWIN_FUZZ_AREAS locale)
     endif()

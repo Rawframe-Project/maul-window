@@ -20,7 +20,7 @@ static mwinMonitorInfo Info(const char* name, bool primary, float scale)
     info.scale = scale;
     info.refreshMilliHz = 143856;
     info.primary = primary;
-    info.hdr = (mwinHdrFacts){true, true, 1000.0f, 400.0f, 240.0f};
+    info.hdr = (mwinHdrFacts){true, true, 1000.0f, 400.0f, 240.0f, 4.1666665f};
     return info;
 }
 
@@ -65,7 +65,7 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
         CHECK(mwinGetMonitorInfo(context, s_monitors[1], &info) == mwin_success &&
                   info.nameLength == 7 && memcmp(info.name, "Main \xC3\x9C", 7) == 0 &&
                   info.hdr.active && info.hdr.sdrWhiteNits == 240.0f &&
-                  info.refreshMilliHz == 143856,
+                  info.hdr.headroom == 4.1666665f && info.refreshMilliHz == 143856,
               "its facts");
         mwinWindowState state;
         CHECK(mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&

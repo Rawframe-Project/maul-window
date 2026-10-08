@@ -43,6 +43,7 @@ core: backend file_list
 dbus_api:
 dialog: allocator core file_list
 drop: allocator core utf8
+edid:
 evdev:
 file_list: allocator
 gamepad: core
@@ -169,7 +170,7 @@ x11_cursor: allocator core cursor icon x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
 x11_icon: allocator core icon x11 x11_api
 x11_input: allocator core evdev linux_ime x11 x11_api x11_chrome x11_scroll xkb_api xkb_keyboard
-x11_output: allocator core x11 x11_api
+x11_output: allocator core edid x11 x11_api
 x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_icon x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api

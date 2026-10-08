@@ -83,7 +83,14 @@ static bool FindRandr(mwinX11Api* api)
            FIND(randrLibrary, randrGetMonitors, xcb_randr_get_monitors) &&
            FIND(randrLibrary, randrGetMonitorsReply, xcb_randr_get_monitors_reply) &&
            FIND(randrLibrary, randrMonitorsIterator, xcb_randr_get_monitors_monitors_iterator) &&
-           FIND(randrLibrary, randrMonitorInfoNext, xcb_randr_monitor_info_next);
+           FIND(randrLibrary, randrMonitorInfoNext, xcb_randr_monitor_info_next) &&
+           FIND(randrLibrary, randrMonitorOutputs, xcb_randr_monitor_info_outputs) &&
+           FIND(randrLibrary, randrMonitorOutputsLength, xcb_randr_monitor_info_outputs_length) &&
+           FIND(randrLibrary, randrGetOutputProperty, xcb_randr_get_output_property) &&
+           FIND(randrLibrary, randrGetOutputPropertyReply, xcb_randr_get_output_property_reply) &&
+           FIND(randrLibrary, randrOutputPropertyData, xcb_randr_get_output_property_data) &&
+           FIND(randrLibrary, randrOutputPropertyDataLength,
+                xcb_randr_get_output_property_data_length);
 }
 
 static bool FindKeyboard(mwinX11Api* api)

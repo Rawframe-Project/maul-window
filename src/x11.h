@@ -66,6 +66,8 @@ enum
     mwin_atomNetWmWindowTypePopupMenu,
     mwin_atomNetWmWindowTypeTooltip,
     mwin_atomNetWmMoveresize,
+    mwin_atomEdid,
+    mwin_atomVrrCapable,
     MWIN_X11_ATOMS,
 };
 

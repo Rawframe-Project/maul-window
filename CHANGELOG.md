@@ -15,6 +15,13 @@ format.
   xpadneo and others) registers beside the input device, read when the
   pad connects and every five seconds after, a change told as
   `mwin_eventGamepadChanged`.
+- `mwinHdrFacts.headroom`, the peak luminance over SDR white now (1 for
+  SDR output, 0 where unknown), for platforms that tell headroom and no
+  nits (mwin-0036).
+- X11 monitors report their HDR luminances from the EDID RandR shows
+  (HDR output never on) and variable refresh from the `vrr_capable`
+  output property; a change of either is a monitor change. The EDID
+  parser checks every checksum and block length and is fuzzed.
 
 ## [0.8.1] - 2026-10-08
 

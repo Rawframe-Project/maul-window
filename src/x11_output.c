@@ -6,6 +6,7 @@
 #include "x11_output.h"
 
 #include "allocator.h"
+#include "edid.h"
 
 #include <string.h>
 
@@ -52,12 +53,73 @@ static bool SameRect(mwinPixelRect a, mwinPixelRect b)
     return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
 }
 
+static bool SameHdr(mwinHdrFacts a, mwinHdrFacts b)
+{
+    return a.known == b.known && a.active == b.active && a.peakNits == b.peakNits &&
+           a.fullFrameNits == b.fullFrameNits && a.sdrWhiteNits == b.sdrWhiteNits &&
+           a.headroom == b.headroom;
+}
+
 // Whether the facts the X server gives of a monitor are the same.
 static bool SameFacts(const mwinMonitorInfo* a, const mwinMonitorInfo* b)
 {
     return SameRect(a->bounds, b->bounds) && SameRect(a->workArea, b->workArea) &&
            a->widthMm == b->widthMm && a->heightMm == b->heightMm && a->scale == b->scale &&
-           a->refreshMilliHz == b->refreshMilliHz && a->primary == b->primary;
+           a->refreshMilliHz == b->refreshMilliHz && a->primary == b->primary &&
+           a->variableRefresh == b->variableRefresh && SameHdr(a->hdr, b->hdr);
+}
+
+// An output's property, of 8- or 32-bit items: NULL where it has none.
+static xcb_randr_get_output_property_reply_t* PropertyOf(const mwinX11Platform* platform,
+                                                         xcb_randr_output_t output, xcb_atom_t name,
+                                                         uint32_t longs)
+{
+    const mwinX11Api* api = &platform->api;
+    xcb_randr_get_output_property_reply_t* reply = api->randrGetOutputPropertyReply(
+        platform->connection,
+        api->randrGetOutputProperty(platform->connection, output, name, XCB_ATOM_ANY, 0, longs, 0,
+                                    0),
+        nullptr);
+    if (reply != nullptr && reply->type == XCB_ATOM_NONE)
+    {
+        mwinReleaseSystemMemory(reply);
+        return nullptr;
+    }
+    return reply;
+}
+
+// What an output says: HDR off, as X11 never shows it, with the
+// luminances its EDID gives (mwin-0036); whether its driver can vary its
+// refresh.
+static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t output,
+                            mwinMonitorInfo* info)
+{
+    const mwinX11Api* api = &platform->api;
+    // An EDID of the base block and up to 255 extensions.
+    xcb_randr_get_output_property_reply_t* edid =
+        PropertyOf(platform, output, platform->atoms[mwin_atomEdid], 256 * 128 / 4);
+    mwinEdidHdr hdr = {0};
+    if (edid != nullptr && edid->format == 8)
+    {
+        (void)mwinEdidHdrOf(api->randrOutputPropertyData(edid),
+                            (size_t)api->randrOutputPropertyDataLength(edid), &hdr);
+    }
+    info->hdr = (mwinHdrFacts){
+        .known = true,
+        .peakNits = hdr.peakNits,
+        .fullFrameNits = hdr.frameAverageNits,
+        .headroom = 1.0f,
+    };
+    mwinReleaseSystemMemory(edid);
+    xcb_randr_get_output_property_reply_t* vrr =
+        PropertyOf(platform, output, platform->atoms[mwin_atomVrrCapable], 1);
+    uint32_t capable = 0;
+    if (vrr != nullptr && vrr->format == 32 && api->randrOutputPropertyDataLength(vrr) >= 4)
+    {
+        memcpy(&capable, api->randrOutputPropertyData(vrr), sizeof(capable));
+    }
+    info->variableRefresh = capable != 0;
+    mwinReleaseSystemMemory(vrr);
 }
 
 // Adds a monitor or reports its change, when anything changed.
@@ -135,6 +197,11 @@ static void ReportRandr(mwinX11Platform* platform)
         info.heightMm = monitor->height_in_millimeters;
         info.scale = platform->scale;
         info.primary = primary;
+        // A monitor of several outputs (tiled) takes the first's facts.
+        if (api->randrMonitorOutputsLength(monitor) > 0)
+        {
+            ReadOutputFacts(platform, api->randrMonitorOutputs(monitor)[0], &info);
+        }
         Report(platform, &platform->outputs[slot], &info);
     }
     mwinReleaseSystemMemory(reply);

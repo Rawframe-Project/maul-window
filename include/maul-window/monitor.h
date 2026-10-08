@@ -32,7 +32,8 @@ extern "C"
     } mwinPixelRect;
 
     // What a monitor says about high dynamic range. The luminances are in
-    // nits, 0 where the platform does not tell.
+    // nits, 0 where the platform does not tell; some platforms tell the
+    // headroom alone (mwin-0036).
     typedef struct mwinHdrFacts
     {
         // The platform reports HDR facts for this monitor.
@@ -44,6 +45,9 @@ extern "C"
         // The luminance the platform shows SDR white at, which SDR content
         // scales to in HDR output.
         float sdrWhiteNits;
+        // The peak over SDR white the output can show now, which content
+        // tone maps to: 1 for SDR output, 0 where unknown.
+        float headroom;
     } mwinHdrFacts;
 
     // What the platform tells about a monitor.

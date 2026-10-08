@@ -8,6 +8,9 @@
 // screen kept awake while the window shows, let go while it is hidden,
 // asked for again after the page released it (before the lock came, and
 // after), let go when the window no longer asks and at the page's end.
+// Message boxes, answered by the runner as their messages ask: OK as an
+// alert, a question as a confirm accepted and dismissed, the title above
+// the message.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -254,8 +257,35 @@ static void Advance(mwinContext* context, Program* program)
     program->phase++;
 }
 
+static mwinMessageBoxDef Box(const char* title, const char* message, mwinMessageButtons buttons)
+{
+    mwinMessageBoxDef def = mwinDefaultMessageBoxDef();
+    def.title = title;
+    def.titleLength = strlen(title);
+    def.message = message;
+    def.messageLength = strlen(message);
+    def.buttons = buttons;
+    return def;
+}
+
+static void CheckMessageBoxes(void)
+{
+    bool accepted = false;
+    mwinMessageBoxDef box = Box("Maul", "Saved [alert titled]", mwin_buttonsOk);
+    CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && accepted, "OK, as an alert");
+    box = Box("Maul", "Quit? [confirm titled]", mwin_buttonsYesNo);
+    accepted = false;
+    CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && accepted,
+          "a question, as a confirm, accepted");
+    box = Box("", "Quit? [confirm dismiss]", mwin_buttonsOkCancel);
+    accepted = true;
+    CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && !accepted,
+          "dismissed, without a title");
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
+    CheckMessageBoxes();
     Program* program = user;
     program->startMs = mwinWebNow();
     program->outcome = -1;

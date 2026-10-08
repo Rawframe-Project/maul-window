@@ -6,7 +6,9 @@
 // window's canvas, each carrying a DataTransfer: a drag's records with
 // where it is and what it carries, a drag over that has not moved not
 // reported again, a drop delivering its files' names and its text; a
-// drag that leaves; and a drag of neither files nor text left alone.
+// drag that leaves; a drag of neither files nor text left alone; and a
+// drop at the limits: a name of the window's text bytes kept, one a
+// byte longer left out, text of the drop bytes kept.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -19,6 +21,8 @@
 
 #define DEADLINE_MS 10000.0
 #define MAX_RECORDS 32
+#define NAME_BYTES  16
+#define DROP_BYTES  64
 
 typedef enum Phase
 {
@@ -26,6 +30,7 @@ typedef enum Phase
     phaseDrop,
     phaseLeave,
     phaseOther,
+    phaseLimits,
     phaseDone,
 } Phase;
 
@@ -62,14 +67,20 @@ EM_JS(bool, DragEvents, (const char* selector, int which), {
         if (kinds.includes('html')) {
             data.setData('text/html', '<b>hi</b>');
         }
+        if (kinds.includes('limits')) {
+            data.items.add(new File(['x'], 'a'.repeat(12) + '.txt'));
+            data.items.add(new File(['y'], 'b'.repeat(13) + '.txt'));
+            data.setData('text/plain', 'c'.repeat(64));
+        }
         return data;
     };
     const sequences = [
         [['dragenter', 10, 20], ['dragover', 30, 40], ['dragover', 30, 40], ['drop', 50, 60]],
         [['dragenter', 5, 5], ['dragleave', 5, 5]],
         [['dragenter', 5, 5], ['drop', 5, 5]],
+        [['dragenter', 5, 5], ['drop', 5, 5]],
     ];
-    const kinds = which === 2 ? ['html'] : ['files', 'text'];
+    const kinds = [['files', 'text'], ['files', 'text'], ['html'], ['limits']][which];
     let kept = false;
     sequences[which].forEach(([type, x, y]) => {
         const event = new DragEvent(type, {bubbles: true, cancelable: true,
@@ -133,6 +144,24 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the text");
 }
 
+// At the limits: the name of 16 bytes kept, the one of 17 left out and
+// the drop marked truncated, the text of 64 bytes whole.
+static void CheckLimits(const Program* program, mwinContext* context)
+{
+    const mwinEvent* dropped = Find(program, mwin_eventDropped, 0);
+    CHECK(dropped != nullptr && dropped->data.drop.fileCount == 1 && dropped->data.drop.truncated,
+          "a name past the window's text bytes left out");
+    char bytes[DROP_BYTES + 1];
+    size_t length = 0;
+    uint32_t drop = dropped != nullptr ? dropped->data.drop.drop : 0;
+    CHECK(mwinGetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+              length == NAME_BYTES + 1 && memcmp(bytes, "aaaaaaaaaaaa.txt", NAME_BYTES + 1) == 0,
+          "a name of the window's text bytes kept");
+    CHECK(mwinGetDroppedText(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+              length == DROP_BYTES && bytes[0] == 'c' && bytes[DROP_BYTES - 1] == 'c',
+          "text of the drop bytes kept");
+}
+
 static bool Ready(Program* program)
 {
     switch (program->phase)
@@ -143,6 +172,8 @@ static bool Ready(Program* program)
         return Find(program, mwin_eventDropped, 0) != nullptr;
     case phaseLeave:
         return Find(program, mwin_eventDragLeft, 0) != nullptr;
+    case phaseLimits:
+        return Find(program, mwin_eventDropped, 0) != nullptr;
     default:
         // Nothing comes: a few frames show it.
         return ++program->frames > 10;
@@ -173,8 +204,12 @@ static void Advance(Program* program, mwinContext* context)
               "a drag that leaves");
         CHECK(!DragEvents(program->selector, 2), "a drag of neither left to the page");
         break;
-    default:
+    case phaseOther:
         CHECK(DragRecords(program) == 0, "and not reported");
+        (void)DragEvents(program->selector, 3);
+        break;
+    default:
+        CheckLimits(program, context);
         break;
     }
     program->phase += 1;
@@ -233,6 +268,8 @@ int main(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
+    def.context.limits.textBytesPerWindow = NAME_BYTES;
+    def.context.limits.dropBytes = DROP_BYTES;
     // With Emscripten mwinRun returns only when init failed; without it,
     // it returns once init succeeded and the page's frames run the program
     // on (mwin-0022). Either way quit reports.

@@ -7,8 +7,8 @@
 // codes, meanings and text, Shift, a repeat, a
 // named key, the pointer entering and moving, a double click, a chord of
 // two buttons, the wheel,
-// cursor shapes, a cursor made from images, a hidden cursor, no confinement, a touch, a pen, and a
-// captured cursor with raw motion after a click.
+// cursor shapes, a cursor made from images and let go when destroyed, a hidden cursor, no
+// confinement, a touch, a pen, and a captured cursor with raw motion after a click.
 
 #include "cursor_images.h"
 #include "test_harness.h"
@@ -80,6 +80,12 @@ EM_JS(bool, CursorIsImages, (const char* selector), {
     const parts = cursor.split('data:image/png;base64,');
     return parts.length === 3 && parts[0] === 'image-set(url("' &&
         parts[1].endsWith('") 1x, url("') && parts[2].endsWith('") 2x) 3 5, auto');
+});
+
+// How many cursors made from images the page holds.
+EM_JS(int, PageCursors, (const mwinContext* context), {
+    const cursors = Module.mwinWeb.get(context).cursors;
+    return cursors ? cursors.size : 0;
 });
 // clang-format on
 
@@ -294,9 +300,10 @@ static void AdvancePointer(Program* program, mwinContext* context)
     case phaseImageAgain:
         CHECK(outcome == mwin_outcomeDone && CursorIsImages(program->selector),
               "the images in the shape's place");
-        CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
-                  CursorIs(program->selector, "default"),
-              "destroyed, the default shape");
+        CHECK(PageCursors(context) == 1 &&
+                  mwinDestroyCursor(context, program->cursor) == mwin_success &&
+                  CursorIs(program->selector, "default") && PageCursors(context) == 0,
+              "destroyed, the default shape and the page's images let go");
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,
               "hide");

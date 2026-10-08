@@ -213,6 +213,22 @@ async function main() {
                 console.log('page error: ' + (error.stack || error.message));
                 reject(error);
             });
+            // The page's dialogs, answered as their message asks: "[alert]"
+            // or "[confirm]" names the kind expected, "titled" a first line
+            // of "Maul" and a blank one, "dismiss" a dismissal. Any other
+            // dialog fails the run.
+            tab.on('dialog', dialog => {
+                const text = dialog.message();
+                console.log(`runner: ${dialog.type()} ${JSON.stringify(text)}`);
+                const kind = /\[(alert|confirm)\b([^\]]*)\]/.exec(text);
+                if (!kind || kind[1] !== dialog.type() ||
+                    (/titled/.test(kind[2]) && !text.startsWith('Maul\n\n'))) {
+                    dialog.dismiss().catch(() => {});
+                    reject(new Error('a dialog not as its message asks'));
+                    return;
+                }
+                (/dismiss/.test(kind[2]) ? dialog.dismiss() : dialog.accept()).catch(reject);
+            });
             tab.on('console', message => {
                 const text = message.text();
                 console.log(text);

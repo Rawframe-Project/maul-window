@@ -5,9 +5,10 @@
 // (test/web_runner.cjs), which composes through the DevTools protocol:
 // accepting text moves the focus into the window's text field, at the
 // caret, with no focus record; a composition as a preedit with its
-// caret, its result as text and the end of the composition; a key typing
-// once; stopping ends a composition and gives the canvas the focus back;
-// an on-screen keyboard's purpose.
+// caret, its result as text and the end of the composition; a commit of
+// the limit's length exactly as text, one byte past it as a reset of the
+// program's text state; a key typing once; stopping ends a composition and gives the canvas the
+// focus back; an on-screen keyboard's purpose.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -22,6 +23,10 @@
 
 // "kan" in hiragana, as UTF-8.
 #define KANA "\xE3\x81\x8B\xE3\x82\x93"
+// The window's text bytes, and a commit of that length.
+#define LIMIT 64
+static const char s_limit[LIMIT + 1] =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?";
 
 typedef enum Phase
 {
@@ -30,6 +35,8 @@ typedef enum Phase
     phaseEnable,
     phaseCompose,
     phaseCommit,
+    phaseExact,
+    phaseTooLong,
     phaseKey,
     phaseRecompose,
     phaseDisable,
@@ -44,7 +51,7 @@ typedef struct Program
     mwinWindowId window;
     mwinEvent records[MAX_RECORDS];
     int count;
-    char text[64];
+    char text[LIMIT + 8];
     uint32_t textLength;
     bool timedOut;
 } Program;
@@ -134,6 +141,10 @@ static bool Ready(const Program* program)
     case phaseCommit:
         return Find(program, mwin_eventImePreedit, 0) != nullptr &&
                Find(program, mwin_eventTextInput, 0) != nullptr;
+    case phaseExact:
+        return Find(program, mwin_eventTextInput, 0) != nullptr;
+    case phaseTooLong:
+        return Find(program, mwin_eventInputStateReset, 0) != nullptr;
     case phaseKey:
         return Find(program, mwin_eventKeyUp, 0) != nullptr;
     case phaseDisable:
@@ -172,6 +183,15 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCommit:
         CHECK(TextIs(program, KANA) && Last(program)->data.preedit.length == 0,
               "the result as text, and the composition ends");
+        (void)printf("mwin-test: commit %s\n", s_limit);
+        break;
+    case phaseExact:
+        CHECK(TextIs(program, s_limit), "a commit of the limit's length exactly, as text");
+        (void)printf("mwin-test: commit %sz\n", s_limit);
+        break;
+    case phaseTooLong:
+        CHECK(Find(program, mwin_eventTextInput, 0) == nullptr,
+              "one byte past the limit: a reset, no text");
         (void)printf("mwin-test: key KeyB\n");
         break;
     case phaseKey:
@@ -246,6 +266,7 @@ int main(void)
 {
     static Program program;
     mwinAppDef def = mwinDefaultAppDef();
+    def.context.limits.textBytesPerWindow = LIMIT;
     def.init = Init;
     def.frame = Frame;
     def.quit = Quit;

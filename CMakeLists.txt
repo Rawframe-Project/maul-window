@@ -587,12 +587,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # The touch keyboard shown and hidden through the window's InputPane.
         maul_add_test(win32_touch_keyboard WHITEBOX)
         target_link_libraries(test_win32_touch_keyboard PRIVATE user32)
+        # Message boxes answered from a second thread.
+        maul_add_test(win32_message_box)
+        target_link_libraries(test_win32_message_box PRIVATE user32)
         # The accessibility root handed to UI Automation.
         maul_add_test(win32_accessibility)
         target_link_libraries(test_win32_accessibility PRIVATE user32 ole32 oleaut32 uuid)
         set_tests_properties(win32 win32_input win32_pointer win32_ime win32_system
                              win32_clipboard win32_drop win32_services win32_dialog win32_owned
-                             win32_chrome win32_touch_keyboard
+                             win32_chrome win32_touch_keyboard win32_message_box
                              PROPERTIES RESOURCE_LOCK desktop)
     endif()
     maul_add_header_tests()

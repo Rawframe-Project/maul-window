@@ -4,7 +4,8 @@
 // The system facts contract against the test backend: the look and the
 // power each notify only when they change, the preferred locales, the
 // keyboard layout's change, a window's safe area, and the on-screen
-// keyboard's request and the part of the window it covers.
+// keyboard's request and the part of the window it covers, and the
+// record the test platform keeps of it.
 
 #include "test_program.h"
 
@@ -151,9 +152,72 @@ static void TestWindowFacts(void)
     CHECK(Run(&program) == mwin_success, "the program runs");
 }
 
+// The test platform's record of the keyboard and text input: hiding
+// the keyboard reads hidden, and a window made in a destroyed one's slot
+// (free once its destroyed record is drained) starts with no keyboard,
+// no text input and no caret.
+static void KeyboardRecordStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        CHECK(mwinRequestVirtualKeyboard(context, program->windows[0], true, mwin_purposeNumber,
+                                         nullptr) == mwin_success &&
+                  mwinRequestTextInput(context, program->windows[0], true,
+                                       (mwinRect){1.0f, 2.0f, 3.0f, 4.0f}, nullptr) == mwin_success,
+              "the keyboard and text input asked for");
+        return;
+    }
+    Drain(program, context);
+    bool flag = true;
+    mwinInputPurpose purpose = mwin_purposeText;
+    if (step == 1)
+    {
+        CHECK(mwinTestGetVirtualKeyboard(context, window, &flag, &purpose) == mwin_success &&
+                  flag && purpose == mwin_purposeNumber,
+              "shown for a number");
+        CHECK(mwinRequestVirtualKeyboard(context, window, false, mwin_purposeUrl, nullptr) ==
+                  mwin_success,
+              "hidden again");
+        return;
+    }
+    if (step == 2)
+    {
+        CHECK(mwinTestGetVirtualKeyboard(context, window, &flag, &purpose) == mwin_success &&
+                  !flag && purpose == mwin_purposeUrl,
+              "a hidden keyboard reads hidden");
+        CHECK(mwinRequestVirtualKeyboard(context, window, true, mwin_purposeEmail, nullptr) ==
+                      mwin_success &&
+                  mwinDestroyWindow(context, window) == mwin_success,
+              "shown again, then the window destroyed");
+        return;
+    }
+    mwinWindowId next = Create(context, nullptr);
+    mwinRect caret = {1.0f, 1.0f, 1.0f, 1.0f};
+    flag = true;
+    purpose = mwin_purposeEmail;
+    CHECK(next.index1 == window.index1 &&
+              mwinTestGetVirtualKeyboard(context, next, &flag, &purpose) == mwin_success && !flag &&
+              purpose == mwin_purposeText,
+          "a window in the same slot starts with the keyboard hidden");
+    flag = true;
+    CHECK(mwinTestGetTextInput(context, next, &flag, &caret) == mwin_success && !flag &&
+              caret.x == 0.0f && caret.width == 0.0f && caret.height == 0.0f,
+          "and without text input or a caret");
+    program->done = true;
+}
+
+static void TestKeyboardRecord(void)
+{
+    Program program = {.step = KeyboardRecordStep};
+    CHECK(Run(&program) == mwin_success, "the program runs");
+}
+
 int main(void)
 {
     TestFacts();
     TestWindowFacts();
+    TestKeyboardRecord();
     return s_failures == 0 ? 0 : 1;
 }

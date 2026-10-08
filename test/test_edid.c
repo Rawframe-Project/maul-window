@@ -86,6 +86,25 @@ static void TestSize(void)
     MakeSized(bytes, 60, 34, 597, 260);
     CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 600 && height == 340,
           "a timing whose height strays gives way too");
+    MakeSized(bytes, 50, 30, 600, 240);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 600 && height == 240,
+          "a timing exactly a fifth off each way still counts");
+    MakeSized(bytes, 60, 34, 597, 336);
+    bytes[54] = 0x10;
+    bytes[55] = 0x00;
+    Sum(bytes);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 597 && height == 336,
+          "a timing whose pixel clock is under 2.56 MHz is a timing");
+    // A display descriptor (pixel clock 0, a monitor name) whose bytes
+    // 12 to 14 would read as a size near the base block's.
+    MakeSized(bytes, 60, 34, 0, 0);
+    bytes[54 + 3] = 0xFC;
+    bytes[54 + 12] = 0x55;
+    bytes[54 + 13] = 0x30;
+    bytes[54 + 14] = 0x21;
+    Sum(bytes);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 600 && height == 340,
+          "a display descriptor at byte 54 is no timing");
     MakeSized(bytes, 52, 29, 0, 0);
     CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 520 && height == 290,
           "the base block's centimeters without a timing");

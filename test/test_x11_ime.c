@@ -18,6 +18,7 @@
 #include "maul-window/event.h"
 #include "maul-window/input.h"
 #include "maul-window/native.h"
+#include "maul-window/test.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -202,10 +203,20 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
+    {
         CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
                   mwin_success,
               "text input asked for");
+        bool flag = false;
+        mwinRect caret = {0};
+        mwinInputPurpose purpose = mwin_purposeText;
+        CHECK(mwinTestGetTextInput(context, program->window, &flag, &caret) ==
+                      mwin_errorUnsupported &&
+                  mwinTestGetVirtualKeyboard(context, program->window, &flag, &purpose) ==
+                      mwin_errorUnsupported,
+              "the test backend's readers refuse an X11 context");
         break;
+    }
     case phaseContext:
     {
         int32_t x = 0;

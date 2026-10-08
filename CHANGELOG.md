@@ -8,6 +8,13 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Win32 monitors report their physical size, from the EDID's preferred
+  timing or its base block (a timing in centimeters, which some
+  monitors give, yields to the base block), and their refresh rate
+  exactly (59.94 Hz, not 59), from DisplayConfig's rational rate.
+
 ## [0.9.1] - 2026-10-08
 
 A fix the mutation sweep of 0.9.0's additions found.

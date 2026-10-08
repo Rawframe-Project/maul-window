@@ -3,7 +3,8 @@
 //
 // Win32 monitors, and their HDR facts: whether HDR output is on and the
 // SDR white level from DisplayConfig, the luminances from the EDID
-// Windows keeps in the monitor's registry key (mwin-0036).
+// Windows keeps in the monitor's registry key (mwin-0036), which gives
+// the physical size too.
 
 #include "win32_output.h"
 
@@ -126,11 +127,20 @@ static DWORD ReadEdid(const WCHAR* monitorPath, uint8_t* bytes)
     return length;
 }
 
-// The HDR facts of the path's target. Output with wide color forced on
-// an SDR display (automatic color management) is advanced color without
-// HDR. The headroom is the EDID's peak over the white level.
-static void ReadHdr(const DISPLAYCONFIG_PATH_INFO* path, mwinHdrFacts* hdr)
+// What the path's target tells: its refresh rate, exact; and from its
+// EDID, its image's size and luminances. The HDR facts: output with wide
+// color forced on an SDR display (automatic color management) is
+// advanced color without HDR; the headroom is the EDID's peak over the
+// white level.
+static void ReadTarget(const DISPLAYCONFIG_PATH_INFO* path, mwinMonitorInfo* info)
 {
+    DISPLAYCONFIG_RATIONAL rate = path->targetInfo.refreshRate;
+    if (rate.Denominator != 0 && rate.Numerator != 0)
+    {
+        info->refreshMilliHz =
+            (uint32_t)(((uint64_t)rate.Numerator * 1000 + rate.Denominator / 2) / rate.Denominator);
+    }
+    mwinHdrFacts* hdr = &info->hdr;
     LUID adapter = path->targetInfo.adapterId;
     UINT32 target = path->targetInfo.id;
     DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color = {
@@ -158,14 +168,17 @@ static void ReadHdr(const DISPLAYCONFIG_PATH_INFO* path, mwinHdrFacts* hdr)
                    .adapterId = adapter,
                    .id = target}};
     uint8_t edid[MOST_EDID_BYTES];
+    DWORD length = DisplayConfigGetDeviceInfo(&name.header) == ERROR_SUCCESS
+                       ? ReadEdid(name.monitorDevicePath, edid)
+                       : 0;
     mwinEdidHdr found;
-    if (DisplayConfigGetDeviceInfo(&name.header) == ERROR_SUCCESS &&
-        mwinEdidHdrOf(edid, ReadEdid(name.monitorDevicePath, edid), &found))
+    if (mwinEdidHdrOf(edid, length, &found))
     {
         hdr->known = true;
         hdr->peakNits = found.peakNits;
         hdr->fullFrameNits = found.frameAverageNits;
     }
+    (void)mwinEdidSizeOf(edid, length, &info->widthMm, &info->heightMm);
     if (!hdr->active)
     {
         hdr->headroom = hdr->known ? 1.0f : 0.0f;
@@ -198,7 +211,7 @@ static void ReadInfo(const Scan* scan, HMONITOR handle, const MONITORINFOEXW* mo
     const DISPLAYCONFIG_PATH_INFO* path = PathOf(scan, monitor->szDevice);
     if (path != nullptr)
     {
-        ReadHdr(path, &info->hdr);
+        ReadTarget(path, info);
     }
 }
 

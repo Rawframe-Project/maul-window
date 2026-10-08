@@ -141,6 +141,8 @@ static void CheckCreated(const Program* program, mwinContext* context)
                    : hdr->sdrWhiteNits == 0.0f && hdr->headroom == (hdr->known ? 1.0f : 0.0f)) &&
               !info.variableRefresh,
           "HDR facts in their ranges, variable refresh not known");
+    (void)printf("size %u x %u mm, %u mHz\n", info.widthMm, info.heightMm, info.refreshMilliHz);
+    CHECK((info.widthMm == 0) == (info.heightMm == 0), "a physical size whole or none");
 }
 
 static void Advance(Program* program, mwinContext* context)

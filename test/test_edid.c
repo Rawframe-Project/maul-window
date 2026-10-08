@@ -7,7 +7,10 @@
 // the frame average, reading nothing of the block after it; none in an
 // SDR monitor's EDID, in an extension that is no CTA-861 one, in a block
 // whose checksum fails, in bytes that are no EDID, past the bytes there
-// are, or in a data block longer than its collection.
+// are, or in a data block longer than its collection. The image's size:
+// the preferred timing's millimeters, the base block's centimeters where
+// the timing's stray from them (a timing in centimeters) or there is
+// none, either where the other is missing, and none where neither is.
 
 #include "edid.h"
 #include "test_harness.h"
@@ -41,8 +44,62 @@ static void Make(uint8_t* bytes, const uint8_t* blocks, size_t length)
     extension[0] = 0x02;
     extension[1] = 3;
     extension[2] = (uint8_t)(4 + length);
-    memcpy(extension + 4, blocks, length);
+    if (length > 0)
+    {
+        memcpy(extension + 4, blocks, length);
+    }
     Sum(bytes);
+}
+
+// An EDID whose base block gives a size in centimeters and a preferred
+// timing (pixel clock 148.5 MHz) whose image is the size in millimeters
+// given, 0 for no timing.
+static void MakeSized(uint8_t* bytes, uint8_t widthCm, uint8_t heightCm, uint32_t widthMm,
+                      uint32_t heightMm)
+{
+    Make(bytes, nullptr, 0);
+    bytes[21] = widthCm;
+    bytes[22] = heightCm;
+    uint8_t* timing = bytes + 54;
+    if (widthMm != 0)
+    {
+        timing[0] = 0x02;
+        timing[1] = 0x3A;
+        timing[12] = (uint8_t)widthMm;
+        timing[13] = (uint8_t)heightMm;
+        timing[14] = (uint8_t)((widthMm >> 8) << 4 | (heightMm >> 8));
+    }
+    Sum(bytes);
+}
+
+static void TestSize(void)
+{
+    uint8_t bytes[256];
+    uint32_t width = 0;
+    uint32_t height = 0;
+    MakeSized(bytes, 60, 34, 597, 336);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 597 && height == 336,
+          "the preferred timing's millimeters");
+    MakeSized(bytes, 60, 34, 60, 34);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 600 && height == 340,
+          "a timing in centimeters gives way to the base block's");
+    MakeSized(bytes, 60, 34, 597, 260);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 600 && height == 340,
+          "a timing whose height strays gives way too");
+    MakeSized(bytes, 52, 29, 0, 0);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 520 && height == 290,
+          "the base block's centimeters without a timing");
+    MakeSized(bytes, 0, 79, 1209, 680);
+    CHECK(mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 1209 && height == 680,
+          "the timing's where the base block gives an aspect ratio");
+    MakeSized(bytes, 0, 0, 0, 0);
+    CHECK(!mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 0 && height == 0,
+          "none where neither gives it");
+    MakeSized(bytes, 60, 34, 597, 336);
+    bytes[0] = 0x01;
+    CHECK(!mwinEdidSizeOf(bytes, sizeof(bytes), &width, &height) && width == 0 &&
+              !mwinEdidSizeOf(bytes, 100, &width, &height),
+          "none from bytes that are no EDID");
 }
 
 static bool Near(float a, float b)
@@ -110,5 +167,6 @@ int main(void)
     static const uint8_t overlong[] = {0xFF, 0x06, 0x05, 0x01, 1, 2, 3, 4};
     Make(bytes, overlong, sizeof(overlong));
     CHECK(!mwinEdidHdrOf(bytes, sizeof(bytes), &hdr), "none in a block past its collection");
+    TestSize();
     return s_failures == 0 ? 0 : 1;
 }

@@ -83,12 +83,18 @@ static bool FindInExtension(const uint8_t* block, mwinEdidHdr* hdrOut)
     return false;
 }
 
-bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut)
+// Whether the bytes begin with a base block: its header and checksum.
+static bool IsEdid(const uint8_t* bytes, size_t length)
 {
     static const uint8_t header[8] = {0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00};
+    return bytes != nullptr && length >= BLOCK_BYTES &&
+           memcmp(bytes, header, sizeof(header)) == 0 && IsBlockWhole(bytes);
+}
+
+bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut)
+{
     *hdrOut = (mwinEdidHdr){0};
-    if (bytes == nullptr || length < BLOCK_BYTES || memcmp(bytes, header, sizeof(header)) != 0 ||
-        !IsBlockWhole(bytes))
+    if (!IsEdid(bytes, length))
     {
         return false;
     }
@@ -105,4 +111,46 @@ bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut)
     }
     *hdrOut = (mwinEdidHdr){0};
     return false;
+}
+
+// Whether a size in millimeters is within a fifth of one in centimeters.
+static bool Agrees(uint32_t millimeters, uint32_t centimeters)
+{
+    uint32_t base = centimeters * 10;
+    uint32_t apart = millimeters > base ? millimeters - base : base - millimeters;
+    return apart * 5 <= base;
+}
+
+bool mwinEdidSizeOf(const uint8_t* bytes, size_t length, uint32_t* widthMmOut,
+                    uint32_t* heightMmOut)
+{
+    *widthMmOut = 0;
+    *heightMmOut = 0;
+    if (!IsEdid(bytes, length))
+    {
+        return false;
+    }
+    // Bytes 21 and 22 give the size in centimeters, or an aspect ratio
+    // when one of them is 0.
+    uint32_t widthCm = bytes[21];
+    uint32_t heightCm = bytes[22];
+    bool centimeters = widthCm != 0 && heightCm != 0;
+    // The first detailed timing, at byte 54, is the preferred one: a
+    // pixel clock (its first two bytes) not 0, then its image's size in
+    // millimeters at 12 to 14, the high bits in 14's nibbles.
+    const uint8_t* timing = bytes + 54;
+    uint32_t width = (uint32_t)timing[12] | (uint32_t)(timing[14] & 0xF0u) << 4;
+    uint32_t height = (uint32_t)timing[13] | (uint32_t)(timing[14] & 0x0Fu) << 8;
+    bool timed = (timing[0] != 0 || timing[1] != 0) && width != 0 && height != 0;
+    if (timed && (!centimeters || (Agrees(width, widthCm) && Agrees(height, heightCm))))
+    {
+        *widthMmOut = width;
+        *heightMmOut = height;
+    }
+    else if (centimeters)
+    {
+        *widthMmOut = widthCm * 10;
+        *heightMmOut = heightCm * 10;
+    }
+    return *widthMmOut != 0;
 }

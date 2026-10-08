@@ -3,7 +3,8 @@
 //
 // The Win32 backend's system facts: read at start as the user's
 // registry and settings say, and read again when Windows announces a
-// change. The test sets a dark theme, an accent, a text scale and no
+// change: at start the theme, the motion and snap layouts as Windows
+// has them. The test sets a dark theme, an accent, a text scale and no
 // animations, tells its window, checks the facts, the record and the
 // title bar, and puts every setting back.
 
@@ -99,6 +100,17 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
+// Whether Windows is 11, its build 22000 or later, as RtlGetVersion tells.
+static bool SnapLayouts(void)
+{
+    LONG(WINAPI * get)(OSVERSIONINFOW*) = nullptr;
+    FARPROC found = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion");
+    memcpy((void*)&get, (const void*)&found, sizeof(get));
+    OSVERSIONINFOW version = {.dwOSVersionInfoSize = sizeof(version)};
+    return get != nullptr && get(&version) == 0 && version.dwMajorVersion >= 10 &&
+           version.dwBuildNumber >= 22000;
+}
+
 static void CheckStart(mwinContext* context, const Program* program)
 {
     mwinSystemFacts facts;
@@ -109,6 +121,8 @@ static void CheckStart(mwinContext* context, const Program* program)
                                               : mwin_themeDark),
           "the theme as the registry has it");
     CHECK(facts.onBattery <= mwin_yes && facts.lowPower <= mwin_yes, "power facts");
+    CHECK(facts.reducedMotion == !program->animations, "motion as the animation setting has it");
+    CHECK(facts.snapLayouts == SnapLayouts(), "snap layouts on Windows 11 alone");
     WCHAR first[LOCALE_NAME_MAX_LENGTH * 4] = {0};
     ULONG count = 0;
     ULONG units = sizeof(first) / sizeof(first[0]);

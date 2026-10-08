@@ -561,6 +561,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Changes the user's settings for a moment, and puts them back.
         maul_add_test(win32_system)
         target_link_libraries(test_win32_system PRIVATE user32 advapi32 dwmapi)
+        # What Windows reports, read without its settings.
+        maul_add_test(win32_system_facts WHITEBOX)
         # One desktop: the focus, the pointer and the settings are not
         # shared.
         # The drop target driven as OLE would, and WM_DROPFILES.

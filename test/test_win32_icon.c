@@ -5,7 +5,9 @@
 // small icons made from the images nearest the sizes Windows shows at
 // the window's DPI, their colours and straight alpha kept; the icons
 // the backend made destroyed when replaced, none left for the class's
-// own, and the last ones destroyed with the window.
+// own; set and taken away ten times, no GDI object left behind (Windows
+// counts them, wine reports none); and the last ones destroyed with the
+// window.
 
 #include "test_harness.h"
 
@@ -30,6 +32,7 @@ typedef struct Program
     mwinWindowId window;
     mwinRequestId request;
     int step;
+    DWORD objects;
     HICON first;
     bool done;
 } Program;
@@ -127,6 +130,15 @@ static void Ask(mwinContext* context, Program* program, uint32_t count)
           "ask for an icon");
 }
 
+// Icons set and taken away again after the first ones.
+#define CYCLES 10
+#define LAST   (3 + 2 * CYCLES - 1)
+
+static DWORD Objects(void)
+{
+    return GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS);
+}
+
 static void Check(mwinContext* context, Program* program)
 {
     HWND hwnd = Handle(context, program->window);
@@ -145,9 +157,24 @@ static void Check(mwinContext* context, Program* program)
     case 2:
         CHECK(bigIcon == nullptr && smallIcon == nullptr && Destroyed(program->first),
               "the icons made destroyed when replaced, none left for the class's own");
+        program->objects = Objects();
         Ask(context, program, 3);
         break;
     default:
+        if (program->step < LAST)
+        {
+            Ask(context, program, program->step % 2 == 1 ? 0 : 3);
+            break;
+        }
+        if (program->step == LAST)
+        {
+            // A leak leaves four bitmaps a cycle; Windows' own caches may
+            // add a few.
+            CHECK(bigIcon == nullptr && Objects() < program->objects + 2 * CYCLES,
+                  "set and taken away again, no GDI object left behind");
+            Ask(context, program, 3);
+            break;
+        }
         program->first = bigIcon;
         CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroy");
         CHECK(Destroyed(program->first), "the last icons destroyed with the window");

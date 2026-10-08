@@ -3,8 +3,10 @@
 //
 // A Linux gamepad's battery against a sysfs tree of the test's own: the
 // power supply beside the input device found and read; a charge that
-// changes read again; none where the device has no power supply, or
-// its file says no number from 0 to 100.
+// changes read again, every digit; the path ended where it was found,
+// whatever the record held before; none where the device has no power
+// supply, its file says no number from 0 to 100, or the root is too long
+// for a path.
 
 #include "linux_battery.h"
 #include "test_harness.h"
@@ -56,12 +58,16 @@ int main(void)
     Write("class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity", "73\n");
     Folders("class/input/event8/device/device");
     mwinLinuxBattery battery;
+    // What the record held before does not end its path.
+    memset(&battery, 'x', sizeof(battery));
     CHECK(mwinLinuxFindBattery(s_root, 7, &battery) && mwinLinuxReadBattery(&battery) == 73,
           "the power supply beside the device, read");
     Write("class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity", "100");
     CHECK(mwinLinuxReadBattery(&battery) == 100, "a full charge, without a newline");
     Write("class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity", "0\n");
     CHECK(mwinLinuxReadBattery(&battery) == 0, "an empty one");
+    Write("class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity", "99\n");
+    CHECK(mwinLinuxReadBattery(&battery) == 99, "every digit, 9 too");
     static const char* const wrong[] = {"101\n", "1000\n", "-5\n", "abc\n", "", "7x\n"};
     bool refused = true;
     for (size_t i = 0; i < sizeof(wrong) / sizeof(wrong[0]); i++)
@@ -75,6 +81,11 @@ int main(void)
               mwinLinuxReadBattery(&battery) == -1,
           "none for a device without a power supply");
     CHECK(!mwinLinuxFindBattery(s_root, 9, &battery), "none for a device not there");
+    char longRoot[MWIN_LINUX_BATTERY_PATH];
+    memset(longRoot, 'r', sizeof(longRoot) - 1);
+    longRoot[sizeof(longRoot) - 1] = '\0';
+    CHECK(!mwinLinuxFindBattery(longRoot, 7, &battery) && battery.path[0] == '\0',
+          "none past a path's room");
     // The tree removed, deepest first.
     static const char* const made[] = {
         "class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity",

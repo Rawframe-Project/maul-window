@@ -8,6 +8,13 @@ format.
 
 ## [Unreleased]
 
+### Fixed
+
+- On Wayland a tablet's mouse or lens tool told tilt when the
+  compositor named its type before its capabilities, as compositors
+  do: pucks and fingers post pen records without tilt whatever the
+  order (mwin-0037).
+
 ## [0.9.0] - 2026-10-08
 
 Monitors' HDR facts and variable refresh on every backend, Android's

@@ -5,8 +5,9 @@
 // compositor of wayland_server.h with an output of
 // wayland_output_server.h and the color manager of
 // wayland_color_server.h: an output in HDR (PQ) has its facts from the
-// first frame; switched to SDR it changes, its headroom 1; a description
-// that fails leaves the facts unknown. Skipped (exit status 77) without
+// first frame; switched to SDR it changes, its headroom 1; in HDR
+// without a peak its headroom is unknown; a description that fails
+// leaves the facts unknown. Skipped (exit status 77) without
 // XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -26,6 +27,7 @@ typedef enum Phase
 {
     phaseStart,
     phaseSdr,
+    phaseNoPeak,
     phaseFailed,
     phaseDone,
 } Phase;
@@ -53,6 +55,12 @@ static const ColorDescription s_sdr = {
     .transfer = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB,
     .referenceNits = 80,
     .targetMaxNits = 80,
+};
+
+// HDR output whose peak the compositor does not tell.
+static const ColorDescription s_noPeak = {
+    .transfer = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ,
+    .referenceNits = 203,
 };
 
 static uint64_t NowNs(void)
@@ -109,6 +117,14 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         CHECK(First(context, &info) && hdr->known && !hdr->active && hdr->peakNits == 80.0f &&
                   hdr->fullFrameNits == 0.0f && hdr->sdrWhiteNits == 80.0f && hdr->headroom == 1.0f,
               "switched to SDR, the monitor changes, its headroom 1");
+        ColorChange(&program->color, s_noPeak);
+        Next(program, phaseNoPeak);
+    }
+    else if (program->phase == phaseNoPeak && program->changed)
+    {
+        CHECK(First(context, &info) && hdr->known && hdr->active && hdr->peakNits == 0.0f &&
+                  hdr->sdrWhiteNits == 203.0f && hdr->headroom == 0.0f,
+              "HDR without a peak: its headroom unknown");
         ColorChange(&program->color, (ColorDescription){.fails = true});
         Next(program, phaseFailed);
     }

@@ -234,6 +234,9 @@ typedef struct mwinWaylandTool
     struct zwp_tablet_tool_v2* tool;
     mwinWaylandPlatform* platform;
     bool eraser;
+    // A puck or a finger, whose tilt is left out; whether the tool tells
+    // tilt and pressure.
+    bool puck;
     bool tilts;
     bool presses;
     int32_t focus;

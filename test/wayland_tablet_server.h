@@ -2,10 +2,11 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The tablet manager of the test compositor (wayland_server.h): the
-// client's tablet seat gets a tablet, a pen (tilt and pressure) and an
-// eraser (pressure); a test moves the tools near the window's surface,
-// presses, lifts and clicks them, each change closed by a frame, and
-// reads the cursors the client set for them.
+// client's tablet seat gets a tablet, a pen (tilt and pressure), an
+// eraser (pressure) and a mouse (a puck, with tilt alone); a test moves
+// the tools near the window's surface, presses, lifts and clicks them,
+// each change closed by a frame, removes a tool or the tablet, and reads
+// the cursors the client set for them.
 
 #ifndef MAUL_WINDOW_TEST_WAYLAND_TABLET_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_TABLET_SERVER_H
@@ -18,6 +19,7 @@ typedef enum TabletTool
 {
     tabletPen,
     tabletEraser,
+    tabletMouse,
     tabletTools,
 } TabletTool;
 
@@ -95,13 +97,17 @@ static inline void TabletAddTool(TabletServer* tablet, struct wl_resource* seat,
     wl_resource_set_implementation(tool, &s_tabletTool, tablet, TabletForgetTool);
     tablet->tools[which] = tool;
     zwp_tablet_seat_v2_send_tool_added(seat, tool);
-    zwp_tablet_tool_v2_send_type(tool, which == tabletPen ? ZWP_TABLET_TOOL_V2_TYPE_PEN
-                                                          : ZWP_TABLET_TOOL_V2_TYPE_ERASER);
-    if (which == tabletPen)
+    static const uint32_t types[tabletTools] = {
+        ZWP_TABLET_TOOL_V2_TYPE_PEN, ZWP_TABLET_TOOL_V2_TYPE_ERASER, ZWP_TABLET_TOOL_V2_TYPE_MOUSE};
+    zwp_tablet_tool_v2_send_type(tool, types[which]);
+    if (which != tabletEraser)
     {
         zwp_tablet_tool_v2_send_capability(tool, ZWP_TABLET_TOOL_V2_CAPABILITY_TILT);
     }
-    zwp_tablet_tool_v2_send_capability(tool, ZWP_TABLET_TOOL_V2_CAPABILITY_PRESSURE);
+    if (which != tabletMouse)
+    {
+        zwp_tablet_tool_v2_send_capability(tool, ZWP_TABLET_TOOL_V2_CAPABILITY_PRESSURE);
+    }
     zwp_tablet_tool_v2_send_done(tool);
 }
 
@@ -117,8 +123,10 @@ static inline void TabletGetSeat(struct wl_client* client, struct wl_resource* r
     zwp_tablet_seat_v2_send_tablet_added(seat, tablet->tablet);
     zwp_tablet_v2_send_name(tablet->tablet, "Maul test tablet");
     zwp_tablet_v2_send_done(tablet->tablet);
-    TabletAddTool(tablet, seat, tabletPen);
-    TabletAddTool(tablet, seat, tabletEraser);
+    for (int i = 0; i < tabletTools; i++)
+    {
+        TabletAddTool(tablet, seat, (TabletTool)i);
+    }
 }
 
 static const struct zwp_tablet_manager_v2_interface s_tabletManager = {
@@ -188,6 +196,26 @@ static inline void TabletSend(TabletServer* tablet, TabletTool which, TabletChan
         zwp_tablet_tool_v2_send_proximity_out(tool);
     }
     zwp_tablet_tool_v2_send_frame(tool, 1000);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// Removes a tool, as a pen gone out of the tablet's sight for good.
+static inline void TabletRemoveTool(TabletServer* tablet, TabletTool which)
+{
+    Server* server = tablet->server;
+    pthread_mutex_lock(&server->lock);
+    zwp_tablet_tool_v2_send_removed(tablet->tools[which]);
+    wl_display_flush_clients(server->display);
+    pthread_mutex_unlock(&server->lock);
+}
+
+// Removes the tablet, as one unplugged.
+static inline void TabletRemoveTablet(TabletServer* tablet)
+{
+    Server* server = tablet->server;
+    pthread_mutex_lock(&server->lock);
+    zwp_tablet_v2_send_removed(tablet->tablet);
     wl_display_flush_clients(server->display);
     pthread_mutex_unlock(&server->lock);
 }

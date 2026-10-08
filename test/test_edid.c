@@ -3,16 +3,31 @@
 //
 // A monitor's HDR static metadata from its EDID: an HDR monitor's
 // block read (PQ and HLG, the most, the frame average and the least);
-// a block with only its transfer functions; none in an SDR monitor's
-// EDID, in a block whose checksum fails, in bytes that are no EDID,
-// past the bytes there are, or in a data block longer than its
-// collection.
+// a block with only its transfer functions, or cut after the most or
+// the frame average, reading nothing of the block after it; none in an
+// SDR monitor's EDID, in an extension that is no CTA-861 one, in a block
+// whose checksum fails, in bytes that are no EDID, past the bytes there
+// are, or in a data block longer than its collection.
 
 #include "edid.h"
 #include "test_harness.h"
 
 #include <math.h>
 #include <string.h>
+
+// Makes both blocks' checksums right.
+static void Sum(uint8_t* bytes)
+{
+    for (int b = 0; b < 2; b++)
+    {
+        uint8_t sum = 0;
+        for (int i = 0; i < 127; i++)
+        {
+            sum = (uint8_t)(sum + bytes[b * 128 + i]);
+        }
+        bytes[b * 128 + 127] = (uint8_t)(0x100 - sum);
+    }
+}
 
 // A base block (header, one extension, checksum) and a CTA-861
 // extension with the given data blocks.
@@ -27,15 +42,7 @@ static void Make(uint8_t* bytes, const uint8_t* blocks, size_t length)
     extension[1] = 3;
     extension[2] = (uint8_t)(4 + length);
     memcpy(extension + 4, blocks, length);
-    for (int b = 0; b < 2; b++)
-    {
-        uint8_t sum = 0;
-        for (int i = 0; i < 127; i++)
-        {
-            sum = (uint8_t)(sum + bytes[b * 128 + i]);
-        }
-        bytes[b * 128 + 127] = (uint8_t)(0x100 - sum);
-    }
+    Sum(bytes);
 }
 
 static bool Near(float a, float b)
@@ -58,11 +65,23 @@ int main(void)
               Near(hdr.frameAverageNits, 50.0f * exp2f(90.0f / 32.0f)) &&
               Near(hdr.minimumNits, peak * (50.0f / 255.0f) * (50.0f / 255.0f) / 100.0f),
           "an HDR monitor's metadata");
-    static const uint8_t bare[] = {0xE3, 0x06, 0x05, 0x01};
+    // Each short block is followed by a video block, whose bytes are no
+    // luminance codes of the block before it.
+    static const uint8_t bare[] = {0xE3, 0x06, 0x05, 0x01, 0x43, 0x10, 0x04, 0x03};
     Make(bytes, bare, sizeof(bare));
     CHECK(mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && hdr.pq && !hdr.hlg && hdr.peakNits == 0.0f &&
               hdr.frameAverageNits == 0.0f && hdr.minimumNits == 0.0f,
           "transfer functions and no luminance");
+    static const uint8_t mostOnly[] = {0xE4, 0x06, 0x05, 0x01, 115, 0x43, 0x10, 0x04, 0x03};
+    Make(bytes, mostOnly, sizeof(mostOnly));
+    CHECK(mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && Near(hdr.peakNits, peak) &&
+              hdr.frameAverageNits == 0.0f && hdr.minimumNits == 0.0f,
+          "the most alone");
+    static const uint8_t noLeast[] = {0xE5, 0x06, 0x05, 0x01, 115, 90, 0x43, 0x10, 0x04, 0x03};
+    Make(bytes, noLeast, sizeof(noLeast));
+    CHECK(mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && Near(hdr.peakNits, peak) &&
+              hdr.frameAverageNits > 0.0f && hdr.minimumNits == 0.0f,
+          "the most and the frame average, no least");
     static const uint8_t zero[] = {0xE6, 0x06, 0x05, 0x01, 0, 0, 0};
     Make(bytes, zero, sizeof(zero));
     CHECK(mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && hdr.peakNits == 0.0f &&
@@ -72,6 +91,12 @@ int main(void)
     Make(bytes, sdr, sizeof(sdr));
     CHECK(!mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && !hdr.pq && hdr.peakNits == 0.0f,
           "none in an SDR monitor's EDID");
+    // A DisplayID extension holding the same bytes.
+    Make(bytes, hdrMonitor, sizeof(hdrMonitor));
+    bytes[128] = 0x70;
+    Sum(bytes);
+    CHECK(!mwinEdidHdrOf(bytes, sizeof(bytes), &hdr) && hdr.peakNits == 0.0f,
+          "none in an extension that is no CTA-861 one");
     Make(bytes, hdrMonitor, sizeof(hdrMonitor));
     bytes[128 + 20] ^= 1;
     CHECK(!mwinEdidHdrOf(bytes, sizeof(bytes), &hdr), "none in a block whose checksum fails");

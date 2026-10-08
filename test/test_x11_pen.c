@@ -13,7 +13,10 @@
 //   event leaves the valuator out;
 // - button 2 is the barrel, told while in contact; button 3 makes no
 //   record;
-// - a pen without a pressure valuator presses fully;
+// - a pen without a pressure valuator, or with one of no range, presses
+//   fully;
+// - valuators numbered from 0 count, and an event with more values than
+//   its mask sets reads no word past the mask;
 // - devices past the table are left out, and only pens are found.
 
 #include "test_harness.h"
@@ -155,6 +158,33 @@ static void TestBare(void)
           "without a pressure valuator it presses fully");
 }
 
+static void TestNumbers(void)
+{
+    mwinX11Pens pens = {0};
+    mwinX11Pen* pen = mwinX11AddPen(&pens, 7, false);
+    // Tilt in valuators 0 and 1; a pressure valuator whose range is
+    // one value.
+    mwinX11SetPenAxis(pen, mwin_x11PenTiltX, 0, Fixed(-64.0), Fixed(63.0));
+    mwinX11SetPenAxis(pen, mwin_x11PenTiltY, 1, Fixed(-64.0), Fixed(63.0));
+    mwinX11SetPenAxis(pen, mwin_x11PenPressure, 2, Fixed(5.0), Fixed(5.0));
+    const uint32_t mask = 0x7u;
+    const xcb_input_fp3232_t values[3] = {Fixed(12.0), Fixed(-7.0), Fixed(5.0)};
+    mwinEvent record;
+    CHECK(mwinX11PenRecordOf(pen, mwin_x11PenPress, 1, (mwinPosition){0}, &mask, 1, values, 3,
+                             &record) == 1 &&
+              record.data.pen.tiltX == 12.0f && record.data.pen.tiltY == -7.0f &&
+              record.data.pen.pressure == 1.0f,
+          "valuators 0 and 1, and a pressure of no range pressing fully");
+    // More values than the one bit set: the reader stops at the mask's
+    // end (a sanitizer catches a word read past it).
+    const uint32_t one = 0x1u;
+    const xcb_input_fp3232_t many[4] = {Fixed(30.0), Fixed(1.0), Fixed(2.0), Fixed(3.0)};
+    CHECK(mwinX11PenRecordOf(pen, mwin_x11PenMotion, 0, (mwinPosition){0}, &one, 1, many, 4,
+                             &record) == 1 &&
+              record.data.pen.tiltX == 30.0f && record.data.pen.tiltY == -7.0f,
+          "no word read past the mask");
+}
+
 static void TestTable(void)
 {
     mwinX11Pens pens = {0};
@@ -173,6 +203,7 @@ int main(void)
     TestKinds();
     TestStroke();
     TestBare();
+    TestNumbers();
     TestTable();
     return s_failures == 0 ? 0 : 1;
 }

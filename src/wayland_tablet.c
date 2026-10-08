@@ -34,9 +34,9 @@ static void OnType(void* data, struct zwp_tablet_tool_v2* object, uint32_t type)
     mwinWaylandTool* tool = ToolOf(data);
     tool->eraser = type == ZWP_TABLET_TOOL_V2_TYPE_ERASER;
     // Pucks and fingers post pens without tilt: nothing else reaches the
-    // program from them.
-    tool->tilts = tool->tilts && type != ZWP_TABLET_TOOL_V2_TYPE_MOUSE &&
-                  type != ZWP_TABLET_TOOL_V2_TYPE_LENS && type != ZWP_TABLET_TOOL_V2_TYPE_FINGER;
+    // program from them. The type may come before the capabilities.
+    tool->puck = type == ZWP_TABLET_TOOL_V2_TYPE_MOUSE || type == ZWP_TABLET_TOOL_V2_TYPE_LENS ||
+                 type == ZWP_TABLET_TOOL_V2_TYPE_FINGER;
     tool->pen.flags = tool->eraser ? mwin_penEraser : 0;
 }
 
@@ -154,7 +154,7 @@ static void OnTilt(void* data, struct zwp_tablet_tool_v2* object, wl_fixed_t x, 
 {
     (void)object;
     mwinWaylandTool* tool = ToolOf(data);
-    if (tool->tilts)
+    if (tool->tilts && !tool->puck)
     {
         tool->pen.tiltX = (float)wl_fixed_to_double(x);
         tool->pen.tiltY = (float)wl_fixed_to_double(y);

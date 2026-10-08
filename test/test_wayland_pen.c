@@ -7,7 +7,10 @@
 // the window's cursor shape set for it; it presses down with half the
 // pressure, clicks its barrel button, and lifts, the button's release
 // before the lift; the eraser comes near with its flag and no tilt, and
-// leaving while down lifts it. No mouse record comes from any of it.
+// leaving while down lifts it; motion alone and coming near alone are
+// told; a puck has no tilt and presses fully; a tool removed while down
+// lifts; the tablet removed, and a window gone with the pen near it,
+// trouble nothing. No mouse record comes from any of it.
 // Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -33,6 +36,13 @@ typedef enum Phase
     phaseUp,
     phaseEraser,
     phaseLeft,
+    phaseHover,
+    phaseMoved,
+    phaseNearOnly,
+    phaseMouse,
+    phaseRemoved,
+    phaseGone,
+    phaseQuiet,
     phaseDone,
 } Phase;
 
@@ -103,13 +113,86 @@ static bool Ready(const Program* program)
                ServerCursor(&s_server).toolShape == WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
     case phaseUp:
     case phaseLeft:
+    case phaseRemoved:
         return Find(program, mwin_eventPenUp) >= 0;
+    case phaseHover:
+    case phaseMoved:
+    case phaseNearOnly:
+        return Find(program, mwin_eventPenMoved) >= 0;
+    case phaseMouse:
+        return Find(program, mwin_eventPenDown) >= 0;
+    case phaseGone:
+        return Find(program, mwin_eventWindowDestroyed) >= 0;
+    case phaseQuiet:
+        // Long enough for a motion the compositor sent to arrive.
+        return NowNs() - program->startNs > 200000000u;
     default:
         return false;
     }
 }
 
-static void AdvanceLate(Program* program)
+// The last phases: motion alone, coming near alone, a puck, a tool and
+// the tablet removed, and a window going with a pen near it.
+static void AdvanceLast(Program* program, mwinContext* context)
+{
+    TabletChange change = Change();
+    const mwinPenEvent* pen = nullptr;
+    switch (program->phase)
+    {
+    case phaseHover:
+        change.moves = true;
+        change.x = 2.0;
+        change.y = 3.0;
+        TabletSend(&program->tablet, tabletPen, change);
+        break;
+    case phaseMoved:
+        pen = PenOf(program, mwin_eventPenMoved);
+        CHECK(Near(pen->position.x, 2.0f) && Near(pen->position.y, 3.0f),
+              "motion alone moves the pen");
+        change.left = true;
+        TabletSend(&program->tablet, tabletPen, change);
+        change = Change();
+        change.near = true;
+        TabletSend(&program->tablet, tabletPen, change);
+        break;
+    case phaseNearOnly:
+        pen = PenOf(program, mwin_eventPenMoved);
+        CHECK(Near(pen->position.x, 2.0f) && pen->flags == 0, "coming near alone is told");
+        change.near = true;
+        change.moves = true;
+        change.x = 4.0;
+        change.y = 4.0;
+        change.tiltX = 20.0;
+        change.tiltY = 20.0;
+        change.down = true;
+        TabletSend(&program->tablet, tabletMouse, change);
+        break;
+    case phaseMouse:
+        pen = PenOf(program, mwin_eventPenDown);
+        CHECK(pen->tiltX == 0.0f && pen->tiltY == 0.0f && pen->pressure == 1.0f &&
+                  pen->flags == mwin_penContact,
+              "a puck: no tilt, and pressing fully without a pressure axis");
+        TabletRemoveTool(&program->tablet, tabletMouse);
+        break;
+    case phaseRemoved:
+        CHECK(PenOf(program, mwin_eventPenUp)->flags == 0, "a tool removed while down lifts");
+        TabletRemoveTablet(&program->tablet);
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success,
+              "the window goes with the pen near");
+        break;
+    case phaseGone:
+        change.moves = true;
+        change.x = 5.0;
+        change.y = 5.0;
+        TabletSend(&program->tablet, tabletPen, change);
+        break;
+    default:
+        CHECK(Find(program, mwin_eventPenMoved) < 0, "no pen record for a window gone");
+        break;
+    }
+}
+
+static void AdvanceLate(Program* program, mwinContext* context)
 {
     TabletChange change = Change();
     const mwinPenEvent* pen = nullptr;
@@ -143,16 +226,25 @@ static void AdvanceLate(Program* program)
         change.left = true;
         TabletSend(&program->tablet, tabletEraser, change);
         break;
-    default:
+    case phaseLeft:
         CHECK(PenOf(program, mwin_eventPenDown) != nullptr &&
                   PenOf(program, mwin_eventPenDown)->flags == (mwin_penEraser | mwin_penContact) &&
                   PenOf(program, mwin_eventPenUp)->flags == mwin_penEraser,
               "leaving while down lifts the eraser");
+        change.near = true;
+        change.moves = true;
+        change.x = 1.0;
+        change.y = 1.0;
+        change.pressure = 0;
+        TabletSend(&program->tablet, tabletPen, change);
+        break;
+    default:
+        AdvanceLast(program, context);
         break;
     }
 }
 
-static void Advance(Program* program)
+static void Advance(Program* program, mwinContext* context)
 {
     TabletChange change = Change();
     const mwinPenEvent* pen = nullptr;
@@ -200,7 +292,7 @@ static void Advance(Program* program)
         TabletSend(&program->tablet, tabletPen, change);
         break;
     default:
-        AdvanceLate(program);
+        AdvanceLate(program, context);
         break;
     }
     program->phase += 1;
@@ -234,7 +326,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     if (Ready(program))
     {
-        Advance(program);
+        Advance(program, context);
     }
     else if (NowNs() - program->startNs > DEADLINE_NS)
     {

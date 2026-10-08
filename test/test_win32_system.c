@@ -4,7 +4,8 @@
 // The Win32 backend's system facts: read at start as the user's
 // registry and settings say, and read again when Windows announces a
 // change: at start the theme, the motion and snap layouts as Windows
-// has them. The test sets a dark theme, an accent, a text scale and no
+// has them. The test sets a theme, an accent and a text scale other
+// than the user's (dark, or light where the user's is dark) and no
 // animations, tells its window, checks the facts, the record and the
 // title bar, and puts every setting back.
 
@@ -54,6 +55,10 @@ typedef struct Program
     mwinWindowId window;
     HWND hwnd;
     Setting settings[3];
+    // What the test sets, each other than the user's.
+    DWORD light;
+    DWORD accent;
+    DWORD scale;
     BOOL animations;
     bool animationsSet;
     bool changed;
@@ -142,15 +147,20 @@ static void CheckStart(mwinContext* context, const Program* program)
 static void CheckChanged(mwinContext* context, const Program* program)
 {
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == mwin_themeDark &&
-              facts.hasAccent && facts.accent == 0x112233FFu && facts.textScale == 1.5f,
-          "a dark theme, the accent and the text scale");
+    mwinTheme theme = program->light != 0 ? mwin_themeLight : mwin_themeDark;
+    // The accent as 0xAABBGGRR, from Windows' 0xAARRGGBB.
+    uint32_t accent = (program->accent & 0xFFu) << 24 | ((program->accent >> 8) & 0xFFu) << 16 |
+                      ((program->accent >> 16) & 0xFFu) << 8 | 0xFFu;
+    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == theme &&
+              facts.hasAccent && facts.accent == accent &&
+              facts.textScale == (float)program->scale / 100.0f,
+          "the theme, the accent and the text scale set");
     CHECK(!program->animationsSet || facts.reducedMotion, "no animations: less motion");
-    // Where Windows reports the attribute, the frame is dark.
+    // Where Windows reports the attribute, the frame follows the theme.
     BOOL dark = FALSE;
     CHECK(DwmGetWindowAttribute(program->hwnd, DARK_MODE_ATTRIBUTE, &dark, sizeof(dark)) != S_OK ||
-              dark,
-          "a dark title bar");
+              (dark != FALSE) == (theme == mwin_themeDark),
+          "the title bar as dark as the theme");
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -164,9 +174,9 @@ static void Advance(Program* program, mwinContext* context)
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
         CheckStart(context, program);
-        Set(&program->settings[0], 0);
-        Set(&program->settings[1], 0xFF332211u);
-        Set(&program->settings[2], 150);
+        Set(&program->settings[0], program->light);
+        Set(&program->settings[1], program->accent);
+        Set(&program->settings[2], program->scale);
         program->animationsSet =
             SystemParametersInfoW(SPI_SETCLIENTAREAANIMATION, 0, (PVOID)(UINT_PTR)FALSE, 0);
         SendMessageW(program->hwnd, WM_SETTINGCHANGE, 0, (LPARAM)L"ImmersiveColorSet");
@@ -234,6 +244,11 @@ int main(void)
     {
         Save(&program.settings[i]);
     }
+    // Each other than the user's, so Windows' announcement changes them.
+    const Setting* saved = program.settings;
+    program.light = saved[0].present && saved[0].value == 0 ? 1 : 0;
+    program.accent = saved[1].present && saved[1].value == 0xFF332211u ? 0xFF665544u : 0xFF332211u;
+    program.scale = saved[2].present && saved[2].value == 150 ? 175 : 150;
     program.animations = TRUE;
     (void)SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &program.animations, 0);
     mwinAppDef def = mwinDefaultAppDef();

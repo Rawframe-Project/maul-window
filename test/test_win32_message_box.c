@@ -10,6 +10,7 @@
 
 #include "maul-window/services.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -64,8 +65,27 @@ static bool IsAsked(HWND box, const Box* asked)
     return true;
 }
 
+// Prints what the box shows where it is not the one asked for.
+static void Describe(HWND box)
+{
+    static WCHAR title[MWIN_MESSAGE_TITLE_BYTES + 1];
+    (void)GetWindowTextW(box, title, MWIN_MESSAGE_TITLE_BYTES + 1);
+    (void)printf("box \"%.40ls\":", title);
+    for (HWND child = GetWindow(box, GW_CHILD); child != nullptr;
+         child = GetWindow(child, GW_HWNDNEXT))
+    {
+        WCHAR name[32];
+        WCHAR text[48];
+        (void)GetClassNameW(child, name, 32);
+        (void)GetWindowTextW(child, text, 48);
+        (void)printf(" [%ls %d \"%.40ls\"]", name, GetDlgCtrlID(child), text);
+    }
+    (void)printf("\n");
+}
+
 // Waits for the box, notes whether it is the one asked for, and presses
-// the button; a box never found is left to the deadline.
+// the button; a box that never shows or does not close ends the test,
+// which would wait on it forever.
 static DWORD WINAPI Answer(void* data)
 {
     Box* asked = data;
@@ -78,7 +98,8 @@ static DWORD WINAPI Answer(void* data)
     }
     if (box == nullptr)
     {
-        return 1;
+        (void)printf("FAIL: no box shown\n");
+        ExitProcess(1);
     }
     // Its controls come with it, but a frame may pass before they are all
     // there.
@@ -87,8 +108,29 @@ static DWORD WINAPI Answer(void* data)
         Sleep(20);
     }
     asked->shown = IsAsked(box, asked);
-    PostMessageW(box, WM_COMMAND, MAKEWPARAM(asked->press, BN_CLICKED),
-                 (LPARAM)GetDlgItem(box, asked->press));
+    if (!asked->shown)
+    {
+        Describe(box);
+    }
+    HWND button = GetDlgItem(box, asked->press);
+    if (button != nullptr)
+    {
+        (void)PostMessageW(button, BM_CLICK, 0, 0);
+    }
+    else
+    {
+        (void)PostMessageW(box, WM_CLOSE, 0, 0);
+    }
+    startMs = GetTickCount64();
+    while (IsWindow(box) && GetTickCount64() - startMs < DEADLINE_MS)
+    {
+        Sleep(20);
+    }
+    if (IsWindow(box))
+    {
+        (void)printf("FAIL: the box did not close\n");
+        ExitProcess(1);
+    }
     return 0;
 }
 

@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-08
+
+A fix the mutation sweep of 0.9.0's additions found.
+
 ### Fixed
 
 - On Wayland a tablet's mouse or lens tool told tilt when the

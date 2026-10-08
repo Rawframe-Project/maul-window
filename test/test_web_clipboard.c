@@ -4,13 +4,15 @@
 // The web backend's clipboard in headless Chrome (test/web_runner.cjs
 // grants the page the clipboard): text written, a NUL within it, and
 // read back; text the page put there with a lone surrogate read with
-// U+FFFD; text past the limit too large; a refusal denied, the last
-// text kept; a read whose window went answered for no one, its text
-// taken, so the next window's read has the clipboard's text now. Data
+// U+FFFD; text of the limit read whole, text past it too large; a
+// refusal denied, the last text kept; a read whose window went answered
+// for no one, its text taken, so the next window's read has the
+// clipboard's text now, and reading it again holds no more memory. Data
 // (mwin-0029): a custom type, a PNG and text written together; the
 // custom type read back as it was, the PNG as a PNG (the browser encodes
-// it again), the text as text; a type the clipboard lacks fails; the
-// primary selection is unsupported.
+// it again), the text as text; a type the clipboard lacks fails. Writes,
+// data writes and data reads refused denied; each unsupported on a page
+// without the clipboard's API; the primary selection is unsupported.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -18,6 +20,8 @@
 #include "maul-window/clipboard.h"
 #include "maul-window/event.h"
 
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define DEADLINE_MS 10000.0
@@ -29,17 +33,26 @@ typedef enum Phase
     phaseWrite,
     phaseRead,
     phaseSurrogate,
+    phaseExact,
     phaseTooLarge,
     phaseDenied,
     phaseGone,
     phaseWait,
     phaseCreateAgain,
     phaseAgain,
+    phaseSame,
     phaseWriteData,
     phaseReadCustom,
     phaseReadPng,
     phaseReadText,
     phaseMissing,
+    phaseWriteDenied,
+    phaseDataWriteDenied,
+    phaseDataReadDenied,
+    phaseNoWrite,
+    phaseNoRead,
+    phaseNoDataWrite,
+    phaseNoDataRead,
     phasePrimary,
     phaseDone,
 } Phase;
@@ -60,7 +73,7 @@ typedef struct Program
 // clang-format off
 // Puts text on the clipboard as another program would; Placed says when.
 EM_JS(void, Place, (int which), {
-    const texts = ['A\uD800B', 'x'.repeat(300), 'last'];
+    const texts = ['A\uD800B', 'x'.repeat(300), 'last', 'x'.repeat(256)];
     globalThis.mwinPlaced = false;
     navigator.clipboard.writeText(texts[which]).then(() => globalThis.mwinPlaced = true);
 });
@@ -69,16 +82,45 @@ EM_JS(bool, Placed, (void), {
     return globalThis.mwinPlaced === true;
 });
 
-// Refuses reads as a page without permission would, or stops refusing.
-EM_JS(void, Refuse, (bool refuse), {
-    if (refuse) {
-        navigator.clipboard.readText =
-            () => Promise.reject(new DOMException('refused', 'NotAllowedError'));
-    } else {
-        delete navigator.clipboard.readText;
+// The page's clipboard as it is (0), refusing everything as a page
+// without permission would (1), or without its API (2).
+EM_JS(void, SetClipboard, (int how), {
+    const refuse = () => Promise.reject(new DOMException('refused', 'NotAllowedError'));
+    for (const name of ['readText', 'writeText', 'read', 'write']) {
+        if (how === 0) {
+            delete navigator.clipboard[name];
+        } else {
+            navigator.clipboard[name] = how === 1 ? refuse : undefined;
+        }
     }
 });
 // clang-format on
+
+// The bytes the context holds of its allocator.
+static size_t s_live;
+static size_t s_baseline;
+
+static void* Allocate(size_t size, size_t alignment, void* context)
+{
+    (void)context;
+    // aligned_alloc takes no alignment under a pointer's.
+    void* memory = alignment <= alignof(max_align_t)
+                       ? malloc(size)
+                       : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
+    s_live += memory != nullptr ? size : 0;
+    return memory;
+}
+
+static void Free(void* memory, size_t size, size_t alignment, void* context)
+{
+    (void)alignment;
+    (void)context;
+    if (memory != nullptr)
+    {
+        s_live -= size;
+        free(memory);
+    }
+}
 
 static const char s_written[] = "h\xC3\xA9llo\0 \xF0\x9F\x98\x80";
 
@@ -107,6 +149,14 @@ static int Outcome(Program* program, mwinContext* context)
         }
     }
     return outcome;
+}
+
+// Whether the clipboard's text is the limit's bytes of x.
+static bool FoundExact(mwinContext* context)
+{
+    char expected[LIMIT];
+    memset(expected, 'x', sizeof(expected));
+    return Found(context, expected, sizeof(expected));
 }
 
 static void Read(Program* program, mwinContext* context)
@@ -149,15 +199,78 @@ static void ReadData(Program* program, mwinContext* context, const char* mime)
           "a data read");
 }
 
+static void Write(Program* program, mwinContext* context)
+{
+    CHECK(mwinRequestClipboardWrite(context, program->window, "no", 2, &program->request) ==
+              mwin_success,
+          "a write");
+}
+
+static void WriteData(Program* program, mwinContext* context)
+{
+    mwinClipboardItem item = {"image/png", 9, s_png, sizeof(s_png)};
+    CHECK(mwinRequestClipboardWriteData(context, program->window, &item, 1, &program->request) ==
+              mwin_success,
+          "a data write");
+}
+
+// The phases of a page that refuses, then of one without the API.
+static void AdvanceRefused(Program* program, mwinContext* context, int outcome)
+{
+    switch (program->phase)
+    {
+    case phaseWriteDenied:
+        CHECK(outcome == mwin_outcomeDenied, "a refused write denied");
+        WriteData(program, context);
+        break;
+    case phaseDataWriteDenied:
+        CHECK(outcome == mwin_outcomeDenied, "a refused data write denied");
+        ReadData(program, context, "image/png");
+        break;
+    case phaseDataReadDenied:
+        CHECK(outcome == mwin_outcomeDenied, "a refused data read denied");
+        SetClipboard(2);
+        Write(program, context);
+        break;
+    case phaseNoWrite:
+        CHECK(outcome == mwin_outcomeUnsupported, "no write without the page's API");
+        Read(program, context);
+        break;
+    case phaseNoRead:
+        CHECK(outcome == mwin_outcomeUnsupported, "no read without it");
+        WriteData(program, context);
+        break;
+    case phaseNoDataWrite:
+        CHECK(outcome == mwin_outcomeUnsupported, "no data write without it");
+        ReadData(program, context, "image/png");
+        break;
+    case phaseNoDataRead:
+        CHECK(outcome == mwin_outcomeUnsupported, "no data read without it");
+        SetClipboard(0);
+        CHECK(mwinRequestPrimaryRead(context, program->window, &program->request) == mwin_success,
+              "a primary read");
+        break;
+    default:
+        CHECK(outcome == mwin_outcomeUnsupported, "no primary selection");
+        break;
+    }
+}
+
 // The data phases' checks and requests.
 static void AdvanceData(Program* program, mwinContext* context, int outcome)
 {
     switch (program->phase)
     {
     case phaseAgain:
-    {
         CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4),
               "the next window reads the clipboard's text now");
+        s_baseline = s_live;
+        Read(program, context);
+        break;
+    case phaseSame:
+    {
+        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4) && s_live == s_baseline,
+              "read again, holding no more memory");
         mwinClipboardItem items[] = {
             {"image/png", 9, s_png, sizeof(s_png)},
             {"text/plain", 10, "hi", 2},
@@ -188,11 +301,11 @@ static void AdvanceData(Program* program, mwinContext* context, int outcome)
         break;
     case phaseMissing:
         CHECK(outcome == mwin_outcomeFailed, "a type the clipboard lacks fails");
-        CHECK(mwinRequestPrimaryRead(context, program->window, &program->request) == mwin_success,
-              "a primary read");
+        SetClipboard(1);
+        Write(program, context);
         break;
     default:
-        CHECK(outcome == mwin_outcomeUnsupported, "no primary selection");
+        AdvanceRefused(program, context, outcome);
         break;
     }
 }
@@ -222,20 +335,21 @@ static void Advance(Program* program, mwinContext* context, int outcome)
                                                    "B",
                                                    5),
               "a lone surrogate read as U+FFFD");
+        Place(3);
+        break;
+    case phaseExact:
+        CHECK(outcome == mwin_outcomeDone && FoundExact(context), "text of the limit read whole");
         Place(1);
         break;
     case phaseTooLarge:
         CHECK(outcome == mwin_outcomeTooLarge, "text past the limit too large");
-        Refuse(true);
+        SetClipboard(1);
         Read(program, context);
         break;
     case phaseDenied:
-        CHECK(outcome == mwin_outcomeDenied && Found(context,
-                                                     "A\xEF\xBF\xBD"
-                                                     "B",
-                                                     5),
+        CHECK(outcome == mwin_outcomeDenied && FoundExact(context),
               "a refusal denied, the last text kept");
-        Refuse(false);
+        SetClipboard(0);
         Read(program, context);
         CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroy");
         break;
@@ -267,6 +381,7 @@ static bool Ready(Program* program, mwinContext* context, int outcome)
     switch (program->phase)
     {
     case phaseSurrogate:
+    case phaseExact:
     case phaseTooLarge:
     case phaseAgain:
         if (!program->reading && Placed())
@@ -325,6 +440,7 @@ int main(void)
     static Program program;
     mwinAppDef def = mwinDefaultAppDef();
     def.context.limits.clipboardBytes = LIMIT;
+    def.context.allocator = (mwinAllocator){Allocate, Free, nullptr};
     def.init = Init;
     def.frame = Frame;
     def.quit = Quit;

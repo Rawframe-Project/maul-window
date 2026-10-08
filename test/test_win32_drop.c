@@ -5,10 +5,11 @@
 // would drive it, with a data object of the test's: a drag of files and
 // text reported where it enters and moves, a drag over that has not
 // moved not reported again, and a drop delivering the paths, a path
-// with a lone surrogate left out, and the text repaired; a drag of
-// neither refused and not reported; a drag that leaves. Then, with the
-// thread made multithreaded first so OLE cannot start, files dropped
-// through WM_DROPFILES.
+// with a lone surrogate left out, and the text repaired, its memory left
+// unlocked; a drag of neither refused and not reported; a drag that
+// leaves; no interface but the target's own. Then, with the thread made
+// multithreaded first so OLE cannot start, files dropped through
+// WM_DROPFILES, and a drop of good paths alone not truncated.
 
 // The interfaces' function tables const, as the test's are.
 #define CONST_VTABLE
@@ -33,6 +34,9 @@ typedef struct Data
     IDataObject object;
     bool files;
     bool text;
+    // The text's memory, lent rather than given: its release is the
+    // object's, so the test sees whether it was left locked.
+    HGLOBAL lent;
 } Data;
 
 typedef struct Program
@@ -103,8 +107,14 @@ static HRESULT STDMETHODCALLTYPE DataGet(IDataObject* object, FORMATETC* format,
         return DV_E_FORMATETC;
     }
     *medium = (STGMEDIUM){.tymed = TYMED_HGLOBAL};
-    medium->hGlobal =
-        format->cfFormat == CF_HDROP ? Files((POINT){0, 0}) : Global(text, sizeof(text), 0);
+    if (format->cfFormat == CF_HDROP)
+    {
+        medium->hGlobal = Files((POINT){0, 0});
+        return S_OK;
+    }
+    medium->hGlobal = Global(text, sizeof(text), 0);
+    medium->pUnkForRelease = (IUnknown*)(void*)object;
+    DataOf(object)->lent = medium->hGlobal;
     return S_OK;
 }
 
@@ -216,9 +226,9 @@ static bool Paths(mwinContext* context, uint32_t drop)
 static void Drag(Program* program, mwinContext* context, IDropTarget* target, HWND hwnd,
                  float scale)
 {
-    Data both = {{&s_data}, true, true};
-    Data neither = {{&s_data}, false, false};
-    Data files = {{&s_data}, true, false};
+    Data both = {{&s_data}, true, true, nullptr};
+    Data neither = {{&s_data}, false, false, nullptr};
+    Data files = {{&s_data}, true, false, nullptr};
     DWORD effect = DROPEFFECT_COPY;
     target->lpVtbl->DragEnter(target, &both.object, 0, Screen(hwnd, 10, 20), &effect);
     CHECK(effect == DROPEFFECT_COPY, "a drag of files and text taken");
@@ -240,6 +250,16 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
                   mwin_success &&
               length == 6 && memcmp(text, "hi\xEF\xBF\xBD!", 6) == 0,
           "the paths, one with a lone surrogate left out, and the text repaired");
+    CHECK(both.lent != nullptr && (GlobalFlags(both.lent) & GMEM_LOCKCOUNT) == 0,
+          "the text's memory left unlocked");
+    GlobalFree(both.lent);
+    void* other = &effect;
+    void* self = nullptr;
+    CHECK(target->lpVtbl->QueryInterface(target, &IID_IDataObject, &other) == E_NOINTERFACE &&
+              other == nullptr &&
+              target->lpVtbl->QueryInterface(target, &IID_IDropTarget, &self) == S_OK &&
+              self == target,
+          "no interface but the target's own");
     effect = DROPEFFECT_COPY;
     target->lpVtbl->DragEnter(target, &neither.object, 0, Screen(hwnd, 5, 5), &effect);
     target->lpVtbl->DragLeave(target);
@@ -263,6 +283,16 @@ static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float s
               program->records[0].data.drop.fileCount == 2 &&
               Paths(context, program->records[0].data.drop.drop),
           "files dropped through WM_DROPFILES");
+    static const WCHAR good[] = L"C:\\a.txt\0";
+    HGLOBAL memory = Global(good, sizeof(good), sizeof(DROPFILES));
+    DROPFILES* header = GlobalLock(memory);
+    *header = (DROPFILES){.pFiles = sizeof(DROPFILES), .pt = {15, 25}, .fWide = TRUE};
+    GlobalUnlock(memory);
+    SendMessageW(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
+    Collect(program, context);
+    CHECK(program->count == 1 && program->records[0].data.drop.fileCount == 1 &&
+              !program->records[0].data.drop.truncated,
+          "a drop of good paths alone not truncated");
 }
 
 static void Check(Program* program, mwinContext* context)

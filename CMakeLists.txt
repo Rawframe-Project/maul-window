@@ -569,7 +569,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # shared.
         # The drop target driven as OLE would, and WM_DROPFILES.
         maul_add_test(win32_drop WHITEBOX)
-        target_link_libraries(test_win32_drop PRIVATE user32 ole32 shell32)
+        target_link_libraries(test_win32_drop PRIVATE user32 ole32 shell32 uuid)
         # The system clipboard, shared by the whole desktop.
         maul_add_test(win32_clipboard)
         target_link_libraries(test_win32_clipboard PRIVATE user32)

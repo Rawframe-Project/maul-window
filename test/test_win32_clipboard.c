@@ -6,8 +6,10 @@
 // put there is read, a lone surrogate replaced; a clipboard without text
 // reads as empty; text past the limit is too large. Data (mwin-0029)
 // lands as registered formats, image/png as "PNG", beside its text, and
-// alone without text; another program's PNG is read; a type the
-// clipboard lacks fails; the primary selection is unsupported.
+// alone without text, an empty item among them; another program's PNG
+// is read; a type the clipboard lacks fails; the primary selection is
+// unsupported. While another thread holds the clipboard open, reads and
+// writes fail.
 
 #include "test_harness.h"
 
@@ -138,6 +140,42 @@ static int ReadData(mwinContext* context, mwinWindowId window, const char* mime)
                : -1;
 }
 
+// Holds the clipboard open on its own thread until told to let go.
+static DWORD WINAPI Hold(void* data)
+{
+    HANDLE* events = data;
+    bool held = OpenClipboard(nullptr);
+    SetEvent(events[0]);
+    if (held)
+    {
+        WaitForSingleObject(events[1], INFINITE);
+        CloseClipboard();
+    }
+    return held ? 0 : 1;
+}
+
+static void CheckHeld(mwinContext* context, mwinWindowId window)
+{
+    HANDLE events[2] = {CreateEventW(nullptr, TRUE, FALSE, nullptr),
+                        CreateEventW(nullptr, TRUE, FALSE, nullptr)};
+    HANDLE thread = CreateThread(nullptr, 0, Hold, events, 0, nullptr);
+    WaitForSingleObject(events[0], INFINITE);
+    mwinRequestId request = {0};
+    CHECK(Read(context, window) == mwin_outcomeFailed &&
+              ReadData(context, window, "image/png") == mwin_outcomeFailed &&
+              mwinRequestClipboardWrite(context, window, "x", 1, &request) == mwin_success &&
+              Outcome(context, request) == mwin_outcomeFailed,
+          "while another thread holds the clipboard, reads and writes fail");
+    SetEvent(events[1]);
+    DWORD held = 1;
+    WaitForSingleObject(thread, INFINITE);
+    (void)GetExitCodeThread(thread, &held);
+    CHECK(held == 0, "the other thread held the clipboard");
+    CloseHandle(thread);
+    CloseHandle(events[0]);
+    CloseHandle(events[1]);
+}
+
 static void CheckData(mwinContext* context, mwinWindowId window)
 {
     static const uint8_t other[] = {'o', 't', 'h', 'e', 'r'};
@@ -157,6 +195,11 @@ static void CheckData(mwinContext* context, mwinWindowId window)
               Outcome(context, request) == mwin_outcomeDone &&
               HoldsData(png, s_png, sizeof(s_png)) && !IsClipboardFormatAvailable(CF_UNICODETEXT),
           "data alone without text");
+    mwinClipboardItem empty[] = {items[0], {"application/x-empty", 19, "", 0}};
+    CHECK(mwinRequestClipboardWriteData(context, window, empty, 2, &request) == mwin_success &&
+              Outcome(context, request) == mwin_outcomeDone &&
+              IsClipboardFormatAvailable(RegisterClipboardFormatW(L"application/x-empty")),
+          "an empty item written too");
     CHECK(OpenClipboard(nullptr) && EmptyClipboard(), "open the clipboard");
     HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, sizeof(other));
     memcpy(GlobalLock(memory), other, sizeof(other));
@@ -197,6 +240,7 @@ static void Check(mwinContext* context, mwinWindowId window)
     Put(large, LIMIT + 2);
     CHECK(Read(context, window) == mwin_outcomeTooLarge, "text past the limit too large");
     CheckData(context, window);
+    CheckHeld(context, window);
 }
 
 static mwinResult Init(mwinContext* context, void* user)

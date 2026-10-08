@@ -6,11 +6,14 @@
 // frames: a standard pad and a raw one found with their names, vendors
 // and products from Chrome's and Firefox's ids; their controls posted
 // when their timestamps move and not before, the standard mapping's
-// buttons, sticks and analog triggers placed, raw values kept in range;
+// buttons, sticks and analog triggers placed, a trigger held not posted
+// again, raw values kept in range;
 // dual-rumble played and reset; a pad with trigger-rumble given trigger
 // rumble, its grips' rumble played with the triggers' as one effect,
-// and the triggers played on alone once the grips' time ran out; a pad
-// swapped for another at its index between two frames, and one gone.
+// and the triggers played on alone once the grips' time ran out, or
+// once the grips were stopped; a pad swapped for another at its index
+// between two frames, its name of the most bytes kept whole, and one
+// gone.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -61,6 +64,8 @@ EM_JS(void, Install, (void), {
         pad(1, '54c-9cc-Wireless Controller', "", 3, 2, null),
         pad(2, 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)',
             'standard', 17, 4, triggers)];
+    // The standard pad's left trigger held from the start.
+    pads[0].buttons[6].value = 0.25;
     globalThis.mwinPads = {pad, pads, effects};
     Object.defineProperty(navigator, 'getGamepads', {value: () => pads, configurable: true});
 });
@@ -112,7 +117,7 @@ EM_JS(double, NowMs, (void), {
 EM_JS(void, Swap, (void), {
     const state = globalThis.mwinPads;
     const old = state.pads[0];
-    state.pads[0] = state.pad(0, 'Plain Pad', 'standard', 17, 4, null);
+    state.pads[0] = state.pad(0, 'Plain Pad'.padEnd(64, '.'), 'standard', 17, 4, null);
     state.pads[1] = null;
     window.dispatchEvent(Object.assign(new Event('gamepaddisconnected'), {gamepad: old}));
 });
@@ -189,6 +194,8 @@ static void CheckFound(Program* program, mwinContext* context)
               info.vendor == 0x045e && info.product == 0x028e &&
               info.capabilities == mwin_padRumble && info.battery == -1,
           "the standard pad: Chrome's id, mapped, with rumble");
+    CHECK(Axis(program, program->standard, mwin_padTriggerLeft, 0.25f),
+          "its trigger held from the start, posted as it is found");
     CHECK(Named(context, program->raw, "Wireless Controller", &info) && !info.mapped &&
               info.rawButtons == 3 && info.rawAxes == 2 && info.vendor == 0x054c &&
               info.product == 0x09cc && info.capabilities == 0,
@@ -212,6 +219,9 @@ static void CheckMoved(Program* program, mwinContext* context)
     CHECK(Axis(program, pad, mwin_padStickLeftY, -1.0f) &&
               Axis(program, pad, mwin_padTriggerRight, 0.5f),
           "a stick up, a trigger half in");
+    CHECK(!Axis(program, pad, mwin_padTriggerLeft, 0.0f) &&
+              !Axis(program, pad, mwin_padTriggerLeft, 0.25f),
+          "the trigger held all along not posted again");
     CHECK(Button(program, program->raw, 2, true) && Axis(program, program->raw, 0, 1.0f) &&
               Axis(program, program->raw, 1, 0.25f),
           "raw controls by number, in range");
@@ -252,6 +262,9 @@ static void Advance(Program* program, mwinContext* context)
         }
         CHECK(LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 100, 200),
               "the grips' time out, the triggers played on alone");
+        CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 0) == mwin_success &&
+                  LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 200),
+              "the grips stopped, the triggers played on alone");
         break;
     case phaseStill:
         CHECK(program->count == 0, "an unchanged timestamp posts nothing");
@@ -263,11 +276,15 @@ static void Advance(Program* program, mwinContext* context)
         const mwinEvent* gone = Find(program, mwin_eventGamepadRemoved, 1);
         const mwinEvent* added = Find(program, mwin_eventGamepadAdded, 0);
         mwinGamepadInfo info;
-        CHECK(removed != nullptr && gone != nullptr && added != nullptr &&
-                  Same(removed->data.gamepad, program->standard) &&
-                  Same(gone->data.gamepad, program->raw) && removed < added &&
-                  Named(context, added->data.gamepad, "Plain Pad", &info) && info.vendor == 0,
-              "the swapped pad removed and the new one added, the gone one removed");
+        char name[MWIN_GAMEPAD_NAME_BYTES + 1] = "Plain Pad";
+        memset(name + 9, '.', MWIN_GAMEPAD_NAME_BYTES - 9);
+        name[MWIN_GAMEPAD_NAME_BYTES] = '\0';
+        CHECK(
+            removed != nullptr && gone != nullptr && added != nullptr &&
+                Same(removed->data.gamepad, program->standard) &&
+                Same(gone->data.gamepad, program->raw) && removed < added &&
+                Named(context, added->data.gamepad, name, &info) && info.vendor == 0,
+            "the swapped pad removed and the new one added, its name whole, the gone one removed");
         break;
     }
     }

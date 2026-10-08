@@ -26,8 +26,8 @@ jobs:
           sudo apt-get update -q
           # clang without its recommends: llvm-20-dev alone is 50 MB.
           sudo apt-get install -y -q --no-install-recommends clang-20 clang-tidy-20
-          sudo apt-get install -y -q ninja-build libwayland-dev wayland-protocols \
-            libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
+          sudo apt-get install -y -q --no-install-recommends ninja-build libwayland-dev \
+            wayland-protocols libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
             libxcb-xinput-dev libxkbcommon-x11-dev libxcb-xtest0-dev libxcb-xfixes0-dev
           pip install clang-format==22.1.5 >/dev/null
       - name: clang-format
@@ -98,8 +98,10 @@ jobs:
           # clang without its recommends (llvm-20-dev alone is 50 MB, which a
           # slow mirror took past the timeout), with the sanitizers' runtime.
           sudo apt-get install -y -q --no-install-recommends clang-20 libclang-rt-20-dev
-          sudo apt-get install -y -q gcc-14 g++-14 ninja-build libwayland-dev \
-            wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
+          # The rest without theirs too: weston's pulled in Mesa's Vulkan and
+          # video drivers, GStreamer and a 27 MB speech model.
+          sudo apt-get install -y -q --no-install-recommends gcc-14 g++-14 ninja-build \
+            libwayland-dev wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
             libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev libxcb-xinput-dev \
             libxkbcommon-x11-dev libxcb-xtest0-dev libxcb-xfixes0-dev xvfb
       - name: Configure

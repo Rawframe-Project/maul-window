@@ -150,7 +150,8 @@ if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
 if(MAUL_WINDOW_TEST_BACKEND)
-    target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_services.c)
+    target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_services.c
+        src/backend_test_text.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
 endif()
 # The gamepad component: its functions, and the backends' gamepad code.

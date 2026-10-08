@@ -30,6 +30,7 @@ typedef struct PlatformParts
     size_t pending;
     size_t pads;
     size_t cursors;
+    size_t texts;
 } PlatformParts;
 
 static uint32_t PendingCapacity(const mwinLimits* limits)
@@ -47,6 +48,8 @@ static PlatformParts PartsOf(const mwinLimits* limits)
         mwinLayoutAdd(&parts.layout, limits->gamepads, sizeof(mwinTestPad), alignof(mwinTestPad));
     parts.cursors = mwinLayoutAdd(&parts.layout, limits->windows, sizeof(mwinTestCursor),
                                   alignof(mwinTestCursor));
+    parts.texts =
+        mwinLayoutAdd(&parts.layout, limits->windows, sizeof(mwinTestText), alignof(mwinTestText));
     return parts;
 }
 
@@ -72,6 +75,7 @@ static mwinResult Start(mwinContext* context)
     platform->pendingCapacity = PendingCapacity(&context->limits);
     platform->pads = (mwinTestPad*)(block + parts.pads);
     platform->cursors = (mwinTestCursor*)(block + parts.cursors);
+    platform->texts = (mwinTestText*)(block + parts.texts);
     platform->scale = 1.0f;
     context->backendData = platform;
     return mwin_success;
@@ -132,6 +136,7 @@ static void CreateWindow(mwinContext* context, uint32_t slot)
 static void DestroyWindow(mwinContext* context, uint32_t slot)
 {
     mwinTestPlatformOf(context)->cursors[slot] = (mwinTestCursor){0};
+    mwinTestPlatformOf(context)->texts[slot] = (mwinTestText){0};
 }
 
 // Shows a cursor made from images over the window in a slot, taking the
@@ -292,30 +297,9 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
         Focus(context, slot);
         break;
     case mwin_requestTextInput:
-        if (!request->value.textInput.enabled && window->state.composing)
-        {
-            // Leaving text input ends the composition.
-            mwinEvent end = {0};
-            end.type = mwin_eventImePreedit;
-            end.timeNs = Now(context);
-            end.data.preedit.caret = -1;
-            mwinPost(context, slot, &end);
-        }
-        break;
     case mwin_requestVirtualKeyboard:
-    {
-        // The keyboard covers the lower two fifths of the window.
-        mwinSize size = window->state.size;
-        mwinEvent event = {0};
-        event.type = mwin_eventVirtualKeyboardChanged;
-        event.timeNs = Now(context);
-        if ((request->value.code & 0x80u) != 0)
-        {
-            event.data.rect = (mwinRect){0.0f, size.height * 0.6f, size.width, size.height * 0.4f};
-        }
-        mwinPost(context, slot, &event);
+        mwinTestCarryOutText(context, slot, request);
         break;
-    }
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardRead:
     case mwin_requestClipboardWriteData:

@@ -10,6 +10,12 @@ format.
 
 ### Added
 
+- The test backend's `mwinTestGetVirtualKeyboard` and
+  `mwinTestGetTextInput` tell what a window last had carried out of its
+  on-screen keyboard and text input requests: whether the keyboard
+  shows and for what purpose, whether the window accepts text and the
+  caret it gave (mwin-0038).
+
 - Win32 monitors report their physical size, from the EDID's preferred
   timing or its base block (a timing in centimeters, which some
   monitors give, yields to the base block), and their refresh rate

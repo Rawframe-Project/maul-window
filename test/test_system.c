@@ -118,6 +118,15 @@ static void WindowFactsStep(Program* program, mwinContext* context, int step)
         CHECK(mwinGetWindowState(context, window, &state) == mwin_success &&
                   state.safeArea.top == 44.0f && state.virtualKeyboard.height == 192.0f,
               "the state has both");
+        bool visible = false;
+        mwinInputPurpose purpose = mwin_purposeText;
+        CHECK(mwinTestGetVirtualKeyboard(context, window, &visible, &purpose) == mwin_success &&
+                  visible && purpose == mwin_purposeEmail,
+              "the test platform tells the keyboard shown for an email address");
+        CHECK(mwinTestGetVirtualKeyboard(context, window, nullptr, &purpose) == mwin_errorInvalid &&
+                  mwinTestGetVirtualKeyboard(context, (mwinWindowId){0}, &visible, &purpose) ==
+                      mwin_errorStale,
+              "its reader refuses a NULL out and a window not there");
         CHECK(mwinTestSetAnswer(context, mwin_requestVirtualKeyboard, mwin_outcomeUnsupported) ==
                       mwin_success &&
                   mwinRequestVirtualKeyboard(context, window, false, mwin_purposeUrl, nullptr) ==
@@ -128,6 +137,11 @@ static void WindowFactsStep(Program* program, mwinContext* context, int step)
     CHECK(program->eventCount == 1 &&
               program->events[0].data.completion.outcome == mwin_outcomeUnsupported,
           "answers unsupported");
+    bool visible = false;
+    mwinInputPurpose purpose = mwin_purposeText;
+    CHECK(mwinTestGetVirtualKeyboard(context, window, &visible, &purpose) == mwin_success &&
+              visible && purpose == mwin_purposeEmail,
+          "a request not carried out leaves what it read");
     program->done = true;
 }
 

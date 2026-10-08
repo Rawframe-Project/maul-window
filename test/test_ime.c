@@ -81,6 +81,12 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         CHECK(mwinGetWindowState(context, window, &state) == mwin_success && state.textInput &&
                   state.composing,
               "accepting text and composing");
+        bool enabled = false;
+        mwinRect caret = {0};
+        CHECK(mwinTestGetTextInput(context, window, &enabled, &caret) == mwin_success && enabled &&
+                  caret.x == 10.0f && caret.y == 20.0f && caret.width == 1.0f &&
+                  caret.height == 16.0f,
+              "the test platform tells the caret it was given");
         Post(context, (mwinEvent){.type = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"\xE6\xBC\xA2", 3}});
@@ -114,6 +120,12 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
                   mwinGetWindowState(context, window, &state) == mwin_success && !state.textInput &&
                   !state.composing,
               "stopping ends the composition");
+        bool enabled = true;
+        mwinRect caret = {1.0f, 1.0f, 1.0f, 1.0f};
+        CHECK(mwinTestGetTextInput(context, window, &enabled, &caret) == mwin_success && !enabled &&
+                  caret.x == 0.0f && caret.height == 0.0f &&
+                  mwinTestGetTextInput(context, window, &enabled, nullptr) == mwin_errorInvalid,
+              "and the test platform tells it stopped");
         program->done = true;
     }
 }

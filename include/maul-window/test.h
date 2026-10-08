@@ -548,6 +548,43 @@ extern "C"
                                                          mwinCursorId* cursorOut,
                                                          uint32_t* imageOut);
 
+    /// Reads what a window last had carried out of its on-screen keyboard
+    /// requests: whether the keyboard shows, and the purpose asked for
+    /// (mwin-0038). Hidden with mwin_purposeText before any.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param window      The window.
+    /// @param visibleOut  Receives whether the keyboard shows.
+    /// @param purposeOut  Receives the purpose of the text field.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetVirtualKeyboard(const mwinContext* context,
+                                                                  mwinWindowId window,
+                                                                  bool* visibleOut,
+                                                                  mwinInputPurpose* purposeOut);
+
+    /// Reads what a window last had carried out of its text input
+    /// requests: whether it accepts text, and the caret it gave, which a
+    /// platform places candidate windows by (mwin-0038). Not accepting,
+    /// with an empty caret, before any.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param window      The window.
+    /// @param enabledOut  Receives whether the window accepts text.
+    /// @param caretOut    Receives the caret, in the window's logical
+    ///                    units.
+    /// @return `mwin_success`; `mwin_errorStale` for a window that no
+    ///         longer exists; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinTestGetTextInput(const mwinContext* context,
+                                                            mwinWindowId window, bool* enabledOut,
+                                                            mwinRect* caretOut);
+
     /// Plays an accessibility client asking the window for its tree, as a
     /// screen reader would: the first time, mwin_eventAccessibilityRequested
     /// follows.

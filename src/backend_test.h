@@ -71,6 +71,17 @@ typedef struct mwinTestCursor
     uint32_t image;
 } mwinTestCursor;
 
+// What a window last asked of text input and the on-screen keyboard, as
+// carried out: whether it accepts text and its caret; whether the
+// keyboard shows and the purpose it was asked for.
+typedef struct mwinTestText
+{
+    bool enabled;
+    mwinRect caret;
+    bool keyboard;
+    mwinInputPurpose purpose;
+} mwinTestText;
+
 typedef struct mwinTestPlatform
 {
     mwinTestPending* pending;
@@ -78,6 +89,7 @@ typedef struct mwinTestPlatform
     mwinTestPad* pads;
     // One per window slot.
     mwinTestCursor* cursors;
+    mwinTestText* texts;
     uint32_t pendingCount;
     uint32_t pendingCapacity;
     mwinEvent reports[MWIN_TEST_REPORTS];
@@ -145,6 +157,11 @@ void mwinTestSetIcon(mwinContext* context, const mwinRequest* request);
 // outcome, given how it ended.
 mwinOutcome mwinTestAnswerDialog(mwinContext* context, uint32_t slot, uint32_t request,
                                  mwinOutcome outcome);
+
+// Carries out a text input or on-screen keyboard request, keeping what
+// it asked for where mwinTestGetTextInput and mwinTestGetVirtualKeyboard
+// read it.
+void mwinTestCarryOutText(mwinContext* context, uint32_t slot, const mwinRequest* request);
 
 // Gives the platform's clipboard back; the backend's stop calls it.
 void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* platform);

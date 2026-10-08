@@ -2,9 +2,10 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The Win32 backend against Windows (a CI runner's desktop, or wine):
-// the window a creation makes, the monitors, the native handles, size
-// and place as Windows reports them, maximizing, borderless full screen
-// and back, and the close button's message.
+// the window a creation makes, the monitors as Windows' own calls
+// describe them (bounds, work area, primary, scale, name, refresh), the
+// native handles, size and place as Windows reports them, maximizing,
+// borderless full screen and back, and the close button's message.
 
 #include "test_harness.h"
 
@@ -14,10 +15,106 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <stdio.h>
+#include <string.h>
 #include <windows.h>
+// After windows.h, whose types it takes.
+#include <shellscalingapi.h>
 
 // Generous: under wine on a loaded machine a phase has taken over 10 s.
 #define DEADLINE_MS 30000u
+
+// Windows' monitors, as its own calls list them.
+typedef struct Listed
+{
+    MONITORINFOEXW info[4];
+    HMONITOR handles[4];
+    int count;
+} Listed;
+
+static BOOL CALLBACK List(HMONITOR handle, HDC context, LPRECT rect, LPARAM data)
+{
+    (void)context;
+    (void)rect;
+    Listed* listed = (Listed*)data;
+    if (listed->count < 4)
+    {
+        MONITORINFOEXW* info = &listed->info[listed->count];
+        info->cbSize = sizeof(*info);
+        listed->handles[listed->count] = handle;
+        listed->count += GetMonitorInfoW(handle, (MONITORINFO*)info) ? 1 : 0;
+    }
+    return TRUE;
+}
+
+static bool SameRect(mwinPixelRect rect, RECT expected)
+{
+    return rect.x == expected.left && rect.y == expected.top &&
+           rect.width == (uint32_t)(expected.right - expected.left) &&
+           rect.height == (uint32_t)(expected.bottom - expected.top);
+}
+
+// A monitor as Windows describes it: its bounds, work area, whether it is
+// primary, its scale, its name (the display device's description, whole
+// where it fits) and its refresh rate (to the hertz Windows' settings
+// give; DisplayConfig's may be exact).
+static bool Described(const mwinMonitorInfo* info, const MONITORINFOEXW* expected, HMONITOR handle)
+{
+    UINT dpiX = 96;
+    UINT dpiY = 96;
+    float scale = GetDpiForMonitor(handle, MDT_EFFECTIVE_DPI, &dpiX, &dpiY) == S_OK
+                      ? (float)dpiX / 96.0f
+                      : 1.0f;
+    DISPLAY_DEVICEW display = {.cb = sizeof(display)};
+    char name[MWIN_MONITOR_NAME_BYTES] = {0};
+    int bytes = EnumDisplayDevicesW(expected->szDevice, 0, &display, 0)
+                    ? WideCharToMultiByte(CP_UTF8, 0, display.DeviceString, -1, name, sizeof(name),
+                                          nullptr, nullptr)
+                    : 1;
+    bool named = bytes == 0 || (info->nameLength == (uint32_t)bytes - 1 &&
+                                memcmp(info->name, name, info->nameLength) == 0);
+    DEVMODEW mode = {.dmSize = sizeof(mode)};
+    int64_t hertz = EnumDisplaySettingsW(expected->szDevice, ENUM_CURRENT_SETTINGS, &mode) &&
+                            mode.dmDisplayFrequency > 1
+                        ? mode.dmDisplayFrequency
+                        : 0;
+    int64_t off = (int64_t)info->refreshMilliHz - hertz * 1000;
+    bool refresh = hertz == 0 ? true : off > -1000 && off < 1000;
+    if (!named || !refresh)
+    {
+        (void)printf("monitor %.*s %u mHz; Windows: %s %lld Hz\n", (int)info->nameLength,
+                     info->name, info->refreshMilliHz, name, (long long)hertz);
+    }
+    return SameRect(info->bounds, expected->rcMonitor) &&
+           SameRect(info->workArea, expected->rcWork) &&
+           info->primary == ((expected->dwFlags & MONITORINFOF_PRIMARY) != 0) &&
+           info->scale == scale && named && refresh;
+}
+
+// Each monitor as Windows lists it, the primary first.
+static void CheckMonitors(mwinContext* context)
+{
+    Listed listed = {0};
+    (void)EnumDisplayMonitors(nullptr, nullptr, List, (LPARAM)&listed);
+    mwinMonitorId monitors[4];
+    size_t count = 0;
+    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success &&
+              (int)count == listed.count,
+          "as many monitors as Windows lists");
+    for (size_t i = 0; i < count; i++)
+    {
+        mwinMonitorInfo info;
+        int found = -1;
+        for (int j = 0;
+             j < listed.count && mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success;
+             j++)
+        {
+            found = SameRect(info.bounds, listed.info[j].rcMonitor) ? j : found;
+        }
+        CHECK(found >= 0 && Described(&info, &listed.info[found], listed.handles[found]) &&
+                  (i > 0 || info.primary),
+              "each monitor as Windows describes it, the primary first");
+    }
+}
 
 typedef enum Phase
 {
@@ -126,9 +223,14 @@ static void CheckCreated(const Program* program, mwinContext* context)
     size_t count = 0;
     mwinMonitorInfo info;
     CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
-              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success &&
-              info.bounds.width > 0 && info.primary && info.scale >= 1.0f,
-          "the monitors, the primary first");
+              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success,
+          "the monitors");
+    CheckMonitors(context);
+    mwinWindowState state;
+    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              state.monitor.index1 == monitors[0].index1 &&
+              state.monitor.generation == monitors[0].generation,
+          "the window on the primary monitor");
     // The runner has no HDR display: what it tells has the shape every
     // display's facts have.
     const mwinHdrFacts* hdr = &info.hdr;

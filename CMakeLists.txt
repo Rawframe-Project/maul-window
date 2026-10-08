@@ -536,7 +536,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)
-        target_link_libraries(test_win32 PRIVATE user32)
+        target_link_libraries(test_win32 PRIVATE user32 shcore)
         # Drives the desktop through SendInput.
         maul_add_test(win32_input)
         target_link_libraries(test_win32_input PRIVATE user32)
@@ -563,6 +563,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_win32_system PRIVATE user32 advapi32 dwmapi)
         # What Windows reports, read without its settings.
         maul_add_test(win32_system_facts WHITEBOX)
+        # What Windows tells of a monitor, read without one.
+        maul_add_test(win32_monitor_facts WHITEBOX)
         # One desktop: the focus, the pointer and the settings are not
         # shared.
         # The drop target driven as OLE would, and WM_DROPFILES.

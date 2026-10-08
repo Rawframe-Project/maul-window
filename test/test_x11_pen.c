@@ -183,6 +183,14 @@ static void TestNumbers(void)
                              &record) == 1 &&
               record.data.pen.tiltX == 30.0f && record.data.pen.tiltY == -7.0f,
           "no word read past the mask");
+    // Tilt down the other way round: y in valuator 0.
+    mwinX11Pen* turned = mwinX11AddPen(&pens, 8, false);
+    mwinX11SetPenAxis(turned, mwin_x11PenTiltY, 0, Fixed(-64.0), Fixed(63.0));
+    mwinX11SetPenAxis(turned, mwin_x11PenTiltX, 1, Fixed(-64.0), Fixed(63.0));
+    CHECK(mwinX11PenRecordOf(turned, mwin_x11PenMotion, 0, (mwinPosition){0}, &mask, 1, values, 3,
+                             &record) == 1 &&
+              record.data.pen.tiltY == 12.0f && record.data.pen.tiltX == -7.0f,
+          "tilt y in valuator 0");
 }
 
 static void TestTable(void)

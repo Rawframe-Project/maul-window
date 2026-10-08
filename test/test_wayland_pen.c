@@ -9,9 +9,10 @@
 // before the lift; the eraser comes near with its flag and no tilt, and
 // leaving while down lifts it; motion alone and coming near alone are
 // told; a puck has no tilt and presses fully; a tool removed while down
-// lifts; the tablet removed, and a window gone with the pen near it,
-// trouble nothing. No mouse record comes from any of it.
-// Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
+// lifts; the tablet removed troubles nothing, and the pen near a window
+// that goes is near no other, a new one in the same slot either. No
+// mouse record comes from any of it. Skipped (exit status 77) without
+// XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
 #include "wayland_tablet_server.h"
@@ -42,6 +43,7 @@ typedef enum Phase
     phaseMouse,
     phaseRemoved,
     phaseGone,
+    phaseAgain,
     phaseQuiet,
     phaseDone,
 } Phase;
@@ -123,6 +125,8 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventPenDown) >= 0;
     case phaseGone:
         return Find(program, mwin_eventWindowDestroyed) >= 0;
+    case phaseAgain:
+        return Find(program, mwin_eventWindowCreated) >= 0;
     case phaseQuiet:
         // Long enough for a motion the compositor sent to arrive.
         return NowNs() - program->startNs > 200000000u;
@@ -181,13 +185,22 @@ static void AdvanceLast(Program* program, mwinContext* context)
               "the window goes with the pen near");
         break;
     case phaseGone:
+    {
+        // A new window takes the slot the gone one had.
+        mwinWindowDef def = mwinDefaultWindowDef();
+        CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success,
+              "a new window");
+        break;
+    }
+    case phaseAgain:
         change.moves = true;
         change.x = 5.0;
         change.y = 5.0;
         TabletSend(&program->tablet, tabletPen, change);
         break;
     default:
-        CHECK(Find(program, mwin_eventPenMoved) < 0, "no pen record for a window gone");
+        CHECK(Find(program, mwin_eventPenMoved) < 0,
+              "the pen near the gone window is near no other");
         break;
     }
 }
@@ -212,6 +225,9 @@ static void AdvanceLate(Program* program, mwinContext* context)
         change.x = 5.0;
         change.y = 5.0;
         change.pressure = 0;
+        // Tilt from a tool that says it has none is left out.
+        change.tiltX = 10.0;
+        change.tiltY = 10.0;
         TabletSend(&program->tablet, tabletEraser, change);
         break;
     case phaseEraser:

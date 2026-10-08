@@ -5,7 +5,8 @@
 // the window a creation makes, the monitors as Windows' own calls
 // describe them (bounds, work area, primary, scale, name, refresh), the
 // native handles, size and place as Windows reports them, maximizing,
-// borderless full screen and back, and the close button's message.
+// borderless full screen and back, the close button's message, and the
+// process made per-monitor DPI aware.
 
 #include "test_harness.h"
 
@@ -231,6 +232,9 @@ static void CheckCreated(const Program* program, mwinContext* context)
               state.monitor.index1 == monitors[0].index1 &&
               state.monitor.generation == monitors[0].generation,
           "the window on the primary monitor");
+    CHECK(GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()) ==
+              DPI_AWARENESS_PER_MONITOR_AWARE,
+          "the process per-monitor DPI aware");
     // The runner has no HDR display: what it tells has the shape every
     // display's facts have.
     const mwinHdrFacts* hdr = &info.hdr;

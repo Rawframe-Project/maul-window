@@ -7,7 +7,8 @@
 // has them. The test sets a theme, an accent and a text scale other
 // than the user's (dark, or light where the user's is dark) and no
 // animations, tells its window, checks the facts, the record and the
-// title bar, and puts every setting back.
+// title bar, and puts every setting back. The window it leaves open is
+// destroyed at the program's end.
 
 #include "test_harness.h"
 
@@ -258,5 +259,7 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on Windows");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
+    CHECK(program.hwnd != nullptr && !IsWindow(program.hwnd),
+          "the window left open destroyed at the program's end");
     return s_failures == 0 ? 0 : 1;
 }

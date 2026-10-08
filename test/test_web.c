@@ -159,7 +159,7 @@ static bool Ready(const Program* program)
                pixels->data.pixelSize.height == 600;
     }
     case phaseResize:
-        return SizeIs(program, program->made, 400.0f, 300.0f, 1200, 900);
+        return SizeIs(program, program->made, 400.0f, 200.0f, 1200, 600);
     case phaseFocus:
         return Find(program, mwin_eventFocusGained, program->made, 0) != nullptr;
     case phaseScheme:
@@ -190,6 +190,13 @@ static void CheckCreated(Program* program, mwinContext* context)
           "CSS sizes, and device pixels at a ratio of 2");
     CHECK(Find(program, mwin_eventScaleChanged, program->made, 0)->data.scale.scale == 2.0f,
           "the scale");
+    const mwinEvent* display = Find(program, mwin_eventDisplayChanged, program->made, 0);
+    mwinMonitorId screens[2];
+    size_t screenCount = 0;
+    CHECK(display != nullptr &&
+              mwinGetMonitors(context, screens, 2, &screenCount) == mwin_success &&
+              screenCount == 1 && display->data.monitor.index1 == screens[0].index1,
+          "the window on the screen");
     mwinNativeHandles handles;
     CHECK(mwinGetNativeHandles(context, program->page, &handles) == mwin_success &&
               handles.platform == mwin_platformWeb && handles.handles.web.selectorLength == 12 &&
@@ -352,7 +359,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(Last(program, mwin_eventScaleChanged, program->made)->data.scale.scale == 3.0f &&
                   Find(program, mwin_eventResized, program->made, 0) == nullptr,
               "a new ratio: a new scale and pixels, the same size");
-        CHECK(mwinRequestSize(context, program->made, (mwinSize){400.0f, 300.0f}, nullptr) ==
+        // A new width alone: the device pixels change across only.
+        CHECK(mwinRequestSize(context, program->made, (mwinSize){400.0f, 200.0f}, nullptr) ==
                   mwin_success,
               "a size");
         break;

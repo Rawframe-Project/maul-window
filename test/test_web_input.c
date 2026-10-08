@@ -3,8 +3,10 @@
 //
 // The web backend's input in headless Chrome (test/web_runner.cjs),
 // which types, moves the mouse, touches and draws with a pen as the test
-// asks: keys with their codes, meanings and text, Shift, a repeat, a
-// named key, the pointer entering and moving, a double click, the wheel,
+// asks: a captured cursor refused before any gesture, keys with their
+// codes, meanings and text, Shift, a repeat, a
+// named key, the pointer entering and moving, a double click, a chord of
+// two buttons, the wheel,
 // cursor shapes, a cursor made from images, a hidden cursor, no confinement, a touch, a pen, and a
 // captured cursor with raw motion after a click.
 
@@ -23,6 +25,7 @@
 typedef enum Phase
 {
     phaseCreate,
+    phaseRefused,
     phaseFocus,
     phaseKeys,
     phaseShift,
@@ -30,6 +33,7 @@ typedef enum Phase
     phaseNamed,
     phasePointer,
     phaseClicks,
+    phaseChord,
     phaseWheel,
     phaseShape,
     phaseImage,
@@ -57,6 +61,8 @@ typedef struct Program
     int count;
     char text[64];
     uint32_t textLength;
+    // Whether the keyboard's layout was ever told as changed.
+    bool layoutChanged;
     bool timedOut;
 } Program;
 
@@ -89,6 +95,8 @@ static void Collect(Program* program, mwinContext* context)
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
+        program->layoutChanged =
+            program->layoutChanged || event.type == mwin_eventKeyboardLayoutChanged;
         program->records[program->count++] = event;
     }
 }
@@ -135,6 +143,7 @@ static bool Ready(const Program* program)
     case phasePointer:
         return Find(program, mwin_eventCursorMoved, 0) != nullptr;
     case phaseClicks:
+    case phaseChord:
         return Find(program, mwin_eventButtonUp, 1) != nullptr;
     case phaseWheel:
         return Find(program, mwin_eventWheel, 0) != nullptr;
@@ -226,10 +235,28 @@ static void AdvancePointer(Program* program, mwinContext* context)
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons == 1 &&
                   Find(program, mwin_eventButtonUp, 1)->data.pointer.buttons == 0,
               "a quick second click is a double click");
+        // The right button pressed and let go while the left is held.
+        Ask(program, "press", "left");
+        Ask(program, "press", "right");
+        Ask(program, "release", "right");
+        Ask(program, "release", "left");
+        break;
+    case phaseChord:
+    {
+        const mwinEvent* first = Find(program, mwin_eventButtonDown, 0);
+        const mwinEvent* second = Find(program, mwin_eventButtonDown, 1);
+        const mwinEvent* letGo = Find(program, mwin_eventButtonUp, 0);
+        const mwinEvent* last = Find(program, mwin_eventButtonUp, 1);
+        CHECK(first->data.pointer.button == mwin_buttonLeft && second != nullptr &&
+                  second->data.pointer.button == mwin_buttonRight && first < second &&
+                  second < letGo && letGo->data.pointer.button == mwin_buttonRight &&
+                  last->data.pointer.button == mwin_buttonLeft,
+              "a chord: right pressed and let go while left is held");
         // The protocol's deltas are in device pixels: 200 at the runner's
         // ratio of 2 is 100 CSS pixels, a detent.
         Ask(program, "wheel", "0 200");
         break;
+    }
     case phaseWheel:
         CHECK(Find(program, mwin_eventWheel, 0)->data.wheel.y == -1.0f &&
                   Find(program, mwin_eventWheel, 0)->data.wheel.x == 0.0f,
@@ -371,6 +398,16 @@ static void Advance(Program* program, mwinContext* context)
               "the canvas");
         memcpy(program->selector, handles.handles.web.selector, handles.handles.web.selectorLength);
         program->selector[handles.handles.web.selectorLength] = '\0';
+        // Before any input: no gesture the browser would take.
+        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
+                  mwin_success,
+              "capture with no gesture");
+    }
+    else if (program->phase == phaseRefused)
+    {
+        const mwinEvent* completed = Find(program, mwin_eventRequestCompleted, 0);
+        CHECK(completed->data.completion.outcome == mwin_outcomeDenied,
+              "the pointer not locked without a gesture");
         CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
     }
     else if (program->phase <= phaseNamed)
@@ -431,6 +468,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     const Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
     CHECK(!program->timedOut && program->phase == phaseDone, "every phase ran in time");
+    CHECK(!program->layoutChanged, "the layout, read at start, not told as a change");
     (void)printf("mwin-test: exit %d\n", s_failures == 0 ? 0 : 1);
 }
 

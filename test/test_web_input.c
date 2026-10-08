@@ -342,9 +342,14 @@ static void AdvanceContacts(Program* program)
     }
     const mwinEvent* pressed = Find(program, mwin_eventPenButtonDown, 0);
     const mwinEvent* down = Find(program, mwin_eventPenDown, 0);
+    const mwinEvent* released = Find(program, mwin_eventPenButtonUp, 0);
     CHECK(pressed != nullptr && pressed->data.pen.button == 1 &&
-              (pressed->data.pen.flags & mwin_penContact) == 0,
+              (pressed->data.pen.flags & mwin_penContact) == 0 &&
+              (pressed->data.pen.flags & mwin_penBarrel) != 0,
           "the barrel button, the pen hovering");
+    CHECK(down != nullptr && released != nullptr && pressed < down && down < released &&
+              (released->data.pen.flags & mwin_penBarrel) == 0,
+          "pressed before the tip comes down, let go after");
     CHECK(down != nullptr && down->data.pen.pressure == 0.25f && down->data.pen.tiltX == 30.0f &&
               down->data.pen.tiltY == -15.0f &&
               down->data.pen.flags == (mwin_penContact | mwin_penBarrel) &&

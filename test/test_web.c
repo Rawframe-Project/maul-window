@@ -4,7 +4,9 @@
 // The web backend in headless Chrome (test/web_runner.cjs): a canvas
 // the library makes and one of the page's, their CSS sizes and device
 // pixels at the page's ratio and after it changes, a size, a title,
-// focus, fullscreen refused without a user's gesture, hiding, the facts
+// focus, fullscreen refused without a user's gesture and granted after a
+// click, then left, a window made fullscreen after another click, hiding,
+// the facts
 // and locales, the screen's HDR facts, the chords Chrome and Linux
 // keep, and closing: the page's canvas stays, the library's goes. With
 // each canvas, the host of the program's accessibility elements: right
@@ -35,6 +37,11 @@ typedef enum Phase
     phaseScheme,
     phaseHdr,
     phaseFullscreen,
+    phaseClick,
+    phaseGranted,
+    phaseWindowed,
+    phaseClickAgain,
+    phaseMadeFullscreen,
     phaseHide,
     phaseDestroy,
     phaseDone,
@@ -46,6 +53,7 @@ typedef struct Program
     double startMs;
     mwinWindowId made;
     mwinWindowId page;
+    mwinWindowId full;
     char madeSelector[128];
     char madeHost[160];
     mwinEvent records[MAX_RECORDS];
@@ -158,6 +166,14 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventThemeChanged, s_any, 0) != nullptr;
     case phaseHdr:
         return Find(program, mwin_eventMonitorChanged, s_any, 0) != nullptr;
+    case phaseClick:
+    case phaseClickAgain:
+        return Find(program, mwin_eventButtonUp, program->made, 0) != nullptr;
+    case phaseMadeFullscreen:
+    {
+        const mwinEvent* mode = Last(program, mwin_eventModeChanged, program->full);
+        return mode != nullptr && mode->data.mode == mwin_modeBorderlessFullscreen;
+    }
     case phaseHide:
         return Find(program, mwin_eventHidden, program->made, 0) != nullptr;
     case phaseDestroy:
@@ -258,9 +274,55 @@ static void AdvanceLate(Program* program, mwinContext* context)
         break;
     }
     case phaseFullscreen:
-        CHECK(completed->data.completion.outcome == mwin_outcomeDenied,
+        CHECK(completed->data.completion.outcome == mwin_outcomeDenied &&
+                  Find(program, mwin_eventModeChanged, program->made, 0) == nullptr,
               "fullscreen needs a user's gesture");
-        CHECK(mwinRequestVisible(context, program->made, false, nullptr) == mwin_success, "hide");
+        // A click is one, for a while after it.
+        (void)printf("mwin-test: click %s 10 10\n", program->madeSelector);
+        break;
+    case phaseClick:
+        CHECK(mwinRequestMode(context, program->made, mwin_modeBorderlessFullscreen, nullptr) ==
+                  mwin_success,
+              "fullscreen after a click");
+        break;
+    case phaseGranted:
+    {
+        const mwinEvent* mode = Last(program, mwin_eventModeChanged, program->made);
+        mwinWindowState state;
+        CHECK(completed->data.completion.outcome == mwin_outcomeDone && mode != nullptr &&
+                  mode->data.mode == mwin_modeBorderlessFullscreen &&
+                  mwinGetWindowState(context, program->made, &state) == mwin_success &&
+                  state.mode == mwin_modeBorderlessFullscreen,
+              "granted: fullscreen, told as a change");
+        CHECK(mwinRequestMode(context, program->made, mwin_modeWindowed, nullptr) == mwin_success,
+              "windowed again");
+        break;
+    }
+    case phaseWindowed:
+    {
+        const mwinEvent* mode = Last(program, mwin_eventModeChanged, program->made);
+        mwinWindowState state;
+        CHECK(completed->data.completion.outcome == mwin_outcomeDone && mode != nullptr &&
+                  mode->data.mode == mwin_modeWindowed &&
+                  mwinGetWindowState(context, program->made, &state) == mwin_success &&
+                  state.mode == mwin_modeWindowed,
+              "left: windowed, told as a change");
+        (void)printf("mwin-test: click %s 10 10\n", program->madeSelector);
+        break;
+    }
+    case phaseClickAgain:
+    {
+        mwinWindowDef def = mwinDefaultWindowDef();
+        def.size = (mwinSize){100.0f, 100.0f};
+        def.mode = mwin_modeBorderlessFullscreen;
+        CHECK(mwinCreateWindow(context, &def, &program->full, nullptr) == mwin_success,
+              "a window made fullscreen after a click");
+        break;
+    }
+    case phaseMadeFullscreen:
+        CHECK(mwinDestroyWindow(context, program->full) == mwin_success &&
+                  mwinRequestVisible(context, program->made, false, nullptr) == mwin_success,
+              "destroyed, and the first hidden");
         break;
     case phaseHide:
         CHECK(IsHidden(program->madeSelector) && IsHidden(program->madeHost),

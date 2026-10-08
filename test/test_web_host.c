@@ -5,7 +5,8 @@
 // (test/web_runner.cjs): the focus moving from the canvas to an element
 // in the host, as a screen reader moves it, and back is no change of
 // focus; a key there reaches the program with its text, a key in a field
-// there reaches it without its text, which the field keeps; a focus
+// or a text area there reaches it without its text, which the element
+// keeps; a focus
 // request leaves the focus on the element; the focus leaving for the
 // page is lost, and coming back to the host gained.
 
@@ -26,6 +27,7 @@ typedef enum Phase
     phaseFocus,
     phaseButton,
     phaseField,
+    phaseArea,
     phaseRequest,
     phaseLeave,
     phaseReturn,
@@ -48,9 +50,9 @@ typedef struct Program
 EM_JS_DEPS(test_web_host, "$UTF8ToString");
 
 // clang-format off
-// An adapter's elements in the host: a button the focus can reach and a
-// field, as a screen reader's focus mode has them; and a button on the
-// page outside the window.
+// An adapter's elements in the host: a button the focus can reach, a
+// field and a text area, as a screen reader's focus mode has them; and a
+// button on the page outside the window.
 EM_JS(void, MakeElements, (const char* host), {
     const parent = document.querySelector(UTF8ToString(host));
     const button = document.createElement('div');
@@ -59,7 +61,9 @@ EM_JS(void, MakeElements, (const char* host), {
     button.tabIndex = -1;
     const field = document.createElement('input');
     field.id = 'host-field';
-    parent.append(button, field);
+    const area = document.createElement('textarea');
+    area.id = 'host-area';
+    parent.append(button, field, area);
     const outside = document.createElement('button');
     outside.id = 'outside';
     document.body.append(outside);
@@ -73,8 +77,8 @@ EM_JS(bool, FocusIs, (const char* id), {
     return document.activeElement === document.getElementById(UTF8ToString(id));
 });
 
-EM_JS(bool, FieldIs, (const char* text), {
-    return document.getElementById('host-field').value === UTF8ToString(text);
+EM_JS(bool, ValueIs, (const char* id, const char* text), {
+    return document.getElementById(UTF8ToString(id)).value === UTF8ToString(text);
 });
 // clang-format on
 
@@ -120,6 +124,7 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventFocusGained) != nullptr;
     case phaseButton:
     case phaseField:
+    case phaseArea:
         return Find(program, mwin_eventKeyUp) != nullptr;
     case phaseLeave:
         return Find(program, mwin_eventFocusLost) != nullptr;
@@ -164,13 +169,21 @@ static void Advance(Program* program, mwinContext* context)
     case phaseField:
         CHECK(FocusUnchanged(program), "the focus moved within the host: no change");
         CHECK(down != nullptr && down->data.key.code == mwin_codeKeyC && program->textLength == 0 &&
-                  FieldIs("c"),
+                  ValueIs("host-field", "c"),
               "a key in the host's field, its text the field's");
+        FocusElement("host-area");
+        (void)printf("mwin-test: key KeyD\n");
+        break;
+    case phaseArea:
+        CHECK(FocusUnchanged(program), "the focus moved to the text area: no change");
+        CHECK(down != nullptr && down->data.key.code == mwin_codeKeyD && program->textLength == 0 &&
+                  ValueIs("host-area", "d"),
+              "a key in the host's text area, its text the area's");
         CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success,
               "focus while in the host");
         break;
     case phaseRequest:
-        CHECK(completed->data.completion.outcome == mwin_outcomeDone && FocusIs("host-field") &&
+        CHECK(completed->data.completion.outcome == mwin_outcomeDone && FocusIs("host-area") &&
                   FocusUnchanged(program),
               "a focus request leaves the focus in the host");
         FocusElement("outside");

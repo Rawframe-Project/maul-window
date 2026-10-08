@@ -3,15 +3,15 @@
 //
 // The web backend in headless Chrome (test/web_runner.cjs): a canvas
 // the library makes and one of the page's, their CSS sizes and device
-// pixels at the page's ratio and after it changes, a size, a title,
-// focus, fullscreen refused without a user's gesture and granted after a
-// click, then left, a window made fullscreen after another click, hiding,
-// the facts
+// pixels at the page's ratio and after it changes, a size, a title, a
+// canvas the page collapses to no width not resized, focus, fullscreen
+// refused without a user's gesture and granted after a click, then
+// left, a window made fullscreen after another click, hiding, the facts
 // and locales, the screen's HDR facts, the chords Chrome and Linux
 // keep, and closing: the page's canvas stays, the library's goes. With
 // each canvas, the host of the program's accessibility elements: right
-// after it, over it as it resizes, letting the pointer through, hidden
-// with it and gone with the window.
+// after it, over it as it resizes and as the page's resizing moves it,
+// letting the pointer through, hidden with it and gone with the window.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -33,6 +33,7 @@ typedef enum Phase
     phaseScale,
     phaseResize,
     phaseTitle,
+    phaseCollapsed,
     phaseFocus,
     phaseScheme,
     phaseHdr,
@@ -58,6 +59,7 @@ typedef struct Program
     char madeHost[160];
     mwinEvent records[MAX_RECORDS];
     int count;
+    int frames;
     bool timedOut;
 } Program;
 
@@ -132,6 +134,17 @@ EM_JS(bool, HostOver, (const char* hostSelector, const char* canvasSelector), {
            Math.abs(a.height - b.height) < 1;
 });
 
+// Moves the canvas, as a page laid out by its width would when the
+// browser's window resizes, and tells the page of the resize.
+EM_JS(void, ShiftAndResize, (const char* selector, int pixels), {
+    document.querySelector(UTF8ToString(selector)).style.marginLeft = pixels + 'px';
+    window.dispatchEvent(new Event('resize'));
+});
+
+EM_JS(void, SetWidth, (const char* selector, const char* width), {
+    document.querySelector(UTF8ToString(selector)).style.width = UTF8ToString(width);
+});
+
 EM_JS(bool, IsHidden, (const char* selector), {
     return document.querySelector(UTF8ToString(selector)).style.display === 'none';
 });
@@ -145,7 +158,7 @@ EM_JS(bool, TitleIs, (const char* title), {
 });
 // clang-format on
 
-static bool Ready(const Program* program)
+static bool Ready(Program* program)
 {
     switch (program->phase)
     {
@@ -160,6 +173,9 @@ static bool Ready(const Program* program)
     }
     case phaseResize:
         return SizeIs(program, program->made, 400.0f, 200.0f, 1200, 600);
+    case phaseCollapsed:
+        // Nothing comes: a few frames show it.
+        return ++program->frames > 10;
     case phaseFocus:
         return Find(program, mwin_eventFocusGained, program->made, 0) != nullptr;
     case phaseScheme:
@@ -372,6 +388,17 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(TitleIs("Retitled"), "the page's title");
         CHECK(HostOver(program->madeHost, program->madeSelector),
               "the accessibility host over the resized canvas");
+        ShiftAndResize(program->madeSelector, 30);
+        CHECK(HostOver(program->madeHost, program->madeSelector),
+              "and over it as the page's resizing moves it");
+        ShiftAndResize(program->madeSelector, 0);
+        SetWidth("#page-canvas", "0px");
+        break;
+    case phaseCollapsed:
+        CHECK(Find(program, mwin_eventResized, program->page, 0) == nullptr &&
+                  Find(program, mwin_eventPixelSizeChanged, program->page, 0) == nullptr,
+              "a canvas collapsed to no width keeps its size");
+        SetWidth("#page-canvas", "200px");
         CHECK(mwinRequestFocus(context, program->made, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:

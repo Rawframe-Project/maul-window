@@ -6,7 +6,8 @@
 // browser's event; shown again it resumes; pagehide and pageshow from
 // the back-forward cache do the same; a canvas taken out of the
 // document loses its surface and has it again when it is back; and a
-// frame that stops while the page goes away ends the program there.
+// frame that stops while the page goes away ends the program there, the
+// page letting go of the window's canvas and its host as it ends.
 // The page's hiding is played by the test, between frames.
 
 #include "test_harness.h"
@@ -80,6 +81,19 @@ EM_JS(bool, InEvent, (void), {
 EM_JS(void, Detach, (const char* selector, bool detach), {
     globalThis.mwinCanvas = globalThis.mwinCanvas || document.querySelector(UTF8ToString(selector));
     detach ? globalThis.mwinCanvas.remove() : document.body.appendChild(globalThis.mwinCanvas);
+});
+
+// Reports the status once the program's end is over, a failure where
+// the page kept the canvas or its accessibility host.
+EM_JS(void, ExitOnceEnded, (const char* selector, int status), {
+    const canvas = UTF8ToString(selector);
+    setTimeout(() => {
+        const kept = document.querySelector(canvas) || document.querySelector(canvas + '-accessibility');
+        if (kept) {
+            console.log('FAIL: the page kept the window\'s canvas or its host');
+        }
+        console.log('mwin-test: exit ' + (kept ? 1 : status));
+    }, 0);
 });
 // clang-format on
 
@@ -238,7 +252,8 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     CHECK(status == mwin_success, "init succeeded");
     CHECK(!program->timedOut && program->phase == phaseDone, "every phase ran in time");
     CHECK(InEvent(), "the program ended inside the page's event");
-    (void)printf("mwin-test: exit %d\n", s_failures == 0 ? 0 : 1);
+    // The page lets go of the window once quit has returned.
+    ExitOnceEnded(program->selector, s_failures == 0 ? 0 : 1);
 }
 
 int main(void)

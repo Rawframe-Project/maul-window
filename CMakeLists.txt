@@ -444,6 +444,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_web_test(web_clipboard)
         mwin_add_web_test(web_services)
         mwin_add_web_test(web_drop)
+        mwin_add_web_test(web_locales)
     endif()
     if(MAUL_WINDOW_MACOS)
         # Needs the session's window server, which CI's macOS runners have.

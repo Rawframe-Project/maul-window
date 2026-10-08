@@ -53,16 +53,31 @@ static bool IsAsked(HWND box, const Box* asked)
     {
         return false;
     }
+    int buttons = 0;
+    bool unwanted = false;
     for (int i = 0; i < 4; i++)
     {
+        bool shown = GetDlgItem(box, every[i]) != nullptr;
         bool wanted = every[i] == asked->buttons[0] || every[i] == asked->buttons[1];
-        // A box of OK alone takes Escape as IDCANCEL with no button for it.
-        if ((GetDlgItem(box, every[i]) != nullptr) != wanted)
-        {
-            return false;
-        }
+        buttons += shown ? 1 : 0;
+        unwanted |= shown && !wanted;
     }
-    return true;
+    // A box of OK alone has one button, whose id is IDOK under wine and
+    // IDCANCEL on Windows: Escape answers it.
+    if (asked->buttons[0] == asked->buttons[1])
+    {
+        return buttons == 1 && GetDlgItem(box, IDYES) == nullptr &&
+               GetDlgItem(box, IDNO) == nullptr;
+    }
+    return buttons == 2 && !unwanted;
+}
+
+// The button to press: OK alone may carry IDCANCEL.
+static HWND ButtonOf(HWND box, const Box* asked)
+{
+    HWND button = GetDlgItem(box, asked->press);
+    return button == nullptr && asked->buttons[0] == asked->buttons[1] ? GetDlgItem(box, IDCANCEL)
+                                                                       : button;
 }
 
 // Prints what the box shows where it is not the one asked for.
@@ -112,7 +127,7 @@ static DWORD WINAPI Answer(void* data)
     {
         Describe(box);
     }
-    HWND button = GetDlgItem(box, asked->press);
+    HWND button = ButtonOf(box, asked);
     if (button != nullptr)
     {
         (void)PostMessageW(button, BM_CLICK, 0, 0);

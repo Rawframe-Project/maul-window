@@ -21,6 +21,9 @@
 #include <time.h>
 #include <unistd.h>
 
+// How often the batteries are read again.
+#define BATTERY_NS 5000000000ull
+
 #define LONG_BITS   (sizeof(unsigned long) * CHAR_BIT)
 #define LONGS(bits) (((bits) + LONG_BITS - 1) / LONG_BITS)
 
@@ -294,7 +297,9 @@ static void Open(mwinLinuxPads* pads, int node)
     Number(pad, fd, &bits);
     struct input_id id = {0};
     (void)ioctl(fd, EVIOCGID, &id);
-    mwinGamepadInfo info = {.vendor = id.vendor, .product = id.product, .battery = -1};
+    (void)mwinLinuxFindBattery("/sys", node, &pad->battery);
+    mwinGamepadInfo info = {
+        .vendor = id.vendor, .product = id.product, .battery = mwinLinuxReadBattery(&pad->battery)};
     int named = ioctl(fd, EVIOCGNAME(sizeof(info.name)), info.name);
     info.nameLength = named > 0 ? (uint32_t)strnlen(info.name, sizeof(info.name)) : 0;
     pad->controls.mapping =
@@ -475,11 +480,37 @@ void mwinLinuxPadsStop(mwinLinuxPads* pads)
     *pads = (mwinLinuxPads){.watch = -1};
 }
 
+// Tells each battery's charge that changed since it was last read.
+static void ReadBatteries(mwinLinuxPads* pads, uint64_t nowNs)
+{
+    pads->batteryNs = nowNs;
+    for (uint32_t i = 0; i < pads->context->limits.gamepads; i++)
+    {
+        const mwinLinuxPad* pad = &pads->pads[i];
+        if (pad->fd < 0 || pad->battery.path[0] == '\0')
+        {
+            continue;
+        }
+        mwinGamepadInfo info = pads->context->gamepads[pad->slot].info;
+        int8_t battery = mwinLinuxReadBattery(&pad->battery);
+        if (battery != info.battery)
+        {
+            info.battery = battery;
+            mwinChangeGamepad(pads->context, pad->slot, &info, nowNs);
+        }
+    }
+}
+
 void mwinLinuxPadsPump(mwinLinuxPads* pads)
 {
     if (pads->pads == nullptr)
     {
         return;
+    }
+    uint64_t nowNs = mwinMonotonicNow();
+    if (nowNs - pads->batteryNs >= BATTERY_NS)
+    {
+        ReadBatteries(pads, nowNs);
     }
     if (pads->watch >= 0)
     {

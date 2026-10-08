@@ -339,6 +339,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_message_box PRIVATE _POSIX_C_SOURCE=200809L)
         # Linux input event codes as key codes.
         maul_add_test(evdev WHITEBOX)
+        # A gamepad's battery from a sysfs tree of the test's own.
+        if(MAUL_WINDOW_GAMEPAD)
+            maul_add_test(linux_battery WHITEBOX)
+            if(TARGET test_linux_battery)
+                target_compile_definitions(test_linux_battery PRIVATE _POSIX_C_SOURCE=200809L)
+            endif()
+        endif()
         # The preferred locales the environment names.
         maul_add_test(linux_locale WHITEBOX)
         if(TARGET test_linux_locale)

@@ -8,6 +8,14 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Linux gamepads report their battery where the kernel tells it: the
+  power supply a wireless pad's driver (hid-playstation, hid-nintendo,
+  xpadneo and others) registers beside the input device, read when the
+  pad connects and every five seconds after, a change told as
+  `mwin_eventGamepadChanged`.
+
 ## [0.8.1] - 2026-10-08
 
 Fixes the mutation sweep of the Wayland and X11 backends found.

@@ -9,12 +9,14 @@
 // one (BTN_SOUTH and the rest), and raw otherwise. Rumble is force
 // feedback, where the device takes it and the node opens for writing;
 // motion comes from the pad's motion device (linux_motion.h), found with
-// the pad or when it comes after it.
+// the pad or when it comes after it; the battery from the power supply
+// beside it in sysfs (linux_battery.h), read again every few seconds.
 
 #ifndef MAUL_WINDOW_SRC_LINUX_PAD_H
 #define MAUL_WINDOW_SRC_LINUX_PAD_H
 
 #include "core.h"
+#include "linux_battery.h"
 #include "linux_motion.h"
 #include "pad_db.h"
 #include "pad_map.h"
@@ -46,9 +48,10 @@ typedef struct mwinLinuxPad
     int32_t maximum[MWIN_LINUX_PAD_AXES];
     // The rumble effect uploaded, or -1.
     int16_t effect;
-    // Who it is, and its motion device (fd -1 for none).
+    // Who it is, its motion device (fd -1 for none) and its battery.
     mwinLinuxPadIdentity identity;
     mwinLinuxMotion motion;
+    mwinLinuxBattery battery;
 } mwinLinuxPad;
 
 typedef struct mwinLinuxPads
@@ -56,6 +59,8 @@ typedef struct mwinLinuxPads
     mwinContext* context;
     // The inotify watch of /dev/input, or -1.
     int watch;
+    // When the batteries were last read.
+    uint64_t batteryNs;
     // One per gamepad slot of the context.
     mwinLinuxPad* pads;
 } mwinLinuxPads;

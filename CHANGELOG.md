@@ -22,6 +22,10 @@ format.
   (HDR output never on) and variable refresh from the `vrr_capable`
   output property; a change of either is a monitor change. The EDID
   parser checks every checksum and block length and is fuzzed.
+- Win32 monitors report whether HDR output is on and the SDR white level
+  (DisplayConfig; wide color forced on an SDR display is not HDR), the
+  luminances from the EDID in the monitor's registry key, and the
+  headroom from both. The backend links setupapi.
 
 ## [0.8.1] - 2026-10-08
 

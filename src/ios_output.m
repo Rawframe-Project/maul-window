@@ -72,15 +72,6 @@ static mwinMonitorInfo InfoOf(UIScreen* screen, bool primary, CGFloat left)
     return info;
 }
 
-static bool SameInfo(const mwinMonitorInfo* a, const mwinMonitorInfo* b)
-{
-    return a->nameLength == b->nameLength && memcmp(a->name, b->name, a->nameLength) == 0 &&
-           memcmp(&a->bounds, &b->bounds, sizeof(a->bounds)) == 0 &&
-           memcmp(&a->workArea, &b->workArea, sizeof(a->workArea)) == 0 && a->scale == b->scale &&
-           a->refreshMilliHz == b->refreshMilliHz && a->variableRefresh == b->variableRefresh &&
-           a->primary == b->primary;
-}
-
 void mwinIOSReadScreens(mwinIOSPlatform* platform, uint64_t timeNs)
 {
     mwinContext* context = platform->context;
@@ -104,7 +95,7 @@ void mwinIOSReadScreens(mwinIOSPlatform* platform, uint64_t timeNs)
         int32_t slot = mwinIOSMonitorOf(platform, screen);
         if (slot >= 0)
         {
-            if (!SameInfo(&info, &platform->screenInfo[slot]))
+            if (!mwinSameMonitorInfo(&info, &platform->screenInfo[slot]))
             {
                 platform->screenInfo[slot] = info;
                 mwinChangeMonitor(context, (uint32_t)slot, &info, timeNs);

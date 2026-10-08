@@ -48,27 +48,6 @@ static int32_t OutputOf(mwinX11Platform* platform, xcb_atom_t name)
     return vacant;
 }
 
-static bool SameRect(mwinPixelRect a, mwinPixelRect b)
-{
-    return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
-}
-
-static bool SameHdr(mwinHdrFacts a, mwinHdrFacts b)
-{
-    return a.known == b.known && a.active == b.active && a.peakNits == b.peakNits &&
-           a.fullFrameNits == b.fullFrameNits && a.sdrWhiteNits == b.sdrWhiteNits &&
-           a.headroom == b.headroom;
-}
-
-// Whether the facts the X server gives of a monitor are the same.
-static bool SameFacts(const mwinMonitorInfo* a, const mwinMonitorInfo* b)
-{
-    return SameRect(a->bounds, b->bounds) && SameRect(a->workArea, b->workArea) &&
-           a->widthMm == b->widthMm && a->heightMm == b->heightMm && a->scale == b->scale &&
-           a->refreshMilliHz == b->refreshMilliHz && a->primary == b->primary &&
-           a->variableRefresh == b->variableRefresh && SameHdr(a->hdr, b->hdr);
-}
-
 // An output's property, of 8- or 32-bit items: NULL where it has none.
 static xcb_randr_get_output_property_reply_t* PropertyOf(const mwinX11Platform* platform,
                                                          xcb_randr_output_t output, xcb_atom_t name,
@@ -136,7 +115,7 @@ static void Report(mwinX11Platform* platform, mwinX11Output* output, mwinMonitor
     const mwinMonitorInfo* known = &context->monitors[output->monitor].info;
     memcpy(info->name, known->name, known->nameLength);
     info->nameLength = known->nameLength;
-    if (!SameFacts(known, info))
+    if (!mwinSameMonitorInfo(known, info))
     {
         mwinChangeMonitor(context, (uint32_t)output->monitor, info, mwinMonotonicNow());
     }

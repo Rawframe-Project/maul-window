@@ -148,7 +148,7 @@ win32_icon: core icon win32
 win32_ime: core win32
 win32_input: core cursor win32 win32_icon
 win32_message_box: message_box
-win32_output: core win32
+win32_output: core edid win32
 win32_pad: core pad_tracker win32_base win32_hid win32_wgi
 win32_wgi: core pad_tracker
 win32_hid: allocator core pad_db pad_map

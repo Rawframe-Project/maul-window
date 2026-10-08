@@ -291,6 +291,10 @@ int32_t mwinAddMonitor(mwinContext* context, const mwinMonitorInfo* info, uint64
 void mwinChangeMonitor(mwinContext* context, uint32_t slot, const mwinMonitorInfo* info,
                        uint64_t timeNs);
 
+// Whether two reads of a monitor tell the same facts, so a backend
+// reports a change only when one is.
+bool mwinSameMonitorInfo(const mwinMonitorInfo* a, const mwinMonitorInfo* b);
+
 // A monitor was disconnected; its slot is free once the record is
 // drained.
 void mwinRemoveMonitor(mwinContext* context, uint32_t slot, uint64_t timeNs);

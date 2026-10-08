@@ -13,6 +13,7 @@
 #include "maul-window/native.h"
 
 #define WIN32_LEAN_AND_MEAN
+#include <stdio.h>
 #include <windows.h>
 
 // Generous: under wine on a loaded machine a phase has taken over 10 s.
@@ -128,6 +129,18 @@ static void CheckCreated(const Program* program, mwinContext* context)
               mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success &&
               info.bounds.width > 0 && info.primary && info.scale >= 1.0f,
           "the monitors, the primary first");
+    // The runner has no HDR display: what it tells has the shape every
+    // display's facts have.
+    const mwinHdrFacts* hdr = &info.hdr;
+    (void)printf("hdr: known %d active %d peak %.1f frame %.1f white %.1f headroom %.2f\n",
+                 hdr->known, hdr->active, (double)hdr->peakNits, (double)hdr->fullFrameNits,
+                 (double)hdr->sdrWhiteNits, (double)hdr->headroom);
+    CHECK(hdr->peakNits >= 0.0f && hdr->fullFrameNits >= 0.0f && hdr->sdrWhiteNits >= 0.0f &&
+              (hdr->active
+                   ? hdr->sdrWhiteNits > 0.0f && (hdr->headroom == 0.0f || hdr->headroom >= 1.0f)
+                   : hdr->sdrWhiteNits == 0.0f && hdr->headroom == (hdr->known ? 1.0f : 0.0f)) &&
+              !info.variableRefresh,
+          "HDR facts in their ranges, variable refresh not known");
 }
 
 static void Advance(Program* program, mwinContext* context)

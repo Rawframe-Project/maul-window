@@ -61,7 +61,8 @@ EM_JS(void, mwinWebAttach, (mwinContext* context, mwinWebLifecycle lifecycle), {
         }
     }));
     listen(window, 'languagechange', () => push(8, -1, 0));
-    for (const query of ['(prefers-color-scheme: dark)', '(prefers-reduced-motion: reduce)']) {
+    for (const query of ['(prefers-color-scheme: dark)', '(prefers-reduced-motion: reduce)',
+                         '(dynamic-range: high)']) {
         listen(matchMedia(query), 'change', () => push(7, -1, 0));
     }
     // devicePixelRatio, looked at whenever it may have changed: a media
@@ -309,6 +310,10 @@ EM_JS(void, mwinWebCheckScale, (const mwinContext* context), {
 
 EM_JS(void, mwinWebScreen, (float* out), {
     HEAPF32.set([screen.width, screen.height, screen.availWidth, screen.availHeight], out >> 2);
+});
+
+EM_JS(bool, mwinWebHighDynamicRange, (void), {
+    return matchMedia('(dynamic-range: high)').matches;
 });
 
 EM_JS(int, mwinWebTheme, (void), {

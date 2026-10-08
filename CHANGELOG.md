@@ -41,6 +41,9 @@ format.
   facts (the desired luminances; HDR on and the headroom from the
   HDR/SDR ratio on Android 14 and later), read when an activity starts
   or its configuration changes and every two seconds after.
+- On the web the screen's monitor reports whether it shows HDR
+  (`dynamic-range: high`), with no luminance, and tells a change; it is
+  told changed only when one of its facts did.
 
 ## [0.8.1] - 2026-10-08
 

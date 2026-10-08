@@ -85,7 +85,8 @@ typedef enum mwinWebRecordKind
     mwin_webFullscreenFailed = 5,
     // The page was shown (code 1) or hidden.
     mwin_webVisibility = 6,
-    // A preference the facts come from changed.
+    // A preference the facts or the screen's HDR facts come from
+    // changed.
     mwin_webFacts = 7,
     // The preferred languages changed.
     mwin_webLocales = 8,

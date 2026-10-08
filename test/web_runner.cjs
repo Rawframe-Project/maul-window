@@ -156,6 +156,14 @@ async function carryOut(tab, command, args) {
         await tab.setViewport({width: 1024, height: 768, deviceScaleFactor: Number(args[0])});
     } else if (command === 'scheme') {
         await tab.emulateMediaFeatures([{name: 'prefers-color-scheme', value: args[0]}]);
+    } else if (command === 'hdr') {
+        // Without a user's gesture, which tab.evaluate would give.
+        const session = await tab.createCDPSession();
+        await session.send('Runtime.evaluate', {
+            expression: `mwinTestSetHdr(${args[0] === 'high'})`,
+            userGesture: false,
+        });
+        await session.detach();
     } else if (command === 'key' || command === 'down' || command === 'up') {
         await {key: tab.keyboard.press, down: tab.keyboard.down,
                up: tab.keyboard.up}[command].call(tab.keyboard, args[0]);
@@ -227,6 +235,20 @@ async function main() {
         // The clipboard asks the user first; the test is the user.
         await browser.defaultBrowserContext().overridePermissions(
             origin, ['clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+        // Chrome cannot emulate dynamic-range: the page's matchMedia
+        // answers it from what the hdr command sets, telling a change as
+        // Chrome would.
+        await tab.evaluateOnNewDocument(() => {
+            const real = window.matchMedia.bind(window);
+            const query = new EventTarget();
+            let high = false;
+            Object.defineProperty(query, 'matches', {get: () => high});
+            window.mwinTestSetHdr = value => {
+                high = value;
+                query.dispatchEvent(new Event('change'));
+            };
+            window.matchMedia = text => text === '(dynamic-range: high)' ? query : real(text);
+        });
         await tab.goto(`${origin}/`);
         const timeout = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('timed out')), 20000));

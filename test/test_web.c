@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The web backend in headless Chrome (test/web_runner.cjs): a canvas the
-// library makes and one of the page's, their CSS sizes and device
+// The web backend in headless Chrome (test/web_runner.cjs): a canvas
+// the library makes and one of the page's, their CSS sizes and device
 // pixels at the page's ratio and after it changes, a size, a title,
 // focus, fullscreen refused without a user's gesture, hiding, the facts
-// and locales, the chords Chrome and Linux keep, and closing: the page's canvas stays, the
-// library's goes. With each canvas, the host of the program's accessibility elements: right after
-// it, over it as it resizes, letting the pointer through, hidden with it and gone with the window.
+// and locales, the screen's HDR facts, the chords Chrome and Linux
+// keep, and closing: the page's canvas stays, the library's goes. With
+// each canvas, the host of the program's accessibility elements: right
+// after it, over it as it resizes, letting the pointer through, hidden
+// with it and gone with the window.
 
 #include "test_harness.h"
 #include "web_js.h"
 
 #include "maul-window/event.h"
 #include "maul-window/input.h"
+#include "maul-window/monitor.h"
 #include "maul-window/native.h"
 #include "maul-window/system.h"
 
@@ -30,6 +33,7 @@ typedef enum Phase
     phaseTitle,
     phaseFocus,
     phaseScheme,
+    phaseHdr,
     phaseFullscreen,
     phaseHide,
     phaseDestroy,
@@ -152,6 +156,8 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventFocusGained, program->made, 0) != nullptr;
     case phaseScheme:
         return Find(program, mwin_eventThemeChanged, s_any, 0) != nullptr;
+    case phaseHdr:
+        return Find(program, mwin_eventMonitorChanged, s_any, 0) != nullptr;
     case phaseHide:
         return Find(program, mwin_eventHidden, program->made, 0) != nullptr;
     case phaseDestroy:
@@ -213,6 +219,15 @@ static void CheckCreated(Program* program, mwinContext* context)
           "Chrome on Linux: its own chords never, shortcuts shared, the desktop's uncertain");
 }
 
+// The screen, the one monitor.
+static bool Screen(const mwinContext* context, mwinMonitorInfo* infoOut)
+{
+    mwinMonitorId monitors[2];
+    size_t count = 0;
+    return mwinGetMonitors(context, monitors, 2, &count) == mwin_success && count == 1 &&
+           mwinGetMonitorInfo(context, monitors[0], infoOut) == mwin_success;
+}
+
 static void AdvanceLate(Program* program, mwinContext* context)
 {
     const mwinEvent* completed = Find(program, mwin_eventRequestCompleted, s_any, 0);
@@ -223,6 +238,20 @@ static void AdvanceLate(Program* program, mwinContext* context)
         mwinSystemFacts facts;
         CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == mwin_themeDark,
               "a dark scheme");
+        mwinMonitorInfo info;
+        CHECK(Screen(context, &info) && info.hdr.known && !info.hdr.active &&
+                  info.hdr.headroom == 1.0f &&
+                  Find(program, mwin_eventMonitorChanged, s_any, 0) == nullptr,
+              "no HDR, and the monitor unchanged by the scheme");
+        (void)printf("mwin-test: hdr high\n");
+        break;
+    }
+    case phaseHdr:
+    {
+        mwinMonitorInfo info;
+        CHECK(Screen(context, &info) && info.hdr.known && info.hdr.active &&
+                  info.hdr.headroom == 0.0f && info.hdr.peakNits == 0.0f,
+              "HDR on, told as a change, with no luminance");
         CHECK(mwinRequestMode(context, program->made, mwin_modeBorderlessFullscreen, nullptr) ==
                   mwin_success,
               "fullscreen");

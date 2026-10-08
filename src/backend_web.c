@@ -60,7 +60,9 @@ static uint64_t NowNs(void)
     return mwinWebNanoseconds(mwinWebNow());
 }
 
-// The screen as a monitor, in device pixels.
+// The screen as a monitor, in device pixels. Its HDR facts are whether
+// it shows HDR (mwin-0036): the browser tells no luminance, so the
+// headroom of HDR output is unknown.
 static void ReadScreen(mwinWebPlatform* platform)
 {
     float screen[4];
@@ -73,13 +75,16 @@ static void ReadScreen(mwinWebPlatform* platform)
                                     (uint32_t)lroundf(screen[3] * scale)};
     info.scale = scale;
     info.primary = true;
+    bool high = mwinWebHighDynamicRange();
+    info.hdr = (mwinHdrFacts){.known = true, .active = high, .headroom = high ? 0.0f : 1.0f};
+    mwinContext* context = platform->context;
     if (platform->monitor < 0)
     {
-        platform->monitor = mwinAddMonitor(platform->context, &info, NowNs());
+        platform->monitor = mwinAddMonitor(context, &info, NowNs());
     }
-    else
+    else if (!mwinSameMonitorInfo(&context->monitors[platform->monitor].info, &info))
     {
-        mwinChangeMonitor(platform->context, (uint32_t)platform->monitor, &info, NowNs());
+        mwinChangeMonitor(context, (uint32_t)platform->monitor, &info, NowNs());
     }
 }
 
@@ -276,6 +281,9 @@ static void Pump(mwinContext* context)
                           timeNs);
             break;
         case mwin_webFacts:
+            ReadFacts(platform);
+            ReadScreen(platform);
+            break;
         case mwin_webLocales:
             ReadFacts(platform);
             break;

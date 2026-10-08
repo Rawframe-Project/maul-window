@@ -70,10 +70,58 @@ static xcb_randr_get_output_property_reply_t* PropertyOf(const mwinX11Platform* 
 // What an output says: HDR off, as X11 never shows it, with the
 // luminances its EDID gives (mwin-0036); whether its driver can vary its
 // refresh.
+// A mode's refresh rate in millihertz, 0 where it tells no timing: an
+// interlaced mode shows two fields a frame, a double-scanned one each
+// line twice.
+static uint32_t RefreshOf(const xcb_randr_mode_info_t* mode)
+{
+    uint64_t total = (uint64_t)mode->htotal * mode->vtotal;
+    if ((mode->mode_flags & XCB_RANDR_MODE_FLAG_DOUBLE_SCAN) != 0)
+    {
+        total *= 2;
+    }
+    if ((mode->mode_flags & XCB_RANDR_MODE_FLAG_INTERLACE) != 0)
+    {
+        total /= 2;
+    }
+    uint64_t rate = total != 0 ? ((uint64_t)mode->dot_clock * 1000 + total / 2) / total : 0;
+    return rate <= UINT32_MAX ? (uint32_t)rate : 0;
+}
+
+// The refresh rate of an output's CRTC's mode, among the screen's modes.
+static uint32_t OutputRefresh(const mwinX11Platform* platform, xcb_randr_output_t output,
+                              const xcb_randr_get_screen_resources_current_reply_t* resources)
+{
+    const mwinX11Api* api = &platform->api;
+    xcb_connection_t* connection = platform->connection;
+    xcb_randr_get_output_info_reply_t* info = api->randrGetOutputInfoReply(
+        connection, api->randrGetOutputInfo(connection, output, resources->config_timestamp),
+        nullptr);
+    xcb_randr_get_crtc_info_reply_t* crtc =
+        info != nullptr && info->crtc != XCB_NONE
+            ? api->randrGetCrtcInfoReply(
+                  connection,
+                  api->randrGetCrtcInfo(connection, info->crtc, resources->config_timestamp),
+                  nullptr)
+            : nullptr;
+    uint32_t refresh = 0;
+    const xcb_randr_mode_info_t* modes = api->randrResourceModes(resources);
+    int count = api->randrResourceModesLength(resources);
+    for (int i = 0; crtc != nullptr && i < count; i++)
+    {
+        refresh = modes[i].id == crtc->mode ? RefreshOf(&modes[i]) : refresh;
+    }
+    mwinReleaseSystemMemory(crtc);
+    mwinReleaseSystemMemory(info);
+    return refresh;
+}
+
 static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t output,
+                            const xcb_randr_get_screen_resources_current_reply_t* resources,
                             mwinMonitorInfo* info)
 {
     const mwinX11Api* api = &platform->api;
+    info->refreshMilliHz = resources != nullptr ? OutputRefresh(platform, output, resources) : 0;
     // An EDID of the base block and up to 255 extensions.
     xcb_randr_get_output_property_reply_t* edid =
         PropertyOf(platform, output, platform->atoms[mwin_atomEdid], 256 * 128 / 4);
@@ -150,6 +198,10 @@ static void ReportRandr(mwinX11Platform* platform)
     {
         return;
     }
+    // The modes, whose timings give the refresh rates.
+    xcb_randr_get_screen_resources_current_reply_t* resources = api->randrGetResourcesReply(
+        platform->connection, api->randrGetResources(platform->connection, platform->screen->root),
+        nullptr);
     // Where RandR names no primary monitor, the first is.
     bool named = false;
     for (xcb_randr_monitor_info_iterator_t it = api->randrMonitorsIterator(reply); it.rem > 0;
@@ -179,10 +231,11 @@ static void ReportRandr(mwinX11Platform* platform)
         // A monitor of several outputs (tiled) takes the first's facts.
         if (api->randrMonitorOutputsLength(monitor) > 0)
         {
-            ReadOutputFacts(platform, api->randrMonitorOutputs(monitor)[0], &info);
+            ReadOutputFacts(platform, api->randrMonitorOutputs(monitor)[0], resources, &info);
         }
         Report(platform, &platform->outputs[slot], &info);
     }
+    mwinReleaseSystemMemory(resources);
     mwinReleaseSystemMemory(reply);
 }
 

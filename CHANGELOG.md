@@ -55,6 +55,8 @@ format.
   none with an eraser in its name or a pressure valuator, gives
   pressure and tilt from its labelled valuators, contact from its tip
   and the barrel from button 2, and no mouse record.
+- X11 monitors report their refresh rate, from the timings of their
+  output's CRTC mode (0 where the mode has none, as Xvfb's).
 
 ## [0.8.1] - 2026-10-08
 

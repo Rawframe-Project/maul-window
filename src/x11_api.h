@@ -89,6 +89,14 @@ typedef struct mwinX11Api
     typeof(xcb_randr_get_output_property_reply)* randrGetOutputPropertyReply;
     typeof(xcb_randr_get_output_property_data)* randrOutputPropertyData;
     typeof(xcb_randr_get_output_property_data_length)* randrOutputPropertyDataLength;
+    typeof(xcb_randr_get_screen_resources_current)* randrGetResources;
+    typeof(xcb_randr_get_screen_resources_current_reply)* randrGetResourcesReply;
+    typeof(xcb_randr_get_screen_resources_current_modes)* randrResourceModes;
+    typeof(xcb_randr_get_screen_resources_current_modes_length)* randrResourceModesLength;
+    typeof(xcb_randr_get_output_info)* randrGetOutputInfo;
+    typeof(xcb_randr_get_output_info_reply)* randrGetOutputInfoReply;
+    typeof(xcb_randr_get_crtc_info)* randrGetCrtcInfo;
+    typeof(xcb_randr_get_crtc_info_reply)* randrGetCrtcInfoReply;
     // libxkbcommon-x11 and libxcb-xkb, NULL where either is missing.
     void* xkbX11Library;
     void* xcbXkbLibrary;

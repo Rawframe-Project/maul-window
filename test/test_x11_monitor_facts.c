@@ -5,8 +5,9 @@
 // output by the test's connection as a driver would: an EDID with HDR
 // static metadata gives the luminances, HDR staying off as X11 never
 // shows it; `vrr_capable` gives variable refresh, and turned off it is
-// told as a change. The properties are deleted after. Skipped (exit
-// status 77) without DISPLAY or RandR 1.5.
+// told as a change; a mode with timings, set on the output's CRTC, gives
+// the refresh rate. The properties are deleted and the mode put back
+// after. Skipped (exit status 77) without DISPLAY or RandR 1.5.
 
 #include "test_harness.h"
 
@@ -24,6 +25,11 @@
 #define DEADLINE_NS 5000000000ull
 // The HDR block's code for the most luminance, and what it names.
 #define PEAK_CODE 115
+// A 1280 by 800 mode's timings: 71 MHz over 1440 by 823 is 59.910 Hz.
+#define DOT_CLOCK 71000000u
+#define HTOTAL    1440u
+#define VTOTAL    823u
+#define REFRESH   59910u
 
 typedef enum Phase
 {
@@ -122,6 +128,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                   info.hdr.fullFrameNits > 0.0f && info.hdr.headroom == 1.0f &&
                   info.variableRefresh,
               "the EDID's luminances with HDR off, and variable refresh");
+        CHECK(info.refreshMilliHz == REFRESH, "the refresh rate of the CRTC's mode");
         SetVrr(program, 0);
         program->phase = phaseOff;
         program->startNs = NowNs();
@@ -143,6 +150,78 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
+}
+
+// The mode a test sets on an output's CRTC, and the one it puts back.
+typedef struct Mode
+{
+    xcb_randr_crtc_t crtc;
+    xcb_randr_mode_t made;
+    xcb_randr_mode_t old;
+} Mode;
+
+static xcb_timestamp_t ConfigTime(xcb_connection_t* connection, xcb_window_t root)
+{
+    xcb_randr_get_screen_resources_current_reply_t* resources =
+        xcb_randr_get_screen_resources_current_reply(
+            connection, xcb_randr_get_screen_resources_current(connection, root), nullptr);
+    xcb_timestamp_t time = resources != nullptr ? resources->config_timestamp : XCB_CURRENT_TIME;
+    free(resources);
+    return time;
+}
+
+static bool SetCrtc(xcb_connection_t* connection, xcb_window_t root, const Mode* mode,
+                    xcb_randr_output_t output, xcb_randr_mode_t id)
+{
+    xcb_randr_set_crtc_config_reply_t* reply = xcb_randr_set_crtc_config_reply(
+        connection,
+        xcb_randr_set_crtc_config(connection, mode->crtc, XCB_CURRENT_TIME,
+                                  ConfigTime(connection, root), 0, 0, id,
+                                  XCB_RANDR_ROTATION_ROTATE_0, 1, &output),
+        nullptr);
+    bool set = reply != nullptr && reply->status == XCB_RANDR_SET_CONFIG_SUCCESS;
+    free(reply);
+    return set;
+}
+
+// Makes a mode of the current size with timings and sets it on the
+// output's CRTC.
+static bool SetTimedMode(xcb_connection_t* connection, xcb_window_t root, xcb_randr_output_t output,
+                         Mode* modeOut)
+{
+    *modeOut = (Mode){0};
+    xcb_randr_get_output_info_reply_t* info = xcb_randr_get_output_info_reply(
+        connection, xcb_randr_get_output_info(connection, output, XCB_CURRENT_TIME), nullptr);
+    xcb_randr_get_crtc_info_reply_t* crtc =
+        info != nullptr && info->crtc != XCB_NONE
+            ? xcb_randr_get_crtc_info_reply(
+                  connection, xcb_randr_get_crtc_info(connection, info->crtc, XCB_CURRENT_TIME),
+                  nullptr)
+            : nullptr;
+    static const char name[] = "maul-test-timed";
+    xcb_randr_mode_info_t timing = {
+        .width = crtc != nullptr ? crtc->width : 0,
+        .height = crtc != nullptr ? crtc->height : 0,
+        .dot_clock = DOT_CLOCK,
+        .htotal = HTOTAL,
+        .vtotal = VTOTAL,
+        .name_len = sizeof(name) - 1,
+    };
+    xcb_randr_create_mode_reply_t* made =
+        crtc != nullptr
+            ? xcb_randr_create_mode_reply(
+                  connection,
+                  xcb_randr_create_mode(connection, root, timing, sizeof(name) - 1, name), nullptr)
+            : nullptr;
+    if (made != nullptr)
+    {
+        *modeOut = (Mode){.crtc = info->crtc, .made = made->mode, .old = crtc->mode};
+        xcb_randr_add_output_mode(connection, output, made->mode);
+    }
+    free(made);
+    free(crtc);
+    free(info);
+    return modeOut->made != XCB_NONE && SetCrtc(connection, root, modeOut, output, modeOut->made);
 }
 
 // The output of the X server's first monitor, or none.
@@ -195,6 +274,8 @@ int main(void)
     xcb_randr_change_output_property(connection, output, edidAtom, XCB_ATOM_INTEGER, 8,
                                      XCB_PROP_MODE_REPLACE, sizeof(edid), edid);
     SetVrr(&program, 1);
+    Mode mode;
+    CHECK(SetTimedMode(connection, screen->root, output, &mode), "a timed mode set");
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
@@ -202,9 +283,15 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on the X server");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "variable refresh turned off, told as a change");
-    // Properties a run left behind would trouble the next.
+    // Properties and a mode a run left behind would trouble the next.
     xcb_randr_delete_output_property(connection, output, edidAtom);
     xcb_randr_delete_output_property(connection, output, program.vrr);
+    if (mode.made != XCB_NONE)
+    {
+        CHECK(SetCrtc(connection, screen->root, &mode, output, mode.old), "the mode put back");
+        xcb_randr_delete_output_mode(connection, output, mode.made);
+        xcb_randr_destroy_mode(connection, mode.made);
+    }
     xcb_flush(connection);
     xcb_disconnect(connection);
     return s_failures == 0 ? 0 : 1;

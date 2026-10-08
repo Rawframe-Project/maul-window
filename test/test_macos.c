@@ -119,6 +119,9 @@ static void CheckCreated(const Program* program, mwinContext* context)
               mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success &&
               info.bounds.width > 0 && info.primary && info.scale >= 1.0f,
           "the monitors, the primary first");
+    CHECK(info.hdr.known && info.hdr.headroom >= 1.0f && info.hdr.peakNits == 0.0f &&
+              info.hdr.fullFrameNits == 0.0f && info.hdr.sdrWhiteNits == 0.0f,
+          "extended dynamic range as headroom, no nits");
 }
 
 static void Advance(Program* program, mwinContext* context)

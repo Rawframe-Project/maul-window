@@ -33,6 +33,9 @@ format.
   white's luminance and the headroom, there from the first frame and a
   change of the output's image description told as a monitor change.
   A Wayland monitor's change is told only when one of its facts changed.
+- macOS and iOS (16 and later) monitors report their extended dynamic
+  range: the headroom the screen shows once content asks for EDR, and
+  whether EDR is on now; Apple gives no nits.
 
 ## [0.8.1] - 2026-10-08
 

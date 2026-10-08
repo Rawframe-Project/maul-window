@@ -120,6 +120,12 @@ static void CheckWindow(Program* program, mwinContext* context)
     CHECK(info.primary && info.scale == (float)screen.scale &&
               info.bounds.width == (uint32_t)lround(screen.bounds.size.width * screen.scale),
           "the screen, primary, at its scale");
+    if (@available(iOS 16.0, *))
+    {
+        CHECK(info.hdr.known && info.hdr.headroom >= 1.0f && info.hdr.peakNits == 0.0f &&
+                  info.hdr.sdrWhiteNits == 0.0f,
+              "extended dynamic range as headroom, no nits");
+    }
     CHECK([view.window.windowScene.title isEqual:@"Maul iOS"], "the title the scene's");
     program->scene = view.window.windowScene;
 }

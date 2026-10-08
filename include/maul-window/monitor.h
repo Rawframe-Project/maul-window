@@ -46,7 +46,10 @@ extern "C"
         // scales to in HDR output.
         float sdrWhiteNits;
         // The peak over SDR white the output can show now, which content
-        // tone maps to: 1 for SDR output, 0 where unknown.
+        // tone maps to: 1 where it shows nothing brighter than SDR white,
+        // 0 where unknown. On macOS and iOS it is what the screen shows
+        // once content asks for extended dynamic range, which turns
+        // `active` on.
         float headroom;
     } mwinHdrFacts;
 

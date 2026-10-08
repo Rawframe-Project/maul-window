@@ -36,6 +36,11 @@ format.
 - macOS and iOS (16 and later) monitors report their extended dynamic
   range: the headroom the screen shows once content asks for EDR, and
   whether EDR is on now; Apple gives no nits.
+- Android lists its activity's display as the one monitor, the window's:
+  its name, size, physical size, scale and refresh rate, and its HDR
+  facts (the desired luminances; HDR on and the headroom from the
+  HDR/SDR ratio on Android 14 and later), read when an activity starts
+  or its configuration changes and every two seconds after.
 
 ## [0.8.1] - 2026-10-08
 

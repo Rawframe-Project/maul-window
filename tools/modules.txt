@@ -11,6 +11,7 @@ android_drop: allocator android android_copy core
 android_input: android android_keys android_motion core evdev key_prints
 android_keys:
 android_motion: clicks core
+android_output: allocator android core
 android_pad: android
 android_pad_map: core
 android_services: allocator android core

@@ -91,6 +91,7 @@ void mwinAndroidSurfaceCame(mwinAndroidPlatform* platform)
     uint32_t slot = (uint32_t)platform->slot;
     window->created = true;
     PostType(platform, mwin_eventWindowCreated);
+    mwinAndroidPostDisplay(platform);
     mwinAndroidReadSize(platform);
     mwinAndroidPostInsets(platform);
     PostType(platform, mwin_eventShown);

@@ -5,20 +5,21 @@
 // (tools/run_android_app.sh): the program asked for once; its window
 // made at the activity's first surface, with the native window and the
 // activity as its handles, its pixel size the native window's and its
-// scale the density's; a second window unsupported, showing done, a size
-// request unsupported. Then what only the system does, asked of the
-// runner: the home key, the application suspending in a frame of its own
-// and its surface lost in another, no frames while suspended (the
-// suspended record giving way to the resuming one); brought back,
-// resuming with a new surface; turned, the activity made anew, which
-// joins the running program: the window goes on with a new surface and
-// the program is not asked for again. quit writes the closing line the
-// runner waits for.
+// scale the density's; the display its one monitor; a second window
+// unsupported, showing done, a size request unsupported. Then what only
+// the system does, asked of the runner: the home key, the application
+// suspending in a frame of its own and its surface lost in another, no
+// frames while suspended (the suspended record giving way to the
+// resuming one); brought back, resuming with a new surface; turned, the
+// activity made anew, which joins the running program: the window goes
+// on with a new surface and the program is not asked for again. quit
+// writes the closing line the runner waits for.
 
 #include "test_harness.h"
 
 #include "maul-window/context.h"
 #include "maul-window/event.h"
+#include "maul-window/monitor.h"
 #include "maul-window/native.h"
 #include "maul-window/window.h"
 
@@ -177,6 +178,27 @@ static mwinWindowState StateOf(const Program* program, mwinContext* context)
     return state;
 }
 
+// The display as the one monitor, the window's, turned as the window is;
+// the emulator shows no HDR.
+static void CheckMonitor(const mwinWindowState* state, mwinContext* context)
+{
+    mwinMonitorId monitors[4];
+    size_t count = 0;
+    mwinMonitorInfo info = {0};
+    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count == 1 &&
+              memcmp(&monitors[0], &state->monitor, sizeof(monitors[0])) == 0 &&
+              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success,
+          "one monitor, the window's");
+    CHECK(info.primary && info.nameLength > 0 && info.scale == state->scale &&
+              info.bounds.width >= state->pixelSize.width &&
+              info.bounds.height >= state->pixelSize.height && info.widthMm > 0 &&
+              info.heightMm > 0 && info.refreshMilliHz > 0,
+          "the display's facts, turned as the window");
+    CHECK(info.hdr.known && !info.hdr.active && info.hdr.headroom == 1.0f &&
+              info.hdr.sdrWhiteNits == 0.0f && !info.variableRefresh,
+          "no HDR on the emulator's display");
+}
+
 // The window as made: its handles, and its sizes from them.
 static void CheckWindow(const Program* program, mwinContext* context)
 {
@@ -195,6 +217,7 @@ static void CheckWindow(const Program* program, mwinContext* context)
               state.size.width * state.scale < state.pixelSize.width + 1.0f,
           "the scale, and the size in logical units");
     CHECK(program->shown && state.visible, "shown with the activity");
+    CheckMonitor(&state, context);
 }
 
 static bool Ready(const Program* program, mwinContext* context)

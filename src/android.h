@@ -48,6 +48,8 @@ typedef struct mwinAndroidWindow
     // cursorImage is live (mwin-0027).
     mwinCursorShape cursorShape;
     mwinCursorId cursorImage;
+    // Whether the window was told its monitor.
+    bool displayTold;
 } mwinAndroidWindow;
 
 // The window's insets as the activity last told them, in pixels: the
@@ -87,6 +89,18 @@ typedef struct mwinAndroidJava
     jmethodID showPointer;
     jmethodID makePointer;
 } mwinAndroidJava;
+
+// The activity's display as the one monitor: the library's Java helper
+// (maul.window.Screen, a global reference) and its methods, the
+// monitor's slot (-1 before it is read) and when it was last read.
+typedef struct mwinAndroidScreen
+{
+    jclass screen;
+    jmethodID readFacts;
+    jmethodID readName;
+    int32_t monitor;
+    uint64_t readNs;
+} mwinAndroidScreen;
 
 // The key codes the backend keeps a state of: the keyboard's usages up
 // to the right Meta key.
@@ -218,6 +232,7 @@ struct mwinAndroidPlatform
     mwinAndroidDocuments documents;
     mwinAndroidDrops drops;
     mwinAndroidAccessibility accessibility;
+    mwinAndroidScreen screen;
     // When the facts were last read.
     uint64_t factsReadNs;
 };
@@ -359,6 +374,17 @@ void mwinAndroidPostInsets(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled, mwinRect caret);
 mwinOutcome mwinAndroidSetKeyboard(mwinAndroidPlatform* platform, bool visible,
                                    mwinInputPurpose purpose);
+
+// The activity's display as the one monitor (android_output.c): the
+// Java helper's methods found at the start and released at the stop;
+// the display read when an activity starts and its configuration
+// changes, and every two seconds after, as its HDR/SDR ratio changes
+// with what it shows; the window told its monitor once it is made.
+bool mwinAndroidFindScreen(mwinAndroidPlatform* platform, ANativeActivity* activity);
+void mwinAndroidStopScreen(mwinAndroidPlatform* platform);
+void mwinAndroidReadScreen(mwinAndroidPlatform* platform);
+void mwinAndroidPumpScreen(mwinAndroidPlatform* platform, uint64_t nowNs);
+void mwinAndroidPostDisplay(mwinAndroidPlatform* platform);
 
 // The backend's window operations (android_window.c).
 void mwinAndroidCreateWindow(mwinContext* context, uint32_t slot);

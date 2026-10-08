@@ -188,6 +188,7 @@ static void Pump(mwinContext* context)
     mwinAndroidPumpDialogs(platform, &budget);
     mwinAndroidPumpDrops(platform, &budget);
     mwinAndroidPumpFacts(platform, mwinAndroidNow());
+    mwinAndroidPumpScreen(platform, mwinAndroidNow());
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidPumpPads(platform, mwinAndroidNow());
 #endif
@@ -265,6 +266,7 @@ static void OnStart(ANativeActivity* activity)
     mwinAndroidJoinAccessibility(platform);
     // Settings changed in the settings application come back with it.
     mwinAndroidReadSystem(platform);
+    mwinAndroidReadScreen(platform);
     if (platform->suspended && !Lifecycle(platform, true))
     {
         return;
@@ -404,6 +406,7 @@ static void OnConfigurationChanged(ANativeActivity* activity)
         AConfiguration_fromAssetManager(platform->configuration, activity->assetManager);
         mwinAndroidReadSize(platform);
         mwinAndroidReadSystem(platform);
+        mwinAndroidReadScreen(platform);
     }
 }
 
@@ -475,6 +478,7 @@ static void Stop(mwinContext* context)
     mwinAndroidStopDialogs(platform);
     mwinAndroidStopDrops(platform);
     mwinAndroidStopFacts(platform);
+    mwinAndroidStopScreen(platform);
     mwinAndroidStopAccessibility(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinAndroidStopPads(platform);
@@ -519,12 +523,12 @@ static mwinResult Start(mwinContext* context)
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;
-    bool found = mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
-                 mwinAndroidFindCursors(platform) && mwinAndroidFindServices(platform, activity) &&
-                 mwinAndroidFindDialogs(platform, activity) &&
-                 mwinAndroidFindDrops(platform, activity) &&
-                 mwinAndroidFindFacts(platform, activity) &&
-                 mwinAndroidFindAccessibility(platform, activity);
+    bool found =
+        mwinAndroidFindInput(platform) && mwinAndroidFindText(platform, activity) &&
+        mwinAndroidFindCursors(platform) && mwinAndroidFindServices(platform, activity) &&
+        mwinAndroidFindDialogs(platform, activity) && mwinAndroidFindDrops(platform, activity) &&
+        mwinAndroidFindFacts(platform, activity) && mwinAndroidFindScreen(platform, activity) &&
+        mwinAndroidFindAccessibility(platform, activity);
 #ifdef MAUL_WINDOW_GAMEPAD
     found = found && mwinAndroidFindPads(platform, activity);
 #endif

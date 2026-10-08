@@ -6,14 +6,14 @@
 // are configured activated at their first commit; a seat with a
 // keyboard whose keymap is compiled from RMLVO names, a pointer and a
 // touch screen; subsurfaces and shared memory, with the shell requests
-// a client's own frame makes; cursor shapes, cursor surfaces with the
-// size, buffer scale and first pixel of their shared memory and, for a
-// test that adds the viewporter, their viewport's destination; pointer
-// constraints and relative motion, with what the client asked for kept
-// in the Cursor state; and a text input whose committed state is kept
-// in TextState. The test drives the seat through the Server functions,
-// which take the server's lock; the thread dispatches the clients'
-// requests between them.
+// a client's own frame makes; cursor shapes (the pointer's and a tablet
+// tool's), cursor surfaces with the size, buffer scale and first pixel
+// of their shared memory and, for a test that adds the viewporter,
+// their viewport's destination; pointer constraints and relative
+// motion, with what the client asked for kept in the Cursor state; and
+// a text input whose committed state is kept in TextState. The test
+// drives the seat through the Server functions, which take the server's
+// lock; the thread dispatches the clients' requests between them.
 
 #ifndef MAUL_WINDOW_TEST_WAYLAND_SERVER_H
 #define MAUL_WINDOW_TEST_WAYLAND_SERVER_H
@@ -35,8 +35,10 @@
 // What the client last asked for of the pointer's cursor.
 typedef struct Cursor
 {
-    // wp_cursor_shape_device_v1 shape, 0 before any.
+    // wp_cursor_shape_device_v1 shape, 0 before any, and a tablet
+    // tool's.
     uint32_t shape;
+    uint32_t toolShape;
     // set_cursor calls with no surface, which hide it.
     int hides;
     bool locked;
@@ -587,9 +589,34 @@ static inline void ServerGetShapeDevice(struct wl_client* client, struct wl_reso
                                    wl_resource_get_user_data(resource), nullptr);
 }
 
+static inline void ServerSetToolShape(struct wl_client* client, struct wl_resource* resource,
+                                      uint32_t serial, uint32_t shape)
+{
+    (void)client;
+    (void)serial;
+    Server* server = wl_resource_get_user_data(resource);
+    server->cursor.toolShape = shape;
+}
+
+static const struct wp_cursor_shape_device_v1_interface s_serverToolShapeDevice = {
+    .destroy = ServerDestroyResource,
+    .set_shape = ServerSetToolShape,
+};
+
+static inline void ServerGetToolShapeDevice(struct wl_client* client, struct wl_resource* resource,
+                                            uint32_t id, struct wl_resource* tool)
+{
+    (void)tool;
+    struct wl_resource* device = wl_resource_create(client, &wp_cursor_shape_device_v1_interface,
+                                                    wl_resource_get_version(resource), id);
+    wl_resource_set_implementation(device, &s_serverToolShapeDevice,
+                                   wl_resource_get_user_data(resource), nullptr);
+}
+
 static const struct wp_cursor_shape_manager_v1_interface s_serverShapes = {
     .destroy = ServerDestroyResource,
     .get_pointer = ServerGetShapeDevice,
+    .get_tablet_tool_v2 = ServerGetToolShapeDevice,
 };
 
 static inline void ServerBindShapes(struct wl_client* client, void* data, uint32_t version,

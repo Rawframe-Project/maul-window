@@ -45,6 +45,11 @@ format.
 - On the web the screen's monitor reports whether it shows HDR
   (`dynamic-range: high`), with no luminance, and tells a change; it is
   told changed only when one of its facts did.
+- Wayland posts pen records from tablets (`zwp_tablet_manager_v2`,
+  mwin-0037): position, pressure, tilt, contact, the barrel button and
+  the eraser, with the window's cursor shown for the tool, and no mouse
+  record, as compositors emulate the pointer only for a client without
+  the tablet seat.
 
 ## [0.8.1] - 2026-10-08
 

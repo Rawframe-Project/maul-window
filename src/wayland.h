@@ -221,6 +221,51 @@ typedef struct mwinWaylandImageCursor
 // The most touches followed at once.
 #define MWIN_WAYLAND_TOUCHES 16
 
+// The most tablet tools followed at once.
+#define MWIN_WAYLAND_TOOLS 8
+
+// A tablet tool as a pen (mwin-0037): what it is, the window it is near
+// (-1 for none) and the serial of its coming near, which cursor
+// requests quote; the pen as last posted, and the changes gathered until
+// the tool's frame event. Its cursor shape device and the surface theme
+// cursors show on for it, made when first needed.
+typedef struct mwinWaylandTool
+{
+    struct zwp_tablet_tool_v2* tool;
+    mwinWaylandPlatform* platform;
+    bool eraser;
+    bool tilts;
+    bool presses;
+    int32_t focus;
+    uint32_t serial;
+    mwinPenEvent pen;
+    float pressure;
+    bool near;
+    bool left;
+    bool moved;
+    bool down;
+    bool up;
+    // The barrel button pressed (1) or released (-1) in this frame.
+    int8_t barrel;
+    struct wp_cursor_shape_device_v1* shapeDevice;
+    struct wl_surface* themeSurface;
+} mwinWaylandTool;
+
+// The most tablets kept at once.
+#define MWIN_WAYLAND_TABLETS 4
+
+// The first seat's tablets, through the tablet manager where the
+// compositor has it. The tablets themselves say nothing a pen record
+// carries, but a compositor tells a tool near a surface only to a client
+// that keeps the tool's tablet.
+typedef struct mwinWaylandTablets
+{
+    struct zwp_tablet_manager_v2* manager;
+    struct zwp_tablet_seat_v2* seat;
+    struct zwp_tablet_v2* tablets[MWIN_WAYLAND_TABLETS];
+    mwinWaylandTool tools[MWIN_WAYLAND_TOOLS];
+} mwinWaylandTablets;
+
 // The seat's touch screen: each touch point by its id, with the window
 // it began on.
 typedef struct mwinWaylandTouch
@@ -372,6 +417,7 @@ struct mwinWaylandPlatform
     mwinWaylandKeyboard keyboard;
     mwinWaylandPointer pointer;
     mwinWaylandTouch touch;
+    mwinWaylandTablets tablets;
     mwinWaylandText text;
     mwinWaylandClipboard clipboard;
     mwinWaylandDrag drag;

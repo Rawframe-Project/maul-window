@@ -111,6 +111,7 @@ set(MWIN_WAYLAND_SOURCES
     src/wayland_pipe.c
     src/wayland_pointer.c
     src/wayland_seat.c
+    src/wayland_tablet.c
     src/wayland_text.c
     src/wayland_window.c)
 target_sources(maul-window PRIVATE ${MWIN_WAYLAND_SOURCES})

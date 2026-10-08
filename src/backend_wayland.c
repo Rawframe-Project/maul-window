@@ -24,6 +24,7 @@
 #include "wayland_keyboard.h"
 #include "wayland_output.h"
 #include "wayland_seat.h"
+#include "wayland_tablet.h"
 #include "wayland_text.h"
 #include "wayland_window.h"
 #include "xkb_api.h"
@@ -40,6 +41,7 @@
 #define IDLE_INHIBIT_VERSION     1
 #define TOPLEVEL_ICON_VERSION    1
 #define COLOR_MANAGER_VERSION    1
+#define TABLET_VERSION           1
 #define CURSOR_SHAPE_VERSION     1
 #define CONSTRAINTS_VERSION      1
 #define RELATIVE_VERSION         1
@@ -167,6 +169,13 @@ static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name, const ch
         platform->toplevelIcons = Bind(platform, name, &xdg_toplevel_icon_manager_v1_interface,
                                        version, TOPLEVEL_ICON_VERSION);
     }
+    else if (strcmp(interface, zwp_tablet_manager_v2_interface.name) == 0 &&
+             platform->tablets.manager == nullptr)
+    {
+        platform->tablets.manager =
+            Bind(platform, name, &zwp_tablet_manager_v2_interface, version, TABLET_VERSION);
+        mwinWaylandAttachTablets(platform);
+    }
     else if (strcmp(interface, wp_color_manager_v1_interface.name) == 0 &&
              platform->colorManager == nullptr)
     {
@@ -216,6 +225,7 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
     else if (strcmp(interface, wl_seat_interface.name) == 0)
     {
         mwinWaylandBindSeat(platform, name, version);
+        mwinWaylandAttachTablets(platform);
     }
     else if (strcmp(interface, wl_data_device_manager_interface.name) == 0 &&
              platform->clipboard.manager == nullptr)
@@ -227,8 +237,13 @@ static void OnGlobal(void* data, struct wl_registry* registry, uint32_t name, co
 static void OnGlobalRemove(void* data, struct wl_registry* registry, uint32_t name)
 {
     (void)registry;
-    mwinWaylandRemoveOutput(data, name);
-    mwinWaylandRemoveSeat(data, name);
+    mwinWaylandPlatform* platform = data;
+    mwinWaylandRemoveOutput(platform, name);
+    if (platform->seat != nullptr && platform->seatName == name)
+    {
+        mwinWaylandReleaseTablets(platform);
+    }
+    mwinWaylandRemoveSeat(platform, name);
 }
 
 static const struct wl_registry_listener s_registryListener = {
@@ -257,6 +272,8 @@ static void Disconnect(mwinWaylandPlatform* platform)
     const mwinWaylandApi* api = &platform->api;
     if (platform->display != nullptr)
     {
+        mwinWaylandReleaseTablets(platform);
+        DestroyGlobal(api, platform->tablets.manager, ZWP_TABLET_MANAGER_V2_DESTROY);
         mwinWaylandReleaseSeat(platform);
         DestroyGlobal(api, platform->clipboard.manager, -1);
         DestroyGlobal(api, platform->clipboard.primaryManager,

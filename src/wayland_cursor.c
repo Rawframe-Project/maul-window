@@ -61,14 +61,38 @@ static int32_t CursorSize(void)
     return size > 0 && size <= MAX_CURSOR_SIZE ? size : DEFAULT_CURSOR_SIZE;
 }
 
-static void SetCursor(mwinWaylandPlatform* platform, struct wl_surface* surface, int32_t x,
-                      int32_t y)
+// Where a cursor shows: the pointer, or a tablet tool near a window.
+// The request that sets its cursor surface (with the same arguments on
+// both), the serial that quotes, its cursor shape device, and the
+// surface theme cursors show on for it.
+typedef struct CursorTarget
+{
+    void* proxy;
+    uint32_t setCursor;
+    uint32_t serial;
+    struct wp_cursor_shape_device_v1* shapeDevice;
+    struct wl_surface** themeSurface;
+} CursorTarget;
+
+static CursorTarget PointerTarget(mwinWaylandPlatform* platform)
+{
+    mwinWaylandPointer* pointer = &platform->pointer;
+    return (CursorTarget){pointer->pointer, WL_POINTER_SET_CURSOR, pointer->enterSerial,
+                          pointer->shapeDevice, &platform->cursorTheme.surface};
+}
+
+static CursorTarget ToolTarget(mwinWaylandTool* tool)
+{
+    return (CursorTarget){tool->tool, ZWP_TABLET_TOOL_V2_SET_CURSOR, tool->serial,
+                          tool->shapeDevice, &tool->themeSurface};
+}
+
+static void SetCursor(mwinWaylandPlatform* platform, const CursorTarget* target,
+                      struct wl_surface* surface, int32_t x, int32_t y)
 {
     const mwinWaylandApi* api = &platform->api;
-    void* pointer = platform->pointer.pointer;
-    api->proxyMarshalFlags((struct wl_proxy*)pointer, WL_POINTER_SET_CURSOR, nullptr,
-                           mwinWlVersion(api, pointer), 0, platform->pointer.enterSerial, surface,
-                           x, y);
+    api->proxyMarshalFlags((struct wl_proxy*)target->proxy, target->setCursor, nullptr,
+                           mwinWlVersion(api, target->proxy), 0, target->serial, surface, x, y);
 }
 
 // Loads the theme at a scale, unless it is loaded at that scale.
@@ -91,8 +115,8 @@ static bool LoadTheme(mwinWaylandPlatform* platform, int32_t scale)
 }
 
 // Shows a shape from the cursor theme: false where the theme has none.
-static bool ShowThemeCursor(mwinWaylandPlatform* platform, const mwinWaylandWindow* window,
-                            mwinCursorShape shape)
+static bool ShowThemeCursor(mwinWaylandPlatform* platform, const CursorTarget* target,
+                            const mwinWaylandWindow* window, mwinCursorShape shape)
 {
     const mwinWaylandApi* api = &platform->api;
     mwinWaylandCursorTheme* theme = &platform->cursorTheme;
@@ -117,12 +141,12 @@ static bool ShowThemeCursor(mwinWaylandPlatform* platform, const mwinWaylandWind
     {
         return false;
     }
-    if (theme->surface == nullptr)
+    if (*target->themeSurface == nullptr)
     {
-        theme->surface = mwinWlRequest(api, platform->compositor, WL_COMPOSITOR_CREATE_SURFACE,
-                                       &wl_surface_interface, 0);
+        *target->themeSurface = mwinWlRequest(
+            api, platform->compositor, WL_COMPOSITOR_CREATE_SURFACE, &wl_surface_interface, 0);
     }
-    struct wl_proxy* surface = (struct wl_proxy*)theme->surface;
+    struct wl_proxy* surface = (struct wl_proxy*)*target->themeSurface;
     uint32_t version = mwinWlVersion(api, surface);
     if (version >= WL_SURFACE_SET_BUFFER_SCALE_SINCE_VERSION)
     {
@@ -132,7 +156,7 @@ static bool ShowThemeCursor(mwinWaylandPlatform* platform, const mwinWaylandWind
     api->proxyMarshalFlags(surface, WL_SURFACE_DAMAGE, nullptr, version, 0, 0, 0,
                            (int32_t)image->width, (int32_t)image->height);
     (void)mwinWlRequest(api, surface, WL_SURFACE_COMMIT, nullptr, 0);
-    SetCursor(platform, theme->surface, (int32_t)image->hotspot_x / scale,
+    SetCursor(platform, target, *target->themeSurface, (int32_t)image->hotspot_x / scale,
               (int32_t)image->hotspot_y / scale);
     return true;
 }
@@ -251,27 +275,26 @@ static bool ShowImage(mwinWaylandPlatform* platform, const mwinWaylandWindow* wi
         x /= (uint32_t)bufferScale;
         y /= (uint32_t)bufferScale;
     }
-    SetCursor(platform, shown->surface, (int32_t)x, (int32_t)y);
+    CursorTarget target = PointerTarget(platform);
+    SetCursor(platform, &target, shown->surface, (int32_t)x, (int32_t)y);
     return true;
 }
 
 // Shows a shape over a window, whose scale a theme image follows.
-static void ShowShape(mwinWaylandPlatform* platform, const mwinWaylandWindow* window,
-                      mwinCursorShape shape)
+static void ShowShape(mwinWaylandPlatform* platform, const CursorTarget* target,
+                      const mwinWaylandWindow* window, mwinCursorShape shape)
 {
     const mwinWaylandApi* api = &platform->api;
-    const mwinWaylandPointer* pointer = &platform->pointer;
-    if (pointer->shapeDevice != nullptr)
+    if (target->shapeDevice != nullptr)
     {
-        api->proxyMarshalFlags((struct wl_proxy*)pointer->shapeDevice,
-                               WP_CURSOR_SHAPE_DEVICE_V1_SET_SHAPE, nullptr,
-                               mwinWlVersion(api, pointer->shapeDevice), 0, pointer->enterSerial,
-                               s_shapes[shape].protocol);
+        api->proxyMarshalFlags(
+            (struct wl_proxy*)target->shapeDevice, WP_CURSOR_SHAPE_DEVICE_V1_SET_SHAPE, nullptr,
+            mwinWlVersion(api, target->shapeDevice), 0, target->serial, s_shapes[shape].protocol);
     }
     else
     {
         // Without a theme the compositor keeps the cursor it shows.
-        (void)ShowThemeCursor(platform, window, shape);
+        (void)ShowThemeCursor(platform, target, window, shape);
     }
 }
 
@@ -283,13 +306,57 @@ void mwinWaylandShowCursor(mwinWaylandPlatform* platform)
         return;
     }
     const mwinWaylandWindow* window = &platform->windows[pointer->focus];
+    CursorTarget target = PointerTarget(platform);
     if (IsHidden(window->cursorMode))
     {
-        SetCursor(platform, nullptr, 0, 0);
+        SetCursor(platform, &target, nullptr, 0, 0);
     }
     else if (!ShowImage(platform, window))
     {
-        ShowShape(platform, window, window->cursorShape);
+        ShowShape(platform, &target, window, window->cursorShape);
+    }
+}
+
+void mwinWaylandShowToolCursor(mwinWaylandPlatform* platform, mwinWaylandTool* tool)
+{
+    if (tool->focus < 0)
+    {
+        return;
+    }
+    const mwinWaylandApi* api = &platform->api;
+    if (tool->shapeDevice == nullptr && platform->cursorShapes != nullptr)
+    {
+        tool->shapeDevice = mwinWlCreateFor(api, platform->cursorShapes,
+                                            WP_CURSOR_SHAPE_MANAGER_V1_GET_TABLET_TOOL_V2,
+                                            &wp_cursor_shape_device_v1_interface, tool->tool);
+    }
+    const mwinWaylandWindow* window = &platform->windows[tool->focus];
+    CursorTarget target = ToolTarget(tool);
+    if (IsHidden(window->cursorMode))
+    {
+        SetCursor(platform, &target, nullptr, 0, 0);
+    }
+    else
+    {
+        ShowShape(platform, &target, window, window->cursorShape);
+    }
+}
+
+// Shows the cursors over the window in a slot: the pointer's and those
+// of the tools near it.
+static void ShowCursorsOver(mwinWaylandPlatform* platform, uint32_t slot)
+{
+    if (platform->pointer.focus == (int32_t)slot)
+    {
+        mwinWaylandShowCursor(platform);
+    }
+    for (int i = 0; i < MWIN_WAYLAND_TOOLS; i++)
+    {
+        mwinWaylandTool* tool = &platform->tablets.tools[i];
+        if (tool->tool != nullptr && tool->focus == (int32_t)slot)
+        {
+            mwinWaylandShowToolCursor(platform, tool);
+        }
     }
 }
 
@@ -297,7 +364,8 @@ void mwinWaylandShowFrameCursor(mwinWaylandPlatform* platform, uint32_t slot, mw
 {
     if (platform->pointer.pointer != nullptr)
     {
-        ShowShape(platform, &platform->windows[slot], shape);
+        CursorTarget target = PointerTarget(platform);
+        ShowShape(platform, &target, &platform->windows[slot], shape);
     }
 }
 
@@ -471,10 +539,7 @@ mwinOutcome mwinWaylandSetCursorMode(mwinWaylandPlatform* platform, uint32_t slo
     mwinWaylandWindow* window = &platform->windows[slot];
     window->cursorMode = mode;
     Constrain(platform, window);
-    if (platform->pointer.focus == (int32_t)slot)
-    {
-        mwinWaylandShowCursor(platform);
-    }
+    ShowCursorsOver(platform, slot);
     return mwin_outcomeDone;
 }
 
@@ -488,10 +553,7 @@ mwinOutcome mwinWaylandSetCursorShape(mwinWaylandPlatform* platform, uint32_t sl
     }
     platform->windows[slot].cursorShape = shape;
     platform->windows[slot].cursorImage = (mwinCursorId){0};
-    if (platform->pointer.focus == (int32_t)slot)
-    {
-        mwinWaylandShowCursor(platform);
-    }
+    ShowCursorsOver(platform, slot);
     return mwin_outcomeDone;
 }
 
@@ -522,10 +584,7 @@ void mwinWaylandReleaseCursor(mwinContext* context, uint32_t slot)
         {
             window->cursorShape = mwin_shapeDefault;
             window->cursorImage = (mwinCursorId){0};
-            if (platform->pointer.focus == (int32_t)i)
-            {
-                mwinWaylandShowCursor(platform);
-            }
+            ShowCursorsOver(platform, i);
         }
     }
     mwinCursor* cursor = &context->cursors[slot];

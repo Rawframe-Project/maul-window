@@ -14,6 +14,7 @@
 #include "wayland_output.h"
 #include "wayland_pointer.h"
 #include "wayland_popup.h"
+#include "wayland_tablet.h"
 #include "wayland_text.h"
 
 #include <math.h>
@@ -489,6 +490,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     mwinWaylandWindow* window = &platform->windows[slot];
     mwinWaylandForgetKeyboardFocus(platform, slot);
     mwinWaylandForgetPointerFocus(platform, slot);
+    mwinWaylandForgetToolFocus(platform, slot);
     mwinWaylandDropCursor(platform, slot);
     mwinWaylandForgetTextFocus(platform, slot);
     mwinWaylandDestroyFrame(platform, slot);

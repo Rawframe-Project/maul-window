@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-08
+
+Test readers for text input and the on-screen keyboard, and Win32
+monitors' physical size and exact refresh rate.
+
 ### Added
 
 - The test backend's `mwinTestGetVirtualKeyboard` and
@@ -20,6 +25,12 @@ format.
   timing or its base block (a timing in centimeters, which some
   monitors give, yields to the base block), and their refresh rate
   exactly (59.94 Hz, not 59), from DisplayConfig's rational rate.
+
+### Fixed
+
+- Under Visual Studio's ClangCL toolset every target is compiled as
+  C23: a target made after another fetched project was compiled below
+  it, the generator mapping its C standard to `stdclatest`.
 
 ## [0.9.1] - 2026-10-08
 

@@ -39,6 +39,7 @@
 #define VIEWPORTER_VERSION       1
 #define IDLE_INHIBIT_VERSION     1
 #define TOPLEVEL_ICON_VERSION    1
+#define COLOR_MANAGER_VERSION    1
 #define CURSOR_SHAPE_VERSION     1
 #define CONSTRAINTS_VERSION      1
 #define RELATIVE_VERSION         1
@@ -166,6 +167,13 @@ static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name, const ch
         platform->toplevelIcons = Bind(platform, name, &xdg_toplevel_icon_manager_v1_interface,
                                        version, TOPLEVEL_ICON_VERSION);
     }
+    else if (strcmp(interface, wp_color_manager_v1_interface.name) == 0 &&
+             platform->colorManager == nullptr)
+    {
+        platform->colorManager =
+            Bind(platform, name, &wp_color_manager_v1_interface, version, COLOR_MANAGER_VERSION);
+        mwinWaylandWatchColors(platform);
+    }
     else
     {
         return false;
@@ -255,6 +263,7 @@ static void Disconnect(mwinWaylandPlatform* platform)
                       ZWP_PRIMARY_SELECTION_DEVICE_MANAGER_V1_DESTROY);
         mwinWaylandReleaseCursorTheme(platform);
         mwinWaylandReleaseOutputs(platform);
+        DestroyGlobal(api, platform->colorManager, WP_COLOR_MANAGER_V1_DESTROY);
         DestroyGlobal(api, platform->shm, -1);
         DestroyGlobal(api, platform->subcompositor, WL_SUBCOMPOSITOR_DESTROY);
         DestroyGlobal(api, platform->idleInhibits, ZWP_IDLE_INHIBIT_MANAGER_V1_DESTROY);
@@ -297,8 +306,10 @@ static mwinResult Connect(mwinWaylandPlatform* platform)
         mwinWlRequest(api, platform->display, WL_DISPLAY_GET_REGISTRY, &wl_registry_interface, 0);
     mwinWlListen(api, platform->registry, &s_registryListener, platform);
     // The first round trip brings the globals, the second the facts of
-    // the objects bound to them.
-    for (int trip = 0; trip < 2; trip++)
+    // the objects bound to them; with the color manager a third brings
+    // what the outputs' image descriptions tell, so that a monitor has
+    // its HDR facts from the start.
+    for (int trip = 0; trip < (platform->colorManager != nullptr ? 3 : 2); trip++)
     {
         if (api->displayRoundtrip(platform->display) < 0)
         {

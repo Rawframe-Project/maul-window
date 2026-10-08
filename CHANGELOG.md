@@ -26,6 +26,13 @@ format.
   (DisplayConfig; wide color forced on an SDR display is not HDR), the
   luminances from the EDID in the monitor's registry key, and the
   headroom from both. The backend links setupapi.
+- Wayland monitors report their HDR facts where the compositor offers
+  the color manager (`wp_color_manager_v1`, vendored from
+  wayland-protocols 1.45): HDR output on with a PQ, HLG or extended
+  linear transfer function, the target content light levels, SDR
+  white's luminance and the headroom, there from the first frame and a
+  change of the output's image description told as a monitor change.
+  A Wayland monitor's change is told only when one of its facts changed.
 
 ## [0.8.1] - 2026-10-08
 

@@ -17,6 +17,7 @@
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-cursor.h>
+#include <color-management-v1-protocol.h>
 #include <cursor-shape-v1-protocol.h>
 #include <fractional-scale-v1-protocol.h>
 #include <idle-inhibit-unstable-v1-protocol.h>

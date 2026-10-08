@@ -117,18 +117,38 @@ typedef struct mwinWaylandWindow
 
 // An output the compositor announced, and the monitor slot it fills, or
 // -1 before its first done event.
+// What an image description's information tells, while it arrives:
+// the transfer function and the luminances in nits, 0 where untold.
+typedef struct mwinWaylandColorFacts
+{
+    uint32_t transfer;
+    float referenceNits;
+    float targetMaxNits;
+    float maxCll;
+    float maxFall;
+} mwinWaylandColorFacts;
+
 typedef struct mwinWaylandOutput
 {
     mwinWaylandPlatform* platform;
     struct wl_output* output;
     uint32_t name;
     int32_t monitor;
-    // Facts arrive one event at a time; done makes them true together.
+    // Facts arrive one event at a time; done makes them true together,
+    // and the monitor appears at the first done.
     mwinMonitorInfo info;
+    bool done;
     int32_t x;
     int32_t y;
     int32_t transform;
     int32_t scale;
+    // The output's image description, with the color manager: the
+    // object that tells it changed, the description asked for and its
+    // information while they arrive.
+    struct wp_color_management_output_v1* color;
+    struct wp_image_description_v1* description;
+    struct wp_image_description_info_v1* information;
+    mwinWaylandColorFacts colorFacts;
 } mwinWaylandOutput;
 
 // The seat's keyboard: its xkb keyboard, the window with keyboard
@@ -332,6 +352,8 @@ struct mwinWaylandPlatform
     struct zwp_idle_inhibit_manager_v1* idleInhibits;
     // Without it, windows have the compositor's icons.
     struct xdg_toplevel_icon_manager_v1* toplevelIcons;
+    // Without it, monitors' HDR facts are unknown.
+    struct wp_color_manager_v1* colorManager;
     struct wp_cursor_shape_manager_v1* cursorShapes;
     struct zwp_pointer_constraints_v1* constraints;
     struct zwp_relative_pointer_manager_v1* relativePointers;

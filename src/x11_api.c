@@ -149,7 +149,13 @@ static bool FindXinput(mwinX11Api* api)
            FIND(xinputLibrary, deviceInfoNext, xcb_input_xi_device_info_next) &&
            FIND(xinputLibrary, deviceClasses, xcb_input_xi_device_info_classes_iterator) &&
            FIND(xinputLibrary, deviceClassNext, xcb_input_device_class_next) &&
-           FIND(xinputLibrary, xiUngrabDevice, xcb_input_xi_ungrab_device);
+           FIND(xinputLibrary, xiUngrabDevice, xcb_input_xi_ungrab_device) &&
+           FIND(xinputLibrary, deviceName, xcb_input_xi_device_info_name) &&
+           FIND(xinputLibrary, deviceNameLength, xcb_input_xi_device_info_name_length) &&
+           FIND(xinputLibrary, listInputDevices, xcb_input_list_input_devices) &&
+           FIND(xinputLibrary, listInputDevicesReply, xcb_input_list_input_devices_reply) &&
+           FIND(xinputLibrary, inputDevices, xcb_input_list_input_devices_devices) &&
+           FIND(xinputLibrary, inputDevicesLength, xcb_input_list_input_devices_devices_length);
 }
 
 // Opens an optional library, or leaves it NULL when it or one of its

@@ -135,6 +135,12 @@ typedef struct mwinX11Api
     typeof(xcb_input_xi_device_info_classes_iterator)* deviceClasses;
     typeof(xcb_input_device_class_next)* deviceClassNext;
     typeof(xcb_input_xi_ungrab_device)* xiUngrabDevice;
+    typeof(xcb_input_xi_device_info_name)* deviceName;
+    typeof(xcb_input_xi_device_info_name_length)* deviceNameLength;
+    typeof(xcb_input_list_input_devices)* listInputDevices;
+    typeof(xcb_input_list_input_devices_reply)* listInputDevicesReply;
+    typeof(xcb_input_list_input_devices_devices)* inputDevices;
+    typeof(xcb_input_list_input_devices_devices_length)* inputDevicesLength;
 } mwinX11Api;
 
 // Opens libxcb and fills the table: mwin_errorUnsupported when it or a

@@ -287,35 +287,99 @@ static void OnCrossing(mwinX11Platform* platform, const xcb_enter_notify_event_t
     pointer->focus = -1;
 }
 
-// The scroll valuators of every pointer device, read anew.
-static void ReadScrollAxes(mwinX11Platform* platform)
+// The X input type of a device (XListInputDevices), XCB_ATOM_NONE where
+// it has none.
+static xcb_atom_t TypeOf(const mwinX11Platform* platform,
+                         const xcb_input_list_input_devices_reply_t* list, uint16_t device)
+{
+    const mwinX11Api* api = &platform->api;
+    const xcb_input_device_info_t* devices = list != nullptr ? api->inputDevices(list) : nullptr;
+    int count = list != nullptr ? api->inputDevicesLength(list) : 0;
+    for (int i = 0; i < count; i++)
+    {
+        if (devices[i].device_id == device)
+        {
+            return devices[i].device_type;
+        }
+    }
+    return XCB_ATOM_NONE;
+}
+
+// The pen axis a valuator's label names, or mwin_x11PenAxes for none.
+static mwinX11PenAxis PenAxisOf(const mwinX11Platform* platform, xcb_atom_t label)
+{
+    const xcb_atom_t* atoms = platform->atoms;
+    return label == XCB_ATOM_NONE                 ? mwin_x11PenAxes
+           : label == atoms[mwin_atomAbsPressure] ? mwin_x11PenPressure
+           : label == atoms[mwin_atomAbsTiltX]    ? mwin_x11PenTiltX
+           : label == atoms[mwin_atomAbsTiltY]    ? mwin_x11PenTiltY
+                                                  : mwin_x11PenAxes;
+}
+
+// A slave pointer device: its scroll valuators, and whether it is a pen,
+// with the valuators of its pressure and tilt.
+static void ReadDevice(mwinX11Platform* platform, const xcb_input_xi_device_info_t* info,
+                       xcb_atom_t type)
+{
+    const mwinX11Api* api = &platform->api;
+    bool pressure = false;
+    for (xcb_input_device_class_iterator_t item = api->deviceClasses(info); item.rem > 0;
+         api->deviceClassNext(&item))
+    {
+        const xcb_input_scroll_class_t* scroll = (const xcb_input_scroll_class_t*)item.data;
+        const xcb_input_valuator_class_t* valuator = (const xcb_input_valuator_class_t*)item.data;
+        if (item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL)
+        {
+            mwinX11AddScrollAxis(&platform->scroll, info->deviceid, scroll->number,
+                                 scroll->scroll_type == XCB_INPUT_SCROLL_TYPE_HORIZONTAL,
+                                 scroll->increment);
+        }
+        pressure = pressure || (item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR &&
+                                PenAxisOf(platform, valuator->label) == mwin_x11PenPressure);
+    }
+    const mwinX11PenTypes types = {platform->atoms[mwin_atomStylus],
+                                   platform->atoms[mwin_atomEraser],
+                                   platform->atoms[mwin_atomTablet]};
+    mwinX11PenKind kind = mwinX11PenKindOf(type, types, api->deviceName(info),
+                                           (size_t)api->deviceNameLength(info), pressure);
+    mwinX11Pen* pen = kind != mwin_x11NotPen
+                          ? mwinX11AddPen(&platform->pens, info->deviceid, kind == mwin_x11Eraser)
+                          : nullptr;
+    for (xcb_input_device_class_iterator_t item = api->deviceClasses(info);
+         pen != nullptr && item.rem > 0; api->deviceClassNext(&item))
+    {
+        const xcb_input_valuator_class_t* valuator = (const xcb_input_valuator_class_t*)item.data;
+        mwinX11PenAxis axis = item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR
+                                  ? PenAxisOf(platform, valuator->label)
+                                  : mwin_x11PenAxes;
+        if (axis != mwin_x11PenAxes)
+        {
+            mwinX11SetPenAxis(pen, axis, valuator->number, valuator->min, valuator->max);
+        }
+    }
+}
+
+// Every pointer device read anew: the scroll valuators, and the pens.
+static void ReadDevices(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
     platform->scroll = (mwinX11Scroll){0};
+    platform->pens = (mwinX11Pens){0};
+    xcb_input_list_input_devices_reply_t* list = api->listInputDevicesReply(
+        platform->connection, api->listInputDevices(platform->connection), nullptr);
     xcb_input_xi_query_device_reply_t* reply = api->xiQueryDeviceReply(
         platform->connection, api->xiQueryDevice(platform->connection, XCB_INPUT_DEVICE_ALL),
         nullptr);
-    if (reply == nullptr)
+    for (xcb_input_xi_device_info_iterator_t info = api->deviceInfos(reply);
+         reply != nullptr && info.rem > 0; api->deviceInfoNext(&info))
     {
-        return;
-    }
-    for (xcb_input_xi_device_info_iterator_t info = api->deviceInfos(reply); info.rem > 0;
-         api->deviceInfoNext(&info))
-    {
-        for (xcb_input_device_class_iterator_t item = api->deviceClasses(info.data);
-             info.data->type == XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER && item.rem > 0;
-             api->deviceClassNext(&item))
+        if (info.data->type == XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER)
         {
-            const xcb_input_scroll_class_t* scroll = (const xcb_input_scroll_class_t*)item.data;
-            if (item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_SCROLL)
-            {
-                mwinX11AddScrollAxis(&platform->scroll, info.data->deviceid, scroll->number,
-                                     scroll->scroll_type == XCB_INPUT_SCROLL_TYPE_HORIZONTAL,
-                                     scroll->increment);
-            }
+            ReadDevice(platform, info.data, TypeOf(platform, list, info.data->deviceid));
         }
     }
     mwinReleaseSystemMemory(reply);
+    mwinReleaseSystemMemory(list);
 }
 
 void mwinX11StartRawMotion(mwinX11Platform* platform)
@@ -356,7 +420,7 @@ void mwinX11StartRawMotion(mwinX11Platform* platform)
     platform->xinputOpcode = extension->major_opcode;
     if (platform->smoothScroll)
     {
-        ReadScrollAxes(platform);
+        ReadDevices(platform);
     }
 }
 
@@ -436,11 +500,44 @@ static int16_t Pixel(xcb_input_fp1616_t value)
     return (int16_t)(value >> 16);
 }
 
-// An XI2 motion: the wheel's movement where it carries scroll
-// valuators, and the pointer's where it moved.
+// An XI2 place, fixed point in pixels, in logical units.
+static mwinPosition PlaceOf(const mwinX11Platform* platform, xcb_input_fp1616_t x,
+                            xcb_input_fp1616_t y)
+{
+    return (mwinPosition){(float)x / 65536.0f / platform->scale,
+                          (float)y / 65536.0f / platform->scale};
+}
+
+// A pen's XI2 event as its pen record (mwin-0037), in place of a mouse
+// record.
+static void PostPen(mwinX11Platform* platform, mwinX11Pen* pen, mwinX11PenInput input,
+                    const xcb_input_button_press_event_t* event)
+{
+    const mwinX11Api* api = &platform->api;
+    int32_t slot = mwinX11SlotOf(platform, event->event);
+    mwinEvent record;
+    if (mwinX11PenRecordOf(pen, input, event->detail,
+                           PlaceOf(platform, event->event_x, event->event_y),
+                           api->valuatorMask(event), api->valuatorMaskLength(event),
+                           api->axisValues(event), api->axisValuesLength(event), &record) > 0 &&
+        slot >= 0)
+    {
+        record.timeNs = mwinMonotonicFromMilliseconds(event->time);
+        mwinPost(platform->context, (uint32_t)slot, &record);
+    }
+}
+
+// An XI2 motion: a pen's, or the wheel's movement where it carries
+// scroll valuators, and the pointer's where it moved.
 static void OnXiMotion(mwinX11Platform* platform, const xcb_input_motion_event_t* event)
 {
     const mwinX11Api* api = &platform->api;
+    mwinX11Pen* pen = mwinX11FindPen(&platform->pens, event->sourceid);
+    if (pen != nullptr)
+    {
+        PostPen(platform, pen, mwin_x11PenMotion, event);
+        return;
+    }
     int32_t slot = mwinX11SlotOf(platform, event->event);
     float x = 0.0f;
     float y = 0.0f;
@@ -473,14 +570,20 @@ static void OnXiMotion(mwinX11Platform* platform, const xcb_input_motion_event_t
     OnMotion(platform, &core);
 }
 
-// An XI2 press or release, read as the core one; the wheel's buttons the
-// server made from scroll valuators are dropped.
+// An XI2 press or release: a pen's, or read as the core one; the wheel's
+// buttons the server made from scroll valuators are dropped.
 static void OnXiButton(mwinX11Platform* platform, const xcb_input_button_press_event_t* event,
                        bool pressed)
 {
     if ((event->flags & XCB_INPUT_POINTER_EVENT_FLAGS_POINTER_EMULATED) != 0 ||
         event->detail > UINT8_MAX)
     {
+        return;
+    }
+    mwinX11Pen* pen = mwinX11FindPen(&platform->pens, event->sourceid);
+    if (pen != nullptr)
+    {
+        PostPen(platform, pen, pressed ? mwin_x11PenPress : mwin_x11PenRelease, event);
         return;
     }
     const xcb_button_press_event_t core = {
@@ -528,10 +631,10 @@ static void OnXi(mwinX11Platform* platform, const xcb_ge_generic_event_t* event)
             mwinX11RestartScroll(&platform->scroll);
             break;
         }
-        ReadScrollAxes(platform);
+        ReadDevices(platform);
         break;
     case XCB_INPUT_HIERARCHY:
-        ReadScrollAxes(platform);
+        ReadDevices(platform);
         break;
     default:
         break;

@@ -68,6 +68,12 @@ static const char* const s_atomNames[MWIN_X11_ATOMS] = {
     "_NET_WM_MOVERESIZE",
     "EDID",
     "vrr_capable",
+    "Abs Pressure",
+    "Abs Tilt X",
+    "Abs Tilt Y",
+    "STYLUS",
+    "ERASER",
+    "TABLET",
 };
 
 static mwinX11Platform* PlatformOf(const mwinContext* context)

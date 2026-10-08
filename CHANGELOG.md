@@ -50,6 +50,11 @@ format.
   the eraser, with the window's cursor shown for the tool, and no mouse
   record, as compositors emulate the pointer only for a client without
   the tablet seat.
+- X11 posts pen records from tablets' XInput2 devices (mwin-0037): a
+  slave pointer of X input type STYLUS or ERASER, or of type TABLET or
+  none with an eraser in its name or a pressure valuator, gives
+  pressure and tilt from its labelled valuators, contact from its tip
+  and the barrel from button 2, and no mouse record.
 
 ## [0.8.1] - 2026-10-08
 

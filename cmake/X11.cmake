@@ -25,6 +25,7 @@ set(MWIN_X11_SOURCES
     src/x11_icon.c
     src/x11_input.c
     src/x11_output.c
+    src/x11_pen.c
     src/x11_resources.c
     src/x11_scroll.c
     src/x11_window.c)

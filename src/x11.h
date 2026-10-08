@@ -16,6 +16,7 @@
 #include "monotonic.h"
 #include "selection_reads.h"
 #include "x11_api.h"
+#include "x11_pen.h"
 #include "x11_scroll.h"
 #include "xkb_keyboard.h"
 
@@ -68,6 +69,12 @@ enum
     mwin_atomNetWmMoveresize,
     mwin_atomEdid,
     mwin_atomVrrCapable,
+    mwin_atomAbsPressure,
+    mwin_atomAbsTiltX,
+    mwin_atomAbsTiltY,
+    mwin_atomStylus,
+    mwin_atomEraser,
+    mwin_atomTablet,
     MWIN_X11_ATOMS,
 };
 
@@ -243,6 +250,9 @@ struct mwinX11Platform
     // valuators of its devices (x11_scroll.h).
     bool smoothScroll;
     mwinX11Scroll scroll;
+    // The devices that are pens, whose events make pen records
+    // (x11_pen.h).
+    mwinX11Pens pens;
     // libxkbcommon, and the keyboard, where both load.
     mwinXkbApi xkbApi;
     mwinX11Keyboard keyboard;

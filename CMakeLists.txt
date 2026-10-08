@@ -331,6 +331,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_x11_monitor_facts PRIVATE PkgConfig::MWIN_TEST_RANDR m)
         # The wheel movement of scroll valuators.
         maul_add_test(x11_scroll WHITEBOX)
+        # Which devices are pens, and the records their events make.
+        maul_add_test(x11_pen WHITEBOX)
         # The scale of Xft.dpi.
         maul_add_test(x11_resources WHITEBOX)
         # The tests that move the X server's focus or pointer, or own its

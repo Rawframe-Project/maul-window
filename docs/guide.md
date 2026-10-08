@@ -213,7 +213,9 @@ others for higher scales, and `mwinRequestCursorImage` shows it over a
 window, which takes the image for its scale.
 
 **Touch and pen.** These are records of their own, with ids,
-pressure, tilt and the pen's buttons.
+pressure, tilt and the pen's buttons. A pen makes pen records and no
+mouse record on every platform: Wayland through the tablet protocol,
+X11 through its tablets' XInput2 devices (mwin-0037).
 
 ## 6. Gamepads
 

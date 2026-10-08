@@ -14,14 +14,13 @@
 // data writes and data reads refused denied; each unsupported on a page
 // without the clipboard's API; the primary selection is unsupported.
 
+#include "counting_allocator.h"
 #include "test_harness.h"
 #include "web_js.h"
 
 #include "maul-window/clipboard.h"
 #include "maul-window/event.h"
 
-#include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define DEADLINE_MS 10000.0
@@ -96,31 +95,8 @@ EM_JS(void, SetClipboard, (int how), {
 });
 // clang-format on
 
-// The bytes the context holds of its allocator.
-static size_t s_live;
+// The bytes the context held after the first read.
 static size_t s_baseline;
-
-static void* Allocate(size_t size, size_t alignment, void* context)
-{
-    (void)context;
-    // aligned_alloc takes no alignment under a pointer's.
-    void* memory = alignment <= alignof(max_align_t)
-                       ? malloc(size)
-                       : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
-    s_live += memory != nullptr ? size : 0;
-    return memory;
-}
-
-static void Free(void* memory, size_t size, size_t alignment, void* context)
-{
-    (void)alignment;
-    (void)context;
-    if (memory != nullptr)
-    {
-        s_live -= size;
-        free(memory);
-    }
-}
 
 static const char s_written[] = "h\xC3\xA9llo\0 \xF0\x9F\x98\x80";
 
@@ -264,12 +240,13 @@ static void AdvanceData(Program* program, mwinContext* context, int outcome)
     case phaseAgain:
         CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4),
               "the next window reads the clipboard's text now");
-        s_baseline = s_live;
+        s_baseline = s_countedBytes;
         Read(program, context);
         break;
     case phaseSame:
     {
-        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4) && s_live == s_baseline,
+        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4) &&
+                  s_countedBytes == s_baseline,
               "read again, holding no more memory");
         mwinClipboardItem items[] = {
             {"image/png", 9, s_png, sizeof(s_png)},
@@ -440,7 +417,7 @@ int main(void)
     static Program program;
     mwinAppDef def = mwinDefaultAppDef();
     def.context.limits.clipboardBytes = LIMIT;
-    def.context.allocator = (mwinAllocator){Allocate, Free, nullptr};
+    def.context.allocator = CountingAllocator();
     def.init = Init;
     def.frame = Frame;
     def.quit = Quit;

@@ -8,8 +8,10 @@
 // reported again, a drop delivering its files' names and its text; a
 // drag that leaves; a drag of neither files nor text left alone; and a
 // drop at the limits: a name of the window's text bytes kept, one a
-// byte longer left out, text of the drop bytes kept.
+// byte longer left out, text of the drop bytes kept; and the same drop
+// again holding no more memory.
 
+#include "counting_allocator.h"
 #include "test_harness.h"
 #include "web_js.h"
 
@@ -31,6 +33,7 @@ typedef enum Phase
     phaseLeave,
     phaseOther,
     phaseLimits,
+    phaseAgain,
     phaseDone,
 } Phase;
 
@@ -144,6 +147,9 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the text");
 }
 
+// The bytes the context held after the drop at the limits.
+static size_t s_baseline;
+
 // At the limits: the name of 16 bytes kept, the one of 17 left out and
 // the drop marked truncated, the text of 64 bytes whole.
 static void CheckLimits(const Program* program, mwinContext* context)
@@ -173,6 +179,7 @@ static bool Ready(Program* program)
     case phaseLeave:
         return Find(program, mwin_eventDragLeft, 0) != nullptr;
     case phaseLimits:
+    case phaseAgain:
         return Find(program, mwin_eventDropped, 0) != nullptr;
     default:
         // Nothing comes: a few frames show it.
@@ -208,8 +215,14 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(DragRecords(program) == 0, "and not reported");
         (void)DragEvents(program->selector, 3);
         break;
+    case phaseLimits:
+        CheckLimits(program, context);
+        s_baseline = s_countedBytes;
+        (void)DragEvents(program->selector, 3);
+        break;
     default:
         CheckLimits(program, context);
+        CHECK(s_countedBytes == s_baseline, "the same drop again, holding no more memory");
         break;
     }
     program->phase += 1;
@@ -270,6 +283,7 @@ int main(void)
     def.user = &program;
     def.context.limits.textBytesPerWindow = NAME_BYTES;
     def.context.limits.dropBytes = DROP_BYTES;
+    def.context.allocator = CountingAllocator();
     // With Emscripten mwinRun returns only when init failed; without it,
     // it returns once init succeeded and the page's frames run the program
     // on (mwin-0022). Either way quit reports.

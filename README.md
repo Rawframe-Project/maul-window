@@ -26,12 +26,13 @@ generated from the headers.
 
 ## Status
 
-0.8.1 is the current release. It has the whole contract on seven
+0.9.0 is the current release. It has the whole contract on seven
 backends, Win32, macOS, iOS, Android, Wayland, X11 and the web (with
 Emscripten or as plain wasm32-wasi), and a headless test backend:
 
-1. Windows, their modes and styles, monitors and per-monitor scale, and
-   the platform's loop, owned by the program or by the platform.
+1. Windows, their modes and styles, monitors with their scale, refresh
+   rate and HDR facts, and the platform's loop, owned by the program or
+   by the platform.
 2. The keyboard, text input and input methods (IBus and Fcitx 5 on
    X11), the keys the platform keeps, the mouse, touch and pen, the
    on-screen keyboard, cursors (the system's shapes or the program's

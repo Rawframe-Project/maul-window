@@ -8,6 +8,13 @@ format.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-08
+
+Monitors' HDR facts and variable refresh on every backend, Android's
+display as a monitor, pens on Wayland and X11, Linux gamepads'
+batteries and X11's refresh rate: the gaps the requirements audit after
+0.8.1 found. `mwinHdrFacts` gains a field, so the ABI changes.
+
 ### Added
 
 - Linux gamepads report their battery where the kernel tells it: the
@@ -15,9 +22,10 @@ format.
   xpadneo and others) registers beside the input device, read when the
   pad connects and every five seconds after, a change told as
   `mwin_eventGamepadChanged`.
-- `mwinHdrFacts.headroom`, the peak luminance over SDR white now (1 for
-  SDR output, 0 where unknown), for platforms that tell headroom and no
-  nits (mwin-0036).
+- `mwinHdrFacts.headroom`, the peak luminance over SDR white the output
+  can show now (1 where it shows nothing brighter than SDR white, 0
+  where unknown), for platforms that tell headroom and no nits
+  (mwin-0036).
 - X11 monitors report their HDR luminances from the EDID RandR shows
   (HDR output never on) and variable refresh from the `vrr_capable`
   output property; a change of either is a monitor change. The EDID
@@ -32,7 +40,6 @@ format.
   linear transfer function, the target content light levels, SDR
   white's luminance and the headroom, there from the first frame and a
   change of the output's image description told as a monitor change.
-  A Wayland monitor's change is told only when one of its facts changed.
 - macOS and iOS (16 and later) monitors report their extended dynamic
   range: the headroom the screen shows once content asks for EDR, and
   whether EDR is on now; Apple gives no nits.
@@ -43,8 +50,7 @@ format.
   16 as variable refresh, read when an activity starts or its
   configuration changes and every two seconds after.
 - On the web the screen's monitor reports whether it shows HDR
-  (`dynamic-range: high`), with no luminance, and tells a change; it is
-  told changed only when one of its facts did.
+  (`dynamic-range: high`), with no luminance, and tells a change.
 - Wayland posts pen records from tablets (`zwp_tablet_manager_v2`,
   mwin-0037): position, pressure, tilt, contact, the barrel button and
   the eraser, with the window's cursor shown for the tool, and no mouse
@@ -57,6 +63,11 @@ format.
   and the barrel from button 2, and no mouse record.
 - X11 monitors report their refresh rate, from the timings of their
   output's CRTC mode (0 where the mode has none, as Xvfb's).
+
+### Changed
+
+- On Wayland and the web a monitor is told changed only when one of
+  its facts changed, as on the other backends.
 
 ## [0.8.1] - 2026-10-08
 

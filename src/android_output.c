@@ -8,8 +8,8 @@
 // maul.window.Screen. HDR output is on while the HDR/SDR ratio
 // (Android 14) is above 1, which it is while HDR content shows; the
 // headroom is that ratio, unknown where the display can show HDR and
-// Android does not tell it. Android tells no SDR white, nor variable
-// refresh before Android 16.
+// Android does not tell it. Android tells no SDR white; variable
+// refresh is adaptive refresh, which Android 16 tells.
 
 #include "allocator.h"
 #include "android.h"
@@ -31,6 +31,7 @@ enum
     factPeak,
     factAverage,
     factRatio,
+    factAdaptive,
     factCount,
 };
 
@@ -154,6 +155,7 @@ void mwinAndroidReadScreen(mwinAndroidPlatform* platform)
         .heightMm = MillimetersOf(facts[factHeight], facts[factYDpi]),
         .scale = mwinAndroidScale(platform),
         .refreshMilliHz = (uint32_t)lroundf(facts[factRefresh] * 1000.0f),
+        .variableRefresh = facts[factAdaptive] != 0.0f,
         .primary = true,
         .hdr = HdrOf(facts),
     };

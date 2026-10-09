@@ -133,7 +133,12 @@ jobs:
           sudo udevadm trigger
           sudo chmod 666 /dev/uinput || true
       - name: Test
-        run: ctest --test-dir build --output-on-failure --timeout 300
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
 
   # Each fuzz target runs for one minute on every push, over the parsers
   # of bytes other programs and devices hand the library.
@@ -179,7 +184,12 @@ jobs:
       - name: Build
         run: cmake --build build --config Release -j 4
       - name: Test
-        run: ctest --test-dir build -C Release --output-on-failure --timeout 300
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          ctest --test-dir build -C Release --output-on-failure --timeout 300 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
       # The public headers alone under MSVC's cl, as C17 and C++17 with
       # /W4 /WX, which cannot build the library itself (family record 0008).
       - name: Headers under MSVC
@@ -216,7 +226,12 @@ jobs:
       - name: Build
         run: cmake --build build -j 4
       - name: Test
-        run: ctest --test-dir build --output-on-failure --timeout 240
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --timeout 240 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
 
   android:
     # The Android backend (mwin-0026) in the emulator, Android 11 (the
@@ -266,7 +281,12 @@ jobs:
       - name: Build
         run: cmake --build build -j 4
       - name: Test
-        run: ctest --test-dir build --output-on-failure --timeout 240
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --timeout 240 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
 
   web-wasi:
     # The web without Emscripten (mwin-0022): Clang's wasm32-wasi, every
@@ -292,7 +312,12 @@ jobs:
       - name: Browser
         run: npm install --prefix /tmp/browser puppeteer
       - name: Test
-        run: MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
 
   web:
     name: web-emscripten
@@ -307,7 +332,12 @@ jobs:
       - name: Browser
         run: npm install --prefix /tmp/browser puppeteer
       - name: Test
-        run: MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300
+        # A skipped test fails the step: a platform that failed to start
+        # would otherwise pass with nothing tested.
+        run: |
+          set -o pipefail
+          MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
+          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
       - name: Size
         # The library, and what the web backend costs a program: the same
         # test program's wasm and JavaScript with the backend and without.

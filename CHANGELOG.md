@@ -8,6 +8,18 @@ format.
 
 ## [Unreleased]
 
+### Fixed
+
+- Android: an activity started while the one before it was still
+  finishing no longer loses the program. Android makes the new activity
+  before the old one ends; the old one's stop and end then let go of the
+  new one's parts, and the program ran no more frames. The old activity
+  now ends as the new one joins, its window asked to close as before.
+
+- Win32: a window made always on top is topmost from its creation.
+  Windows did not take the topmost band from a SetWindowPos right after
+  the window was made.
+
 ## [0.10.0] - 2026-10-08
 
 Test readers for text input and the on-screen keyboard, and Win32

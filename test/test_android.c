@@ -12,8 +12,10 @@
 // surface lost in another, no frames while suspended (the suspended
 // record giving way to the resuming one); brought back, resuming with a
 // new surface; turned, the activity made anew, which joins the running
-// program: the window goes on with a new surface and the program is not
-// asked for again. quit writes the closing line the runner waits for.
+// program: the window goes on with a new surface, not asked to close, and
+// the program is not asked for again; finished, the activity asks the
+// window to close, which the program hears once a new activity joins.
+// quit writes the closing line the runner waits for.
 
 #include "test_harness.h"
 
@@ -48,6 +50,7 @@ typedef struct Program
     mwinOutcome visibleOutcome;
     mwinOutcome sizeOutcome;
     int completions;
+    int closeRequests;
     // The lifecycle and surface records since the phase began, in order,
     // and whether a frame with none ran while the program was suspended
     // (the critical frames are the ones that carry them).
@@ -132,6 +135,9 @@ static void Collect(Program* program, mwinContext* context)
             break;
         case mwin_eventShown:
             program->shown = true;
+            break;
+        case mwin_eventCloseRequested:
+            program->closeRequests += 1;
             break;
         case mwin_eventSuspending:
             // The program asks the runner to bring it back, in the frame
@@ -265,6 +271,8 @@ static bool Ready(const Program* program, mwinContext* context)
         return program->created && program->shown;
     case 1:
         return program->completions >= 3;
+    case 4:
+        return program->closeRequests > 0;
     case 2:
     case 3:
     {
@@ -325,6 +333,18 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(state.surfaceGeneration > program->generation, "the new activity's surface");
         CHECK((state.pixelSize.width > state.pixelSize.height) == program->wasPortrait, "turned");
         CheckWindow(program, context);
+        CHECK(program->closeRequests == 0, "made anew, the window not asked to close");
+        {
+            // The activity finished, as Back at the root does it; the
+            // program, with no activity, runs no frames until one joins.
+            mwinNativeHandles handles = {0};
+            (void)mwinGetNativeHandles(context, program->window, &handles);
+            ANativeActivity_finish(handles.handles.android.activity);
+            printf(START);
+        }
+        break;
+    case 4:
+        CHECK(program->closeRequests == 1, "the activity finished: the window asked to close");
         break;
     default:
         break;
@@ -353,7 +373,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     program->frame += 1;
     Collect(program, context);
     program->framedSuspended |= suspended && program->recordCount == records;
-    if (program->phase == 4)
+    if (program->phase == 5)
     {
         return mwin_frameStop;
     }
@@ -381,7 +401,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 4, "every phase ran");
+    CHECK(program->phase == 5, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

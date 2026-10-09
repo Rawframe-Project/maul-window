@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+### Fixed
+
+- Android: touch exploration finds the node under the finger in a root that has a public `int virtualViewAt(float x, float y)` but does not implement `maul.window.Explorer`, as a provider of another library (Maul UI's) cannot; the library took such a root's hovers and announced nothing.
+
 ## [0.11.0] - 2026-10-09
 
 Touch screens on X11 and power facts on the web, the two gaps an audit

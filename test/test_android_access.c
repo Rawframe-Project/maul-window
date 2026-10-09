@@ -10,7 +10,9 @@
 // still reads the window but nothing of the tree; and with the root
 // again, a finger the emulator's console puts on the right half and
 // moves to the left is explored, announcing "Beta", then "Alpha" until
-// it lifts, and reaching the program as no touch.
+// it lifts, and reaching the program as no touch: once with a root that
+// implements Explorer, and once with one that only has its method, as a
+// provider of another library does.
 
 #include "test_harness.h"
 
@@ -31,7 +33,7 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  8
+#define LAST_PHASE  12
 
 typedef struct Program
 {
@@ -40,6 +42,7 @@ typedef struct Program
     mwinWindowId window;
     ANativeActivity* activity;
     jobject tree;
+    jobject plain;
     int completions;
     mwinOutcome outcomes[4];
     bool asked;
@@ -173,6 +176,26 @@ static void ForgetRead(const Program* program)
     (*env)->DeleteLocalRef(env, trees);
 }
 
+// The client's hearing forgotten, for exploring again.
+static void ForgetHeard(const Program* program)
+{
+    JNIEnv* env = program->activity->env;
+    jclass clients = LoadClass(env, program->activity, "maul.window.tests.Client");
+    if (clients != nullptr)
+    {
+        jstring empty = (*env)->NewStringUTF(env, "");
+        (*env)->SetStaticObjectField(
+            env, clients, (*env)->GetStaticFieldID(env, clients, "entered", "Ljava/lang/String;"),
+            empty);
+        (*env)->SetStaticObjectField(
+            env, clients, (*env)->GetStaticFieldID(env, clients, "exited", "Ljava/lang/String;"),
+            nullptr);
+        (*env)->DeleteLocalRef(env, empty);
+    }
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, clients);
+}
+
 static int Changes(const Program* program)
 {
     JNIEnv* env = program->activity->env;
@@ -264,13 +287,18 @@ static bool Ready(Program* program, mwinContext* context)
         return program->completions >= 2 && Changes(program) > program->changes;
     case 5:
         return program->completions >= 3;
+    case 9:
+        return program->completions >= 4;
     // The finger paced by what the client hears: on Beta, moved to Alpha,
     // lifted. Touch exploration does not follow one long jump.
     case 6:
+    case 10:
         return Heard(program, "entered", "Beta,");
     case 7:
+    case 11:
         return Heard(program, "entered", "Beta,Alpha,");
     case 8:
+    case 12:
         return Heard(program, "exited", "Alpha");
     default:
         return true;
@@ -281,6 +309,24 @@ static void SetRoot(Program* program, mwinContext* context, jobject root)
 {
     CHECK(mwinRequestAccessibilityRoot(context, program->window, root, nullptr) == mwin_success,
           "the root asked for");
+}
+
+// A global reference to a new tree of a class, over a view.
+static jobject MakeTree(const Program* program, const char* name, jobject view)
+{
+    JNIEnv* env = program->activity->env;
+    jclass trees = LoadClass(env, program->activity, name);
+    jobject tree =
+        trees != nullptr
+            ? (*env)->NewObject(env, trees,
+                                (*env)->GetMethodID(env, trees, "<init>", "(Landroid/view/View;)V"),
+                                view)
+            : nullptr;
+    jobject held = tree != nullptr ? (*env)->NewGlobalRef(env, tree) : nullptr;
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, tree);
+    (*env)->DeleteLocalRef(env, trees);
+    return held;
 }
 
 static void Start(Program* program, mwinContext* context)
@@ -294,18 +340,9 @@ static void Start(Program* program, mwinContext* context)
     program->size = state.pixelSize;
     jobject view = handles.handles.android.view;
     CHECK(view != nullptr, "the view in the handles");
-    JNIEnv* env = program->activity->env;
-    jclass trees = LoadClass(env, program->activity, "maul.window.tests.Tree");
-    jobject tree =
-        trees != nullptr
-            ? (*env)->NewObject(env, trees,
-                                (*env)->GetMethodID(env, trees, "<init>", "(Landroid/view/View;)V"),
-                                view)
-            : nullptr;
-    program->tree = tree != nullptr ? (*env)->NewGlobalRef(env, tree) : nullptr;
-    (*env)->DeleteLocalRef(env, tree);
-    (*env)->DeleteLocalRef(env, trees);
-    CHECK(program->tree != nullptr, "a tree made");
+    program->tree = MakeTree(program, "maul.window.tests.ExplorerTree", view);
+    program->plain = MakeTree(program, "maul.window.tests.Tree", view);
+    CHECK(program->tree != nullptr && program->plain != nullptr, "the trees made");
     SetRoot(program, context, program->tree);
     printf("adb: settings put secure enabled_accessibility_services " MWIN_TEST_PACKAGE
            "/maul.window.tests.Client\n");
@@ -352,12 +389,15 @@ static void Advance(Program* program, mwinContext* context)
         SetRoot(program, context, program->tree);
         break;
     case 5:
-        CHECK(program->outcomes[2] == mwin_outcomeDone, "the root set again");
+    case 9:
+        CHECK(program->outcomes[program->phase == 5 ? 2 : 3] == mwin_outcomeDone,
+              "the root set again");
         program->touches = 0;
         Finger(program, 12, true);
         Finger(program, 11, true);
         break;
     case 6:
+    case 10:
         // Slowly, a sixteenth at a time.
         for (int at = 10; at >= 4; at--)
         {
@@ -365,11 +405,19 @@ static void Advance(Program* program, mwinContext* context)
         }
         break;
     case 7:
+    case 11:
         Finger(program, 4, false);
         break;
     case 8:
         CHECK(program->touches == 0, "the explored finger no touch of the program's");
+        // Again, with a root that has Explorer's method but not Explorer.
+        ForgetHeard(program);
+        SetRoot(program, context, program->plain);
+        break;
+    case 12:
+        CHECK(program->touches == 0, "the finger explored by the method no touch");
         (*program->activity->env)->DeleteGlobalRef(program->activity->env, program->tree);
+        (*program->activity->env)->DeleteGlobalRef(program->activity->env, program->plain);
         break;
     default:
         break;

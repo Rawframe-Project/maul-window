@@ -239,7 +239,7 @@ static void Step(Program* program, mwinContext* context, int step)
               "a selection past the limit once repaired");
         break;
     }
-    default:
+    case 9:
     {
         char text[LIMIT];
         size_t length = 0;
@@ -250,6 +250,36 @@ static void Step(Program* program, mwinContext* context, int step)
                   mwinGetPrimaryText(context, program->requests[9], text, sizeof(text), &length) ==
                       mwin_errorStale,
               "too large, the text found kept for the read that found it");
+        program->windows[1] = Create(context, &program->requests[12]);
+        break;
+    }
+    case 10:
+    {
+        // Another window's reads: only the numbers tell the first's apart.
+        window = program->windows[1];
+        CHECK(mwinTestSetPrimary(context, "two", 3) == mwin_success &&
+                  mwinRequestPrimaryRead(context, window, &program->requests[10]) == mwin_success &&
+                  mwinTestSetClipboardData(context, "image/png", 9, "PNG3", 4) == mwin_success &&
+                  mwinRequestClipboardReadData(context, window, "image/png", 9,
+                                               &program->requests[11]) == mwin_success,
+              "the selection and the data read again, by another window");
+        break;
+    }
+    default:
+    {
+        char text[LIMIT];
+        size_t length = 0;
+        CHECK(Outcome(program, 10) == mwin_outcomeDone &&
+                  Outcome(program, 11) == mwin_outcomeDone &&
+                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
+                      mwin_errorStale &&
+                  mwinGetClipboardData(context, program->requests[2], text, sizeof(text),
+                                       &length) == mwin_errorStale &&
+                  mwinGetPrimaryText(context, program->requests[10], text, sizeof(text), &length) ==
+                      mwin_success &&
+                  length == 3 && memcmp(text, "two", 3) == 0 &&
+                  FoundData(context, program->requests[11], "PNG3", 4),
+              "the first window's selection and data stale once another window read them");
         program->done = true;
         break;
     }

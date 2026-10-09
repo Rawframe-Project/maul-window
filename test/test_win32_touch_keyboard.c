@@ -9,8 +9,9 @@
 // The window then follows the keyboard through IFrameworkInputPane (on
 // Windows; wine may lack it): its handler, called as Windows would with
 // the keyboard over the lower part of the client area, reports the part
-// covered in logical units; shown wholly below the window or hidden, it
-// reports none.
+// covered in logical units, once however often it is told; shown wholly
+// below the window or hidden, it reports none. The handler answers no
+// interface but its own.
 
 #include "test_harness.h"
 #include "win32.h"
@@ -107,6 +108,15 @@ static void Cover(Program* program, mwinContext* context, bool over)
     RECT keyboard = {origin.x - 50, top, origin.x + (LONG)window->width + 50,
                      origin.y + (LONG)window->height + 200};
     (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
+    // Told again where it already is: nothing new to report.
+    (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
+    void* other = &keyboard;
+    void* self = nullptr;
+    CHECK(handler->lpVtbl->QueryInterface(handler, &IID_IDataObject, &other) == E_NOINTERFACE &&
+              other == nullptr &&
+              handler->lpVtbl->QueryInterface(handler, &IID_IUnknown, &self) == S_OK &&
+              self == handler,
+          "the handler answers no interface but its own");
     program->scale = (float)window->dpi / 96.0f;
     program->width = (float)window->width / program->scale;
     program->height = (float)window->height / program->scale;

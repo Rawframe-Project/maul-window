@@ -592,7 +592,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_win32_chrome PRIVATE user32)
         # The touch keyboard shown and hidden through the window's InputPane.
         maul_add_test(win32_touch_keyboard WHITEBOX)
-        target_link_libraries(test_win32_touch_keyboard PRIVATE user32)
+        target_link_libraries(test_win32_touch_keyboard PRIVATE user32 uuid)
         # Message boxes answered from a second thread.
         maul_add_test(win32_message_box)
         target_link_libraries(test_win32_message_box PRIVATE user32)

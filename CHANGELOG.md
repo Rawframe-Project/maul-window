@@ -8,6 +8,12 @@ format.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-09
+
+A clipboard read's payload tied to its read, from an API audit after
+0.11.0, keep rules for Android applications that shrink their code, and
+touch exploration of a root that only has Explorer's method.
+
 ### Added
 
 - Android: `java/proguard-rules.pro`, what an application that shrinks its code with R8 or ProGuard must keep: the library's Java classes and members, which the native library finds by name, and a root's public `virtualViewAt`, found by reflection. The test applications are now built with R8 and these rules (mwin-0041).

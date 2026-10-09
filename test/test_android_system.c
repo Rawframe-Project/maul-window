@@ -7,7 +7,8 @@
 // Android 12; preferred locales; the battery unplugged, told within the
 // power's look, then battery saver on; the night mode and the font scale
 // changed, told through the activity made anew; Back, held, asking the
-// window to close once, on its release, the program going on; and a Back
+// window to close once, on its release, and tapped, asking again, the
+// activity staying in front; and a Back
 // whose release Android cancels (a back gesture pulled away), injected
 // into the test's own window from a thread of the test's, asking
 // nothing (where Android lets an application inject into its own window:
@@ -166,7 +167,7 @@ static bool Ready(Program* program, mwinContext* context)
         return program->themeChanged && facts.theme != program->theme &&
                fabsf(facts.textScale - 1.3f) < 0.01f && state.focused;
     case 4:
-        return program->closeRequests > 0;
+        return program->closeRequests >= 2;
     case 5:
         // The program goes on after Back.
         program->framesAfterClose += 1;
@@ -216,11 +217,20 @@ static void Advance(Program* program, mwinContext* context)
         printf("adb: cmd uimode night %s\n", program->theme == mwin_themeDark ? "no" : "yes");
         break;
     case 3:
-        // Held: its repeats ask nothing.
+        // Held: its repeats ask nothing. Then tapped, which Android would
+        // take for itself, finishing the activity, were Back not the
+        // program's (a held one's release is never Android's).
         printf("adb: input keyevent --longpress KEYCODE_BACK\n");
+        printf("adb: input keyevent KEYCODE_BACK\n");
         break;
     case 5:
-        CHECK(program->closeRequests == 1, "Back, held, asked once");
+        CHECK(program->closeRequests == 2, "Back, held and tapped, asked once each");
+        {
+            // Back is the program's: Android did not finish the activity.
+            mwinWindowState state = {0};
+            (void)mwinGetWindowState(context, program->window, &state);
+            CHECK(state.focused, "the activity still in front after Back");
+        }
         {
             // The activity now: the night mode made it anew.
             mwinNativeHandles handles = {0};
@@ -238,7 +248,7 @@ static void Advance(Program* program, mwinContext* context)
         {
             printf("a cancelled Back not injected: Android refuses injection here\n");
         }
-        CHECK(program->closeRequests == 1, "a cancelled Back asks nothing");
+        CHECK(program->closeRequests == 2, "a cancelled Back asks nothing");
         break;
     default:
         break;

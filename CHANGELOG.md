@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+### Changed
+
+- Builds on Maul Unicode 0.3.0, found installed or fetched, whose encoding converters take their mode before the output.
+
 ## [0.12.0] - 2026-10-09
 
 A clipboard read's payload tied to its read, from an API audit after

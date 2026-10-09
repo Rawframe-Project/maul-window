@@ -77,7 +77,7 @@ option(MAUL_WINDOW_GAMEPAD "Build the gamepad component" ON)
 # installed package when there is one, otherwise the pinned release,
 # built and installed along. It comes before the family modules below,
 # whose copies then serve this project.
-set(MAUL_WINDOW_UNICODE_VERSION 0.2.0)
+set(MAUL_WINDOW_UNICODE_VERSION 0.3.0)
 find_package(maul-unicode ${MAUL_WINDOW_UNICODE_VERSION} CONFIG QUIET)
 if(NOT maul-unicode_FOUND)
     include(FetchContent)

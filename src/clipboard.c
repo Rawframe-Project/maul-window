@@ -74,7 +74,7 @@ mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, 
         return mwin_outcomeTooLarge;
     }
     size_t needed = 0;
-    (void)muniConvertUtf16ToUtf8(units, length, nullptr, 0, muni_convertReplace, &needed);
+    (void)muniConvertUtf16ToUtf8(units, length, muni_convertReplace, nullptr, 0, &needed);
     if (needed > context->limits.clipboardBytes)
     {
         return mwin_outcomeTooLarge;
@@ -85,7 +85,7 @@ mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, 
     {
         return mwin_outcomeFailed;
     }
-    (void)muniConvertUtf16ToUtf8(units, length, text, needed, muni_convertReplace, &needed);
+    (void)muniConvertUtf16ToUtf8(units, length, muni_convertReplace, text, needed, &needed);
     return mwin_outcomeDone;
 }
 

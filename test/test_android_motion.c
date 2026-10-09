@@ -5,12 +5,13 @@
 // platform, with samples as the backend reads them from motion events,
 // posted to a window of the test backend: touches with ids never reused,
 // only moved fingers told, a cancel ending every touch, pressure kept to
-// 0..1; the pen hovering, touching, its barrel and eraser, tilts toward
-// x and y from Android's tilt and orientation; the cursor entering at
-// its first motion and never leaving on a hover's end, buttons from the
-// state's changes (Back and Forward too), quick clicks within the double
-// tap's time, a press with no button state as the primary button and the
-// pointer's going up releasing it, the wheel; and everything forgotten.
+// 0..1; the pen hovering, touching, its barrel and eraser (from a source
+// that is a mouse's too), tilts toward x and y from Android's tilt and
+// orientation; the cursor entering at its first motion and never leaving
+// on a hover's end, buttons from the state's changes (Back and Forward
+// too), quick clicks within the double tap's time, a press with no
+// button state as the primary button and the pointer's going up
+// releasing it, the wheel; and everything forgotten.
 
 #include "android_motion.h"
 #include "test_program.h"
@@ -109,7 +110,8 @@ static void CheckPen(Program* program, mwinContext* context)
     Sample(context, mwin_androidMove, 0, false, mwin_androidStylusPrimary, &pen, nullptr);
     Sample(context, mwin_androidUp, 0, false, mwin_androidStylusPrimary, &pen, nullptr);
     mwinAndroidPointer eraser = Stylus(mwin_androidEraser, 5.0f, 6.0f, 0.0f, 0.0f);
-    Sample(context, mwin_androidHoverMove, 0, false, 0, &eraser, nullptr);
+    // From a tablet whose source is a mouse's too: still the pen.
+    Sample(context, mwin_androidHoverMove, 0, true, 0, &eraser, nullptr);
     Drain(program, context);
     static const mwinEventType types[] = {
         mwin_eventPenMoved, mwin_eventPenDown,     mwin_eventPenButtonDown, mwin_eventPenMoved,

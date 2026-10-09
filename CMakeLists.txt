@@ -232,6 +232,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_android_motion AND NOT MAUL_WINDOW_ANDROID)
             target_sources(test_android_motion PRIVATE ${PROJECT_SOURCE_DIR}/src/android_motion.c)
         endif()
+        # The names of Android's document copies, on every platform.
+        maul_add_test(android_name WHITEBOX)
+        if(TARGET test_android_name AND NOT MAUL_WINDOW_ANDROID)
+            target_sources(test_android_name PRIVATE ${PROJECT_SOURCE_DIR}/src/android_name.c)
+            target_link_libraries(test_android_name PRIVATE maul-unicode::maul-unicode)
+        endif()
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
             # The runtime pads' tracking against a stand-in runtime.

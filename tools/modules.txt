@@ -4,13 +4,14 @@ accessibility: core
 allocator:
 android: android_copy android_motion android_pad_map answer core
 android_access: accessibility android core
-android_copy: allocator core
+android_copy: allocator android_name core
 android_cursor: android core cursor icon
 android_dialog: android android_copy answer core dialog
 android_drop: allocator android android_copy core
 android_input: android android_keys android_motion core evdev key_prints
 android_keys:
 android_motion: clicks core
+android_name:
 android_output: allocator android core
 android_pad: android
 android_pad_map: core

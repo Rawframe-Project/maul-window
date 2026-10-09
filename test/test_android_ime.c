@@ -8,11 +8,12 @@
 // connection as an input method would (through JNI, the user's typing
 // being out of its reach): committed text as text, compositions told
 // while the window accepts text, a newline as the Enter key, deletions
-// outside a composition and sent keys as keys; a composition dropped when
-// the window stops accepting text, not committed when the input method
-// closes its old connection, and none told while it does not; each
-// purpose's input type, nothing corrected or completed. Insets told
-// again alike change neither the safe area nor the keyboard.
+// outside a composition and sent keys as keys, with their modifiers; a
+// composition dropped when the window stops accepting text, not
+// committed when the input method closes its old connection, and none
+// told while it does not; each purpose's input type, nothing corrected
+// or completed. Insets told again alike change neither the safe area
+// nor the keyboard.
 
 #include "test_harness.h"
 
@@ -22,6 +23,7 @@
 #include "maul-window/native.h"
 #include "maul-window/window.h"
 
+#include <android/input.h>
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <math.h>
@@ -46,6 +48,7 @@ typedef struct Record
 {
     mwinEventType type;
     mwinKeyCode code;
+    mwinModifiers modifiers;
     char text[32];
     int32_t caret;
     uint32_t selectionStart;
@@ -91,6 +94,7 @@ static void Keep(Program* program, const mwinEvent* event)
     if (event->type == mwin_eventKeyDown || event->type == mwin_eventKeyUp)
     {
         record->code = event->data.key.code;
+        record->modifiers = event->data.key.modifiers;
     }
     else if (event->type == mwin_eventTextInput)
     {
@@ -208,11 +212,12 @@ static void Delete(JNIEnv* env, jobject connection, jint before, jint after)
     (*env)->DeleteLocalRef(env, type);
 }
 
-static void SendKey(JNIEnv* env, jobject connection, jint action, jint code)
+static void SendKey(JNIEnv* env, jobject connection, jint action, jint code, jint meta)
 {
     jclass events = (*env)->FindClass(env, "android/view/KeyEvent");
-    jobject event = (*env)->NewObject(
-        env, events, (*env)->GetMethodID(env, events, "<init>", "(II)V"), action, code);
+    jobject event =
+        (*env)->NewObject(env, events, (*env)->GetMethodID(env, events, "<init>", "(JJIIII)V"),
+                          (jlong)0, (jlong)0, action, code, 0, meta);
     jclass type = (*env)->FindClass(env, "android/view/inputmethod/InputConnection");
     (void)(*env)->CallBooleanMethod(
         env, connection,
@@ -332,6 +337,10 @@ static void CheckKeys(const Program* program)
               IsText(&program->records[9], "b"),
           "a newline in committed text as Enter");
     CHECK(IsTap(program, 10, mwin_codeBackspace), "a key the input method sends");
+    CHECK(program->records[10].modifiers ==
+                  (mwin_modControl | mwin_modAlt | mwin_modCapsLock | mwin_modNumLock) &&
+              program->records[11].modifiers == 0,
+          "its modifiers from its meta state: Control, Alt and both locks, then none");
     CHECK(IsTap(program, 12, mwin_codeEnter), "the editor's action as Enter");
 }
 
@@ -410,8 +419,9 @@ static void Advance(Program* program, mwinContext* context)
               "committed, and the composition ended");
         Delete(env, connection, 2, 1);
         Text(env, connection, "commitText", "a\nb");
-        SendKey(env, connection, 0, KEYCODE_DEL);
-        SendKey(env, connection, 1, KEYCODE_DEL);
+        SendKey(env, connection, 0, KEYCODE_DEL,
+                AMETA_CTRL_ON | AMETA_ALT_ON | AMETA_CAPS_LOCK_ON | AMETA_NUM_LOCK_ON);
+        SendKey(env, connection, 1, KEYCODE_DEL, 0);
         EditorAction(env, connection);
         break;
     case 5:

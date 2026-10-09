@@ -39,6 +39,7 @@ static char* Found(mwinContext* context, size_t length, bool* failedOut)
         Release(context, context->clipboardFound, context->clipboardFoundLength);
         context->clipboardFound = text;
         context->clipboardFoundLength = (uint32_t)length;
+        context->foundPayloads[mwin_foundText] += 1;
     }
     return text;
 }
@@ -152,18 +153,10 @@ mwinResult mwinRequestClipboardRead(mwinContext* context, mwinWindowId window,
     return status;
 }
 
-mwinResult mwinGetClipboardText(const mwinContext* context, char* buffer, size_t capacity,
-                                size_t* lengthOut)
+mwinResult mwinGetClipboardText(const mwinContext* context, mwinRequestId request, char* buffer,
+                                size_t capacity, size_t* lengthOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
-    {
-        return mwinMisuse(context);
-    }
-    size_t length = context->clipboardFoundLength;
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(buffer, context->clipboardFound, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinCopyFound(
+        context, request, mwin_foundText, context != nullptr ? context->clipboardFound : nullptr,
+        context != nullptr ? context->clipboardFoundLength : 0, buffer, capacity, lengthOut);
 }

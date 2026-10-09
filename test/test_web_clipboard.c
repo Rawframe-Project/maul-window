@@ -100,11 +100,11 @@ static size_t s_baseline;
 
 static const char s_written[] = "h\xC3\xA9llo\0 \xF0\x9F\x98\x80";
 
-static bool Found(mwinContext* context, const char* expected, size_t length)
+static bool Found(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     char text[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardText(context, text, sizeof(text), &found) == mwin_success &&
+    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -127,13 +127,16 @@ static int Outcome(Program* program, mwinContext* context)
     return outcome;
 }
 
-// Whether the clipboard's text is the limit's bytes of x.
-static bool FoundExact(mwinContext* context)
+// Whether a read's text is the limit's bytes of x.
+static bool FoundExact(mwinContext* context, mwinRequestId read)
 {
     char expected[LIMIT];
     memset(expected, 'x', sizeof(expected));
-    return Found(context, expected, sizeof(expected));
+    return Found(context, read, expected, sizeof(expected));
 }
+
+// The read that found the limit's text.
+static mwinRequestId s_exactRead;
 
 static void Read(Program* program, mwinContext* context)
 {
@@ -160,11 +163,12 @@ static const uint8_t s_custom[] = {'o', 't', 'h', 'e', 'r', 0, 0xff};
 
 // Whether the last data read found bytes beginning as these, and
 // exactly these when whole.
-static bool FoundData(mwinContext* context, const uint8_t* expected, size_t length, bool whole)
+static bool FoundData(mwinContext* context, mwinRequestId read, const uint8_t* expected,
+                      size_t length, bool whole)
 {
     uint8_t data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+    return mwinGetClipboardData(context, read, data, sizeof(data), &found) == mwin_success &&
            (whole ? found == length : found >= length) && memcmp(data, expected, length) == 0;
 }
 
@@ -238,14 +242,14 @@ static void AdvanceData(Program* program, mwinContext* context, int outcome)
     switch (program->phase)
     {
     case phaseAgain:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4),
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "last", 4),
               "the next window reads the clipboard's text now");
         s_baseline = s_countedBytes;
         Read(program, context);
         break;
     case phaseSame:
     {
-        CHECK(outcome == mwin_outcomeDone && Found(context, "last", 4) &&
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "last", 4) &&
                   s_countedBytes == s_baseline,
               "read again, holding no more memory");
         mwinClipboardItem items[] = {
@@ -263,17 +267,19 @@ static void AdvanceData(Program* program, mwinContext* context, int outcome)
         ReadData(program, context, "application/x-maul");
         break;
     case phaseReadCustom:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_custom, sizeof(s_custom), true),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundData(context, program->request, s_custom, sizeof(s_custom), true),
               "a custom type read back as it was");
         ReadData(program, context, "image/png");
         break;
     case phaseReadPng:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_png, 8, false),
+        CHECK(outcome == mwin_outcomeDone && FoundData(context, program->request, s_png, 8, false),
               "the image read back as a PNG");
         Read(program, context);
         break;
     case phaseReadText:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "hi", 2), "the write's text read");
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "hi", 2),
+              "the write's text read");
         ReadData(program, context, "image/gif");
         break;
     case phaseMissing:
@@ -302,12 +308,13 @@ static void Advance(Program* program, mwinContext* context, int outcome)
         Read(program, context);
         break;
     case phaseRead:
-        CHECK(outcome == mwin_outcomeDone && Found(context, s_written, sizeof(s_written) - 1),
+        CHECK(outcome == mwin_outcomeDone &&
+                  Found(context, program->request, s_written, sizeof(s_written) - 1),
               "read back, the NUL kept");
         Place(0);
         break;
     case phaseSurrogate:
-        CHECK(outcome == mwin_outcomeDone && Found(context,
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request,
                                                    "A\xEF\xBF\xBD"
                                                    "B",
                                                    5),
@@ -315,7 +322,9 @@ static void Advance(Program* program, mwinContext* context, int outcome)
         Place(3);
         break;
     case phaseExact:
-        CHECK(outcome == mwin_outcomeDone && FoundExact(context), "text of the limit read whole");
+        s_exactRead = program->request;
+        CHECK(outcome == mwin_outcomeDone && FoundExact(context, s_exactRead),
+              "text of the limit read whole");
         Place(1);
         break;
     case phaseTooLarge:
@@ -324,7 +333,7 @@ static void Advance(Program* program, mwinContext* context, int outcome)
         Read(program, context);
         break;
     case phaseDenied:
-        CHECK(outcome == mwin_outcomeDenied && FoundExact(context),
+        CHECK(outcome == mwin_outcomeDenied && FoundExact(context, s_exactRead),
               "a refusal denied, the last text kept");
         SetClipboard(0);
         Read(program, context);

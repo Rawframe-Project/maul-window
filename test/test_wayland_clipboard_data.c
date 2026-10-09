@@ -148,20 +148,21 @@ static bool Got(const Program* program, const char* expected, size_t length)
     return program->gotLength == length && memcmp(program->got, expected, length) == 0;
 }
 
-static bool FoundData(mwinContext* context, const char* expected, size_t length)
+static bool FoundData(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     static char s_data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, s_data, sizeof(s_data), &found) == mwin_success &&
+    return mwinGetClipboardData(context, read, s_data, sizeof(s_data), &found) == mwin_success &&
            found == length && memcmp(s_data, expected, length) == 0;
 }
 
-static bool FoundText(mwinContext* context, bool primary, const char* expected, size_t length)
+static bool FoundText(mwinContext* context, mwinRequestId read, bool primary, const char* expected,
+                      size_t length)
 {
     char text[64];
     size_t found = 0;
-    mwinResult status = primary ? mwinGetPrimaryText(context, text, sizeof(text), &found)
-                                : mwinGetClipboardText(context, text, sizeof(text), &found);
+    mwinResult status = primary ? mwinGetPrimaryText(context, read, text, sizeof(text), &found)
+                                : mwinGetClipboardText(context, read, text, sizeof(text), &found);
     return status == mwin_success && found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -290,7 +291,8 @@ static void AdvanceOwned(Program* program, mwinContext* context, int outcome)
         ReadData(program, context, PNG, &program->request);
         break;
     case phaseOwnData:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_png, sizeof(s_png)),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundData(context, program->request, s_png, sizeof(s_png)),
               "a data read of the program's own data");
         ReadData(program, context, "image/gif", &program->request);
         break;
@@ -337,20 +339,23 @@ static void Advance(Program* program, mwinContext* context)
     case phaseOtherBoth:
         // The compositor writes its bytes whatever the type.
         CHECK(outcome == mwin_outcomeDone &&
-                  FoundText(context, false, s_peerPng, sizeof(s_peerPng)),
+                  FoundText(context, program->request, false, s_peerPng, sizeof(s_peerPng)),
               "a text read");
-        CHECK(second == mwin_outcomeDone && FoundData(context, s_peerPng, sizeof(s_peerPng)) &&
+        CHECK(second == mwin_outcomeDone &&
+                  FoundData(context, program->second, s_peerPng, sizeof(s_peerPng)) &&
                   DataReceived(program->data, PNG),
               "a data read made with it is answered after it, by its type");
         DataOfferTypes(program->data, s_bigType, 1, program->large, LARGE);
         break;
     case phaseOtherLarge:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, program->large, LARGE),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundData(context, program->request, program->large, LARGE),
               "another client's large item read");
         PrimaryOffer(program->primary, "peer sel", 8);
         break;
     case phaseOtherPrimary:
-        CHECK(outcome == mwin_outcomeDone && FoundText(context, true, "peer sel", 8) &&
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundText(context, program->request, true, "peer sel", 8) &&
                   PrimaryAskedFor(program->primary, "text/plain;charset=utf-8"),
               "another client's primary selection read, as its best type, though announced twice");
         DataOffer(program->data, nullptr, 0);

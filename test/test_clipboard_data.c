@@ -41,7 +41,7 @@ static mwinClipboardItem Item(const char* mime, const char* bytes, size_t length
 }
 
 static bool Refused(mwinContext* context, mwinWindowId window, const mwinClipboardItem* items,
-                    size_t count)
+                    uint32_t count)
 {
     return mwinRequestClipboardWriteData(context, window, items, count, nullptr) ==
            mwin_errorInvalid;
@@ -115,11 +115,11 @@ static bool PlatformText(mwinContext* context, const char* expected)
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
-static bool FoundData(mwinContext* context, const char* expected, size_t length)
+static bool FoundData(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     char bytes[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, bytes, sizeof(bytes), &found) == mwin_success &&
+    return mwinGetClipboardData(context, read, bytes, sizeof(bytes), &found) == mwin_success &&
            found == length && memcmp(bytes, expected, length) == 0;
 }
 
@@ -157,9 +157,11 @@ static void Step(Program* program, mwinContext* context, int step)
     {
         char text[4];
         size_t length = 99;
-        CHECK(Outcome(program, 2) == mwin_outcomeDone && FoundData(context, "PNG2", 4) &&
+        CHECK(Outcome(program, 2) == mwin_outcomeDone &&
+                  FoundData(context, program->requests[2], "PNG2", 4) &&
                   Outcome(program, 3) == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+                  mwinGetClipboardText(context, program->requests[3], text, sizeof(text),
+                                       &length) == mwin_success &&
                   length == 0,
               "its data found, its text gone with the copy");
         CHECK(mwinRequestClipboardReadData(context, window, "image/jpeg", 10,
@@ -168,7 +170,8 @@ static void Step(Program* program, mwinContext* context, int step)
         break;
     }
     case 4:
-        CHECK(Outcome(program, 4) == mwin_outcomeFailed && FoundData(context, "PNG2", 4),
+        CHECK(Outcome(program, 4) == mwin_outcomeFailed &&
+                  FoundData(context, program->requests[2], "PNG2", 4),
               "failed, the data found kept");
         CHECK(mwinTestSetClipboardData(context, "image/png", 9, "0123456789abcdefg", LIMIT + 1) ==
                       mwin_success &&
@@ -177,7 +180,8 @@ static void Step(Program* program, mwinContext* context, int step)
               "data past the limit");
         break;
     case 5:
-        CHECK(Outcome(program, 5) == mwin_outcomeTooLarge && FoundData(context, "PNG2", 4),
+        CHECK(Outcome(program, 5) == mwin_outcomeTooLarge &&
+                  FoundData(context, program->requests[2], "PNG2", 4),
               "too large, the data found kept");
         CHECK(mwinRequestClipboardWrite(context, window, "only", 4, &program->requests[6]) ==
                   mwin_success,
@@ -222,7 +226,8 @@ static void Step(Program* program, mwinContext* context, int step)
         char text[LIMIT];
         size_t length = 0;
         CHECK(Outcome(program, 8) == mwin_outcomeDone &&
-                  mwinGetPrimaryText(context, text, sizeof(text), &length) == mwin_success &&
+                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
+                      mwin_success &&
                   length == 5 && memcmp(text, "a\xEF\xBF\xBD(", 5) == 0,
               "repaired");
         // The limit exactly, one byte of it not UTF-8: three once repaired.
@@ -239,9 +244,12 @@ static void Step(Program* program, mwinContext* context, int step)
         char text[LIMIT];
         size_t length = 0;
         CHECK(Outcome(program, 9) == mwin_outcomeTooLarge &&
-                  mwinGetPrimaryText(context, text, sizeof(text), &length) == mwin_success &&
-                  length == 5,
-              "too large, the text found kept");
+                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
+                      mwin_success &&
+                  length == 5 &&
+                  mwinGetPrimaryText(context, program->requests[9], text, sizeof(text), &length) ==
+                      mwin_errorStale,
+              "too large, the text found kept for the read that found it");
         program->done = true;
         break;
     }

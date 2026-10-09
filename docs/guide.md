@@ -268,7 +268,9 @@ come through the Gamepad API.
 The clipboard holds UTF-8 text. `mwinRequestClipboardWrite` and
 `mwinRequestClipboardRead` are requests of a window. The browser may
 ask the user first, and on Wayland only a focused window may use it. A
-read that completes done leaves its text for `mwinGetClipboardText`.
+read that completes done leaves its text for `mwinGetClipboardText`,
+which takes the read's request from the completion record and answers
+`mwin_errorStale` once a later read found other text.
 Text from other programs has ill-formed UTF-8 replaced with U+FFFD, and
 text past `clipboardBytes` completes the read too large.
 

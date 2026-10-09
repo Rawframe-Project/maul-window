@@ -58,11 +58,14 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
+// The last clipboard read asked, whose payload the checks copy out.
+static mwinRequestId s_read;
+
 static bool ClipboardIs(mwinContext* context, const char* expected)
 {
     char text[64];
     size_t length = 0;
-    return mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -129,9 +132,9 @@ static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime
 {
     uint8_t data[32];
     size_t found = 0;
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), nullptr) ==
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                mwin_success &&
-           mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
            found == length && memcmp(data, expected, length) == 0;
 }
 
@@ -174,7 +177,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK([UIPasteboard.generalPasteboard.string isEqual:@"héllo"], "on the pasteboard");
         CHECK(UIApplication.sharedApplication.idleTimerDisabled, "the idle timer off");
         UIPasteboard.generalPasteboard.string = @"from the test";
-        CHECK(mwinRequestClipboardRead(context, window, nullptr) == mwin_success &&
+        CHECK(mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
                   mwinRequestKeepAwake(context, window, false, nullptr) == mwin_success,
               "a read, awake no more");
         break;

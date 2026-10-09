@@ -86,11 +86,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool Found(mwinContext* context, const char* expected, size_t length)
+static bool Found(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     static char s_text[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardText(context, s_text, sizeof(s_text), &found) == mwin_success &&
+    return mwinGetClipboardText(context, read, s_text, sizeof(s_text), &found) == mwin_success &&
            found == length && memcmp(s_text, expected, length) == 0;
 }
 
@@ -160,7 +160,7 @@ static void AdvanceWrites(Program* program, mwinContext* context, int outcome)
         Read(program, context);
         break;
     case phaseOwnRead:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "h\xC3\xA9llo", 6),
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "h\xC3\xA9llo", 6),
               "a read of the program's own selection");
         Write(program, context, program->large, LARGE);
         break;
@@ -205,7 +205,7 @@ static void Advance(Program* program, mwinContext* context)
         PeerOwn(peer, peer->clipboard, peer->utf8, "A\xC3(", 3);
         break;
     case phaseOtherText:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "A\xEF\xBF\xBD(", 5),
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "A\xEF\xBF\xBD(", 5),
               "another client's text read, repaired");
         memset(s_tooLarge, 'x', sizeof(s_tooLarge));
         PeerOwn(peer, peer->clipboard, peer->utf8, s_tooLarge, sizeof(s_tooLarge));
@@ -215,12 +215,14 @@ static void Advance(Program* program, mwinContext* context)
         PeerOwn(peer, peer->clipboard, peer->utf8, program->large, LARGE);
         break;
     case phasePieces:
-        CHECK(outcome == mwin_outcomeDone && Found(context, program->large, LARGE),
+        CHECK(outcome == mwin_outcomeDone &&
+                  Found(context, program->request, program->large, LARGE),
               "another client's large text read in pieces");
         PeerOwn(peer, peer->clipboard, peer->utf8, nullptr, 0);
         break;
     case phaseNoOwner:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "", 0), "no owner read as empty");
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "", 0),
+              "no owner read as empty");
         break;
     default:
         AdvanceWrites(program, context, outcome);

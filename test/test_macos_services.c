@@ -84,15 +84,18 @@ static void Collect(Program* program, mwinContext* context)
 static const uint8_t s_png[] = {0x89, 'P', 'N', 'G', 0, '\r', '\n'};
 static const uint8_t s_custom[] = {'o', 't', 'h', 'e', 'r', 0, 0xff};
 
+// The last clipboard read asked, whose payload the checks copy out.
+static mwinRequestId s_read;
+
 // Reads a type, answered at once, and whether these bytes came.
 static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime,
                      const uint8_t* expected, size_t length)
 {
     uint8_t data[32];
     size_t found = 0;
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), nullptr) ==
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                mwin_success &&
-           mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+           mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
            found == length && memcmp(data, expected, length) == 0;
 }
 
@@ -122,7 +125,7 @@ static void Advance(Program* program, mwinContext* context)
     case 0:
         CHECK(mwinRequestClipboardWrite(context, window, TEXT, sizeof(TEXT) - 1, nullptr) ==
                       mwin_success &&
-                  mwinRequestClipboardRead(context, window, nullptr) == mwin_success &&
+                  mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
                   mwinRequestKeepAwake(context, window, true, nullptr) == mwin_success,
               "write, read, keep awake");
         break;
@@ -132,7 +135,8 @@ static void Advance(Program* program, mwinContext* context)
         size_t length = 0;
         CHECK(program->outcomes[0] == mwin_outcomeDone &&
                   program->outcomes[1] == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+                  mwinGetClipboardText(context, s_read, text, sizeof(text), &length) ==
+                      mwin_success &&
                   length == sizeof(TEXT) - 1 && memcmp(text, TEXT, length) == 0,
               "the text written is read back whole");
         CHECK(program->outcomes[2] == mwin_outcomeDone && Awake(),
@@ -163,8 +167,9 @@ static void Advance(Program* program, mwinContext* context)
                   program->outcomes[2] == mwin_outcomeDone,
               "data written and read");
         CHECK(program->outcomes[3] == mwin_outcomeFailed, "a type the pasteboard lacks fails");
-        CHECK(mwinRequestClipboardRead(context, window, nullptr) == mwin_success &&
-                  mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+        CHECK(mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
+                  mwinGetClipboardText(context, s_read, text, sizeof(text), &length) ==
+                      mwin_success &&
                   length == 2 && memcmp(text, "hi", 2) == 0,
               "the write's text read");
         CHECK(mwinRequestPrimaryRead(context, window, nullptr) == mwin_success, "a primary read");

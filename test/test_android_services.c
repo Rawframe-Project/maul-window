@@ -162,11 +162,14 @@ static bool Ready(Program* program, mwinContext* context)
     }
 }
 
+// The last clipboard read asked, whose payload the checks copy out.
+static mwinRequestId s_read;
+
 static bool ReadBack(mwinContext* context, const char* expected)
 {
     char text[64] = {0};
     size_t length = 0;
-    return mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -175,7 +178,7 @@ static void WriteRead(const Program* program, mwinContext* context, const char* 
 {
     CHECK(mwinRequestClipboardWrite(context, program->window, text, strlen(text), nullptr) ==
                   mwin_success &&
-              mwinRequestClipboardRead(context, program->window, nullptr) == mwin_success,
+              mwinRequestClipboardRead(context, program->window, &s_read) == mwin_success,
           "a write and a read asked for");
 }
 
@@ -197,7 +200,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0 &&
                   StateOf(program, context).awake,
               "kept awake: the window's flag");
-        CHECK(mwinRequestClipboardRead(context, program->window, nullptr) == mwin_success,
+        CHECK(mwinRequestClipboardRead(context, program->window, &s_read) == mwin_success,
               "a read asked for");
         break;
     case 2:

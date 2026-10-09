@@ -96,11 +96,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool Found(mwinContext* context, const char* expected, size_t length)
+static bool Found(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     char text[LIMIT];
     size_t found = 99;
-    return mwinGetClipboardText(context, text, sizeof(text), &found) == mwin_success &&
+    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -138,11 +138,12 @@ static void Advance(Program* program, mwinContext* context)
         PeerOwn(peer, peer->clipboard, peer->utf8, s_text, 0);
         break;
     case phaseEmpty:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "", 0), "an empty text read as empty");
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "", 0),
+              "an empty text read as empty");
         PeerOwn(peer, peer->clipboard, peer->utf8, s_text, LIMIT);
         break;
     case phaseExact:
-        CHECK(outcome == mwin_outcomeDone && Found(context, s_text, LIMIT),
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, s_text, LIMIT),
               "a text of exactly the limit read whole");
         PeerOwn(peer, peer->clipboard, peer->utf8, s_text, LIMIT + 1);
         break;

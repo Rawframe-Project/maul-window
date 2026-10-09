@@ -104,20 +104,21 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool FoundData(mwinContext* context, const char* expected, size_t length)
+static bool FoundData(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     static char s_data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, s_data, sizeof(s_data), &found) == mwin_success &&
+    return mwinGetClipboardData(context, read, s_data, sizeof(s_data), &found) == mwin_success &&
            found == length && memcmp(s_data, expected, length) == 0;
 }
 
-static bool FoundText(mwinContext* context, bool primary, const char* expected, size_t length)
+static bool FoundText(mwinContext* context, mwinRequestId read, bool primary, const char* expected,
+                      size_t length)
 {
     char text[64];
     size_t found = 0;
-    mwinResult status = primary ? mwinGetPrimaryText(context, text, sizeof(text), &found)
-                                : mwinGetClipboardText(context, text, sizeof(text), &found);
+    mwinResult status = primary ? mwinGetPrimaryText(context, read, text, sizeof(text), &found)
+                                : mwinGetClipboardText(context, read, text, sizeof(text), &found);
     return status == mwin_success && found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -234,7 +235,8 @@ static void AdvanceOwned(Program* program, mwinContext* context, int outcome)
         ReadData(program, context, PNG, &program->request);
         break;
     case phaseOwnData:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, s_png, sizeof(s_png)),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundData(context, program->request, s_png, sizeof(s_png)),
               "a data read of the program's own data");
         ReadData(program, context, "image/gif", &program->request);
         break;
@@ -280,19 +282,22 @@ static void Advance(Program* program, mwinContext* context)
         PeerOwn(peer, peer->clipboard, program->png, s_peerPng, sizeof(s_peerPng));
         break;
     case phaseOtherBoth:
-        CHECK(outcome == mwin_outcomeDone && FoundText(context, false, "", 0),
+        CHECK(outcome == mwin_outcomeDone && FoundText(context, program->request, false, "", 0),
               "a text read of data without text is empty");
-        CHECK(second == mwin_outcomeDone && FoundData(context, s_peerPng, sizeof(s_peerPng)),
+        CHECK(second == mwin_outcomeDone &&
+                  FoundData(context, program->second, s_peerPng, sizeof(s_peerPng)),
               "a data read made with it is answered after it");
         PeerOwn(peer, peer->clipboard, program->big, program->large, LARGE);
         break;
     case phaseOtherPieces:
-        CHECK(outcome == mwin_outcomeDone && FoundData(context, program->large, LARGE),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundData(context, program->request, program->large, LARGE),
               "another client's large item read in pieces");
         PeerOwn(peer, XCB_ATOM_PRIMARY, peer->utf8, "peer sel", 8);
         break;
     case phaseOtherPrimary:
-        CHECK(outcome == mwin_outcomeDone && FoundText(context, true, "peer sel", 8),
+        CHECK(outcome == mwin_outcomeDone &&
+                  FoundText(context, program->request, true, "peer sel", 8),
               "another client's PRIMARY read");
         PeerOwn(peer, peer->clipboard, program->png, nullptr, 0);
         break;

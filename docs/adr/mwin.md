@@ -44,3 +44,4 @@ are listed in [README.md](README.md).
 | [mwin-0037](mwin-0037-pens-on-linux.md) | Pens on Wayland and X11 | Accepted |
 | [mwin-0038](mwin-0038-test-text-readers.md) | The test backend tells text input and the keyboard | Accepted |
 | [mwin-0039](mwin-0039-touch-on-x11.md) | Touch on X11 | Accepted |
+| [mwin-0040](mwin-0040-clipboard-reads-by-request.md) | A clipboard read's payload is kept under its request | Accepted |

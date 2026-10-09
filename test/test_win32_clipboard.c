@@ -85,11 +85,14 @@ static bool Holds(const wchar_t* expected)
     return same;
 }
 
+// The last read asked, whose payload Found and FoundData copy out.
+static mwinRequestId s_read;
+
 static int Read(mwinContext* context, mwinWindowId window)
 {
-    mwinRequestId request = {0};
-    return mwinRequestClipboardRead(context, window, &request) == mwin_success
-               ? Outcome(context, request)
+    s_read = (mwinRequestId){0};
+    return mwinRequestClipboardRead(context, window, &s_read) == mwin_success
+               ? Outcome(context, s_read)
                : -1;
 }
 
@@ -97,7 +100,7 @@ static bool Found(mwinContext* context, const char* expected)
 {
     char text[LIMIT];
     size_t length = 0;
-    return mwinGetClipboardText(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -127,16 +130,16 @@ static bool FoundData(mwinContext* context, const uint8_t* expected, size_t leng
 {
     uint8_t data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, data, sizeof(data), &found) == mwin_success &&
+    return mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
            found >= length && memcmp(data, expected, length) == 0;
 }
 
 static int ReadData(mwinContext* context, mwinWindowId window, const char* mime)
 {
-    mwinRequestId request = {0};
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &request) ==
+    s_read = (mwinRequestId){0};
+    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                    mwin_success
-               ? Outcome(context, request)
+               ? Outcome(context, s_read)
                : -1;
 }
 

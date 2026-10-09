@@ -116,11 +116,11 @@ static void Request(Program* program)
     program->fd = DataRequest(program->data);
 }
 
-static bool Found(mwinContext* context, const char* expected, size_t length)
+static bool Found(mwinContext* context, mwinRequestId read, const char* expected, size_t length)
 {
     char text[64];
     size_t found = 0;
-    return mwinGetClipboardText(context, text, sizeof(text), &found) == mwin_success &&
+    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -205,7 +205,7 @@ static void AdvanceWrites(Program* program, mwinContext* context, int outcome)
         Read(program, context);
         break;
     case phaseOwnRead:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "h\xC3\xA9llo", 6),
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "h\xC3\xA9llo", 6),
               "a read of the program's own selection");
         Write(program, context, program->large, LARGE);
         break;
@@ -236,7 +236,8 @@ static void Advance(Program* program, mwinContext* context)
         DataOffer(program->data, "A\xC3(", 3);
         break;
     case phaseOffered:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "A\xEF\xBF\xBD(", 5) &&
+        CHECK(outcome == mwin_outcomeDone &&
+                  Found(context, program->request, "A\xEF\xBF\xBD(", 5) &&
                   DataReceived(program->data, "text/plain;charset=utf-8"),
               "another client's text read by its UTF-8 type, repaired");
         memset(s_large, 'x', sizeof(s_large));
@@ -247,7 +248,8 @@ static void Advance(Program* program, mwinContext* context)
         DataOffer(program->data, nullptr, 0);
         break;
     case phaseNothing:
-        CHECK(outcome == mwin_outcomeDone && Found(context, "", 0), "no selection read as empty");
+        CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "", 0),
+              "no selection read as empty");
         break;
     default:
         AdvanceWrites(program, context, outcome);

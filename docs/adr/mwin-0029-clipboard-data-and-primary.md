@@ -56,3 +56,7 @@ type it wants; nothing in the library grows an image codec. Windows
 programs that read only `CF_DIB` see no image from a program that
 writes PNG, and a program reading a DIB another program wrote reads it
 by its registered name; that stays the program's to convert.
+
+Amended 2026-10-09: the getters take the read's request and copy out
+only for a read answered done whose payload no later read replaced
+(mwin-0040).

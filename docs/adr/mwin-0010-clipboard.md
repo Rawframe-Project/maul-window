@@ -107,3 +107,7 @@ cancellation. Each backend's clipboard follows in its own change; until
 then its requests complete with `mwin_outcomeUnsupported`. A change
 notification (Win32's clipboard listener, Wayland's selection event)
 is left for later: the requirements do not ask for one.
+
+Amended 2026-10-09: the getters take the read's request and copy out
+only for a read answered done whose payload no later read replaced
+(mwin-0040).

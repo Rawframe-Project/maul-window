@@ -157,23 +157,33 @@ static void CheckTriggers(Program* program, mwinContext* context)
 static void CheckRaw(Program* program, mwinContext* context)
 {
     static const int32_t axes[] = {AXIS_X, AXIS_Y, AXIS_HAT_X};
-    uint64_t keys = KeyBit(KEY_BUTTON_1) | KeyBit(KEY_BUTTON_1 + 2) | KeyBit(KEY_BUTTON_1 + 5);
+    uint64_t keys = KeyBit(KEY_BUTTON_1) | KeyBit(KEY_BUTTON_1 + 1) | KeyBit(KEY_BUTTON_1 + 2) |
+                    KeyBit(KEY_BUTTON_1 + 5);
     uint32_t slot = 0;
     mwinAndroidPadLayout layout = Layout(context, keys, axes, 3, &slot);
     mwinGamepadInfo info = {0};
     (void)mwinGetGamepadInfo(context, mwinGamepadIdOf(context, slot), &info);
-    CHECK(!layout.mapped && !info.mapped && info.rawButtons == 3 && info.rawAxes == 3,
+    CHECK(!layout.mapped && !info.mapped && info.rawButtons == 4 && info.rawAxes == 3,
           "no south face button: raw, with its buttons and axes counted");
     Drain(program, context);
     mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_1 + 5, true, s_timeNs);
+    mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_1 + 3, true, s_timeNs);
+    mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_1, true, s_timeNs);
     mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_1 + 1, true, s_timeNs);
     const float values[] = {0.25f, -0.5f, 1.0f};
     mwinAndroidPadAxes(context, slot, &layout, values, s_timeNs);
     Drain(program, context);
-    CHECK(program->eventCount == 4 && program->events[0].type == mwin_eventGamepadButtonDown &&
-              program->events[0].data.gamepadButton.button == 2 &&
-              program->events[0].data.gamepadButton.raw,
-          "BUTTON_6, the third key it has, as raw button 2; a key it lacks left out");
+    bool raw = true;
+    for (int i = 0; i < 3; i++)
+    {
+        raw = raw && program->events[i].type == mwin_eventGamepadButtonDown &&
+              program->events[i].data.gamepadButton.raw;
+    }
+    CHECK(program->eventCount == 6 && raw && program->events[0].data.gamepadButton.button == 3 &&
+              program->events[1].data.gamepadButton.button == 0 &&
+              program->events[2].data.gamepadButton.button == 1,
+          "BUTTON_6, the fourth key it has, as raw button 3, BUTTON_1 as 0 and BUTTON_2 as 1; "
+          "a key it lacks left out");
     mwinGamepadState state = StateOf(context, slot);
     CHECK(state.axes[0] == 0.25f && state.axes[1] == -0.5f && state.axes[2] == 1.0f,
           "its axes in order, with Android's values");

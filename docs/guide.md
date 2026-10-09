@@ -411,9 +411,13 @@ On Android the application carries the library's Java
 library's activity in its manifest, with the program's native library
 as its `android.app.lib_name`; the program defines `mwinAndroidMain`
 and exports it from that library. No `configChanges` are needed: an
-activity made anew joins the running program. `test/android/` holds
-such a manifest, and `tools/build_android_app.sh` builds an application
-without Gradle.
+activity made anew joins the running program. An application that
+shrinks its code with R8 or ProGuard, as a Gradle release build does,
+adds `java/proguard-rules.pro` to its rules: the native library finds the
+library's Java classes and members by name, and an accessibility root's
+`virtualViewAt` by reflection. `test/android/` holds such a manifest,
+and `tools/build_android_app.sh` builds an application without Gradle,
+shrunk by R8 with those rules.
 
 On the web without Emscripten (a wasm32-wasi build), the backend's
 JavaScript comes as imports. The build writes `maul-window.mjs` beside

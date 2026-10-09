@@ -506,6 +506,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
                         ${package} ${ANDROID_ABI}
                 DEPENDS test_${name} ${MWIN_JAVA_SOURCES}
                         ${PROJECT_SOURCE_DIR}/test/android/AndroidManifest.xml
+                        ${PROJECT_SOURCE_DIR}/java/proguard-rules.pro
+                        ${PROJECT_SOURCE_DIR}/test/android/proguard-rules.pro
                         ${PROJECT_SOURCE_DIR}/tools/build_android_app.sh
                 VERBATIM)
             add_custom_target(test_${name}_apk ALL DEPENDS ${PROJECT_BINARY_DIR}/test_${name}.apk)

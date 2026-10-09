@@ -45,3 +45,4 @@ are listed in [README.md](README.md).
 | [mwin-0038](mwin-0038-test-text-readers.md) | The test backend tells text input and the keyboard | Accepted |
 | [mwin-0039](mwin-0039-touch-on-x11.md) | Touch on X11 | Accepted |
 | [mwin-0040](mwin-0040-clipboard-reads-by-request.md) | A clipboard read's payload is kept under its request | Accepted |
+| [mwin-0041](mwin-0041-android-shrinking.md) | What an Android application keeps when it shrinks its code | Accepted |

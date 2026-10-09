@@ -4,15 +4,16 @@
 package maul.window.tests;
 
 import android.view.View;
-import maul.window.Explorer;
 
-/** The test's tree, explored through the library's Explorer. */
-public final class ExplorerTree extends Tree implements Explorer {
-    public ExplorerTree(View host) {
+/**
+ * The test's tree with Explorer's method but not Explorer, as a provider
+ * of another library has it; the library finds the method by reflection.
+ */
+public final class PlainTree extends Tree {
+    public PlainTree(View host) {
         super(host);
     }
 
-    @Override
     public int virtualViewAt(float x, float y) {
         return nodeAt(x, y);
     }

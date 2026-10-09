@@ -11,9 +11,10 @@ import android.view.accessibility.AccessibilityNodeProvider;
 /**
  * A test program's accessibility tree: the window, with "Alpha" over its
  * left half and "Beta" over its right. It remembers which nodes clients
- * read. It names the virtual view under a place as Explorer does without
- * implementing it, as a provider of another library does; ExplorerTree
- * implements it.
+ * read. PlainTree names the virtual view under a place as Explorer does
+ * without implementing it, as a provider of another library does;
+ * ExplorerTree implements it. Neither is the other's superclass, so a
+ * shrinker that renames PlainTree's method is not held back by Explorer.
  */
 public class Tree extends AccessibilityNodeProvider {
     private static final String[] NAMES = {"Alpha", "Beta"};
@@ -55,7 +56,8 @@ public class Tree extends AccessibilityNodeProvider {
         return node;
     }
 
-    public int virtualViewAt(float x, float y) {
+    /** The node under a place: Alpha on the left half, Beta on the right. */
+    int nodeAt(float x, float y) {
         return x < host.getWidth() / 2.0f ? 1 : 2;
     }
 }

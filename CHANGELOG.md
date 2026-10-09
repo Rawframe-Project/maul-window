@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Android: `java/proguard-rules.pro`, what an application that shrinks its code with R8 or ProGuard must keep: the library's Java classes and members, which the native library finds by name, and a root's public `virtualViewAt`, found by reflection. The test applications are now built with R8 and these rules (mwin-0041).
+
 ### Changed
 
 - `mwinGetClipboardText`, `mwinGetClipboardData` and `mwinGetPrimaryText` take the read's request after the context, from its completion record, and answer `mwin_errorStale` for any request but a read answered done whose payload no later read replaced; before, a read could be answered with another window's read, or a superseded read's late bytes. Pass `event.data.completion.request` (mwin-0040).

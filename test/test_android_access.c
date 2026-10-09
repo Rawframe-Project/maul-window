@@ -341,7 +341,7 @@ static void Start(Program* program, mwinContext* context)
     jobject view = handles.handles.android.view;
     CHECK(view != nullptr, "the view in the handles");
     program->tree = MakeTree(program, "maul.window.tests.ExplorerTree", view);
-    program->plain = MakeTree(program, "maul.window.tests.Tree", view);
+    program->plain = MakeTree(program, "maul.window.tests.PlainTree", view);
     CHECK(program->tree != nullptr && program->plain != nullptr, "the trees made");
     SetRoot(program, context, program->tree);
     printf("adb: settings put secure enabled_accessibility_services " MWIN_TEST_PACKAGE

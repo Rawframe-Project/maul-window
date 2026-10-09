@@ -13,6 +13,10 @@ format.
 - `mwinGetClipboardText`, `mwinGetClipboardData` and `mwinGetPrimaryText` take the read's request after the context, from its completion record, and answer `mwin_errorStale` for any request but a read answered done whose payload no later read replaced; before, a read could be answered with another window's read, or a superseded read's late bytes. Pass `event.data.completion.request` (mwin-0040).
 - `mwinRequestClipboardWriteData` takes its item count as `uint32_t`, as the other requests with arrays do.
 
+### Fixed
+
+- Android: touch exploration finds the node under the finger in a root that has a public `int virtualViewAt(float x, float y)` but does not implement `maul.window.Explorer`, as a provider of another library (Maul UI's) cannot; the library took such a root's hovers and announced nothing.
+
 ## [0.11.0] - 2026-10-09
 
 Touch screens on X11 and power facts on the web, the two gaps an audit

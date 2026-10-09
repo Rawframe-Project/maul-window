@@ -7,14 +7,15 @@ import android.graphics.Rect;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
-import maul.window.Explorer;
 
 /**
  * A test program's accessibility tree: the window, with "Alpha" over its
  * left half and "Beta" over its right. It remembers which nodes clients
- * read.
+ * read. It names the virtual view under a place as Explorer does without
+ * implementing it, as a provider of another library does; ExplorerTree
+ * implements it.
  */
-public final class Tree extends AccessibilityNodeProvider implements Explorer {
+public class Tree extends AccessibilityNodeProvider {
     private static final String[] NAMES = {"Alpha", "Beta"};
     private final View host;
     /** The nodes read, as a bit each: 1 the window, 2 Alpha, 4 Beta. */
@@ -54,7 +55,6 @@ public final class Tree extends AccessibilityNodeProvider implements Explorer {
         return node;
     }
 
-    @Override
     public int virtualViewAt(float x, float y) {
         return x < host.getWidth() / 2.0f ? 1 : 2;
     }

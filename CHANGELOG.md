@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-09
+
+Two fixes found by the Win32 and Android mutation sweeps.
+
 ### Fixed
 
 - Android: an activity started while the one before it was still

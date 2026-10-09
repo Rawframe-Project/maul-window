@@ -9,9 +9,9 @@
 // The window then follows the keyboard through IFrameworkInputPane (on
 // Windows; wine may lack it): its handler, called as Windows would with
 // the keyboard over the lower part of the client area, reports the part
-// covered in logical units, once however often it is told; shown wholly
-// below the window or hidden, it reports none. The handler answers no
-// interface but its own.
+// covered in logical units, and nothing new when told again where it
+// is; shown wholly below the window or hidden, it reports none. The
+// handler answers no interface but its own.
 
 #include "test_harness.h"
 #include "win32.h"
@@ -51,6 +51,11 @@ typedef struct Program
     float height;
     mwinRect covered[4];
     int covers;
+    // The keyboard last shown, told again in a frame of its own, and the
+    // frames waited since.
+    RECT last;
+    bool repeated;
+    int frames;
     bool timedOut;
 } Program;
 
@@ -108,8 +113,7 @@ static void Cover(Program* program, mwinContext* context, bool over)
     RECT keyboard = {origin.x - 50, top, origin.x + (LONG)window->width + 50,
                      origin.y + (LONG)window->height + 200};
     (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
-    // Told again where it already is: nothing new to report.
-    (void)handler->lpVtbl->Showing(handler, &keyboard, TRUE);
+    program->last = keyboard;
     void* other = &keyboard;
     void* self = nullptr;
     CHECK(handler->lpVtbl->QueryInterface(handler, &IID_IDataObject, &other) == E_NOINTERFACE &&
@@ -120,6 +124,27 @@ static void Cover(Program* program, mwinContext* context, bool over)
     program->scale = (float)window->dpi / 96.0f;
     program->width = (float)window->width / program->scale;
     program->height = (float)window->height / program->scale;
+}
+
+// Tells the handler again where the keyboard already is, alone in its
+// frame so nothing merges with it: true once a few frames brought no new
+// report.
+static bool Repeated(Program* program, mwinContext* context)
+{
+    if (!program->repeated)
+    {
+        mwinWin32Window* window = nullptr;
+        IFrameworkInputPaneHandler* handler = Handler(program, context, &window);
+        (void)handler->lpVtbl->Showing(handler, &program->last, TRUE);
+        program->repeated = true;
+        return false;
+    }
+    if (++program->frames < 5)
+    {
+        return false;
+    }
+    CHECK(program->covers == 3, "told again where it is, nothing new reported");
+    return true;
 }
 
 static void Uncover(Program* program, mwinContext* context)
@@ -148,9 +173,11 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     case phaseCreate:
         advance = created;
         break;
+    case phaseAgain:
+        advance = program->covers >= 3 && Repeated(program, context);
+        break;
     case phaseCovered:
     case phaseOutside:
-    case phaseAgain:
     case phaseUncovered:
         advance = program->covers >= (int)(program->phase - phaseShow);
         break;

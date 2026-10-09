@@ -8,7 +8,8 @@
 // Screen's release alone, text outside the BMP to its last character,
 // the pointer entering and
 // moving, a double click, the wheel, cursor shapes, a cursor made from
-// images and its end, a hidden and confined cursor, and a captured one
+// images and its end, a hidden and confined cursor (its clip following
+// the window and the focus), and a captured one
 // with raw motion.
 
 #include "test_harness.h"
@@ -244,6 +245,30 @@ static void AdvancePointer(Program* program)
     }
 }
 
+// A confined cursor's clip follows the window as it moves and resizes,
+// lets go while another window has the focus, and comes back with it.
+static void CheckConfinedFollows(const Program* program)
+{
+    RECT frame;
+    GetWindowRect(program->hwnd, &frame);
+    SetWindowPos(program->hwnd, nullptr, frame.left + 30, frame.top + 20, 0, 0,
+                 SWP_NOSIZE | SWP_NOZORDER);
+    CHECK(ClipIs(ClientOnScreen(program->hwnd)), "the clip follows the window as it moves");
+    SetWindowPos(program->hwnd, nullptr, 0, 0, frame.right - frame.left - 40,
+                 frame.bottom - frame.top - 30, SWP_NOMOVE | SWP_NOZORDER);
+    CHECK(ClipIs(ClientOnScreen(program->hwnd)), "and as it resizes");
+    HWND other = CreateWindowExW(0, L"STATIC", L"other", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 0, 0,
+                                 200, 100, nullptr, nullptr, nullptr, nullptr);
+    SetForegroundWindow(other);
+    SetFocus(other);
+    CHECK(GetFocus() == other && ClipIs(Desktop()), "let go while another window has the focus");
+    SetForegroundWindow(program->hwnd);
+    SetFocus(program->hwnd);
+    CHECK(GetFocus() == program->hwnd && ClipIs(ClientOnScreen(program->hwnd)),
+          "and clipped again with the focus back");
+    DestroyWindow(other);
+}
+
 // The cursor's phases.
 static void AdvanceCursor(Program* program, mwinContext* context)
 {
@@ -311,6 +336,7 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         CHECK(outcome == mwin_outcomeDone && GetCursor() == nullptr &&
                   ClipIs(ClientOnScreen(program->hwnd)),
               "confined: hidden and clipped to the client area");
+        CheckConfinedFollows(program);
         CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");

@@ -7,13 +7,13 @@
 // window and goes when asked to. The test calls the activity's input
 // connection as an input method would (through JNI, the user's typing
 // being out of its reach): committed text as text, compositions told
-// while the window accepts text, a newline as the Enter key, deletions
-// outside a composition and sent keys as keys, with their modifiers; a
-// composition dropped when the window stops accepting text, not
-// committed when the input method closes its old connection, and none
-// told while it does not; each purpose's input type, nothing corrected
-// or completed. Insets told again alike change neither the safe area
-// nor the keyboard.
+// while the window accepts text and kept as its caret moves, a newline
+// as the Enter key, deletions outside a composition and sent keys as
+// keys, with their modifiers; a composition dropped when the window
+// stops accepting text, not committed when the input method closes its
+// old connection, and none told while it does not; each purpose's input
+// type, nothing corrected or completed. Insets told again alike change
+// neither the safe area nor the keyboard.
 
 #include "test_harness.h"
 
@@ -428,9 +428,18 @@ static void Advance(Program* program, mwinContext* context)
         CheckKeys(program);
         Text(env, connection, "setComposingText", "xy");
         program->composing = (*env)->NewGlobalRef(env, connection);
+        {
+            // Text input asked for again, the caret moved: the
+            // composition stays.
+            mwinRect moved = {30.0f, 10.0f, 1.0f, 20.0f};
+            CHECK(mwinRequestTextInput(context, program->window, true, moved, nullptr) ==
+                      mwin_success,
+                  "the caret moved while composing");
+        }
         break;
     case 6:
-        CHECK(count == 1 && IsPreedit(&records[0], "xy", 2), "composing");
+        CHECK(count == 1 && IsPreedit(&records[0], "xy", 2),
+              "composing, the composition kept as the caret moves");
         program->completions = 0;
         CHECK(mwinRequestTextInput(context, program->window, false, caret, nullptr) == mwin_success,
               "text input stopped");

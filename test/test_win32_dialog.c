@@ -4,7 +4,7 @@
 // The Win32 backend's file dialogs against Windows' own common item
 // dialog, driven from the program's frames, which go on while it
 // shows: a save with the name offered and the first filter's extension,
-// in the folder given; an open of files, one typed in; a dialog
+// in the folder given; an open of files, two typed in; a dialog
 // cancelled; a folder chosen; a dialog closed when a later one replaces
 // it, and when its window goes; and one closed when the program stops.
 
@@ -148,7 +148,9 @@ static bool Act(mwinContext* context, Program* program)
             return false;
         }
         bool typed = file || program->presses % 2 == 1;
-        SetWindowTextW(found.edit, file ? L"mwin-open.txt" : typed ? folder : L"");
+        SetWindowTextW(found.edit, file    ? L"\"mwin-open.txt\" \"mwin-two.txt\""
+                                   : typed ? folder
+                                           : L"");
         PostMessageW(found.dialog, WM_COMMAND, IDOK, 0);
         program->pressedMs = GetTickCount64();
         program->presses += 1;
@@ -204,22 +206,38 @@ static void Ask(mwinContext* context, Program* program, mwinDialogKind kind)
           "ask for a dialog");
 }
 
-// Whether the dialog chose this one path in the temporary folder.
-static bool Chose(mwinContext* context, const Program* program, const char* name)
+// Whether the dialog chose these paths in the temporary folder, each
+// once, in any order.
+static bool Chose(mwinContext* context, const Program* program, const char* const* names,
+                  uint32_t wanted)
 {
-    char paths[MAX_PATH * 3];
-    char expected[MAX_PATH * 3];
+    char paths[MAX_PATH * 6];
     size_t length = 0;
     uint32_t count = 0;
-    int written = snprintf(expected, sizeof(expected), "%s%s", program->folder, name);
     bool got = mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
                                   &count) == mwin_success;
-    bool same = got && count == 1 && length == (size_t)written + 1 &&
-                _strnicmp(paths, expected, (size_t)written) == 0;
+    bool same = got && count == wanted;
+    size_t at = 0;
+    uint32_t seen = 0;
+    for (uint32_t i = 0; same && i < count; i++)
+    {
+        const char* path = paths + at;
+        uint32_t match = wanted;
+        for (uint32_t j = 0; j < wanted; j++)
+        {
+            char expected[MAX_PATH * 3];
+            (void)snprintf(expected, sizeof(expected), "%s%s", program->folder, names[j]);
+            match = (seen & (1u << j)) == 0 && _stricmp(path, expected) == 0 ? j : match;
+        }
+        same = match < wanted;
+        seen |= same ? 1u << match : 0u;
+        at += strlen(path) + 1;
+    }
+    same = same && length == at;
     if (!same)
     {
-        (void)printf("expected %s, got %s (%u paths)\n", expected, got ? paths : "none",
-                     (unsigned)count);
+        (void)printf("expected %u paths in %s, got %s (%u paths)\n", (unsigned)wanted,
+                     program->folder, got ? paths : "none", (unsigned)count);
     }
     return same;
 }
@@ -230,12 +248,15 @@ static void Check(mwinContext* context, Program* program)
     switch (program->phase)
     {
     case phaseSave:
-        CHECK(program->outcome == mwin_outcomeDone && Chose(context, program, "out.txt"),
+        CHECK(program->outcome == mwin_outcomeDone &&
+                  Chose(context, program, (const char* const[]){"out.txt"}, 1),
               "a save with the name offered and the first filter's extension, in the folder given");
         break;
     case phaseOpen:
-        CHECK(program->outcome == mwin_outcomeDone && Chose(context, program, "mwin-open.txt"),
-              "an open of files, one typed in");
+        CHECK(
+            program->outcome == mwin_outcomeDone &&
+                Chose(context, program, (const char* const[]){"mwin-open.txt", "mwin-two.txt"}, 2),
+            "an open of files, two typed in");
         break;
     case phaseCancel:
         CHECK(program->outcome == mwin_outcomeCancelled, "a dialog cancelled");
@@ -369,6 +390,7 @@ int main(void)
     program.folder[bytes] = '\0';
     Touch(program.wideFolder, L"out.txt", false);
     Touch(program.wideFolder, L"mwin-open.txt", true);
+    Touch(program.wideFolder, L"mwin-two.txt", true);
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
@@ -378,5 +400,6 @@ int main(void)
     CHECK(program.phase == phaseStop && program.stopped,
           "every phase ran, and a dialog closed when the program stops");
     Touch(program.wideFolder, L"mwin-open.txt", false);
+    Touch(program.wideFolder, L"mwin-two.txt", false);
     return s_failures == 0 ? 0 : 1;
 }

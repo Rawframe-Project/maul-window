@@ -5,10 +5,12 @@
 // saving and choosing a folder are unsupported; an open dialog shows the
 // system's picker; a second dialog meanwhile supersedes it, its picker
 // taking the first's place, a late answer under the first's number is
-// not the second's, and Back closes it, cancelling. Then the picker's result is handed to
-// the activity as the picker hands it (onActivityResult), with two documents the test makes in
-// Downloads through MediaStore: their copies, under the names their provider gives, read back the
-// same, a large one copied over several frames.
+// not the second's, and Back closes it, cancelling. Then the picker's
+// result is handed to the activity as the picker hands it
+// (onActivityResult), with two documents the test makes in Downloads
+// through MediaStore: their copies, under the names their provider
+// gives, read back the same, a large one copied over several frames; and
+// a picker's OK with no document in it fails.
 
 #include "test_harness.h"
 
@@ -29,13 +31,14 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  4
+#define LAST_PHASE  6
 #define LARGE_BYTES (20u << 20)
 #define SMALL       "the first document"
 
 // Documents.REQUEST with the number of the test's third dialog, and
 // Activity.RESULT_OK.
 #define PICKER          (0x4d00 | 3)
+#define EMPTY_PICKER    (0x4d00 | 4)
 #define RESULT_OK       -1
 #define RESULT_CANCELED 0
 
@@ -327,6 +330,10 @@ static bool Ready(Program* program, mwinContext* context)
             stat(path, &status) == 0 && status.st_size > 0 && status.st_size < (off_t)LARGE_BYTES;
         return program->completions >= 1;
     }
+    case 5:
+        return program->suspended;
+    case 6:
+        return program->completions >= 1;
     default:
         return true;
     }
@@ -383,6 +390,23 @@ static void Advance(Program* program, mwinContext* context)
         {
             DeleteDocument(program->activity->env, program->activity, program->documents[i]);
         }
+        program->suspended = false;
+        CHECK(Ask(program, context, mwin_dialogOpenMany) == mwin_success, "opening a last time");
+        break;
+    case 5:
+    {
+        JNIEnv* env = program->activity->env;
+        jclass intents = (*env)->FindClass(env, "android/content/Intent");
+        jobject intent =
+            (*env)->NewObject(env, intents, (*env)->GetMethodID(env, intents, "<init>", "()V"));
+        Result(program, EMPTY_PICKER, RESULT_OK, intent);
+        (*env)->DeleteLocalRef(env, intent);
+        (*env)->DeleteLocalRef(env, intents);
+        printf("adb: input keyevent KEYCODE_BACK\n");
+        break;
+    }
+    case 6:
+        CHECK(program->outcomes[0] == mwin_outcomeFailed, "an OK with no document fails");
         break;
     default:
         break;

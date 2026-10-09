@@ -9,7 +9,8 @@
 // right stick on RX and RY, the triggers on Z and RZ, a hat), and a
 // joystick with no gamepad buttons, which comes raw. Each is added with
 // its name, ids and kind and no motors; its buttons and axes come as
-// records and as its state; each is removed when the tool ends.
+// records and as its state; each is removed when its tool ends, the
+// joystick's (a tool of its own) first, while the pads are still there.
 
 #include "test_harness.h"
 
@@ -71,6 +72,9 @@ typedef struct Program
     // When every release was seen: the axes' motion is an input event of
     // its own, behind the keys', and the script pauses long after both.
     uint64_t releasedNs;
+    // When the joystick went, and when the first pad went after it.
+    uint64_t joystickGoneNs;
+    uint64_t padGoneNs;
 } Program;
 
 static uint64_t NowNs(void)
@@ -106,41 +110,57 @@ static void PutReport(FILE* file, int id, uint16_t buttons, const int16_t* stick
     fprintf(file, "]}\n");
 }
 
-// A pause: each device has its own queue, which a delay holds back.
-static void PutDelay(FILE* file, int milliseconds)
+// A pause of the devices first to last: each device has its own queue,
+// which a delay holds back.
+static void PutDelay(FILE* file, int first, int last, int milliseconds)
 {
-    for (int id = 1; id <= PADS; id++)
+    for (int id = first; id <= last; id++)
     {
         fprintf(file, "{\"id\":%d,\"command\":\"delay\",\"duration\":%d}\n", id, milliseconds);
     }
 }
 
-// The hid tool's script: the three devices, a report pressing things, one
-// letting everything go, a pause, and the end, which removes them.
-static bool WriteScript(void)
+static void PutRegister(FILE* file, int index)
+{
+    fprintf(file,
+            "{\"id\":%d,\"command\":\"register\",\"name\":\"%s\",\"vid\":%u,\"pid\":%u,"
+            "\"bus\":\"usb\",\"descriptor\":[",
+            index + 1, s_names[index], s_vendors[index], s_products[index]);
+    if (index < 2)
+    {
+        PutBytes(file, s_gamepad, sizeof(s_gamepad));
+    }
+    else
+    {
+        PutBytes(file, s_joystick, sizeof(s_joystick));
+    }
+    fprintf(file, "]}\n");
+}
+
+// The hid tools' scripts, the pads' and the joystick's: the devices, a
+// report pressing things, one letting everything go, a pause, and the
+// end, which removes them; the joystick's ends two seconds earlier.
+static bool WriteScripts(void)
 {
     FILE* file = fopen(FILES "pads.json", "w");
-    if (file == nullptr)
+    FILE* stick = fopen(FILES "joystick.json", "w");
+    if (file == nullptr || stick == nullptr)
     {
+        if (file != nullptr)
+        {
+            (void)fclose(file);
+        }
+        if (stick != nullptr)
+        {
+            (void)fclose(stick);
+        }
         return false;
     }
-    for (int i = 0; i < PADS; i++)
-    {
-        fprintf(file,
-                "{\"id\":%d,\"command\":\"register\",\"name\":\"%s\",\"vid\":%u,\"pid\":%u,"
-                "\"bus\":\"usb\",\"descriptor\":[",
-                i + 1, s_names[i], s_vendors[i], s_products[i]);
-        if (i < 2)
-        {
-            PutBytes(file, s_gamepad, sizeof(s_gamepad));
-        }
-        else
-        {
-            PutBytes(file, s_joystick, sizeof(s_joystick));
-        }
-        fprintf(file, "]}\n");
-    }
-    PutDelay(file, 2000);
+    PutRegister(file, 0);
+    PutRegister(file, 1);
+    PutRegister(stick, 2);
+    PutDelay(file, 1, 2, 2000);
+    PutDelay(stick, 3, 3, 2000);
     // The Xbox pad: A and its fourth button (BTN_NORTH, Android's X), the
     // left stick right and up, the right stick left, the left trigger.
     const int16_t xbox[4] = {32767, -32768, -32768, 0};
@@ -149,14 +169,17 @@ static bool WriteScript(void)
     // trigger (Z).
     const int16_t generic[4] = {0, 0, 32767, 0};
     PutReport(file, 2, 0x0002, generic, 255, 0, 0);
-    fprintf(file, "{\"id\":3,\"command\":\"report\",\"report\":[4,255,255]}\n");
-    PutDelay(file, 700);
+    fprintf(stick, "{\"id\":3,\"command\":\"report\",\"report\":[4,255,255]}\n");
+    PutDelay(file, 1, 2, 700);
+    PutDelay(stick, 3, 3, 700);
     const int16_t still[4] = {0, 0, 0, 0};
     PutReport(file, 1, 0, still, 0, 0, 8);
     PutReport(file, 2, 0, still, 0, 0, 8);
-    fprintf(file, "{\"id\":3,\"command\":\"report\",\"report\":[0,128,128]}\n");
-    PutDelay(file, 3000);
-    return fclose(file) == 0;
+    fprintf(stick, "{\"id\":3,\"command\":\"report\",\"report\":[0,128,128]}\n");
+    PutDelay(file, 1, 2, 3000);
+    PutDelay(stick, 3, 3, 1000);
+    bool closed = fclose(stick) == 0;
+    return fclose(file) == 0 && closed;
 }
 
 static Pad* PadOf(Program* program, mwinGamepadId id)
@@ -223,6 +246,9 @@ static void Collect(Program* program, mwinContext* context)
             if (pad != nullptr)
             {
                 pad->removed = true;
+                uint64_t* gone =
+                    pad == &program->pads[2] ? &program->joystickGoneNs : &program->padGoneNs;
+                *gone = *gone == 0 ? NowNs() : *gone;
             }
         }
         else if (event.type == mwin_eventGamepadButtonDown ||
@@ -354,15 +380,21 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         Paint(program, context);
-        CHECK(WriteScript(), "the hid script written");
+        CHECK(WriteScripts(), "the hid scripts written");
         printf("adb: sh -c 'run-as " MWIN_TEST_PACKAGE
                " cat files/pads.json | nohup hid - > /dev/null 2>&1 &'\n");
+        printf("adb: sh -c 'run-as " MWIN_TEST_PACKAGE
+               " cat files/joystick.json | nohup hid - > /dev/null 2>&1 &'\n");
         break;
     case 2:
         CheckStill(program, context);
         break;
     case 3:
         CheckMoves(program);
+        // Its tool ends two seconds before theirs.
+        CHECK(program->joystickGoneNs != 0 &&
+                  program->padGoneNs > program->joystickGoneNs + 1000000000u,
+              "the joystick removed a second or more before the pads");
         break;
     default:
         break;

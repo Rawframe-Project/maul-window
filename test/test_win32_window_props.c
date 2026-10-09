@@ -5,11 +5,10 @@
 // decorated, resizable window always on top has a caption, system menu,
 // minimize and maximize boxes and a sizing frame, and is topmost; a
 // plain one is a popup without them, not topmost; the title outside
-// ASCII. Size limits bound the frame Windows tracks to the client sizes
-// asked for, a zero side left free; an aspect ratio keeps the client
-// area to it as each edge and corner is dragged, and lifted, leaves the
-// drag as it is; an opacity below 1 makes the window layered at that
-// alpha, and 1 takes the layering away.
+// ASCII; always on top asked away and back. Size limits bound the frame Windows tracks to the
+// client sizes asked for, a zero side left free; an aspect ratio keeps the client area to it as
+// each edge and corner is dragged, and lifted, leaves the drag as it is; an opacity below 1 makes
+// the window layered at that alpha, and 1 takes the layering away.
 
 #include "test_harness.h"
 
@@ -131,9 +130,22 @@ static void CheckCreated(mwinContext* context, const Program* program)
           "the title outside ASCII");
 }
 
+// Whether the window is on top as asked, its extended style shown when not.
+static bool OnTop(HWND hwnd, bool wanted)
+{
+    DWORD extended = (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    bool same = ((extended & WS_EX_TOPMOST) != 0) == wanted;
+    if (!same)
+    {
+        (void)printf("extended style %08lx\n", (unsigned long)extended);
+    }
+    return same;
+}
+
 static void CheckSet(mwinContext* context, const Program* program)
 {
     HWND hwnd = Handle(context, program->framed);
+    CHECK(OnTop(hwnd, false), "no longer on top");
     SIZE least = FrameOf(hwnd, Pixels(hwnd, 200.0f), Pixels(hwnd, 100.0f));
     SIZE most = FrameOf(hwnd, Pixels(hwnd, 400.0f), Pixels(hwnd, 300.0f));
     MINMAXINFO bounds = Bounds(hwnd);
@@ -160,6 +172,7 @@ static void CheckSet(mwinContext* context, const Program* program)
 static void CheckLifted(mwinContext* context, const Program* program)
 {
     HWND hwnd = Handle(context, program->framed);
+    CHECK(OnTop(hwnd, true), "on top again");
     MINMAXINFO bounds = Bounds(hwnd);
     SIZE least = FrameOf(hwnd, 0, Pixels(hwnd, 100.0f));
     SIZE most = FrameOf(hwnd, 0, Pixels(hwnd, 300.0f));
@@ -172,7 +185,7 @@ static void CheckLifted(mwinContext* context, const Program* program)
           "fully opaque: no longer layered");
 }
 
-// Asks for the phase's limits, ratio and opacity: three requests.
+// Asks for the phase's limits, ratio, opacity and style: four requests.
 static void Ask(mwinContext* context, const Program* program, bool set)
 {
     mwinSize least = set ? (mwinSize){200.0f, 100.0f} : (mwinSize){0.0f, 100.0f};
@@ -181,8 +194,12 @@ static void Ask(mwinContext* context, const Program* program, bool set)
               mwinRequestAspectRatio(context, program->framed, set ? 2 : 0, set ? 1 : 0, nullptr) ==
                   mwin_success &&
               mwinRequestOpacity(context, program->framed, set ? 0.5f : 1.0f, nullptr) ==
-                  mwin_success,
-          "the limits, the ratio and the opacity asked");
+                  mwin_success &&
+              mwinRequestStyle(context, program->framed,
+                               mwin_styleDecorated | mwin_styleResizable |
+                                   (set ? 0 : mwin_styleAlwaysOnTop),
+                               nullptr) == mwin_success,
+          "the limits, the ratio, the opacity and the style asked");
 }
 
 static mwinResult Init(mwinContext* context, void* user)
@@ -205,8 +222,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     program->completions += Completed(context);
-    // Two windows made, then three requests a phase.
-    int needed = program->phase == phaseCreate ? 2 : 3;
+    // Two windows made, then four requests a phase.
+    int needed = program->phase == phaseCreate ? 2 : 4;
     if (program->completions >= needed && program->phase != phaseDone)
     {
         program->completions = 0;

@@ -215,9 +215,12 @@ others for higher scales, and `mwinRequestCursorImage` shows it over a
 window, which takes the image for its scale.
 
 **Touch and pen.** These are records of their own, with ids,
-pressure, tilt and the pen's buttons. A pen makes pen records and no
-mouse record on every platform: Wayland through the tablet protocol,
-X11 through its tablets' XInput2 devices (mwin-0037).
+pressure, tilt and the pen's buttons. A touch screen's touches make
+touch records and no mouse record: on X11 through XInput 2.2 where the
+server has it (mwin-0039), where no touch is ever cancelled, since X11
+tells a program none. A pen makes pen records and no mouse record on
+every platform: Wayland through the tablet protocol, X11 through its
+tablets' XInput2 devices (mwin-0037).
 
 ## 6. Gamepads
 

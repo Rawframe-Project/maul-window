@@ -340,6 +340,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_scroll WHITEBOX)
         # Which devices are pens, and the records their events make.
         maul_add_test(x11_pen WHITEBOX)
+        # Which devices are touch screens, and the records their touches
+        # make.
+        maul_add_test(x11_touch WHITEBOX)
         # The scale of Xft.dpi.
         maul_add_test(x11_resources WHITEBOX)
         # The tests that move the X server's focus or pointer, or own its

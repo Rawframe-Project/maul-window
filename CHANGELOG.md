@@ -11,6 +11,7 @@ format.
 ### Added
 
 - Web: whether the device runs on its battery, from the Battery Status API where the browser has it (Chromium), with `mwin_eventPowerChanged` when it starts or stops charging; unknown elsewhere.
+- X11: touch screens make touch records, through XInput 2.2 where the server has it, with an id per finger and pressure where the screen measures it; the server no longer turns the first finger into the mouse for the program's windows (mwin-0039).
 
 ## [0.10.1] - 2026-10-09
 

@@ -8,12 +8,12 @@
 // connection as an input method would (through JNI, the user's typing
 // being out of its reach): committed text as text, compositions told
 // while the window accepts text and kept as its caret moves, a newline
-// as the Enter key, deletions outside a composition and sent keys as
-// keys, with their modifiers; a composition dropped when the window
-// stops accepting text, not committed when the input method closes its
-// old connection, and none told while it does not; each purpose's input
-// type, nothing corrected or completed. Insets told again alike change
-// neither the safe area nor the keyboard.
+// and a tab as the Enter and Tab keys, deletions outside a composition
+// and sent keys as keys, with their modifiers; a composition dropped
+// when the window stops accepting text, not committed when the input
+// method closes its old connection, and none told while it does not;
+// each purpose's input type, nothing corrected or completed. Insets told
+// again alike change neither the safe area nor the keyboard.
 
 #include "test_harness.h"
 
@@ -325,8 +325,8 @@ static void CheckKeyboard(const Program* program, mwinContext* context)
 
 static void CheckKeys(const Program* program)
 {
-    CHECK(program->recordCount == 14, "fourteen records");
-    if (program->recordCount != 14)
+    CHECK(program->recordCount == 16, "sixteen records");
+    if (program->recordCount != 16)
     {
         return;
     }
@@ -334,14 +334,14 @@ static void CheckKeys(const Program* program)
               IsTap(program, 4, mwin_codeDelete),
           "a deletion outside a composition as Backspace and Delete");
     CHECK(IsText(&program->records[6], "a") && IsTap(program, 7, mwin_codeEnter) &&
-              IsText(&program->records[9], "b"),
-          "a newline in committed text as Enter");
-    CHECK(IsTap(program, 10, mwin_codeBackspace), "a key the input method sends");
-    CHECK(program->records[10].modifiers ==
+              IsTap(program, 9, mwin_codeTab) && IsText(&program->records[11], "b"),
+          "a newline and a tab in committed text as Enter and Tab, no text between");
+    CHECK(IsTap(program, 12, mwin_codeBackspace), "a key the input method sends");
+    CHECK(program->records[12].modifiers ==
                   (mwin_modControl | mwin_modAlt | mwin_modCapsLock | mwin_modNumLock) &&
-              program->records[11].modifiers == 0,
+              program->records[13].modifiers == 0,
           "its modifiers from its meta state: Control, Alt and both locks, then none");
-    CHECK(IsTap(program, 12, mwin_codeEnter), "the editor's action as Enter");
+    CHECK(IsTap(program, 14, mwin_codeEnter), "the editor's action as Enter");
 }
 
 static void CheckType(const Program* program, mwinContext* context, jint expected, const char* what)
@@ -418,7 +418,7 @@ static void Advance(Program* program, mwinContext* context)
                   !StateOf(program, context).composing,
               "committed, and the composition ended");
         Delete(env, connection, 2, 1);
-        Text(env, connection, "commitText", "a\nb");
+        Text(env, connection, "commitText", "a\n\tb");
         SendKey(env, connection, 0, KEYCODE_DEL,
                 AMETA_CTRL_ON | AMETA_ALT_ON | AMETA_CAPS_LOCK_ON | AMETA_NUM_LOCK_ON);
         SendKey(env, connection, 1, KEYCODE_DEL, 0);

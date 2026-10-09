@@ -6,11 +6,11 @@
 // text, the keyboard layout's tag, Shift, a repeat, Alt and Caps Lock, a
 // key sent without its scan code (Right Control, extended), Print
 // Screen's release alone, text outside the BMP to its last character,
-// the pointer entering and
-// moving, a double click, the wheel, cursor shapes, a cursor made from
-// images and its end, a hidden and confined cursor (its clip following
-// the window and the focus), and a captured one
-// with raw motion.
+// the pointer entering and moving, a double click, buttons held
+// together and the mouse let go after them, the wheel, cursor shapes, a
+// cursor made from images and its end, a hidden and confined cursor (its
+// clip following the window and the focus), and a captured one with raw
+// motion.
 
 #include "test_harness.h"
 
@@ -43,6 +43,7 @@ typedef enum Phase
     phaseText,
     phasePointer,
     phaseClicks,
+    phaseButtons,
     phaseWheel,
     phaseShape,
     phaseImage,
@@ -147,6 +148,33 @@ static const mwinEvent* KeyOf(const Program* program, mwinEventType type, mwinKe
     return nullptr;
 }
 
+typedef struct ButtonRecord
+{
+    mwinEventType type;
+    mwinMouseButton button;
+    uint8_t held;
+} ButtonRecord;
+
+// Whether the phase's button records are these, in order.
+static bool Buttons(const Program* program, const ButtonRecord* expected, int count)
+{
+    int seen = 0;
+    bool same = true;
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* event = &program->records[i];
+        if (event->type != mwin_eventButtonDown && event->type != mwin_eventButtonUp)
+        {
+            continue;
+        }
+        same = same && seen < count && event->type == expected[seen].type &&
+               event->data.pointer.button == expected[seen].button &&
+               event->data.pointer.buttons == expected[seen].held;
+        seen += 1;
+    }
+    return same && seen == count;
+}
+
 static bool Ready(const Program* program)
 {
     switch (program->phase)
@@ -167,6 +195,8 @@ static bool Ready(const Program* program)
     case phasePointer:
         return Find(program, mwin_eventCursorMoved, 0) != nullptr;
     case phaseClicks:
+        return Find(program, mwin_eventButtonUp, 1) != nullptr;
+    case phaseButtons:
         return Find(program, mwin_eventButtonUp, 1) != nullptr;
     case phaseWheel:
         return Find(program, mwin_eventWheel, 0) != nullptr;
@@ -229,13 +259,33 @@ static void AdvancePointer(Program* program)
         break;
     }
     case phaseClicks:
-        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.clicks == 1 &&
-                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2 &&
-                  Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonLeft &&
-                  Find(program, mwin_eventButtonUp, 1)->data.pointer.buttons == 0,
+    {
+        static const ButtonRecord clicks[] = {{mwin_eventButtonDown, mwin_buttonLeft, 0x01},
+                                              {mwin_eventButtonUp, mwin_buttonLeft, 0x00},
+                                              {mwin_eventButtonDown, mwin_buttonLeft, 0x01},
+                                              {mwin_eventButtonUp, mwin_buttonLeft, 0x00}};
+        CHECK(Buttons(program, clicks, 4) &&
+                  Find(program, mwin_eventButtonDown, 0)->data.pointer.clicks == 1 &&
+                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2,
               "a quick second click is a double click");
+        CHECK(GetCapture() == nullptr, "the mouse let go once the button is up");
+        Mouse(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0);
+        Mouse(MOUSEEVENTF_XDOWN, 0, 0, XBUTTON2);
+        Mouse(MOUSEEVENTF_XUP, 0, 0, XBUTTON2);
+        Mouse(MOUSEEVENTF_RIGHTUP, 0, 0, 0);
+        break;
+    }
+    case phaseButtons:
+    {
+        static const ButtonRecord held[] = {{mwin_eventButtonDown, mwin_buttonRight, 0x02},
+                                            {mwin_eventButtonDown, mwin_buttonForward, 0x12},
+                                            {mwin_eventButtonUp, mwin_buttonForward, 0x02},
+                                            {mwin_eventButtonUp, mwin_buttonRight, 0x00}};
+        CHECK(Buttons(program, held, 4), "buttons held together, each with the ones held");
+        CHECK(GetCapture() == nullptr, "the mouse let go once both are up");
         Mouse(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA);
         break;
+    }
     case phaseWheel:
         CHECK(Find(program, mwin_eventWheel, 0)->data.wheel.y == 1.0f,
               "a detent away from the user");
@@ -503,6 +553,13 @@ static void Dump(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
+        if (event->type == mwin_eventButtonDown || event->type == mwin_eventButtonUp)
+        {
+            (void)printf("  phase %d: type %d, button %d, held %02x\n", (int)program->phase,
+                         (int)event->type, (int)event->data.pointer.button,
+                         (unsigned)event->data.pointer.buttons);
+            continue;
+        }
         (void)printf("  phase %d: type %d, key %u, %s\n", (int)program->phase, (int)event->type,
                      (unsigned)event->data.key.code, event->data.key.repeat ? "repeat" : "");
     }
@@ -522,7 +579,7 @@ static void Advance(Program* program, mwinContext* context)
     {
         AdvanceKeys(program, context);
     }
-    else if (program->phase <= phaseClicks)
+    else if (program->phase <= phaseButtons)
     {
         AdvancePointer(program);
     }

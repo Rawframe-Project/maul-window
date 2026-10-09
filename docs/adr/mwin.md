@@ -41,4 +41,5 @@ are listed in [README.md](README.md).
 | [mwin-0034](mwin-0034-composition-offsets.md) | A composition's offsets fit its text | Accepted |
 | [mwin-0035](mwin-0035-web-accessibility-host-focus.md) | Keys and focus on the web's accessibility host | Accepted |
 | [mwin-0036](mwin-0036-hdr-facts-and-variable-refresh.md) | A monitor's HDR facts and variable refresh | Accepted |
+| [mwin-0037](mwin-0037-pens-on-linux.md) | Pens on Wayland and X11 | Accepted |
 | [mwin-0038](mwin-0038-test-text-readers.md) | The test backend tells text input and the keyboard | Accepted |

@@ -8,9 +8,9 @@
 // 0..1; the pen hovering, touching, its barrel and eraser, tilts toward
 // x and y from Android's tilt and orientation; the cursor entering at
 // its first motion and never leaving on a hover's end, buttons from the
-// state's changes, quick clicks within the double tap's time, a press
-// with no button state as the primary button and the pointer's going up
-// releasing it, the wheel; and everything forgotten.
+// state's changes (Back and Forward too), quick clicks within the double
+// tap's time, a press with no button state as the primary button and the
+// pointer's going up releasing it, the wheel; and everything forgotten.
 
 #include "android_motion.h"
 #include "test_program.h"
@@ -186,6 +186,27 @@ static void CheckCursor(Program* program, mwinContext* context)
           "a press without a state the left button; a late one a single click; the wheel");
 }
 
+// The side buttons: Back released by the state, Forward, the last, by
+// the pointer going up.
+static void CheckSideButtons(Program* program, mwinContext* context)
+{
+    s_timeNs += 1000000000u;
+    Mouse(context, mwin_androidButtonPress, mwin_androidBack | mwin_androidForward, 6.0f, 5.0f);
+    Mouse(context, mwin_androidButtonRelease, mwin_androidForward, 6.0f, 5.0f);
+    Mouse(context, mwin_androidUp, 0, 6.0f, 5.0f);
+    Drain(program, context);
+    static const mwinEventType types[] = {mwin_eventButtonDown, mwin_eventButtonDown,
+                                          mwin_eventButtonUp, mwin_eventButtonUp};
+    const mwinEvent* events = program->events;
+    CHECK(Types(program, types, 4) && events[0].data.pointer.button == mwin_buttonBack &&
+              events[1].data.pointer.button == mwin_buttonForward &&
+              events[1].data.pointer.buttons == 0x18 &&
+              events[2].data.pointer.button == mwin_buttonBack &&
+              events[3].data.pointer.button == mwin_buttonForward &&
+              events[3].data.pointer.buttons == 0,
+          "Back and Forward pressed; Back released by the state, Forward by the pointer up");
+}
+
 static void CheckForgetting(Program* program, mwinContext* context)
 {
     mwinAndroidPointer a = Finger(1, 1.0f, 1.0f, 0.5f);
@@ -214,6 +235,7 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckTouches(program, context);
         CheckPen(program, context);
         CheckCursor(program, context);
+        CheckSideButtons(program, context);
         CheckForgetting(program, context);
         program->done = true;
         break;

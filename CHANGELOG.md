@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-10
+
+Built on Maul Unicode 0.3.0, so that the family's latest releases share
+one Unicode; the API is unchanged.
+
 ### Changed
 
 - Builds on Maul Unicode 0.3.0, found installed or fetched, whose encoding converters take their mode before the output.

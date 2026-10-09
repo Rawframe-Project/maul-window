@@ -3,10 +3,13 @@
 //
 // The Win32 gamepads (src/win32_pad.c) against a stand-in for XInput,
 // driven on a context of the test backend: a pad found when the free
-// player slots are looked at, and not sooner than every half second;
-// its facts and battery; its buttons, sticks with y turned down, and
-// triggers, read only when XInput's packet number moves; rumble with
-// both motors, stopped when its time runs out; and a disconnect.
+// player slots are looked at, a button held then told with it, and not
+// sooner than every half second; its facts and battery; its buttons,
+// sticks with y turned down, and triggers, read only when XInput's
+// packet number moves; rumble with both motors, stopped when its time
+// runs out; and a disconnect. Stopped, a pad still rumbling is stilled;
+// started for real, the pads listen for Raw Input and take
+// Windows.Gaming.Input or XInput.
 
 #include "test_program.h"
 #include "win32_pad.h"
@@ -62,26 +65,9 @@ static void Connect(Program* program, mwinContext* context)
     s_pads.api = (mwinXInputApi){nullptr, GetState, SetState, GetBattery};
     s_fake.connected[1] = true;
     s_fake.states[1].dwPacketNumber = 1;
+    // Held as the pad is found: told with it, before the packet moves.
+    s_fake.states[1].Gamepad.wButtons = XINPUT_GAMEPAD_B;
     mwinWin32PadsPump(&s_pads, 1000 * MS);
-}
-
-static void CheckConnected(Program* program, mwinContext* context)
-{
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadAdded,
-          "a pad found");
-    mwinGamepadInfo info;
-    mwinGamepadId pad = program->events[0].data.gamepad;
-    CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success && info.mapped &&
-              info.battery == 66 && (info.capabilities & mwin_padRumble) != 0 &&
-              info.nameLength == 17,
-          "its facts and battery");
-    XINPUT_GAMEPAD* gamepad = &s_fake.states[1].Gamepad;
-    s_fake.states[1].dwPacketNumber = 2;
-    gamepad->wButtons = XINPUT_GAMEPAD_A | XINPUT_GAMEPAD_DPAD_UP;
-    gamepad->sThumbLX = 32767;
-    gamepad->sThumbLY = 32767;
-    gamepad->bRightTrigger = 255;
-    mwinWin32PadsPump(&s_pads, 1010 * MS);
 }
 
 static bool Has(const Program* program, mwinEventType type, uint8_t control, float value)
@@ -100,6 +86,26 @@ static bool Has(const Program* program, mwinEventType type, uint8_t control, flo
         }
     }
     return false;
+}
+
+static void CheckConnected(Program* program, mwinContext* context)
+{
+    CHECK(program->eventCount >= 2 && program->events[0].type == mwin_eventGamepadAdded &&
+              Has(program, mwin_eventGamepadButtonDown, mwin_padFaceEast, 0.0f),
+          "a pad found, a button held then told with it");
+    mwinGamepadInfo info;
+    mwinGamepadId pad = program->events[0].data.gamepad;
+    CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success && info.mapped &&
+              info.battery == 66 && (info.capabilities & mwin_padRumble) != 0 &&
+              info.nameLength == 17,
+          "its facts and battery");
+    XINPUT_GAMEPAD* gamepad = &s_fake.states[1].Gamepad;
+    s_fake.states[1].dwPacketNumber = 2;
+    gamepad->wButtons = XINPUT_GAMEPAD_A | XINPUT_GAMEPAD_DPAD_UP;
+    gamepad->sThumbLX = 32767;
+    gamepad->sThumbLY = 32767;
+    gamepad->bRightTrigger = 255;
+    mwinWin32PadsPump(&s_pads, 1010 * MS);
 }
 
 static void CheckPressed(Program* program)
@@ -145,6 +151,46 @@ static void CheckSearch(Program* program)
     mwinWin32PadsPump(&s_pads, 1610 * MS);
 }
 
+// The Raw Input usages registered for a window, or for any.
+static UINT Registered(HWND target)
+{
+    RAWINPUTDEVICE devices[8];
+    UINT count = 8;
+    UINT found = GetRegisteredRawInputDevices(devices, &count, sizeof(devices[0]));
+    UINT mine = 0;
+    for (UINT i = 0; i < found && found != (UINT)-1; i++)
+    {
+        mine += target == nullptr || devices[i].hwndTarget == target ? 1 : 0;
+    }
+    return mine;
+}
+
+// A pad still rumbling is stilled when the pads stop; the real start
+// listens for Raw Input and takes Windows.Gaming.Input or XInput.
+static void CheckStop(mwinContext* context)
+{
+    uint32_t slot = s_pads.pads[3].slot;
+    CHECK(mwinWin32PadsRumble(&s_pads, slot, 1.0f, 1.0f, 60000, 1700 * MS) == mwin_success &&
+              s_fake.vibration.wLeftMotorSpeed == 65535,
+          "a pad rumbling");
+    mwinWin32PadsStop(&s_pads);
+    CHECK(s_fake.vibration.wLeftMotorSpeed == 0 && s_fake.vibration.wRightMotorSpeed == 0,
+          "stilled when the pads stop");
+    static mwinWin32Pads real;
+    mwinWin32PadsStart(&real, context);
+    CHECK(real.listener != nullptr &&
+              (real.runtime || (real.api.library != nullptr && real.api.getState != nullptr &&
+                                real.api.setState != nullptr && real.api.getBattery != nullptr)),
+          "started: a listener, and Windows.Gaming.Input or XInput");
+    HWND listener = real.listener;
+    CHECK(GetWindowLongPtrW(listener, GWLP_USERDATA) == (LONG_PTR)&real.hid &&
+              Registered(listener) == 3,
+          "the listener takes the three gamepad usages' Raw Input");
+    mwinWin32PadsStop(&real);
+    CHECK(!IsWindow(listener) && Registered(nullptr) == 0,
+          "stopped: the listener gone and Raw Input let go");
+}
+
 static void Step(Program* program, mwinContext* context, int step)
 {
     if (step > 0)
@@ -171,6 +217,7 @@ static void Step(Program* program, mwinContext* context, int step)
         const mwinEvent* last = &program->events[program->eventCount - 1];
         CHECK(program->eventCount >= 2 && last->type == mwin_eventGamepadRemoved,
               "a new pad, and a disconnect");
+        CheckStop(context);
         program->done = true;
         break;
     }

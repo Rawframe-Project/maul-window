@@ -3,7 +3,10 @@
 //
 // The Win32 backend's input against Windows (a CI runner's desktop, or
 // wine), driven through SendInput: keys with their codes, meanings and
-// text, Shift, a repeat, text outside the BMP, the pointer entering and
+// text, the keyboard layout's tag, Shift, a repeat, Alt and Caps Lock, a
+// key sent without its scan code (Right Control, extended), Print
+// Screen's release alone, text outside the BMP to its last character,
+// the pointer entering and
 // moving, a double click, the wheel, cursor shapes, a cursor made from
 // images and its end, a hidden and confined cursor, and a captured one
 // with raw motion.
@@ -25,6 +28,8 @@
 // The keys by virtual key and scan code, as a keyboard sends them.
 #define KEY_A     'A', 0x1E
 #define KEY_SHIFT VK_LSHIFT, 0x2A
+#define KEY_ALT   VK_LMENU, 0x38
+#define KEY_CAPS  VK_CAPITAL, 0x3A
 
 typedef enum Phase
 {
@@ -33,6 +38,7 @@ typedef enum Phase
     phaseKeys,
     phaseShift,
     phaseRepeat,
+    phaseModifiers,
     phaseText,
     phasePointer,
     phaseClicks,
@@ -127,6 +133,19 @@ static const mwinEvent* Find(const Program* program, mwinEventType type, int nth
     return nullptr;
 }
 
+// The first record of a type for a key.
+static const mwinEvent* KeyOf(const Program* program, mwinEventType type, mwinKeyCode code)
+{
+    for (int i = 0; i < program->count; i++)
+    {
+        if (program->records[i].type == type && program->records[i].data.key.code == code)
+        {
+            return &program->records[i];
+        }
+    }
+    return nullptr;
+}
+
 static bool Ready(const Program* program)
 {
     switch (program->phase)
@@ -140,8 +159,10 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventKeyUp, program->phase == phaseShift ? 1 : 0) != nullptr;
     case phaseRepeat:
         return Find(program, mwin_eventKeyUp, 0) != nullptr;
+    case phaseModifiers:
+        return KeyOf(program, mwin_eventKeyUp, mwin_codePrintScreen) != nullptr;
     case phaseText:
-        return program->textLength >= 4;
+        return program->textLength >= 8;
     case phasePointer:
         return Find(program, mwin_eventCursorMoved, 0) != nullptr;
     case phaseClicks:
@@ -329,6 +350,22 @@ static void AdvanceCursor(Program* program, mwinContext* context)
     }
 }
 
+// The layout's language tag, its NUL left off, into a buffer of its
+// length too.
+static void CheckLayout(mwinContext* context)
+{
+    char tag[32];
+    size_t length = 0;
+    CHECK(mwinGetKeyboardLayout(context, tag, sizeof(tag), &length) == mwin_success &&
+              length >= 2 && memchr(tag, '\0', length) == nullptr,
+          "the layout's language tag");
+    char exact[32];
+    size_t again = 0;
+    CHECK(mwinGetKeyboardLayout(context, exact, length, &again) == mwin_success &&
+              again == length && memcmp(exact, tag, length) == 0,
+          "and into a buffer of its length");
+}
+
 // The keyboard's phases.
 static void AdvanceKeys(Program* program, mwinContext* context)
 {
@@ -349,6 +386,7 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         CHECK(mwinMapKeyCode(context, mwin_codeKeyA) == 'a' &&
                   mwinMapKeyCode(context, mwin_codeEscape) == (MWIN_KEY_NAMED | mwin_codeEscape),
               "what keys mean in the layout");
+        CheckLayout(context);
         Key(KEY_SHIFT, true);
         Key(KEY_A, true);
         Key(KEY_A, false);
@@ -373,17 +411,58 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         CHECK(second != nullptr && !down->data.key.repeat, "two presses, the first no repeat");
         CHECK(second != nullptr && second->data.key.repeat, "the second press a repeat");
         CHECK(TextIs(program, "aa"), "a repeat types again");
-        // U+1F600 in two UTF-16 units.
+        Key(KEY_ALT, true);
+        Key(KEY_A, true);
+        Key(KEY_A, false);
+        Key(KEY_ALT, false);
+        // Caps Lock on for a key, then off again.
+        Key(KEY_CAPS, true);
+        Key(KEY_CAPS, false);
+        Key(KEY_A, true);
+        Key(KEY_A, false);
+        Key(KEY_CAPS, true);
+        Key(KEY_CAPS, false);
+        // Without a scan code, as a program synthesizing keys sends them.
+        PostMessageW(program->hwnd, WM_KEYDOWN, VK_RCONTROL, 1);
+        PostMessageW(program->hwnd, WM_KEYUP, VK_RCONTROL, (LPARAM)0xC0000001u);
+        // Print Screen as Windows sends it: its release alone.
+        PostMessageW(program->hwnd, WM_KEYUP, VK_SNAPSHOT, (LPARAM)0xC1370001u);
+        break;
+    }
+    case phaseModifiers:
+    {
+        const mwinEvent* alt = KeyOf(program, mwin_eventKeyDown, mwin_codeKeyA);
+        CHECK(alt != nullptr && alt->data.key.code == mwin_codeKeyA &&
+                  (alt->data.key.modifiers & mwin_modAlt) != 0,
+              "Alt held with a key");
+        bool caps = false;
+        for (int i = 0; i < program->count; i++)
+        {
+            const mwinEvent* event = &program->records[i];
+            caps |= event->type == mwin_eventKeyDown && event->data.key.code == mwin_codeKeyA &&
+                    (event->data.key.modifiers & mwin_modCapsLock) != 0;
+        }
+        CHECK(caps && (alt->data.key.modifiers & mwin_modCapsLock) == 0,
+              "Caps Lock on for a key, and not before");
+        CHECK(KeyOf(program, mwin_eventKeyDown, mwin_codeControlRight) != nullptr,
+              "a key sent without its scan code: Right Control, extended");
+        const mwinEvent* print = KeyOf(program, mwin_eventKeyDown, mwin_codePrintScreen);
+        CHECK(print != nullptr && print < KeyOf(program, mwin_eventKeyUp, mwin_codePrintScreen),
+              "Print Screen's release alone: pressed, then released");
+        // U+1F600 and U+10FFFF, each in two UTF-16 units.
         Unit(0xD83D);
         Unit(0xDE00);
+        Unit(0xDBFF);
+        Unit(0xDFFF);
         break;
     }
     case phaseText:
     {
         RECT client = ClientOnScreen(program->hwnd);
         float scale = (float)GetDpiForWindow(program->hwnd) / (float)USER_DEFAULT_SCREEN_DPI;
-        CHECK(TextIs(program, "\xF0\x9F\x98\x80") && Find(program, mwin_eventKeyDown, 0) == nullptr,
-              "text outside the BMP, and no key for it");
+        CHECK(TextIs(program, "\xF0\x9F\x98\x80\xF4\x8F\xBF\xBF") &&
+                  Find(program, mwin_eventKeyDown, 0) == nullptr,
+              "text outside the BMP to its last character, and no key for it");
         SetCursorPos(client.left + (int)(100.0f * scale), client.top + (int)(120.0f * scale));
         break;
     }

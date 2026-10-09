@@ -12,13 +12,16 @@ import android.view.accessibility.AccessibilityNodeInfo;
  * An accessibility client the test runs in its own application, enabled
  * by the runner, that asks for touch exploration (res/xml/client.xml):
  * it reads the active window's tree through the system, as a screen
- * reader does, keeps the text of the last hover that entered a node, and
+ * reader does, keeps the texts of the nodes hovers entered, in order, and of
+ * the last one left, and
  * counts the content changes its own application announces.
  */
 public final class Client extends AccessibilityService {
     private static volatile Client running;
-    /** The text of the last node a hover entered, or null. */
-    public static volatile String entered;
+    /** The texts of the nodes hovers entered, each with a comma. */
+    public static volatile String entered = "";
+    /** The text of the last node a hover left, or null. */
+    public static volatile String exited;
     /** The content changes heard from the test's application. */
     public static volatile int changes;
 
@@ -31,7 +34,11 @@ public final class Client extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER
                 && !event.getText().isEmpty()) {
-            entered = event.getText().get(0).toString();
+            entered = entered + event.getText().get(0) + ",";
+        }
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
+                && !event.getText().isEmpty()) {
+            exited = event.getText().get(0).toString();
         }
         if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
                 && getPackageName().contentEquals(event.getPackageName())) {

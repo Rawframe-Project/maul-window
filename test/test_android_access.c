@@ -8,8 +8,9 @@
 // exploration: the client finds the tree's nodes through the system,
 // the window tells the program a client asked; with no root the client
 // still reads the window but nothing of the tree; and with the root
-// again, a finger the emulator's console puts on the right half is
-// explored, announcing "Beta" and reaching the program as no touch.
+// again, a finger the emulator's console puts on the right half and
+// moves to the left is explored, announcing "Beta", then "Alpha" until
+// it lifts, and reaching the program as no touch.
 
 #include "test_harness.h"
 
@@ -23,13 +24,14 @@
 #include <android/native_window.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  6
+#define LAST_PHASE  8
 
 typedef struct Program
 {
@@ -130,19 +132,19 @@ static jboolean Exploring(const Program* program)
     return exploring;
 }
 
-// The text of the last node a hover entered, as the client heard it.
-static bool Entered(const Program* program, const char* name)
+// The texts of the nodes hovers entered, in order ("entered"), or of the
+// last one left ("exited"), as the client heard them; empty for none.
+static void Said(const Program* program, const char* field, char* out, size_t size)
 {
     JNIEnv* env = program->activity->env;
     jclass clients = LoadClass(env, program->activity, "maul.window.tests.Client");
     jstring text =
         clients != nullptr
             ? (*env)->GetStaticObjectField(
-                  env, clients,
-                  (*env)->GetStaticFieldID(env, clients, "entered", "Ljava/lang/String;"))
+                  env, clients, (*env)->GetStaticFieldID(env, clients, field, "Ljava/lang/String;"))
             : nullptr;
     const char* bytes = text != nullptr ? (*env)->GetStringUTFChars(env, text, nullptr) : nullptr;
-    bool same = bytes != nullptr && strcmp(bytes, name) == 0;
+    (void)snprintf(out, size, "%s", bytes != nullptr ? bytes : "");
     if (bytes != nullptr)
     {
         (*env)->ReleaseStringUTFChars(env, text, bytes);
@@ -150,7 +152,13 @@ static bool Entered(const Program* program, const char* name)
     (*env)->ExceptionClear(env);
     (*env)->DeleteLocalRef(env, text);
     (*env)->DeleteLocalRef(env, clients);
-    return same;
+}
+
+static bool Heard(const Program* program, const char* field, const char* texts)
+{
+    char said[64];
+    Said(program, field, said, sizeof(said));
+    return strcmp(said, texts) == 0;
 }
 
 static void ForgetRead(const Program* program)
@@ -256,8 +264,14 @@ static bool Ready(Program* program, mwinContext* context)
         return program->completions >= 2 && Changes(program) > program->changes;
     case 5:
         return program->completions >= 3;
+    // The finger paced by what the client hears: on Beta, moved to Alpha,
+    // lifted. Touch exploration does not follow one long jump.
     case 6:
-        return Entered(program, "Beta");
+        return Heard(program, "entered", "Beta,");
+    case 7:
+        return Heard(program, "entered", "Beta,Alpha,");
+    case 8:
+        return Heard(program, "exited", "Alpha");
     default:
         return true;
     }
@@ -298,15 +312,12 @@ static void Start(Program* program, mwinContext* context)
     printf("adb: settings put secure accessibility_enabled 1\n");
 }
 
-static void Explore(Program* program)
+// The emulator's finger at sixteenths of the window's width, mid-height,
+// down or lifted.
+static void Finger(const Program* program, int sixteenths, bool down)
 {
-    CHECK(program->outcomes[2] == mwin_outcomeDone, "the root set again");
-    program->touches = 0;
-    int x = (int)program->size.width * 3 / 4;
-    int y = (int)program->size.height / 2;
-    printf("emu: event mouse %d %d 0 1\n", x, y);
-    printf("emu: event mouse %d %d 0 1\n", x + 10, y + 10);
-    printf("emu: event mouse %d %d 0 0\n", x + 10, y + 10);
+    printf("emu: event mouse %d %d 0 %d\n", (int)program->size.width * sixteenths / 16,
+           (int)program->size.height / 2, down ? 1 : 0);
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -341,9 +352,22 @@ static void Advance(Program* program, mwinContext* context)
         SetRoot(program, context, program->tree);
         break;
     case 5:
-        Explore(program);
+        CHECK(program->outcomes[2] == mwin_outcomeDone, "the root set again");
+        program->touches = 0;
+        Finger(program, 12, true);
+        Finger(program, 11, true);
         break;
     case 6:
+        // Slowly, a sixteenth at a time.
+        for (int at = 10; at >= 4; at--)
+        {
+            Finger(program, at, true);
+        }
+        break;
+    case 7:
+        Finger(program, 4, false);
+        break;
+    case 8:
         CHECK(program->touches == 0, "the explored finger no touch of the program's");
         (*program->activity->env)->DeleteGlobalRef(program->activity->env, program->tree);
         break;
@@ -376,7 +400,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (NowNs() - program->startNs > DEADLINE_NS)
     {
-        printf("timed out in phase %d (texts \"%s\")\n", program->phase, program->texts);
+        char entered[64];
+        char exited[64];
+        Said(program, "entered", entered, sizeof(entered));
+        Said(program, "exited", exited, sizeof(exited));
+        printf("timed out in phase %d (texts \"%s\", entered \"%s\", exited \"%s\")\n",
+               program->phase, program->texts, entered, exited);
         s_failures += 1;
         return mwin_frameStop;
     }

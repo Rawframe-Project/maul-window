@@ -14,7 +14,7 @@
 # opening transition does not move the window under the test's input.
 # The night mode, the font scale, battery saver, the battery's state and
 # the enabled accessibility services, which a test may change, are put
-# back too. The library never ends
+# back too, and a finger the console put down is lifted. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
 # failures; otherwise shows the application's crashes from the log.
 set -eu
@@ -65,6 +65,10 @@ else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
 fi
 "$adb" shell am force-stop "$package"
+# A finger the console left down, by a test that ended early, is lifted.
+if grep -q '^emu: event mouse' "$out"; then
+    "$adb" emu event mouse 0 0 0 0 > /dev/null
+fi
 # A new device has neither set: the defaults are put back.
 [ "$rotation" = null ] && rotation=0
 [ "$rotating" = null ] && rotating=1

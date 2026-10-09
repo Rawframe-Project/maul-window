@@ -8,6 +8,10 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Web: whether the device runs on its battery, from the Battery Status API where the browser has it (Chromium), with `mwin_eventPowerChanged` when it starts or stops charging; unknown elsewhere.
+
 ## [0.10.1] - 2026-10-09
 
 Two fixes found by the Win32 and Android mutation sweeps.

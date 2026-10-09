@@ -164,7 +164,9 @@ shows snap layouts. Changes arrive as `mwin_eventThemeChanged` and
 `mwin_eventPowerChanged`. `mwinGetPreferredLocales` gives the preferred
 languages as BCP 47 tags (`de-DE,en-GB`), with `mwin_eventLocaleChanged`.
 On Linux they come from the desktop portal, UPower and the environment,
-so they may be unknown for the first frames.
+so they may be unknown for the first frames. On the web the power
+source comes from the Battery Status API where the browser has it
+(Chromium), once it answers; power saving is never known there.
 
 ## 5. Input
 

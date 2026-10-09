@@ -4,9 +4,9 @@
 // The Win32 generic gamepads (src/win32_hid.c) against a stand-in for
 // Raw Input and the HID parser, driven on a context of the test
 // backend:
-// - of the devices present, a PlayStation 4 pad and an unknown stick are
-//   gamepads; XInput's pad, a keyboard and a vendor's device are not,
-//   and a device found again is one;
+// - of the devices present, a PlayStation 4 pad, an unknown stick and a
+//   wheel are gamepads; XInput's pad, a keyboard, a vendor's device and
+//   a gamepad without controls are not, and a device found again is one;
 // - the pad is mapped by the database's Windows entry, its product
 //   string its name, its axes numbered by usage, not by the order its
 //   descriptor gives them;
@@ -14,7 +14,10 @@
 //   as the d-pad;
 // - the stick is raw: its buttons in usage order, a signed axis, and a
 //   centred hat as two axes after the others;
-// - a removed device is gone, and its reports read nothing.
+// - the wheel's axes: X and Rz, then a slider and a dial after them,
+//   the dial's single value read as centred;
+// - a removed device is gone, and its reports read nothing; the pad's
+//   file is closed once named; started for real, Windows' parser loads.
 
 #include "test_program.h"
 #include "win32_hid.h"
@@ -27,6 +30,8 @@
 #define XINPUT   ((HANDLE)0x33)
 #define KEYBOARD ((HANDLE)0x44)
 #define VENDOR   ((HANDLE)0x55)
+#define WHEEL    ((HANDLE)0x66)
+#define EMPTY    ((HANDLE)0x77)
 
 // A report of the stand-in's: the Button page's usages down, as bits
 // from usage 1, and each Generic Desktop value by usage from X.
@@ -46,7 +51,7 @@ typedef struct Device
     DWORD product;
 } Device;
 
-#define DEVICES 5
+#define DEVICES 7
 
 static const Device s_devices[DEVICES] = {
     {PAD, L"\\\\?\\HID#VID_054C&PID_05C4#pad", HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_GAMEPAD,
@@ -60,9 +65,16 @@ static const Device s_devices[DEVICES] = {
     // A gamepad's usage on a vendor's page.
     {VENDOR, L"\\\\?\\HID#VID_3333&PID_4444#vendor", 0xFF00, HID_USAGE_GENERIC_GAMEPAD, 0x3333,
      0x4444},
+    {WHEEL, L"\\\\?\\HID#VID_7777&PID_8888#wheel", HID_USAGE_PAGE_GENERIC,
+     HID_USAGE_GENERIC_JOYSTICK, 0x7777, 0x8888},
+    {EMPTY, L"\\\\?\\HID#VID_9999&PID_AAAA#empty", HID_USAGE_PAGE_GENERIC,
+     HID_USAGE_GENERIC_GAMEPAD, 0x9999, 0xAAAA},
 };
 
 static mwinWin32Hid s_hid;
+// The pad's file opened and closed.
+static int s_opened;
+static int s_closed;
 static Report s_report;
 static HANDLE s_sender;
 
@@ -159,9 +171,26 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
 
 // The pad's controls in its descriptor's order: X, Y, Z and Rz, the hat,
 // then Rx and Ry, and one of a vendor's page; the stick's buttons 3,
-// then 1 and 2, and a signed X and Y.
+// then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider and a
+// dial of one value, no buttons; none for the empty one.
 static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 {
+    if (owner == EMPTY)
+    {
+        return 0;
+    }
+    if (owner == WHEEL)
+    {
+        caps[0] =
+            Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_X, HID_USAGE_GENERIC_X, 8, 0, 255);
+        caps[1] =
+            Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_RZ, HID_USAGE_GENERIC_RZ, 8, 0, 255);
+        caps[2] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_SLIDER, HID_USAGE_GENERIC_SLIDER,
+                        8, 0, 255);
+        caps[3] =
+            Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_DIAL, HID_USAGE_GENERIC_DIAL, 8, 5, 5);
+        return 4;
+    }
     if (owner == PAD)
     {
         const HIDP_VALUE_CAPS pad[8] = {
@@ -187,7 +216,8 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
 {
     HIDP_VALUE_CAPS values[8];
-    *caps = (HIDP_CAPS){.NumberInputButtonCaps = Owner(data) == PAD ? 1 : 2,
+    HANDLE owner = Owner(data);
+    *caps = (HIDP_CAPS){.NumberInputButtonCaps = owner == PAD ? 1 : (owner == STICK ? 2 : 0),
                         .NumberInputValueCaps = ValueCaps(Owner(data), values)};
     return HIDP_STATUS_SUCCESS;
 }
@@ -200,6 +230,11 @@ static NTSTATUS NTAPI ButtonCaps(HIDP_REPORT_TYPE type, PHIDP_BUTTON_CAPS caps, 
     {
         caps[0] = Buttons(1, 14);
         *count = 1;
+        return HIDP_STATUS_SUCCESS;
+    }
+    if (Owner(data) != STICK)
+    {
+        *count = 0;
         return HIDP_STATUS_SUCCESS;
     }
     caps[0] = Buttons(3, 3);
@@ -266,11 +301,14 @@ static HANDLE WINAPI OpenDevice(LPCWSTR path, DWORD access, DWORD share,
     (void)creation;
     (void)flags;
     (void)model;
-    return wcscmp(path, s_devices[0].path) == 0 ? PAD : INVALID_HANDLE_VALUE;
+    bool pad = wcscmp(path, s_devices[0].path) == 0;
+    s_opened += pad ? 1 : 0;
+    return pad ? PAD : INVALID_HANDLE_VALUE;
 }
 
 static BOOL WINAPI CloseFile(HANDLE file)
 {
+    s_closed += file == PAD ? 1 : 0;
     return file == PAD;
 }
 
@@ -313,11 +351,11 @@ static void Send(HANDLE device, uint64_t down, const ULONG values[10])
     mwinWin32HidInput(&s_hid, (HRAWINPUT)0x99, 2);
 }
 
-// The first two gamepads added: the pad's and the stick's ids.
-static void Ids(const Program* program, mwinGamepadId ids[2])
+// The gamepads added: the pad's, the stick's and the wheel's ids.
+static void Ids(const Program* program, mwinGamepadId ids[3])
 {
     int found = 0;
-    for (int i = 0; i < program->eventCount && found < 2; i++)
+    for (int i = 0; i < program->eventCount && found < 3; i++)
     {
         if (program->events[i].type == mwin_eventGamepadAdded)
         {
@@ -326,13 +364,18 @@ static void Ids(const Program* program, mwinGamepadId ids[2])
     }
 }
 
-static void CheckFound(const mwinContext* context, const mwinGamepadId ids[2], int added)
+static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], int added)
 {
     mwinGamepadInfo pad;
     mwinGamepadInfo stick;
-    CHECK(added == 2 && mwinGetGamepadInfo(context, ids[0], &pad) == mwin_success &&
-              mwinGetGamepadInfo(context, ids[1], &stick) == mwin_success,
-          "of the devices, the pad and the stick gamepads, once");
+    mwinGamepadInfo wheel;
+    CHECK(added == 3 && mwinGetGamepadInfo(context, ids[0], &pad) == mwin_success &&
+              mwinGetGamepadInfo(context, ids[1], &stick) == mwin_success &&
+              mwinGetGamepadInfo(context, ids[2], &wheel) == mwin_success,
+          "of the devices, the pad, the stick and the wheel gamepads, once");
+    CHECK(!wheel.mapped && wheel.rawButtons == 0 && wheel.rawAxes == 4,
+          "the wheel raw: four axes, no buttons");
+    CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");
     CHECK(pad.mapped && pad.vendor == 0x054C && pad.product == 0x05C4 && pad.nameLength == 22 &&
               memcmp(pad.name, "Wireless Controller \xC3\xA9", 22) == 0 && pad.battery == -1 &&
               pad.capabilities == 0,
@@ -368,9 +411,17 @@ static void CheckStick(const mwinContext* context, mwinGamepadId id)
           "the stick's buttons in usage order, its signed axes, and its centred hat");
 }
 
+static void CheckWheel(const mwinContext* context, mwinGamepadId id)
+{
+    mwinGamepadState state;
+    CHECK(mwinGetGamepadState(context, id, &state) == mwin_success && Near(state.axes[0], 1.0f) &&
+              Near(state.axes[1], -1.0f) && Near(state.axes[2], 1.0f) && Near(state.axes[3], 0.0f),
+          "the wheel's X and Rz, then its slider and its dial of one value, centred");
+}
+
 static void Step(Program* program, mwinContext* context, int step)
 {
-    static mwinGamepadId ids[2];
+    static mwinGamepadId ids[3];
     Drain(program, context);
     int added = 0;
     for (int i = 0; i < program->eventCount; i++)
@@ -396,10 +447,13 @@ static void Step(Program* program, mwinContext* context, int step)
         // Buttons 1 and 3; X at -128 and Y at 127 as 8-bit values; the
         // hat outside its range.
         Send(STICK, 1u << 0 | 1u << 2, (const ULONG[10]){0x80, 0x7F, 0, 0, 0, 0, 0, 0, 0, 8});
+        // X right, Rz left, the slider full, the dial at its one value.
+        Send(WHEEL, 0, (const ULONG[10]){255, 0, 0, 0, 0, 0, 255, 5, 0, 0});
         break;
     case 2:
         CheckPad(context, ids[0]);
         CheckStick(context, ids[1]);
+        CheckWheel(context, ids[2]);
         mwinWin32HidRemove(&s_hid, STICK, 3);
         mwinWin32HidRemove(&s_hid, KEYBOARD, 3);
         Send(STICK, 0, (const ULONG[10]){0});
@@ -411,6 +465,15 @@ static void Step(Program* program, mwinContext* context, int step)
                   mwinGetGamepadState(context, ids[1], &state) == mwin_errorStale,
               "a removed device gone, its reports reading nothing");
         mwinWin32HidStop(&s_hid);
+        // Started for real: Windows' parser loaded from hid.dll.
+        static mwinWin32Hid real;
+        mwinWin32HidStart(&real, context, 4);
+        const mwinHidApi* api = &real.api;
+        CHECK(api->library != nullptr && api->getCaps != nullptr && api->buttonCaps != nullptr &&
+                  api->valueCaps != nullptr && api->usages != nullptr &&
+                  api->usageValue != nullptr && api->productString != nullptr,
+              "started for real, the parser loaded");
+        mwinWin32HidStop(&real);
         program->done = true;
         break;
     }

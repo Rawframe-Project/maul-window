@@ -23,7 +23,9 @@
 #include "maul-window/native.h"
 #include "maul-window/window.h"
 
+#include <android/native_activity.h>
 #include <android/native_window.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -204,6 +206,31 @@ static void CheckMonitor(const mwinWindowState* state, mwinContext* context)
           "no HDR on the emulator's display");
 }
 
+// Android's own scale for the activity: its display metrics' density.
+static float DensityOf(ANativeActivity* activity)
+{
+    JNIEnv* env = activity->env;
+    jclass activities = (*env)->GetObjectClass(env, activity->clazz);
+    jobject resources = (*env)->CallObjectMethod(
+        env, activity->clazz,
+        (*env)->GetMethodID(env, activities, "getResources", "()Landroid/content/res/Resources;"));
+    jclass resourceTypes = (*env)->GetObjectClass(env, resources);
+    jobject metrics =
+        (*env)->CallObjectMethod(env, resources,
+                                 (*env)->GetMethodID(env, resourceTypes, "getDisplayMetrics",
+                                                     "()Landroid/util/DisplayMetrics;"));
+    jclass metricTypes = (*env)->GetObjectClass(env, metrics);
+    float density =
+        (*env)->GetFloatField(env, metrics, (*env)->GetFieldID(env, metricTypes, "density", "F"));
+    (*env)->ExceptionClear(env);
+    jobject locals[] = {activities, resources, resourceTypes, metrics, metricTypes};
+    for (size_t i = 0; i < sizeof(locals) / sizeof(locals[0]); i++)
+    {
+        (*env)->DeleteLocalRef(env, locals[i]);
+    }
+    return density;
+}
+
 // The window as made: its handles, and its sizes from them.
 static void CheckWindow(const Program* program, mwinContext* context)
 {
@@ -218,9 +245,10 @@ static void CheckWindow(const Program* program, mwinContext* context)
     CHECK(window != nullptr && (int32_t)state.pixelSize.width == ANativeWindow_getWidth(window) &&
               (int32_t)state.pixelSize.height == ANativeWindow_getHeight(window),
           "the native window's size in pixels");
-    CHECK(state.scale >= 1.0f && state.size.width * state.scale > state.pixelSize.width - 1.0f &&
+    CHECK(fabsf(state.scale - DensityOf(handles.handles.android.activity)) < 0.01f &&
+              state.size.width * state.scale > state.pixelSize.width - 1.0f &&
               state.size.width * state.scale < state.pixelSize.width + 1.0f,
-          "the scale, and the size in logical units");
+          "the scale the display's density, and the size in logical units");
     CHECK(program->shown && state.visible, "shown with the activity");
     CheckMonitor(&state, context);
 }

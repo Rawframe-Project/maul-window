@@ -11,7 +11,8 @@
 // outside a composition and sent keys as keys; a composition dropped when
 // the window stops accepting text, not committed when the input method
 // closes its old connection, and none told while it does not; each
-// purpose's input type, nothing corrected or completed.
+// purpose's input type, nothing corrected or completed. Insets told
+// again alike change neither the safe area nor the keyboard.
 
 #include "test_harness.h"
 
@@ -31,7 +32,7 @@
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define RECORDS     64
-#define LAST_PHASE  8
+#define LAST_PHASE  13
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
@@ -63,6 +64,11 @@ typedef struct Program
     int recordCount;
     // The connection a composition was left in (a global reference).
     jobject composing;
+    // The safe area's and the keyboard's changes told, and when the last
+    // came.
+    int safeAreas;
+    int keyboards;
+    uint64_t insetsNs;
 } Program;
 
 static uint64_t NowNs(void)
@@ -114,6 +120,13 @@ static void Collect(Program* program, mwinContext* context)
     {
         program->shown |= event.type == mwin_eventShown;
         program->completions += event.type == mwin_eventRequestCompleted;
+        program->safeAreas += event.type == mwin_eventSafeAreaChanged;
+        program->keyboards += event.type == mwin_eventVirtualKeyboardChanged;
+        if (event.type == mwin_eventSafeAreaChanged ||
+            event.type == mwin_eventVirtualKeyboardChanged)
+        {
+            program->insetsNs = NowNs();
+        }
         if (event.type == mwin_eventKeyDown || event.type == mwin_eventKeyUp ||
             event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit)
         {
@@ -262,8 +275,12 @@ static bool Ready(const Program* program, mwinContext* context)
     case 10:
         return program->completions >= 1;
     case 8:
-    case 11:
         return state.virtualKeyboard.height == 0.0f;
+    // Android's own insets settled, half a second without a change.
+    case 11:
+        return state.virtualKeyboard.height == 0.0f && NowNs() - program->insetsNs > 500000000u;
+    case 12:
+        return program->safeAreas >= 1 && program->keyboards >= 1;
     default:
         return true;
     }
@@ -326,6 +343,24 @@ static void CheckType(const Program* program, mwinContext* context, jint expecte
     jobject connection = Connection(env, activity, &type);
     CHECK(connection != nullptr && type == expected, what);
     (*env)->DeleteLocalRef(env, connection);
+}
+
+// Tells the activity's insets, as Android does: a safe area and a
+// keyboard of the test's own.
+static void TellInsets(Program* program, const ANativeActivity* activity)
+{
+    JNIEnv* env = activity->env;
+    program->safeAreas = 0;
+    program->keyboards = 0;
+    jclass activities = (*env)->GetObjectClass(env, activity->clazz);
+    jlong handle = (*env)->GetStaticLongField(
+        env, activities, (*env)->GetStaticFieldID(env, activities, "program", "J"));
+    (*env)->CallStaticVoidMethod(
+        env, activities, (*env)->GetStaticMethodID(env, activities, "nativeInsets", "(JIIIII)V"),
+        handle, 0, 10, 0, 20, 30);
+    CHECK(!(*env)->ExceptionCheck(env), "the insets told");
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, activities);
 }
 
 // A composition record is a notification: a later one replaces one still
@@ -427,6 +462,24 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(mwinRequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
                                          nullptr) == mwin_success,
               "the keyboard hidden again");
+        break;
+    case 11:
+        TellInsets(program, activity);
+        break;
+    case 12:
+        CHECK(program->safeAreas == 1 && program->keyboards == 1,
+              "insets told: one change of each");
+        // Again, alike, in a frame of its own: the queue merges a frame's
+        // changes of one kind.
+        TellInsets(program, activity);
+        break;
+    case 13:
+        if (program->safeAreas != 0 || program->keyboards != 0)
+        {
+            printf("changes: %d of the safe area, %d of the keyboard\n", program->safeAreas,
+                   program->keyboards);
+        }
+        CHECK(program->safeAreas == 0 && program->keyboards == 0, "insets told alike: no change");
         break;
     default:
         break;

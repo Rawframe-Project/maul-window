@@ -565,6 +565,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(win32_system_facts WHITEBOX)
         # What Windows tells of a monitor, read without one.
         maul_add_test(win32_monitor_facts WHITEBOX)
+        # A composition shaped without an input method.
+        maul_add_test(win32_ime_text WHITEBOX)
         # One desktop: the focus, the pointer and the settings are not
         # shared.
         # The drop target driven as OLE would, and WM_DROPFILES.

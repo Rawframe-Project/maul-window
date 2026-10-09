@@ -4,9 +4,10 @@
 // The Win32 backend's input methods, driven through the input context:
 // no context until the window accepts text, a composition as a preedit
 // with its caret and clause, its result as text and the end of the
-// composition, and a composition cancelled when the window stops
-// accepting text. Where the layout has no input method to compose with
-// (an English Windows), the test is skipped (exit status 77).
+// composition (the result once, the text state kept), and a composition
+// cancelled when the window stops accepting text. Where the layout has
+// no input method to compose with (an English Windows), the test is
+// skipped (exit status 77).
 
 #include "test_harness.h"
 
@@ -153,6 +154,9 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(text->length == 6 && memcmp(text->text, KANA_UTF8, 6) == 0 &&
                   preedit->data.preedit.length == 0,
               "the result as text, and the composition ends");
+        CHECK(Find(program, mwin_eventTextInput, 1) == nullptr &&
+                  Find(program, mwin_eventInputStateReset, 0) == nullptr,
+              "the result once, and the text state kept");
         CHECK(Compose(program), "compose again");
         break;
     }

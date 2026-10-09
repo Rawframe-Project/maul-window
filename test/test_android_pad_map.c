@@ -6,9 +6,12 @@
 // gamepad's layout (the right stick on Z and RZ, the triggers on
 // LTRIGGER and RTRIGGER, a hat), a Linux gamepad's generic one (the
 // right stick on RX and RY, the triggers on Z and RZ from -1..1 to
-// 0..1, at rest until Android's first 0 moves), BRAKE and GAS as triggers, triggers from the L2 and
-// R2 keys, the buttons by place (X west, Y north, Back as select, Menu as start), and a raw
-// joystick's buttons numbered among the keys it has and its axes with Android's values.
+// 0..1, at rest until Android's first 0 moves), BRAKE and GAS as
+// triggers, triggers from the L2 and R2 keys, the buttons by place (X
+// west, Y north, Back as select, Menu as start), a raw joystick's
+// buttons numbered among the keys it has and its axes with Android's
+// values; and the edges: a hat as the first axes or half way, a trigger
+// with no range, DPAD_UP as button 0, a raw gamepad's keys past 32.
 
 #include "android_pad_map.h"
 #include "test_program.h"
@@ -29,6 +32,7 @@ enum
     AXIS_GAS = 22,
     AXIS_BRAKE = 23,
     KEY_BACK = 4,
+    KEY_DPAD_UP = 19,
     KEY_MENU = 82,
     KEY_BUTTON_A = 96,
     KEY_BUTTON_X = 99,
@@ -189,6 +193,51 @@ static void CheckRaw(Program* program, mwinContext* context)
           "its axes in order, with Android's values");
 }
 
+// The edges: a hat as the first axes, a hat half way pressing nothing, a
+// trigger with no range at rest, DPAD_UP as button 0; and a raw
+// gamepad's keys past its 32 buttons left out.
+static void CheckEdges(Program* program, mwinContext* context)
+{
+    static const int32_t axes[] = {AXIS_HAT_X, AXIS_HAT_Y,    AXIS_X,
+                                   AXIS_Y,     AXIS_LTRIGGER, AXIS_RTRIGGER};
+    uint32_t slot = 0;
+    mwinAndroidPadLayout layout = Layout(context, KeyBit(KEY_BUTTON_A), axes, 6, &slot);
+    layout.max[5] = 0.0f;
+    mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_A, true, s_timeNs);
+    const float half[] = {-0.5f, -0.5f, 0.0f, 0.0f, 0.25f, 0.0f};
+    mwinAndroidPadAxes(context, slot, &layout, half, s_timeNs);
+    uint32_t south = 1u << mwin_padFaceSouth;
+    mwinGamepadState state = StateOf(context, slot);
+    bool still = state.buttons == south;
+    const float otherHalf[] = {0.5f, 0.5f, 0.0f, 0.0f, 0.25f, 0.0f};
+    mwinAndroidPadAxes(context, slot, &layout, otherHalf, s_timeNs);
+    CHECK(still && StateOf(context, slot).buttons == south,
+          "A as the south face; a hat half way either way presses nothing");
+    CHECK(state.axes[mwin_padTriggerLeft] == 0.25f && state.axes[mwin_padTriggerRight] == 0.0f,
+          "a trigger with no range at rest");
+    const float full[] = {1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    mwinAndroidPadAxes(context, slot, &layout, full, s_timeNs);
+    CHECK(StateOf(context, slot).buttons ==
+              (south | 1u << mwin_padDpadRight | 1u << mwin_padDpadDown),
+          "a hat as the first axes pressed");
+    // No hat: the key's press is not taken back by the hat's samples.
+    layout = Layout(context, KeyBit(KEY_BUTTON_A), &axes[2], 2, &slot);
+    mwinAndroidPadKey(context, slot, &layout, KEY_DPAD_UP, true, s_timeNs);
+    CHECK(StateOf(context, slot).buttons == 1u << mwin_padDpadUp, "DPAD_UP as button 0");
+    // Every key but A: 36, the 32nd and 33rd at the table's 32 and 33.
+    uint64_t keys = ((1ull << MWIN_ANDROID_PAD_KEYS) - 1u) & ~KeyBit(KEY_BUTTON_A);
+    layout = Layout(context, keys, axes, 2, &slot);
+    mwinGamepadInfo info = {0};
+    (void)mwinGetGamepadInfo(context, mwinGamepadIdOf(context, slot), &info);
+    Drain(program, context);
+    mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[33], true, s_timeNs);
+    mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[32], true, s_timeNs);
+    Drain(program, context);
+    CHECK(info.rawButtons == MWIN_GAMEPAD_RAW_BUTTONS && program->eventCount == 1 &&
+              program->events[0].data.gamepadButton.button == MWIN_GAMEPAD_RAW_BUTTONS - 1,
+          "a raw gamepad's 32nd key its last button, the 33rd left out");
+}
+
 static void Step(Program* program, mwinContext* context, int step)
 {
     switch (step)
@@ -198,6 +247,7 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckGeneric(program, context);
         CheckTriggers(program, context);
         CheckRaw(program, context);
+        CheckEdges(program, context);
         program->done = true;
         break;
     default:

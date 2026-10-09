@@ -18,6 +18,7 @@
 #include "maul-window/window.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -108,13 +109,23 @@ static void CheckCreated(mwinContext* context, const Program* program)
     HWND framed = Handle(context, program->framed);
     HWND plain = Handle(context, program->plain);
     DWORD wanted = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME;
-    CHECK(((DWORD)GetWindowLongPtrW(framed, GWL_STYLE) & wanted) == wanted &&
-              (GetWindowLongPtrW(framed, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0,
-          "decorated, resizable, always on top");
-    DWORD style = (DWORD)GetWindowLongPtrW(plain, GWL_STYLE);
-    CHECK((style & WS_POPUP) != 0 && (style & (WS_CAPTION | WS_THICKFRAME)) == 0 &&
-              (GetWindowLongPtrW(plain, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0,
-          "a plain popup, not on top");
+    DWORD style = (DWORD)GetWindowLongPtrW(framed, GWL_STYLE);
+    DWORD extended = (DWORD)GetWindowLongPtrW(framed, GWL_EXSTYLE);
+    DWORD plainStyle = (DWORD)GetWindowLongPtrW(plain, GWL_STYLE);
+    DWORD plainExtended = (DWORD)GetWindowLongPtrW(plain, GWL_EXSTYLE);
+    bool decorated = (style & wanted) == wanted;
+    bool onTop = (extended & WS_EX_TOPMOST) != 0;
+    bool popup = (plainStyle & WS_POPUP) != 0 && (plainStyle & (WS_CAPTION | WS_THICKFRAME)) == 0 &&
+                 (plainExtended & WS_EX_TOPMOST) == 0;
+    if (!decorated || !onTop || !popup)
+    {
+        (void)printf("styles %08lx %08lx, plain %08lx %08lx\n", (unsigned long)style,
+                     (unsigned long)extended, (unsigned long)plainStyle,
+                     (unsigned long)plainExtended);
+    }
+    CHECK(decorated, "decorated and resizable");
+    CHECK(onTop, "always on top");
+    CHECK(popup, "a plain popup, not on top");
     WCHAR title[16];
     CHECK(GetWindowTextW(framed, title, 16) == 7 && wcscmp(title, L"H\x00E9llo \x2603") == 0,
           "the title outside ASCII");

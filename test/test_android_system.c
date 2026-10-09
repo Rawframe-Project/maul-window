@@ -6,13 +6,13 @@
 // motion while the runner's animator scale is 0; the accent from
 // Android 12; preferred locales; the battery unplugged, told within the
 // power's look, then battery saver on; the night mode and the font scale
-// changed, told through the activity made anew; Back, held, asking the
-// window to close once, on its release, and tapped, asking again, the
-// activity staying in front; and a Back
-// whose release Android cancels (a back gesture pulled away), injected
-// into the test's own window from a thread of the test's, asking
-// nothing (where Android lets an application inject into its own window:
-// Android 11 does, Android 15 asks for INJECT_EVENTS).
+// changed, told through the activity made anew, with no resize; Back,
+// held, asking the window to close once, on its release, and tapped,
+// asking again, the activity staying in front; and a Back whose release
+// Android cancels (a back gesture pulled away), injected into the test's
+// own window from a thread of the test's, asking nothing (where Android
+// lets an application inject into its own window: Android 11 does,
+// Android 15 asks for INJECT_EVENTS).
 
 #include "test_harness.h"
 
@@ -51,6 +51,8 @@ typedef struct Program
     bool powerChanged;
     bool localeChanged;
     int closeRequests;
+    // The window's resizes told since the start.
+    int resizes;
     mwinTheme theme;
     int framesAfterClose;
     ANativeActivity* activity;
@@ -75,6 +77,7 @@ static void Collect(Program* program, mwinContext* context)
         program->powerChanged |= event.type == mwin_eventPowerChanged;
         program->localeChanged |= event.type == mwin_eventLocaleChanged;
         program->closeRequests += event.type == mwin_eventCloseRequested;
+        program->resizes += program->phase > 0 && event.type == mwin_eventResized;
     }
 }
 
@@ -217,6 +220,7 @@ static void Advance(Program* program, mwinContext* context)
         printf("adb: cmd uimode night %s\n", program->theme == mwin_themeDark ? "no" : "yes");
         break;
     case 3:
+        CHECK(program->resizes == 0, "the settings changed, the size not: no resize told");
         // Held: its repeats ask nothing. Then tapped, which Android would
         // take for itself, finishing the activity, were Back not the
         // program's (a held one's release is never Android's).

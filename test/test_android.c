@@ -3,17 +3,17 @@
 //
 // The Android backend against the platform, in the emulator
 // (tools/run_android_app.sh): the program asked for once; its window
-// made at the activity's first surface, with the native window and the
-// activity as its handles, its pixel size the native window's and its
-// scale the density's; the display its one monitor; a second window
-// unsupported, showing done, a size request unsupported. Then what only
-// the system does, asked of the runner: the home key, the application
-// suspending in a frame of its own and its surface lost in another, no
-// frames while suspended (the suspended record giving way to the
-// resuming one); brought back, resuming with a new surface; turned, the
-// activity made anew, which joins the running program: the window goes
-// on with a new surface and the program is not asked for again. quit
-// writes the closing line the runner waits for.
+// made at the activity's first surface, its request done, with the
+// native window and the activity as its handles, its pixel size the
+// native window's and its scale the density's; the display its one
+// monitor; a second window unsupported, showing done, a size request
+// unsupported. Then what only the system does, asked of the runner: the
+// home key, the application suspending in a frame of its own and its
+// surface lost in another, no frames while suspended (the suspended
+// record giving way to the resuming one); brought back, resuming with a
+// new surface; turned, the activity made anew, which joins the running
+// program: the window goes on with a new surface and the program is not
+// asked for again. quit writes the closing line the runner waits for.
 
 #include "test_harness.h"
 
@@ -41,6 +41,7 @@ typedef struct Program
     mwinWindowId second;
     bool created;
     bool shown;
+    bool createDone;
     mwinOutcome secondOutcome;
     mwinOutcome visibleOutcome;
     mwinOutcome sizeOutcome;
@@ -90,6 +91,10 @@ static void Complete(Program* program, const mwinEvent* event)
     if (SameWindow(event->window, program->second))
     {
         program->secondOutcome = completion->outcome;
+    }
+    else if (completion->kind == mwin_requestCreate)
+    {
+        program->createDone = completion->outcome == mwin_outcomeDone;
     }
     else if (completion->kind == mwin_requestVisible)
     {
@@ -255,6 +260,7 @@ static void Advance(Program* program, mwinContext* context)
     case 0:
     {
         CheckWindow(program, context);
+        CHECK(program->createDone, "the window's making done as it shows");
         program->generation = state.surfaceGeneration;
         mwinWindowDef def = mwinDefaultWindowDef();
         CHECK(mwinCreateWindow(context, &def, &program->second, nullptr) == mwin_success,

@@ -8,6 +8,11 @@ format.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-09
+
+Touch screens on X11 and power facts on the web, the two gaps an audit
+against the requirements found after 0.10.1.
+
 ### Added
 
 - Web: whether the device runs on its battery, from the Battery Status API where the browser has it (Chromium), with `mwin_eventPowerChanged` when it starts or stops charging; unknown elsewhere.

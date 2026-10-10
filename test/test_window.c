@@ -722,7 +722,15 @@ static void TestRunAndMemory(void)
     CHECK(RunWith(&program, def) == mwin_errorInvalid, "no room for input");
     def = mwinDefaultContextDef();
     mwinAppDef app = mwinDefaultAppDef();
+    CHECK(app.version == MWIN_ABI_VERSION, "the default carries the headers' version");
     CHECK(mwinRun(&app) == mwin_errorInvalid, "an app without functions");
+    // A def built for another minor or major is refused before anything
+    // else of it is read, functions or none.
+    app.version = MWIN_ABI_VERSION + 1;
+    CHECK(mwinRun(&app) == mwin_errorVersion, "a def of a later minor");
+    app.version = MWIN_ABI_VERSION ^ (1u << 16);
+    CHECK(mwinRun(&app) == mwin_errorVersion, "a def of another major");
+    app.version = MWIN_ABI_VERSION;
     app.init = Init;
     app.frame = Frame;
     app.user = &program;

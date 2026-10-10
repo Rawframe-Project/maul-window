@@ -80,14 +80,14 @@ Copies out the text a primary selection read found, as mwinGetClipboardText does
 The context and the run function. A program describes itself in an application def (three functions and the context's def) and hands it to mwinRun, which creates the context, calls init, calls frame once per frame, calls quit and destroys the context. On Win32, X11 and Wayland mwinRun pumps the platform itself; on the web and on mobile platforms the platform's loop drives it. The program cannot tell the two apart. Every limit on memory and work is named in mwinLimits, with a default a program may change. Everything the context needs is allocated when it is created, through the def's allocator.
 
 ```c
-mwinContextDef mwinDefaultContextDef(void);
+static inline mwinContextDef mwinDefaultContextDef(void);
 ```
-Returns the default context def: the default limits (8 windows; per window 32 requests, 256 notifications, 256 input records per class and 4,096 bytes of text; 1,024 title bytes; 16 monitors; 256 bytes of locales; 8 gamepads; 1 MiB of clipboard text; 256 files and 1 MiB of paths or text per drop), the C library's allocator and the native backend.  @return The def, with a valid cookie. @par Thread safety Safe from any thread.
+Returns the default context def: the default limits (8 windows; per window 32 requests, 256 notifications, 256 input records per class and 4,096 bytes of text; 1,024 title bytes; 16 monitors; 256 bytes of locales; 8 gamepads; 1 MiB of clipboard text; 256 files and 1 MiB of paths or text per drop; 256 files and 1 MiB of paths per dialog; 16 cursors), the C library's allocator and the native backend. Built in the program from the headers it includes, so that the library never writes a def of its own layout into the program's.  @return The def, with a valid cookie. @par Thread safety Safe from any thread.
 
 ```c
-mwinAppDef mwinDefaultAppDef(void);
+static inline mwinAppDef mwinDefaultAppDef(void);
 ```
-Returns the default application def: the default context def and no functions.  @return The def, with a valid cookie. @par Thread safety Safe from any thread.
+Returns the default application def: the default context def, the ABI version of the headers the program is built with, and no functions. Built in the program, so that the version is the program's: mwinRun refuses a def built for another major or minor version rather than read it in another layout.  @return The def, with a valid cookie. @par Thread safety Safe from any thread.
 
 ```c
 MWIN_NODISCARD MWIN_API mwinResult mwinRun(const mwinAppDef* def);

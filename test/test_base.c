@@ -22,6 +22,7 @@ static void TestResultNames(void)
     CHECK(strcmp(mwinResultName(mwin_success), "mwin_success") == 0, "success name");
     CHECK(strcmp(mwinResultName(mwin_errorInvalid), "mwin_errorInvalid") == 0, "invalid name");
     CHECK(strcmp(mwinResultName(mwin_errorCapacity), "mwin_errorCapacity") == 0, "capacity name");
+    CHECK(strcmp(mwinResultName(mwin_errorVersion), "mwin_errorVersion") == 0, "version name");
     CHECK(strcmp(mwinResultName(12345), "unknown result") == 0, "unknown name");
 }
 

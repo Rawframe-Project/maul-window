@@ -8,6 +8,15 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- `mwinAppDef` carries `version`, the `MWIN_ABI_VERSION` (major and minor) of the headers the program was built with, and `mwinRun` refuses a def of another with the new `mwin_errorVersion` before reading anything else of it.
+
+### Changed
+
+- `mwinDefaultAppDef` and `mwinDefaultContextDef` are built in the program from the headers it includes (`static inline` functions), so the version they stamp is the program's and the library never writes a def of its own layout into the program's; their cookies are `MWIN_APP_DEF_COOKIE` and `MWIN_CONTEXT_DEF_COOKIE`. A def written field by field must set `version` and the cookies as the defaults do.
+- Android: the CMake target passes `-u ANativeActivity_onCreate` to every program that links it, so a static link keeps NativeActivity's entry even when nothing else of the program reaches the backend.
+
 ## [0.13.0] - 2026-10-10
 
 Built on Maul Unicode 0.3.0, so that the family's latest releases share

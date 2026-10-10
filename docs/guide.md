@@ -410,7 +410,10 @@ On Android the application carries the library's Java
 (`java/maul/window`, compiled with the program's own) and names the
 library's activity in its manifest, with the program's native library
 as its `android.app.lib_name`; the program defines `mwinAndroidMain`
-and exports it from that library. No `configChanges` are needed: an
+and exports it from that library. The library's CMake target keeps
+`ANativeActivity_onCreate`, NativeActivity's entry, in a program that
+links it statically; a build without CMake passes
+`-Wl,-u,ANativeActivity_onCreate` itself. No `configChanges` are needed: an
 activity made anew joins the running program. An application that
 shrinks its code with R8 or ProGuard, as a Gradle release build does,
 adds `java/proguard-rules.pro` to its rules: the native library finds the

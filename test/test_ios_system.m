@@ -146,6 +146,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == program->wanted,
               "the other style, posted");
         CHECK(view.accessibilityElements.count == 0, "no root, no elements");
+        CHECK(!view.isAccessibilityElement, "a container, not a text area");
         break;
     }
     case 2:

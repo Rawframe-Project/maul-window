@@ -17,6 +17,10 @@ format.
 - `mwinDefaultAppDef` and `mwinDefaultContextDef` are built in the program from the headers it includes (`static inline` functions), so the version they stamp is the program's and the library never writes a def of its own layout into the program's; their cookies are `MWIN_APP_DEF_COOKIE` and `MWIN_CONTEXT_DEF_COOKIE`. A def written field by field must set `version` and the cookies as the defaults do.
 - Android: the CMake target passes `-u ANativeActivity_onCreate` to every program that links it, so a static link keeps NativeActivity's entry even when nothing else of the program reaches the backend.
 
+### Fixed
+
+- iOS: a window's view is an accessibility container, never an element: it adopts UITextInput, and UIKit's accessibility took it for a text area, which it asks for no elements, so a client never reached the program's root and the program was never told one asked.
+
 ## [0.13.0] - 2026-10-10
 
 Built on Maul Unicode 0.3.0, so that the family's latest releases share

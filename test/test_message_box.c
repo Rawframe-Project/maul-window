@@ -5,7 +5,8 @@
 // PATH, scripts that write their arguments down and exit as told: the
 // text as arguments, never through a shell; OK, Yes and No; an error
 // of zenity's own; kdialog where zenity is missing, the longest title
-// whole; none where both are; and defs refused before anything runs.
+// whole; none where both are and no X server answers (the library's own
+// box, test_x11_message_box.c); and defs refused before anything runs.
 
 #include "test_harness.h"
 
@@ -111,7 +112,7 @@ static void CheckKdialog(void)
     (void)snprintf(path, sizeof(path), "%s/kdialog", s_directory);
     (void)remove(path);
     CHECK(mwinShowMessageBox(&question, &accepted) == mwin_errorUnsupported,
-          "no message box without either");
+          "no message box without either, nor an X server");
 }
 
 static void CheckRefused(void)
@@ -142,6 +143,7 @@ int main(void)
         return 77;
     }
     setenv("PATH", s_directory, 1);
+    (void)unsetenv("DISPLAY");
     StandIn("zenity");
     CheckRefused();
     CheckZenity();

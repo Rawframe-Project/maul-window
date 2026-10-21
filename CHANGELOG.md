@@ -19,6 +19,7 @@ format.
 
 ### Fixed
 
+- Linux: a message box shows where neither zenity nor kdialog is there: the library draws one of its own on the X server `DISPLAY` names, its message in the core "fixed" font, its buttons clicked or answered by Return and Escape, closing it a refusal. Before, it was `mwin_errorUnsupported`, so a program that could not start said nothing to a user without those programs.
 - Win32: a window given no icon shows the program's own, its first icon group at the sizes Windows shows a window's, as Explorer shows the program's file, instead of Windows' plain one: the window class carries it.
 - iOS: a window's view is an accessibility container, never an element: it adopts UITextInput, and UIKit's accessibility took it for a text area, which it asks for no elements, so a client never reached the program's root and the program was never told one asked.
 

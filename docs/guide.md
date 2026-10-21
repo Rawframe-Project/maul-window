@@ -316,7 +316,9 @@ These are requests of a window, answered like any other:
 
 `mwinShowMessageBox` needs no context. It shows a platform message box
 and waits, for errors a program must report before or after it has
-windows. Android has none.
+windows. On Linux it runs zenity or kdialog; where neither is there, it
+draws a plain box of its own on the X server (the core "fixed" font, so
+text past Latin-1 shows as "?"). Android has none.
 
 ## 9. Accessibility hooks
 

@@ -103,7 +103,7 @@ pad: core
 pad_db:
 pad_map: core pad_db
 pad_tracker: core
-posix_message_box: message_box
+posix_message_box: message_box x11_message_box
 preedit_fit:
 queue: core preedit_fit text
 selection_reads: clipboard_data core
@@ -176,6 +176,7 @@ x11_cursor: allocator core cursor icon x11 x11_api
 x11_drop: allocator core monotonic uri_list x11 x11_api
 x11_icon: allocator core icon x11 x11_api
 x11_input: allocator core evdev linux_ime x11 x11_api x11_chrome x11_pen x11_scroll x11_touch xkb_api xkb_keyboard
+x11_message_box: allocator x11_api
 x11_output: allocator core edid x11 x11_api
 x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_icon x11_input x11_output
 xkb_api:

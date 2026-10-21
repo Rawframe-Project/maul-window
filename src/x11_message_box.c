@@ -38,62 +38,84 @@ typedef struct Lines
     int count;
 } Lines;
 
+// The next character of the UTF-8 message from `*at`, which it moves
+// past.
+static uint32_t NextCode(const char* message, size_t length, size_t* at)
+{
+    const uint8_t first = (uint8_t)message[*at];
+    const size_t bytes = first < 0x80 ? 1 : first < 0xE0 ? 2 : first < 0xF0 ? 3 : 4;
+    uint32_t code = bytes == 1 ? first : first & (0xFFu >> (bytes + 1));
+    for (size_t more = 1; more < bytes && *at + more < length; more++)
+    {
+        code = (code << 6) | ((uint8_t)message[*at + more] & 0x3Fu);
+    }
+    *at += bytes;
+    return code;
+}
+
+// A character as the core font's Latin-1 byte.
+static char Latin1(uint32_t code)
+{
+    if (code == '\t')
+    {
+        return ' ';
+    }
+    return code < 0x20 || code > 0xFF ? '?' : (char)code;
+}
+
+// The line being filled, and its last space.
+typedef struct Filling
+{
+    char text[kColumns];
+    int used;
+    int lastSpace;
+} Filling;
+
+// Ends the line being filled: whole, or, `atSpace`, at its last space,
+// the word after it carried on.
+static void EndLine(Filling* filling, Lines* lines, bool atSpace)
+{
+    int cut = filling->used;
+    int next = filling->used;
+    if (atSpace && filling->lastSpace > 0)
+    {
+        cut = filling->lastSpace;
+        next = cut + 1;
+    }
+    memcpy(lines->text[lines->count], filling->text, (size_t)cut);
+    lines->length[lines->count] = (uint8_t)cut;
+    lines->count++;
+    memmove(filling->text, filling->text + next, (size_t)(filling->used - next));
+    filling->used -= next;
+    filling->lastSpace = -1;
+}
+
 static void Wrap(const char* message, size_t length, Lines* lines)
 {
     memset(lines, 0, sizeof(*lines));
-    char line[kColumns];
-    int used = 0;
-    int lastSpace = -1;
+    Filling filling = {.lastSpace = -1};
     size_t at = 0;
-    while (lines->count < kLines)
+    while (at < length && lines->count < kLines)
     {
-        bool ended = at >= length;
-        uint32_t code = 0;
-        if (!ended)
+        const uint32_t code = NextCode(message, length, &at);
+        if (code == '\n')
         {
-            uint8_t first = (uint8_t)message[at];
-            size_t bytes = first < 0x80 ? 1 : first < 0xE0 ? 2 : first < 0xF0 ? 3 : 4;
-            code = first < 0x80   ? first
-                   : first < 0xE0 ? first & 0x1Fu
-                   : first < 0xF0 ? first & 0x0Fu
-                                  : first & 0x07u;
-            for (size_t more = 1; more < bytes && at + more < length; more++)
-            {
-                code = (code << 6) | ((uint8_t)message[at + more] & 0x3Fu);
-            }
-            at += bytes;
+            EndLine(&filling, lines, false);
+            continue;
         }
-        if (ended || code == '\n' || used == kColumns)
+        if (filling.used == kColumns)
         {
-            int cut = used;
-            int next = used;
-            // A line full mid-word breaks at its last space, the word
-            // carried to the next.
-            if (!ended && code != '\n' && lastSpace > 0)
-            {
-                cut = lastSpace;
-                next = lastSpace + 1;
-            }
-            memcpy(lines->text[lines->count], line, (size_t)cut);
-            lines->length[lines->count] = (uint8_t)cut;
-            lines->count++;
-            memmove(line, line + next, (size_t)(used - next));
-            used -= next;
-            lastSpace = -1;
-            if (ended && used == 0)
-            {
-                break;
-            }
-            if (code == '\n' || ended)
-            {
-                continue;
-            }
+            EndLine(&filling, lines, true);
         }
         if (code == ' ')
         {
-            lastSpace = used;
+            filling.lastSpace = filling.used;
         }
-        line[used++] = code == '\t' ? ' ' : code < 0x20 ? '?' : code <= 0xFF ? (char)code : '?';
+        filling.text[filling.used++] = Latin1(code);
+    }
+    if (filling.used > 0 && lines->count < kLines)
+    {
+        EndLine(&filling, lines, false);
     }
 }
 
@@ -143,6 +165,53 @@ static xcb_atom_t Atom(const Box* box, const char* name)
     return atom;
 }
 
+// The button `press` is on: 0 the first, 1 the second, -1 none.
+static int Pressed(const Box* box, const xcb_button_press_event_t* press)
+{
+    for (int button = 0; button < box->buttons && press->detail == 1; button++)
+    {
+        const xcb_rectangle_t at = box->buttonAt[button];
+        if (press->event_x >= at.x && press->event_x <= at.x + at.width && press->event_y >= at.y &&
+            press->event_y <= at.y + at.height)
+        {
+            return button;
+        }
+    }
+    return -1;
+}
+
+// What `event` answers: 1 accepts, 0 refuses, -1 nothing. An exposure
+// draws the box again; a sent event is answered as a real one is.
+static int AnswerOf(const Box* box, const xcb_generic_event_t* event, xcb_atom_t deleteWindow)
+{
+    switch (event->response_type & 0x7Fu)
+    {
+    case XCB_EXPOSE:
+        if (((const xcb_expose_event_t*)event)->count == 0)
+        {
+            Draw(box);
+        }
+        return -1;
+    case XCB_KEY_PRESS:
+    {
+        const xcb_keycode_t key = ((const xcb_key_press_event_t*)event)->detail;
+        return key == kKeyReturn || key == kKeyEnter ? 1 : key == kKeyEscape ? 0 : -1;
+    }
+    case XCB_BUTTON_PRESS:
+    {
+        const int button = Pressed(box, (const xcb_button_press_event_t*)event);
+        return button < 0 ? -1 : button == 0 ? 1 : 0;
+    }
+    case XCB_CLIENT_MESSAGE:
+    {
+        const xcb_client_message_event_t* message = (const xcb_client_message_event_t*)event;
+        return message->format == 32 && message->data.data32[0] == deleteWindow ? 0 : -1;
+    }
+    default:
+        return -1;
+    }
+}
+
 // Waits for an answer: true to accept.
 static bool Answer(const Box* box, xcb_atom_t deleteWindow)
 {
@@ -154,48 +223,7 @@ static bool Answer(const Box* box, xcb_atom_t deleteWindow)
             // The server went away.
             return false;
         }
-        int answer = -1;
-        // A sent event is answered as a real one is.
-        switch (event->response_type & 0x7Fu)
-        {
-        case XCB_EXPOSE:
-            if (((xcb_expose_event_t*)event)->count == 0)
-            {
-                Draw(box);
-            }
-            break;
-        case XCB_KEY_PRESS:
-        {
-            const xcb_keycode_t key = ((xcb_key_press_event_t*)event)->detail;
-            answer = key == kKeyReturn || key == kKeyEnter ? 1 : key == kKeyEscape ? 0 : -1;
-            break;
-        }
-        case XCB_BUTTON_PRESS:
-        {
-            const xcb_button_press_event_t* press = (const xcb_button_press_event_t*)event;
-            for (int button = 0; button < box->buttons && press->detail == 1; button++)
-            {
-                const xcb_rectangle_t at = box->buttonAt[button];
-                if (press->event_x >= at.x && press->event_x <= at.x + at.width &&
-                    press->event_y >= at.y && press->event_y <= at.y + at.height)
-                {
-                    answer = button == 0 ? 1 : 0;
-                }
-            }
-            break;
-        }
-        case XCB_CLIENT_MESSAGE:
-        {
-            const xcb_client_message_event_t* message = (const xcb_client_message_event_t*)event;
-            if (message->format == 32 && message->data.data32[0] == deleteWindow)
-            {
-                answer = 0;
-            }
-            break;
-        }
-        default:
-            break;
-        }
+        const int answer = AnswerOf(box, event, deleteWindow);
         mwinReleaseSystemMemory(event);
         if (answer >= 0)
         {

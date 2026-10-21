@@ -122,7 +122,9 @@ The requests are `mwinRequestTitle`, `Size`, `Position`, `Mode`,
 `Visible`, `Focus`, `SizeLimits`, `AspectRatio`, `Style`, `Opacity`
 and `Icon`. What a platform cannot do it answers unsupported: Wayland
 places no toplevel, and the web has no title bar. A macOS window has no
-icon of its own, so its icon request sets the application's. An iOS
+icon of its own, so its icon request sets the application's. A Windows
+window given no icon shows the program's own, its first icon group, as
+Explorer shows the program's file. An iOS
 window is a scene's, which the system sizes and places; its title is
 what the app switcher shows, and a program on an iPhone has one window.
 An Android program has one window too, its activity's, drawn edge to

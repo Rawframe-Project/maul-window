@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Sirac Ozmen
+//
+// The program's one icon, numbered as a program may number it.
+7 ICON "win32_class_icon.ico"

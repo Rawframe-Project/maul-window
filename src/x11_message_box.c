@@ -296,10 +296,10 @@ static mwinResult Show(Box* box, const mwinMessageBoxDef* def, bool* acceptedOut
     api->changeProperty(box->connection, XCB_PROP_MODE_REPLACE, box->window,
                         Atom(box, "_NET_WM_WINDOW_TYPE"), XCB_ATOM_ATOM, 32, 1, &dialog);
     // WM_NORMAL_HINTS: its place, and its least and most size the same.
-    const uint32_t hints[18] = {
-        [0] = 1u | 4u | 16u | 32u, [1] = (uint32_t)x,      [2] = (uint32_t)y,
-        [5] = (uint32_t)width,     [6] = (uint32_t)height, [7] = (uint32_t)width,
-        [8] = (uint32_t)height};
+    const uint32_t hints[18] = {[0] = 1u | 4u | 16u | 32u, [1] = (uint32_t)x,
+                                [2] = (uint32_t)y,         [5] = (uint32_t)width,
+                                [6] = (uint32_t)height,    [7] = (uint32_t)width,
+                                [8] = (uint32_t)height};
     api->changeProperty(box->connection, XCB_PROP_MODE_REPLACE, box->window,
                         XCB_ATOM_WM_NORMAL_HINTS, XCB_ATOM_WM_SIZE_HINTS, 32, 18, hints);
     const xcb_atom_t deleteWindow = Atom(box, "WM_DELETE_WINDOW");

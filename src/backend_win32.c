@@ -94,7 +94,7 @@ static BOOL CALLBACK KeepFirstIcon(HMODULE module, LPCWSTR type, LPWSTR name, LO
 {
     (void)module;
     (void)type;
-    FirstIcon* first = (FirstIcon*)into;
+    FirstIcon* first = mwinWin32Pointer(into);
     if (IS_INTRESOURCE(name))
     {
         first->number = (WORD)(ULONG_PTR)name;

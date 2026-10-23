@@ -52,9 +52,9 @@ The fuzz targets (`test/fuzz_<area>.c`, built with `-DMAUL_WINDOW_FUZZ=ON` and C
 
 Each target starts from its committed seeds (`test/seeds/<target>/`), inputs that reach what random bytes rarely would. The nightly run also carries a corpus per target from night to night in an Actions cache:
 
-- The cache key names the target and hashes the fuzz build's inputs (`src/`, `include/`, `protocols/`, `cmake/`, `CMakeLists.txt`, the target's source) and the compiler's version. A corpus only ever feeds the binary it was grown for, and a target whose build changed starts again from its seeds.
-- After its 600 seconds, the fuzzer's merge step minimizes the corpus to what reaches code the seeds do not, and that is saved for the next night.
-- The run's summary gives the seeds' coverage beside the corpus's, and the corpus is uploaded as `corpus-<target>` for seven days. Where the corpus reaches more, the inputs worth keeping are committed as seeds ([Development](development.md#a-fuzz-finding)).
+- The cache key names the target and hashes the fuzz build's inputs (`src/`, `include/`, `protocols/`, `cmake/`, `CMakeLists.txt`, the target's source) and the compiler's version, so an unchanged build restores its own corpus exactly. A target whose build changed restores its latest corpus of an earlier build: a corpus is only inputs, which stay valid against a new binary.
+- After its 600 seconds, the fuzzer's merge step re-scores the corpus over the seeds and keeps only what adds coverage, and that is saved for the next night.
+- The run's summary says which corpus was restored (this build's, an earlier build's, or none) and gives the seeds' coverage beside the corpus's, and the corpus is uploaded as `corpus-<target>` for seven days. Where the corpus reaches more, the inputs worth keeping are committed as seeds ([Development](development.md#a-fuzz-finding)).
 
 ## Budgets
 

@@ -218,10 +218,11 @@ jobs:
   # before, carried in an Actions cache, in a job of its own so that every
   # target runs at once. The cache is keyed by the target and by the fuzz
   # build's inputs (the library, its CMake, the target and the compiler), so
-  # a corpus only ever feeds the binary it was grown for, and one whose
-  # build changed starts again from the committed seeds. After the run the
-  # fuzzer's merge minimizes the corpus over the seeds, and it is saved for
-  # the next night. The summary compares the seeds' coverage with
+  # an unchanged build restores its own corpus exactly. A target whose build
+  # changed restores its latest corpus of an earlier build: a corpus is only
+  # inputs, which stay valid against a new binary. After the run the
+  # fuzzer's merge re-scores the corpus over the seeds and drops what adds
+  # no coverage, and it is saved for the next night. The summary compares the seeds' coverage with
   # the corpus's, and the corpus is uploaded, to pick inputs worth committing
   # as seeds.
   fuzz-nightly:
@@ -252,11 +253,16 @@ jobs:
           compiler=$(clang-20 --version | head -1 | sha256sum | cut -c1-16)
           echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
       - name: Restore the corpus
+        id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
           key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
-          restore-keys: ${{ env.CORPUS_KEY }}-
+          # This build's corpus, else the target's from an earlier build:
+          # its inputs stay valid, and the merge re-scores them.
+          restore-keys: |
+            ${{ env.CORPUS_KEY }}-
+            corpus-${{ matrix.target }}-
       - name: Fuzz
         run: |
           mkdir -p "out/corpus/$TARGET" out/findings
@@ -265,6 +271,8 @@ jobs:
           "out/fuzz/$TARGET" -max_total_time=600 -max_len=256 -artifact_prefix=out/findings/ \
             "out/corpus/$TARGET" "${seeds[@]}"
       - name: Minimize the corpus
+        env:
+          MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
         run: |
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
@@ -276,10 +284,15 @@ jobs:
           coverage() { "out/fuzz/$TARGET" -runs=0 "$@" 2>&1 | sed -n 's/.*INITED cov: \([0-9]*\).*/\1/p'; }
           seeded=none
           [ ${#seeds[@]} -gt 0 ] && seeded=$(coverage "${seeds[@]}")
+          case "$MATCHED" in
+          "") restored="none: the seeds alone" ;;
+          "$CORPUS_KEY"-*) restored="this build's" ;;
+          *) restored="an earlier build's" ;;
+          esac
           {
-            echo "| Target | Seeds' coverage | Corpus's coverage | Corpus files |"
-            echo "|---|---|---|---|"
-            echo "| \`$TARGET\` | $seeded | $(coverage "${seeds[@]}" "out/corpus/$TARGET") | $(ls "out/corpus/$TARGET" | wc -l) |"
+            echo "| Target | Corpus restored | Seeds' coverage | Corpus's coverage | Corpus files |"
+            echo "|---|---|---|---|---|"
+            echo "| \`$TARGET\` | $restored | $seeded | $(coverage "${seeds[@]}" "out/corpus/$TARGET") | $(ls "out/corpus/$TARGET" | wc -l) |"
           } >>"$GITHUB_STEP_SUMMARY"
       - name: Save the corpus
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -1,5 +1,5 @@
 # Continuous integration: the pull request check, and the full check on
-# main and every night, which fuzzes longer. Each desktop build cell is a
+# main and every night, which fuzzes longest. Each desktop build cell is a
 # CMake preset built by the organization's shared workflow; the platform
 # cells that need a simulator, an emulator or a browser, and the other
 # jobs, are here, each through its preset too. docs/operations/checks.md
@@ -144,17 +144,18 @@ jobs:
           cmake --build out/headers --config Release
 
   # Each fuzz target runs over the bytes other programs and devices hand
-  # the library: briefly on a pull request, longer on main and at night.
+  # the library, from its committed seeds: briefly on a pull request,
+  # longer on main, and ten minutes each at night.
   fuzz:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: ${{ github.event_name == 'schedule' && 100 || 20 }}
     container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
     permissions:
       contents: read
     env:
-      FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && 20 || 90 }}
+      FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && 20 || github.event_name == 'schedule' && 600 || 90 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -169,7 +170,9 @@ jobs:
           for target in out/fuzz/fuzz_*; do
             name=$(basename "$target")
             mkdir -p "out/corpus/$name"
-            "$target" -max_total_time="$FUZZ_SECONDS" -max_len=256 "out/corpus/$name"
+            seeds=()
+            [ -d "test/corpus/$name" ] && seeds=("test/corpus/$name")
+            "$target" -max_total_time="$FUZZ_SECONDS" -max_len=256 "out/corpus/$name" "${seeds[@]}"
           done
 
   # The Linux gamepads, through virtual pads the test makes with /dev/uinput,

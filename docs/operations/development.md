@@ -52,8 +52,8 @@ Build the fuzz targets with Clang on the test backend:
 ```sh
 cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -DMAUL_WINDOW_FUZZ=ON -DMAUL_WINDOW_TEST_BACKEND=ON -DMAUL_WINDOW_BUILD_TESTS=OFF
 cmake --build out/fuzz
-./out/fuzz/fuzz_payload -max_total_time=60 out/corpus/fuzz_payload
-./out/fuzz/fuzz_payload crash-<hash>      # reproduce one input
+./out/fuzz/fuzz_x11_selection -max_total_time=60 out/corpus/fuzz_x11_selection test/corpus/fuzz_x11_selection
+./out/fuzz/fuzz_x11_selection crash-<hash>      # reproduce one input
 ```
 
-Always pass `-max_total_time`. A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.
+Always pass `-max_total_time`. A target's seeds, inputs that reach what random bytes rarely would, are committed in `test/corpus/<target>/`; the runs read them and write what they find to the first folder. A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.

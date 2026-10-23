@@ -87,7 +87,7 @@ struct mwinWin32Window
     bool fullscreen;
     WINDOWPLACEMENT restore;
     // The cursor the program asked for over the window: a shape, or a
-    // cursor made from images when cursorImage is live (mwin-0027).
+    // cursor made from images when cursorImage is live.
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
     mwinCursorId cursorImage;

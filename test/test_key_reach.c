@@ -4,7 +4,7 @@
 // The chords each platform keeps (key_reach.c), every table on every
 // host: how rules match (needed and allowed modifiers, runs of keys,
 // any key but the modifier keys, the first rule winning) and what each
-// platform answers for the chords research names.
+// platform answers for the chords it documents keeping.
 
 #include "key_reach.h"
 #include "test_harness.h"

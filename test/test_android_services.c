@@ -5,7 +5,7 @@
 // (tools/run_android_app.sh): text written to the clipboard reads back
 // the same, as do ASCII at the limit and empty text; keeping awake sets
 // the activity window's flag and clearing it clears it; showing a file,
-// the message box, clipboard data and the primary selection (mwin-0029)
+// the message box, clipboard data and the primary selection
 // are unsupported; an address opens in the browser, which takes the
 // program to the background; an activity made anew while the window is
 // kept awake keeps the display awake too.

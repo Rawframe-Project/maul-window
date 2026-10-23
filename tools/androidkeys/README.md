@@ -1,7 +1,7 @@
 # Android key codes
 
 What `tools/gen_android_keys.py` compiles into the table of Android key
-codes and their Linux input codes (docs/adr/mwin-0026), kept exactly as
+codes and their Linux input codes, kept exactly as
 published:
 
 - `Generic.kl`, Android's generic key layout, from

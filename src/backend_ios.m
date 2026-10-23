@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The iOS backend (mwin-0025). UIKit owns the loop and the main thread:
+// The iOS backend. UIKit owns the loop and the main thread:
 // mwinRun hands the context to the library's application delegate
 // through the main thread's dictionary (the library keeps no global)
 // and calls UIApplicationMain, which never returns. The application

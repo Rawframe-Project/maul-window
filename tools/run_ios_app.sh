@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs a test application in the iOS simulator (mwin-0025): installs the
+# Runs a test application in the iOS simulator: installs the
 # bundle on the booted device (or MWIN_IOS_DEVICE), launches it with its
 # output in a file, and waits, a minute at most, for the closing line its
 # quit prints, "result: N failures". simctl launch returns once the

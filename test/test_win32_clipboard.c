@@ -4,7 +4,7 @@
 // The Win32 backend's clipboard, against Windows' own: text written
 // lands as CF_UNICODETEXT, the window its owner; text another program
 // put there is read, a lone surrogate replaced; a clipboard without text
-// reads as empty; text past the limit is too large. Data (mwin-0029)
+// reads as empty; text past the limit is too large. Data
 // lands as registered formats, image/png as "PNG", beside its text, and
 // alone without text, an empty item among them; another program's PNG
 // is read; a type the clipboard lacks fails; the primary selection is

@@ -6,7 +6,7 @@
 // the display kept awake while a window asks, read back from the
 // process's power assertions, and let go when it no longer asks; a file
 // that does not exist not revealed, and one that does shown in the
-// Finder. Data by MIME type (mwin-0029) written with its text, each type
+// Finder. Data by MIME type written with its text, each type
 // read back as it was, a type the pasteboard lacks failed; the primary
 // selection unsupported. Opening an address is left out: it would start
 // the runner's browser, and nothing here could tell that it did.

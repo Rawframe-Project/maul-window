@@ -163,7 +163,7 @@ int main(void)
     def.context.limits.localeBytes = LIST_BYTES;
     // With Emscripten mwinRun returns only when init failed; without it,
     // it returns once init succeeded and the page's frames run the program
-    // on (mwin-0022). Either way quit reports.
+    // on. Either way quit reports.
     if (mwinRun(&def) == mwin_success)
     {
         return 0;

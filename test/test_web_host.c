@@ -252,7 +252,7 @@ int main(void)
     def.user = &program;
     // With Emscripten mwinRun returns only when init failed; without it,
     // it returns once init succeeded and the page's frames run the program
-    // on (mwin-0022).
+    // on.
     if (mwinRun(&def) == mwin_success)
     {
         return 0;

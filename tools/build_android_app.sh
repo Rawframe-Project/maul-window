@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds a test application for the Android emulator (mwin-0026), with
+# Builds a test application for the Android emulator, with
 # the SDK's tools and no Gradle:
 #
 #   tools/build_android_app.sh <out.apk> <libname.so> <package> [abi]

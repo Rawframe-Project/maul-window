@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Pens on X11 (mwin-0037), without a tablet: Xvfb has none, so the
+// Pens on X11, without a tablet: Xvfb has none, so the
 // devices and events a driver gives are written out here.
 // - a device is a pen by its X input type, STYLUS or ERASER; one of
 //   type TABLET or none by an eraser in its name, in any case, else by a

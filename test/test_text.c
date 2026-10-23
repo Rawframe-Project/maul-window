@@ -1,68 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// A window's text storage and the fitting of compositions, below the
-// stream: reservations that fit exactly before the head or the end,
-// reclaiming after the ring started over, and offsets fitted at the
-// text's very end, whose text sits alone in a heap allocation of its
-// length so that AddressSanitizer sees a read past it; and the stream's
-// own check of the text a backend posts, which backends repair first.
+// The fitting of compositions below the stream, at the text's very end,
+// whose text sits alone in a heap allocation of its length so that
+// AddressSanitizer sees a read past it; and the stream's own check of
+// the text a backend posts, which backends repair first. The text
+// storage itself is tested through the stream in test_input.c.
 
 #include "core.h"
 #include "preedit_fit.h"
 #include "test_program.h"
-#include "text.h"
 
 #include <stdlib.h>
 #include <string.h>
-
-enum
-{
-    Capacity = 16,
-};
-
-static mwinTextRing Ring(char* bytes)
-{
-    return (mwinTextRing){.bytes = bytes, .capacity = Capacity};
-}
-
-static void TestExactFits(void)
-{
-    char bytes[Capacity];
-    mwinTextRing ring = Ring(bytes);
-    CHECK(mwinReserveText(&ring, 10, 1) == bytes && mwinReserveText(&ring, 6, 1) == bytes + 10,
-          "a reservation that fills the end exactly");
-    ring = Ring(bytes);
-    char* a = mwinReserveText(&ring, 4, 1);
-    char* b = mwinReserveText(&ring, 4, 1);
-    CHECK(a == bytes && b == bytes + 4 && mwinReserveText(&ring, 8, 1) == bytes + 8,
-          "three reservations fill the ring");
-    mwinDrainText(&ring, a, a + 4);
-    mwinDrainText(&ring, b, b + 4);
-    mwinReclaimText(&ring);
-    CHECK(mwinReserveText(&ring, 4, 1) == bytes, "the next starts over at the beginning");
-    CHECK(mwinReserveText(&ring, 4, 1) == bytes + 4 && ring.busy == Capacity,
-          "and one more fills the room before the head exactly");
-    CHECK(mwinReserveText(&ring, 1, 1) == nullptr, "a full ring takes nothing");
-}
-
-static void TestReclaimAfterStartingOver(void)
-{
-    char bytes[Capacity];
-    mwinTextRing ring = Ring(bytes);
-    char* a = mwinReserveText(&ring, 6, 1);
-    mwinDrainText(&ring, a, a + 6);
-    mwinReclaimText(&ring);
-    CHECK(ring.busy == 0 && ring.head == 6, "everything reclaimed");
-    // Empty, the ring starts over at its beginning.
-    char* b = mwinReserveText(&ring, 6, 1);
-    CHECK(b == bytes, "an empty ring starts over");
-    mwinReclaimText(&ring);
-    CHECK(ring.head == 0 && ring.busy == 6, "nothing drained, nothing reclaimed");
-    mwinDrainText(&ring, b, b + 6);
-    mwinReclaimText(&ring);
-    CHECK(ring.busy == 0 && ring.head == 6, "the second reservation reclaimed alone");
-}
 
 // Fits a composition of text held in an exact heap copy.
 static mwinPreeditEvent Fit(const char* text, int32_t caret, uint32_t selectionStart,
@@ -142,8 +92,6 @@ static void TestBackendText(void)
 
 int main(void)
 {
-    TestExactFits();
-    TestReclaimAfterStartingOver();
     TestFitAtTheEnds();
     TestBackendText();
     return s_failures == 0 ? 0 : 1;

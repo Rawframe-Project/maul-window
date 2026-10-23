@@ -1,0 +1,23 @@
+# Glossary
+
+- **Backend:** the code for one window system (Win32, macOS, iOS, Android, Wayland, X11, the web) or the headless test platform, behind [backend.h](../../src/backend.h).
+- **Context:** the object `mwinRun` creates, which owns everything the library keeps for a program.
+- **Def:** a struct that describes an object to create, built by its `mwinDefault...` function and checked by its cookie. The application def is the root def and also carries the ABI version.
+- **Record:** one entry of the event stream (`mwinEvent`): a notification, an input record or a completion.
+- **Notification:** a record that reports state (size, scale, mode, focus, a monitor, a system fact). Newer ones of a class replace older ones still waiting.
+- **Discrete input:** keys, text, buttons, and touches and pen contacts beginning or ending. Never merged; a lost one becomes a reset.
+- **Continuous input:** motion, raw deltas and wheel turns. Merged into the newest waiting record when storage is full.
+- **Reset:** `mwin_eventInputStateReset`, posted where input was lost or focus went, after which nothing counts as held.
+- **Request:** a change the program asks for, named by an `mwinRequestId` and answered by exactly one completion.
+- **Completion:** `mwin_eventRequestCompleted`, with an outcome: done, unsupported, denied, superseded, cancelled, failed or too large.
+- **Superseded:** the outcome of a request a later request of the same kind on the same window replaced.
+- **Critical record:** a lifecycle or surface record a platform waits on (suspending, a lost surface). It has a ring of its own that the stream empties first, and the backend runs a frame at once to deliver it.
+- **Pump:** one pass of a backend over what the platform has delivered, which never waits.
+- **Slot:** a fixed place in the context for a window, monitor, gamepad, cursor or request. Ids are a slot and a generation; a slot is reused only after the record of its end is drained.
+- **Payload:** data too large for a record (clipboard text or data, a drop's files and text, a dialog's paths), copied out with a getter under the request or drop it belongs to.
+- **Mapped and raw pads:** a gamepad whose layout is known, named by place, or one reported as numbered buttons and axes.
+- **Pad tracker:** the shared tracking of gamepads a platform runtime lists and reads (Windows.Gaming.Input, GameController).
+- **Composition** (preedit): the text an input method is building before it commits it.
+- **Hit region:** a rectangle of a custom chrome window's client area that the platform treats as caption, edge, corner or button.
+- **Display fixture:** the Xvfb and headless weston the Linux tests run against, started and stopped by ctest.
+- **Stand-in:** a test's own implementation of a platform service (a compositor, a D-Bus portal, XInput, zenity) that the backend talks to as if it were real.

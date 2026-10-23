@@ -1,41 +1,76 @@
-# Continuous integration for Maul Window.
+# Continuous integration: the pull request check, and the full check on
+# main and every night, which fuzzes longer. Each desktop build cell is a
+# CMake preset built by the organization's shared workflow; the platform
+# cells that need a simulator, an emulator or a browser, and the other
+# jobs, are here, each through its preset too. docs/operations/checks.md
+# explains each job, and tools/check.sh runs the Linux ones locally.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "23 2 * * *"
   workflow_dispatch:
+
+# A new push to a pull request cancels its running CI; runs on main get a
+# group of their own, so they are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
 
 env:
   PREFIX: MAUL_WINDOW
 
 jobs:
-  # The rules no compiler checks: formatting, static analysis and the
-  # family's source, module, documentation and length checks.
+  # Whether anything beyond documentation changed; the builds skip when not.
+  changes:
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    permissions:
+      pull-requests: read
+
+  # The organization's documentation check. protocols/, tools/gamepaddb/ and
+  # tools/androidkeys/ hold third-party files kept as published.
+  docs:
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    permissions:
+      contents: read
+    with:
+      exclude: protocols tools/gamepaddb tools/androidkeys
+
+  zizmor:
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    permissions:
+      contents: read
+
+  # The rules no compiler checks: formatting, the family's source, module,
+  # length, API documentation and snippet checks, the documentation site,
+  # the generated tables, and clang-tidy over the Linux build's sources. It
+  # runs on documentation changes too, since the snippet check and the site
+  # read docs/.
   checks:
-    name: checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Install tools
-        # A mirror's stalled download is retried; a hang ends here.
-        timeout-minutes: 15
-        run: |
-          bash .github/apt-mirrors.sh
-          sudo apt-get update -q
-          # clang without its recommends: llvm-20-dev alone is 50 MB.
-          sudo apt-get install -y -q --no-install-recommends clang-20 clang-tidy-20
-          sudo apt-get install -y -q --no-install-recommends ninja-build libwayland-dev \
-            wayland-protocols libxkbcommon-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
-            libxcb-xinput-dev libxkbcommon-x11-dev libxcb-xtest0-dev libxcb-xfixes0-dev
-          pip install clang-format==22.1.5 >/dev/null
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: clang-format
         run: |
           clang-format --version
-          # Files kept as published (tools/external-dirs.txt) are left out.
-          external=$(grep -v '^#' tools/external-dirs.txt | sed 's|$|/|' | paste -sd'|')
-          clang-format --dry-run -Werror $(find include src test tools bench samples -name '*.[ch]' 2>/dev/null | grep -v -E "^($external)")
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git ls-files 'include/*.h' 'src/*.[chm]' 'test/*.[chm]' 'tools/*.[ch]' 'bench/*.[ch]' 'samples/*.[ch]' |
+            grep -v -E '^(tools/gamepaddb|tools/androidkeys)/' | xargs clang-format --dry-run -Werror
       - name: Family checks
         run: |
           python3 tools/check_source.py
@@ -43,169 +78,162 @@ jobs:
           python3 tools/check_docs.py
           python3 tools/check_lengths.py
           python3 tools/check_guide.py
-      - name: API reference
-        # docs/api.md is what the generator makes from the headers, and
-        # the README gives its function count.
+      - name: The documentation site builds
+        run: python3 tools/build_docs.py
+      - name: Generated tables match their generators
         run: |
-          COUNT=$(python3 tools/gen_api.py | grep -oE '\([0-9]+ functions\)' | grep -oE '[0-9]+')
-          git diff --exit-code docs/api.md || { echo "docs/api.md is stale: run tools/gen_api.py"; exit 1; }
-          grep -q "$COUNT public functions" README.md || { echo "README says the wrong function count ($COUNT)"; exit 1; }
-      - name: Generated tables
-        # The gamepad mappings and Android's key table are what the
-        # generators make from the data.
-        run: |
-          python3 tools/gen_gamepad_db.py Linux /tmp/pad_linux.c
-          diff -u src/generated/pad_linux.c /tmp/pad_linux.c
-          python3 tools/gen_gamepad_db.py Windows /tmp/pad_windows.c
-          diff -u src/generated/pad_windows.c /tmp/pad_windows.c
-          python3 tools/gen_android_keys.py /tmp/android_keys.c
-          diff -u src/generated/android_keys.c /tmp/android_keys.c
-      - name: clang-tidy
-        run: |
-          cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          cmake --build build  # the generated protocol headers
-          # The sources of the Linux build; Windows code is checked by its cell.
-          for f in $(python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('build/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file'] and '/generated/' not in e['file']})))"); do
-            clang-tidy-20 -p build --quiet --warnings-as-errors='*' "$f" || exit 1
+          mkdir -p out/regenerated
+          python3 tools/gen_gamepad_db.py Linux out/regenerated/pad_linux.c
+          python3 tools/gen_gamepad_db.py Windows out/regenerated/pad_windows.c
+          python3 tools/gen_android_keys.py out/regenerated/android_keys.c
+          for f in pad_linux.c pad_windows.c android_keys.c; do
+            diff -u "src/generated/$f" "out/regenerated/$f"
           done
+      - name: clang-tidy
+        # The Linux build's sources; the other platforms' code is compiled
+        # with warnings as errors by its own cell.
+        run: |
+          cmake -B out/tidy -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -D${PREFIX}_BUILD_TESTS=OFF
+          cmake --build out/tidy
+          python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('out/tidy/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file'] and '/generated/' not in e['file']})))" |
+            while read -r f; do clang-tidy-20 -p out/tidy --quiet --warnings-as-errors='*' "$f"; done
 
-  # Every cell builds with warnings as errors and runs the whole suite,
-  # the header tests included.
-  build-test:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+  # Every cell builds with warnings as errors and runs its whole suite, the
+  # header tests included. The Linux cells run the X11 and Wayland tests
+  # against an Xvfb and a headless weston that ctest starts for them.
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-gcc-14,        os: ubuntu-24.04, cc: gcc-14,   cxx: g++-14,     config: Release, extra: "" }
-          - { name: linux-clang-20,      os: ubuntu-24.04, cc: clang-20, cxx: clang++-20, config: Release, extra: "" }
-          - { name: linux-clang-20-asan, os: ubuntu-24.04, cc: clang-20, cxx: clang++-20, config: Debug,   extra: "-DMAUL_WINDOW_SANITIZE=ON" }
-          - { name: linux-clang-20-tsan, os: ubuntu-24.04, cc: clang-20, cxx: clang++-20, config: Debug,   extra: "-DMAUL_WINDOW_TSAN=ON" }
-          - { name: linux-shared,        os: ubuntu-24.04, cc: clang-20, cxx: clang++-20, config: Release, extra: "-DMAUL_WINDOW_BUILD_SHARED=ON" }
-          - { name: linux-minimal,       os: ubuntu-24.04, cc: gcc-14,   cxx: g++-14,     config: Release, extra: "-DMAUL_WINDOW_WAYLAND=OFF -DMAUL_WINDOW_X11=OFF -DMAUL_WINDOW_GAMEPAD=OFF" }
-          - { name: macos-clang,         os: macos-15,     cc: clang,    cxx: clang++,    config: Release, extra: "" }
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install compilers
-        if: runner.os == 'Linux'
-        # A mirror's stalled download is retried; a hang ends here.
-        timeout-minutes: 15
-        run: |
-          bash .github/apt-mirrors.sh
-          sudo apt-get update -q
-          # clang without its recommends (llvm-20-dev alone is 50 MB, which a
-          # slow mirror took past the timeout), with the sanitizers' runtime.
-          sudo apt-get install -y -q --no-install-recommends clang-20 libclang-rt-20-dev
-          # The rest without theirs too: weston's pulled in Mesa's Vulkan and
-          # video drivers, GStreamer and a 27 MB speech model.
-          sudo apt-get install -y -q --no-install-recommends gcc-14 g++-14 ninja-build \
-            libwayland-dev wayland-protocols libxkbcommon-dev xkb-data libx11-data weston libxcb1-dev \
-            libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev libxcb-xinput-dev \
-            libxkbcommon-x11-dev libxcb-xtest0-dev libxcb-xfixes0-dev xvfb
-      - name: Configure
-        run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config }} -D${PREFIX}_WERROR=ON \
-            -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} ${{ matrix.extra }}
-      - name: Build
-        run: cmake --build build -j 4
-      - name: Start a headless compositor and X server
-        if: runner.os == 'Linux'
-        run: |
-          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
-          echo "DISPLAY=:99" >> "$GITHUB_ENV"
-          mkdir -m 700 -p /tmp/xdg-runtime
-          echo "XDG_RUNTIME_DIR=/tmp/xdg-runtime" >> "$GITHUB_ENV"
-          echo "WAYLAND_DISPLAY=wayland-ci" >> "$GITHUB_ENV"
-          XDG_RUNTIME_DIR=/tmp/xdg-runtime weston --backend=headless --socket=wayland-ci \
-            --idle-time=0 >/tmp/weston.log 2>&1 &
-          for i in $(seq 50); do [ -S /tmp/xdg-runtime/wayland-ci ] && exit 0; sleep 0.1; done
-          cat /tmp/weston.log; exit 1
-      - name: Let the tests make virtual gamepads
-        if: runner.os == 'Linux'
-        run: |
-          sudo modprobe uinput || true
-          printf '%s\n' 'KERNEL=="uinput", MODE="0666"' \
-            'SUBSYSTEM=="input", KERNEL=="event*", MODE="0666"' |
-            sudo tee /etc/udev/rules.d/99-mwin-test.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger
-          sudo chmod 666 /dev/uinput || true
-      - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
-        run: |
-          set -o pipefail
-          ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
+          - { preset: linux-gcc-14 }
+          - { preset: linux-clang-20 }
+          - { preset: linux-clang-20-asan, repeat: 3 }
+          - { preset: linux-clang-20-tsan }
+          - { preset: linux-shared }
+          - { preset: linux-minimal }
+          - { preset: macos-clang, runner: macos-15 }
+          - { preset: windows-clang-cl, runner: windows-2025 }
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    permissions:
+      contents: read
+    with:
+      preset: ${{ matrix.preset }}
+      runner: ${{ matrix.runner || 'ubuntu-24.04' }}
+      repeat: ${{ matrix.repeat || 1 }}
 
-  # Each fuzz target runs for one minute on every push, over the parsers
-  # of bytes other programs and devices hand the library.
-  fuzz:
-    name: fuzz
-    runs-on: ubuntu-24.04
+  # The public headers alone under MSVC's cl, as C17 and C++17 with /W4 /WX:
+  # consumers may compile them with it, though it cannot build the library.
+  msvc-headers:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Install compilers
-        # A mirror's stalled download is retried; a hang ends here. Without
-        # clang's recommends (llvm-20-dev alone is 50 MB, which a slow
-        # mirror took past the timeout); libFuzzer's runtime is one of them.
-        timeout-minutes: 15
-        run: |
-          bash .github/apt-mirrors.sh
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends clang-20 libclang-rt-20-dev \
-            ninja-build libwayland-dev wayland-protocols libxkbcommon-dev libxcb1-dev \
-            libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev libxcb-xinput-dev \
-            libxkbcommon-x11-dev
-      - name: Build
-        run: |
-          cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
-            -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
-          cmake --build build
-      - name: Run
-        run: |
-          for target in build/fuzz_*; do
-            mkdir -p "corpus-$(basename $target)"
-            "$target" -max_total_time=60 -max_len=256 "corpus-$(basename $target)"
-          done
-
-  windows-clang-cl:
-    name: windows-clang-cl
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v7
-      - name: Configure
-        run: cmake -B build -T ClangCL -D${PREFIX}_WERROR=ON
-      - name: Build
-        run: cmake --build build --config Release -j 4
-      - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
-        run: |
-          set -o pipefail
-          ctest --test-dir build -C Release --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
-      # The public headers alone under MSVC's cl, as C17 and C++17 with
-      # /W4 /WX, which cannot build the library itself (family record 0008).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Headers under MSVC
         run: |
-          cmake -S cmake/HeaderCheck -B build-headers
-          cmake --build build-headers --config Release
+          cmake -S cmake/HeaderCheck -B out/headers
+          cmake --build out/headers --config Release
 
-  ios:
-    # The iOS backend (mwin-0025) in the simulator: every test, the
-    # headless ones through simctl spawn, the UIKit ones as applications
-    # through tools/run_ios_app.sh, on an iPhone of the newest runtime.
-    name: ios-simulator
-    runs-on: macos-15
+  # Each fuzz target runs over the bytes other programs and devices hand
+  # the library: briefly on a pull request, longer on main and at night.
+  fuzz:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    permissions:
+      contents: read
+    env:
+      FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && 20 || 90 }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
+            -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
+          cmake --build out/fuzz
+      - name: Run
+        run: |
+          for target in out/fuzz/fuzz_*; do
+            name=$(basename "$target")
+            mkdir -p "out/corpus/$name"
+            "$target" -max_total_time="$FUZZ_SECONDS" -max_len=256 "out/corpus/$name"
+          done
+
+  # The Linux gamepads, through virtual pads the test makes with /dev/uinput,
+  # every night. A container job gets no input devices, so this one runs the
+  # CI image itself with the runner's uinput and input nodes passed in.
+  gamepads:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Virtual gamepads
+        env:
+          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+        run: |
+          sudo modprobe uinput
+          [ -c /dev/uinput ] || { echo "::error::the runner has no /dev/uinput"; exit 1; }
+          docker run --rm --device /dev/uinput -v /dev/input:/dev/input \
+            --device-cgroup-rule='c 13:* rmw' -v "$PWD:/w" -w /w "$IMAGE" bash -c '
+              set -o pipefail
+              cmake --preset linux-clang-20-asan >/dev/null
+              cmake --build --preset linux-clang-20-asan -j 4 >/dev/null
+              ctest --test-dir out/linux-clang-20-asan -L "^uinput$" --output-on-failure --no-tests=error |
+                tee out/gamepads-ctest.log'
+          # A test that exits 77 (no device) passes ctest; here it must fail.
+          if grep -E '\*\*\*(Skipped|Not Run)' out/gamepads-ctest.log; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-gamepads
+          path: out/linux-clang-20-asan/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # The iOS backend: built with its tests on every pull request, the only
+  # cell that compiles it, and run in the simulator on main and every night.
+  # A simulator's boot and first launch take minutes on the macOS runners,
+  # more than the pull request check's budget leaves. The headless tests run
+  # through simctl spawn, the UIKit ones as applications through
+  # tools/run_ios_app.sh, on an iPhone of the newest runtime.
+  ios-simulator:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          cmake --preset ios-simulator
+          cmake --build --preset ios-simulator -j 4
       - name: Boot a simulator
+        if: github.event_name != 'pull_request'
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -215,49 +243,57 @@ jobs:
           print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"].startswith("iPhone")))')
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-          # A new device's first launch takes minutes: paid here.
+          # A new device's first launch takes minutes: paid here, not by a test.
           xcrun simctl launch "$udid" com.apple.Preferences
           xcrun simctl terminate "$udid" com.apple.Preferences
           echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
-      - name: Configure
-        run: >
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/ios-simulator.cmake
-          -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
-      - name: Build
-        run: cmake --build build -j 4
       - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
+        if: github.event_name != 'pull_request'
         run: |
-          set -o pipefail
-          ctest --test-dir build --output-on-failure --timeout 240 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
+          ctest --preset ios-simulator | tee "$RUNNER_TEMP/ctest.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-ios-simulator
+          path: out/ios-simulator/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
-  android:
-    # The Android backend (mwin-0026) in the emulator, Android 11 (the
-    # oldest the backend takes) on x86_64 with KVM: every test, the
-    # headless ones through adb, the window ones as applications built
-    # without Gradle (tools/build_android_app.sh). The runner carries the
-    # SDK and NDK r28; the emulator and its image are installed here.
-    name: android-emulator
+  # The Android backend in the emulator, Android 11 (the oldest the backend
+  # takes) on x86_64 with KVM: the headless tests through adb, the window
+  # ones as applications built without Gradle (tools/build_android_app.sh).
+  # The runner carries the SDK and the NDK; the emulator and its system image
+  # come from the SDK manager.
+  android-emulator:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
     env:
       ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
       ANDROID_SERIAL: emulator-5554
-      # Where avdmanager writes the device and the emulator reads it.
       ANDROID_AVD_HOME: /home/runner/.android/avd
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Boot the emulator
         timeout-minutes: 15
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           yes | "$tools/sdkmanager" --licenses >/dev/null 2>&1 || true
-          # Runner images move to newer NDKs: the pinned one is installed when
-          # the image lacks it.
+          # Runner images move to newer NDKs: the pinned one is installed
+          # when the image lacks it.
           [ -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" ] ||
             "$tools/sdkmanager" --install "ndk;${ANDROID_NDK_HOME##*/}" >/dev/null
           mkdir -p "$ANDROID_AVD_HOME"
@@ -274,79 +310,144 @@ jobs:
           done
           "$adb" shell getprop sys.boot_completed | grep -q 1 || { tail -50 emulator.log; exit 1; }
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-      - name: Configure
-        run: >
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/android-emulator.cmake
-          -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
       - name: Build
-        run: cmake --build build -j 4
-      - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
         run: |
-          set -o pipefail
-          ctest --test-dir build --output-on-failure --timeout 240 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
+          cmake --preset android-emulator
+          cmake --build --preset android-emulator -j 4
+      - name: Test
+        run: |
+          ctest --preset android-emulator | tee "$RUNNER_TEMP/ctest.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Quarantined tests
+        # Tests that failed intermittently run here every night, outside the
+        # required check, until their issue is fixed (the quarantine label).
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          ctest --test-dir out/android-emulator -L '^quarantine$' --output-on-failure --timeout 240 \
+            --no-tests=error | tee "$RUNNER_TEMP/quarantine.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/quarantine.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-android-emulator
+          path: out/android-emulator/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
+  # The web backend without Emscripten: Clang's wasm32-wasi, every test a
+  # module in headless Chrome through puppeteer, with the JavaScript imports
+  # the build generates.
   web-wasi:
-    # The web without Emscripten (mwin-0022): Clang's wasm32-wasi, every
-    # test under Node's WASI and the browser tests in headless Chrome.
-    name: web-wasi
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - name: Toolchain
-        # A mirror's stalled download is retried; a hang ends here.
-        timeout-minutes: 15
-        run: |
-          bash .github/apt-mirrors.sh
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-20 lld-20 wasi-libc \
-            libclang-rt-20-dev-wasm32
-      - name: Configure
-        run: >
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/wasm32-wasi.cmake -DCMAKE_C_COMPILER=clang-20
-          -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build
-        run: cmake --build build -j 4
-      - name: Browser
-        run: npm install --prefix /tmp/browser puppeteer
-      - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
         run: |
-          set -o pipefail
-          MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
+          cmake --preset web-wasi
+          cmake --build --preset web-wasi -j 4
+      - name: Browser
+        # puppeteer and its dependencies as test/browser's lockfile pins them.
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser"
+          cp test/browser/package.json test/browser/package-lock.json "$RUNNER_TEMP/browser/"
+          npm ci --prefix "$RUNNER_TEMP/browser"
+      - name: Test
+        run: |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-wasi |
+            tee "$RUNNER_TEMP/ctest.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-web-wasi
+          path: out/web-wasi/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
-  web:
-    name: web-emscripten
+  # The web backend built by Emscripten, its tests in headless Chrome through
+  # puppeteer, and what the backend costs a program. The CI image has no
+  # Emscripten, so this job uses the runner and the emsdk action.
+  web-emscripten:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: emscripten-core/setup-emsdk@v16
-      - name: Configure
-        run: emcmake cmake -B build -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WERROR=ON
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
       - name: Build
-        run: cmake --build build -j 4
-      - name: Browser
-        run: npm install --prefix /tmp/browser puppeteer
-      - name: Test
-        # A skipped test fails the step: a platform that failed to start
-        # would otherwise pass with nothing tested.
         run: |
-          set -o pipefail
-          MWIN_NODE_MODULES=/tmp/browser/node_modules ctest --test-dir build --output-on-failure --timeout 300 2>&1 | tee ctest.log
-          if grep -q "(Skipped)" ctest.log; then echo "::error::a test was skipped"; exit 1; fi
+          cmake --preset web-emscripten
+          cmake --build --preset web-emscripten -j 4
+      - name: Browser
+        # puppeteer and its dependencies as test/browser's lockfile pins them.
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser"
+          cp test/browser/package.json test/browser/package-lock.json "$RUNNER_TEMP/browser/"
+          npm ci --prefix "$RUNNER_TEMP/browser"
+      - name: Test
+        run: |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-emscripten |
+            tee "$RUNNER_TEMP/ctest.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-web-emscripten
+          path: out/web-emscripten/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Size
         # The library, and what the web backend costs a program: the same
         # test program's wasm and JavaScript with the backend and without.
         run: |
-          ls -l build/libmaul-window.a
-          emcmake cmake -B build-noweb -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WEB=OFF >/dev/null
-          cmake --build build-noweb -j 4 --target test_window >/dev/null
+          ls -l out/web-emscripten/libmaul-window.a
+          emcmake cmake -B out/web-none -DCMAKE_BUILD_TYPE=Release -D${PREFIX}_WEB=OFF >/dev/null
+          cmake --build out/web-none -j 4 --target test_window >/dev/null
           for kind in wasm js; do
-            with=$(stat -c %s build/test_window.$kind)
-            without=$(stat -c %s build-noweb/test_window.$kind)
+            with=$(stat -c %s out/web-emscripten/test_window.$kind)
+            without=$(stat -c %s out/web-none/test_window.$kind)
             echo "test_window.$kind  $with bytes, the web backend $((with - without))"
+          done
+
+  # The one check the ruleset requires: it passes when every job above
+  # passed or was skipped for a documentation-only change, so adding or
+  # renaming a job never touches the ruleset.
+  required:
+    if: always()
+    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz, ios-simulator, android-emulator, web-wasi, web-emscripten]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success | skipped) ;; *) exit 1 ;; esac
           done

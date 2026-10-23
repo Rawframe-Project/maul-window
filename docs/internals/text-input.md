@@ -1,0 +1,42 @@
+# Text input
+
+Keys, text and compositions are three separate things in the contract, and each platform hands them over differently. This page covers what is shared and why each backend reaches input methods the way it does.
+
+## Keys: code and meaning
+
+A key's code is the USB HID usage of the physical key, so bindings survive a change of layout. Each backend maps its native identifier to it: Linux evdev codes (Wayland as they are, X11 with 8 added) through [evdev.c](../../src/evdev.c), Windows scan codes with the extended bit, macOS virtual key codes (with the ISO keyboard's swapped pair turned back), `KeyboardEvent.code` on the web, UIKit's HID usage on iOS, and on Android the scan code where a keyboard gives one, else the Android key code through Android's generic key layout ([tools/gen_android_keys.py](../../tools/gen_android_keys.py)).
+
+A key's meaning is what the current layout types for it with no modifier. Desktop platforms can be asked (xkbcommon's first level, `ToUnicodeEx`, `UCKeyTranslate`, the Keyboard API's layout map in Chrome). iOS and Android cannot, so their backends learn a printing key's meaning when it is pressed and forget it when the layout changes ([key_prints.h](../../src/key_prints.h)). No layout data ships with the library.
+
+`mwinGetKeyReach` answers from tables of rules per platform ([key_reach.c](../../src/key_reach.c)): a key, a run of keys or any non-modifier key, with the modifiers it needs and those allowed besides; the first rule that matches answers. All tables compile on every host so one test checks them. The web answers from Chromium's table or other browsers' (by `navigator.userAgentData`), and from the system's under it, whichever keeps the chord more. The tables are the library's knowledge, not the platform's promise; a browser release may need a table updated. Capturing reserved chords (Keyboard Lock, Wayland's shortcuts inhibitor) is not done: it serves remote desktops, which the library does not target.
+
+## Text is not keys
+
+Text arrives as its own record, from the platform's text path, so dead keys, compose sequences and input methods work, and a key that types nothing is never mistaken for text. Control characters are not text. Where the platform types text without key events (an on-screen keyboard's newline, tab and deletion on iOS and Android), the backend posts the Enter, Tab or Backspace key's press and release so that programs see the same keys everywhere, and never twice for a hardware key that typed it.
+
+## Compositions
+
+While a window accepts text, an input method's marked text arrives as `mwin_eventImePreedit`; a commit arrives as text. While a window composes, the key records of keys the method takes are dropped, both press and release, so no press arrives alone. A window that does not accept text gives the input method nothing to compose into on desktops (no input context on Win32 and macOS), so a game's keys are never taken. Compositions are fitted to their text by the core ([The event stream](events.md#compositions-are-fitted)).
+
+### X11: IBus and Fcitx 5 over D-Bus
+
+XIM, X11's own protocol, has its only complete client in Xlib, which the backend does not use; speaking it over XCB would mean writing the protocol or taking LGPL code. The frameworks X11 desktops actually run, IBus and Fcitx 5, both serve a D-Bus interface with on-the-spot preedit, and the library already reaches the session bus. [linux_ime.c](../../src/linux_ime.c) speaks Fcitx 5 first when `XMODIFIERS` names it, IBus first otherwise, and the other when the first makes no input context. Frameworks reachable only through XIM (uim, kinput2) are not served.
+
+The backend makes one input context and gives it the focus while a focused window accepts text. Each key goes to the method without waiting; it and every key after it are held in order (at most 32) until its answer. A key the method took is dropped, with the release of a press it took; a key it left, or whose answer takes more than 100 ms, is posted as made, with its keymap text. A stuck method costs a delay, never a key. GTK's and Qt's modules do the same; SDL 3 blocks on each key instead.
+
+### Wayland: text-input-v3
+
+The compositor's strings wait for its `done` event, which applies them in the protocol's order: the commit, then the new composition as one underlined segment. The program's own text is not shared with the input method, so there is nothing to delete around the caret. The protocol has no request for the on-screen keyboard: a compositor shows its keyboard when text input is enabled, and the request is answered unsupported.
+
+### Win32: IMM32, not a TSF text store
+
+Every current Windows input method is a TSF text service, and since Vista TSF bridges compositions to a program without a text store through the IMM32 messages (`WM_IME_COMPOSITION` with its string, clause attributes and caret). The backend reads those, hides Windows' composition window, and places the candidate window below the caret. A text store (`ITextStoreACP2`) would add program-drawn candidate lists, reconversion and surrounding text at the cost of a large COM surface with its own lock protocol; Chromium and Firefox, which edit whole documents, need that, and a game or an editor canvas does not. This is worth revisiting only if the library gains exclusive full screen or a contract for program-drawn candidates.
+
+The touch keyboard is shown through the window's `InputPane` (`IInputPaneInterop`, Windows 10 1607) after the purpose sets the window's input scope (`SetInputScope`, which needs no text store). Windows shows it only without a hardware keyboard and for a window in the foreground, so a refusal is `mwin_outcomeDenied`. The covered area comes from `IFrameworkInputPane`, in screen pixels the backend turns into the client area's logical units. msctf and the runtime are loaded at the first request.
+
+### macOS, iOS, Android and the web
+
+- **macOS:** the view's text input client. Clauses are the marked text's clause ranges, the thick-underlined one the target. The candidate window follows the program's caret, since the view keeps no text of its own.
+- **iOS:** the view is a `UITextInput` client whose document is only the marked text; accepted text leaves at once. UIKit gives marked text no clauses, so there is one segment.
+- **Android:** the library's activity puts a focusable editor view in place of NativeActivity's, whose input connection keeps only the composition, as SDL's does. While a window accepts text, each input event goes to the input method first, so it composes from hardware keys too; otherwise the method never sees the keys, as it would take some (Escape, with Gboard).
+- **The web:** a canvas can take no input method, so a window that accepts text gets an invisible text field of its own at the caret, and the focus moves into it. The canvas and its field hold the focus as one. The EditContext API would give clauses without a field, but only Chrome has it.

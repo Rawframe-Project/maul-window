@@ -3,7 +3,7 @@
 //
 // Windows. A window is created at once as an id; the platform makes it
 // real later and says so with mwin_eventWindowCreated. Every change to a
-// window is a request (family record 0018): the call returns a request
+// window is a request: the call returns a request
 // id, and exactly one mwin_eventRequestCompleted answers it, after the
 // notifications the change caused. A later request of the same kind on
 // the same window supersedes an earlier one still in flight.

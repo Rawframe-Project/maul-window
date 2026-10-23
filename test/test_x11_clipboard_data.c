@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The X11 backend's clipboard data and primary selection (mwin-0029)
+// The X11 backend's clipboard data and primary selection
 // against another client: a data write offers each MIME type as its own
 // target beside its text, a large item in pieces, all named in TARGETS;
 // a data read while the program owns CLIPBOARD answers from its own

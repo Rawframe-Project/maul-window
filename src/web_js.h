@@ -6,7 +6,7 @@
 // without Emscripten (wasm32-wasi) imports each of those functions under
 // its own name from the module "env", as Emscripten's own are and as
 // every file that only declares one expects, and the page passes what
-// tools/gen_web_glue.py wrote from the same files (mwin-0022). This is
+// tools/gen_web_glue.py wrote from the same files. This is
 // the one file that includes Emscripten's headers.
 
 #ifndef MAUL_WINDOW_SRC_WEB_JS_H

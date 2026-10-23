@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Touch on X11 (mwin-0039), without a touch screen: Xvfb has none, so the
+// Touch on X11, without a touch screen: Xvfb has none, so the
 // devices and events a driver gives are written out here.
 // - a touch begins down, moves and ends up, its id the device's number
 //   and the touch's, at the place given;

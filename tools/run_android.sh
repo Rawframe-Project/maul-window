@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs a test executable in the Android emulator (mwin-0026), as CTest's
+# Runs a test executable in the Android emulator, as CTest's
 # cross-compiling emulator (cmake/android-emulator.cmake):
 #
 #   tools/run_android.sh <executable> [arguments...]

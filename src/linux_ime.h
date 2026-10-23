@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Input methods over the session bus, for the X11 backend (mwin-0030): Fcitx
+// Input methods over the session bus, for the X11 backend: Fcitx
 // 5 (org.freedesktop.portal.Fcitx) when XMODIFIERS names fcitx, else
 // IBus through its portal (org.freedesktop.portal.IBus), else Fcitx 5.
 // One input context, made the first time a window takes text, follows

@@ -33,7 +33,7 @@ extern "C"
 
     // What a monitor says about high dynamic range. The luminances are in
     // nits, 0 where the platform does not tell; some platforms tell the
-    // headroom alone (mwin-0036).
+    // headroom alone.
     typedef struct mwinHdrFacts
     {
         // The platform reports HDR facts for this monitor.

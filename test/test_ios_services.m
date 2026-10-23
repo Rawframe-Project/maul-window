@@ -8,7 +8,7 @@
 // simulator has no program for, answered failed when UIKit says so;
 // revealing a file unsupported; and message boxes shown from a frame,
 // one taken away (closed), one answered OK; data by MIME type
-// (mwin-0029) written with its text and each type read back, a type the
+// written with its text and each type read back, a type the
 // pasteboard lacks failed, the primary selection unsupported. Pressing
 // an alert's button
 // has no public way: the test calls the button's handler through its

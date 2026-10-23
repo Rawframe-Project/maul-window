@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The Android backend (mwin-0026). The platform begins the run: the
+// The Android backend. The platform begins the run: the
 // library's activity (maul.window.Activity, a NativeActivity) calls
 // ANativeActivity_onCreate, which asks the program for itself
 // (mwinAndroidMain) and runs it as mwinRun would, with the activity as

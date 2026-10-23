@@ -7,8 +7,8 @@
 // U+FFFD; text of the limit read whole, text past it too large; a
 // refusal denied, the last text kept; a read whose window went answered
 // for no one, its text taken, so the next window's read has the
-// clipboard's text now, and reading it again holds no more memory. Data
-// (mwin-0029): a custom type, a PNG and text written together; the
+// clipboard's text now, and reading it again holds no more memory. Data:
+// a custom type, a PNG and text written together; the
 // custom type read back as it was, the PNG as a PNG (the browser encodes
 // it again), the text as text; a type the clipboard lacks fails. Writes,
 // data writes and data reads refused denied; each unsupported on a page
@@ -433,7 +433,7 @@ int main(void)
     def.user = &program;
     // With Emscripten mwinRun returns only when init failed; without it,
     // it returns once init succeeded and the page's frames run the program
-    // on (mwin-0022). Either way quit reports.
+    // on. Either way quit reports.
     if (mwinRun(&def) == mwin_success)
     {
         return 0;

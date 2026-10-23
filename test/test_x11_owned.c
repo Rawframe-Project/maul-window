@@ -10,6 +10,7 @@
 // owner. Skipped (exit status 77) without an X server.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/native.h"
@@ -298,17 +299,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr)
-    {
-        return 77;
-    }
+    DisplayRequired();
     (void)unsetenv("WAYLAND_DISPLAY");
     static Program program;
-    program.connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(program.connection) != 0)
-    {
-        return 77;
-    }
+    program.connection = DisplayConnect();
     static const char* const names[atoms] = {"_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DIALOG",
                                              "_NET_WM_WINDOW_TYPE_POPUP_MENU",
                                              "_NET_WM_WINDOW_TYPE_TOOLTIP"};

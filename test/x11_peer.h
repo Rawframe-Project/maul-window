@@ -9,6 +9,8 @@
 #ifndef MAUL_WINDOW_TEST_X11_PEER_H
 #define MAUL_WINDOW_TEST_X11_PEER_H
 
+#include "x11_display.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <xcb/xcb.h>
@@ -52,13 +54,9 @@ static inline xcb_atom_t Intern(xcb_connection_t* connection, const char* name)
     return atom;
 }
 
-static inline bool PeerStart(Peer* peer)
+static inline void PeerStart(Peer* peer)
 {
-    peer->connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(peer->connection) != 0)
-    {
-        return false;
-    }
+    peer->connection = DisplayConnect();
     xcb_screen_t* screen = xcb_setup_roots_iterator(xcb_get_setup(peer->connection)).data;
     peer->window = xcb_generate_id(peer->connection);
     uint32_t mask = XCB_EVENT_MASK_PROPERTY_CHANGE;
@@ -71,7 +69,6 @@ static inline bool PeerStart(Peer* peer)
     peer->targets = Intern(peer->connection, "TARGETS");
     peer->incr = Intern(peer->connection, "INCR");
     peer->property = Intern(peer->connection, "PEER_SELECTION");
-    return true;
 }
 
 // Asks the owner of a selection for a target.

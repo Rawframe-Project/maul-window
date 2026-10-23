@@ -14,6 +14,7 @@
 
 #include "cursor_images.h"
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/input.h"
@@ -502,18 +503,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
-    if (display == nullptr || display[0] == '\0')
-    {
-        return 77;
-    }
+    DisplayRequired();
     unsetenv("WAYLAND_DISPLAY");
     Program program = {0};
-    program.connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(program.connection) != 0)
-    {
-        return 77;
-    }
+    program.connection = DisplayConnect();
     program.root = xcb_setup_roots_iterator(xcb_get_setup(program.connection)).data->root;
     // XFixes answers only a client that told its version.
     free(xcb_xfixes_query_version_reply(

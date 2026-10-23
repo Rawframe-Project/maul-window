@@ -14,6 +14,7 @@
 // 77) without DISPLAY.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/drop.h"
 #include "maul-window/event.h"
@@ -124,13 +125,9 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
 }
 
-static bool SourceStart(Source* source)
+static void SourceStart(Source* source)
 {
-    source->connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(source->connection) != 0)
-    {
-        return false;
-    }
+    source->connection = DisplayConnect();
     xcb_screen_t* screen = xcb_setup_roots_iterator(xcb_get_setup(source->connection)).data;
     source->root = screen->root;
     source->window = xcb_generate_id(source->connection);
@@ -152,7 +149,6 @@ static bool SourceStart(Source* source)
     xcb_set_selection_owner(source->connection, source->window, source->atoms[atomSelection],
                             XCB_CURRENT_TIME);
     xcb_flush(source->connection);
-    return true;
 }
 
 static void Send(Source* source, int type, uint32_t d1, uint32_t d2, uint32_t d3, uint32_t d4)
@@ -463,12 +459,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
+    DisplayRequired();
     static Source source;
-    if (display == nullptr || display[0] == '\0' || !SourceStart(&source))
-    {
-        return 77;
-    }
+    SourceStart(&source);
     unsetenv("WAYLAND_DISPLAY");
     source.text = "hi\xC3(";
     Program program = {.source = &source};

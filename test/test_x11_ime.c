@@ -14,6 +14,7 @@
 
 #include "linux_ime_fake.h"
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/input.h"
@@ -320,23 +321,21 @@ static void Run(xcb_connection_t* connection, FakeBus* bus, int framework)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
-    if (display == nullptr || display[0] == '\0' || access("/usr/bin/dbus-daemon", X_OK) != 0)
+    DisplayRequired();
+    // The stand-in bus is a dbus-daemon of the test's: a machine without
+    // one cannot run the test.
+    if (access("/usr/bin/dbus-daemon", X_OK) != 0)
     {
         return 77;
     }
     unsetenv("WAYLAND_DISPLAY");
-    xcb_connection_t* connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(connection) != 0)
-    {
-        return 77;
-    }
+    xcb_connection_t* connection = DisplayConnect();
     char directory[] = "/tmp/mwin-ime-XXXXXX";
     static FakeBus bus;
     if (mkdtemp(directory) == nullptr || !FakeStart(&bus, directory) || !FakeImeStart(&bus))
     {
         FakeStop(&bus);
-        return 77;
+        DisplayFail("cannot start the stand-in bus and input method");
     }
     Run(connection, &bus, 1);
     Run(connection, &bus, 2);

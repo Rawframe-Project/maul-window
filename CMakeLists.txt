@@ -223,6 +223,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
                  ${MWIN_TEST_RUNTIME})
         set_tests_properties(display_start PROPERTIES FIXTURES_SETUP display LABELS integration)
         set_tests_properties(display_stop PROPERTIES FIXTURES_CLEANUP display LABELS integration)
+        # The fixture signals only what it started, on a display of its own,
+        # outside the range the build trees' displays come from.
+        math(EXPR display ${MWIN_TEST_DISPLAY}+400)
+        add_test(NAME display_fixture
+                 COMMAND ${PROJECT_SOURCE_DIR}/test/test_display_fixture.sh
+                         ${PROJECT_SOURCE_DIR}/tools/test_display.sh
+                         ${PROJECT_BINARY_DIR}/rt-fixture ${display})
+        set_tests_properties(display_fixture PROPERTIES LABELS integration)
     endif()
     # mwin_display_tests(<tests>): tests that need the display fixture. Both
     # buses are named where none listens, so no test reaches the machine's

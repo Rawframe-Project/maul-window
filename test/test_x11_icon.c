@@ -7,6 +7,7 @@
 // status 77) without an X server.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/native.h"
@@ -154,17 +155,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr)
-    {
-        return 77;
-    }
+    DisplayRequired();
     (void)unsetenv("WAYLAND_DISPLAY");
     static Program program;
-    program.connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(program.connection) != 0)
-    {
-        return 77;
-    }
+    program.connection = DisplayConnect();
     const char name[] = "_NET_WM_ICON";
     xcb_intern_atom_reply_t* atom = xcb_intern_atom_reply(
         program.connection, xcb_intern_atom(program.connection, 0, sizeof(name) - 1, name),

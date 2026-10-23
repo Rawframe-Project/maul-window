@@ -32,21 +32,21 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@fe462053997271eb7a3117c65d6dd567e130e229 # v0.0.4
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@2f63b13b7b6ff73a19fb04e7fa9c9e559ee44491 # v0.0.5
     permissions:
       pull-requests: read
 
   # The organization's documentation check. protocols/, tools/gamepaddb/ and
   # tools/androidkeys/ hold third-party files kept as published.
   docs:
-    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@fe462053997271eb7a3117c65d6dd567e130e229 # v0.0.4
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@2f63b13b7b6ff73a19fb04e7fa9c9e559ee44491 # v0.0.5
     permissions:
       contents: read
     with:
       exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@fe462053997271eb7a3117c65d6dd567e130e229 # v0.0.4
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@2f63b13b7b6ff73a19fb04e7fa9c9e559ee44491 # v0.0.5
     permissions:
       contents: read
 
@@ -58,7 +58,7 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.2@sha256:73aa949aa7e24c9153107e0c601011ab689d3af0bf987ed7128e90faa3a754ef
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.3@sha256:af7335beac5206f116bc82f9b44538bc633395bd0c10d933012c41f56326e0fc
     permissions:
       contents: read
     steps:
@@ -117,7 +117,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@fe462053997271eb7a3117c65d6dd567e130e229 # v0.0.4
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@2f63b13b7b6ff73a19fb04e7fa9c9e559ee44491 # v0.0.5
     permissions:
       contents: read
     with:
@@ -150,7 +150,7 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.2@sha256:73aa949aa7e24c9153107e0c601011ab689d3af0bf987ed7128e90faa3a754ef
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.3@sha256:af7335beac5206f116bc82f9b44538bc633395bd0c10d933012c41f56326e0fc
     permissions:
       contents: read
     env:
@@ -187,7 +187,7 @@ jobs:
           persist-credentials: false
       - name: Virtual gamepads
         env:
-          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.2@sha256:73aa949aa7e24c9153107e0c601011ab689d3af0bf987ed7128e90faa3a754ef
+          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.3@sha256:af7335beac5206f116bc82f9b44538bc633395bd0c10d933012c41f56326e0fc
         run: |
           sudo modprobe uinput
           [ -c /dev/uinput ] || { echo "::error::the runner has no /dev/uinput"; exit 1; }
@@ -342,7 +342,7 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.2@sha256:73aa949aa7e24c9153107e0c601011ab689d3af0bf987ed7128e90faa3a754ef
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.3@sha256:af7335beac5206f116bc82f9b44538bc633395bd0c10d933012c41f56326e0fc
     permissions:
       contents: read
     steps:

@@ -21,7 +21,7 @@ jobs:
   analyze:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.2@sha256:73aa949aa7e24c9153107e0c601011ab689d3af0bf987ed7128e90faa3a754ef
+    container: ghcr.io/rawframe-project/ci-cpp:2026.10.3@sha256:af7335beac5206f116bc82f9b44538bc633395bd0c10d933012c41f56326e0fc
     permissions:
       contents: read
       security-events: write

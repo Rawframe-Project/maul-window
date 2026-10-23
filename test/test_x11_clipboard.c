@@ -265,12 +265,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
+    DisplayRequired();
     static Peer peer;
-    if (display == nullptr || display[0] == '\0' || !PeerStart(&peer))
-    {
-        return 77;
-    }
+    PeerStart(&peer);
     static char s_got[LIMIT + PEER_PIECE];
     static char s_large[LARGE];
     for (size_t i = 0; i < LARGE; i++)

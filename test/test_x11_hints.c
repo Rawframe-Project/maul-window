@@ -21,6 +21,7 @@
 // Skipped (exit status 77) without an X server.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/native.h"
@@ -387,18 +388,9 @@ static xcb_atom_t Intern(xcb_connection_t* connection, const char* name)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
-    if (display == nullptr || display[0] == '\0')
-    {
-        return 77;
-    }
+    DisplayRequired();
     Program program = {.mode = -1, .maximizeAction = -1};
-    program.connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(program.connection) != 0)
-    {
-        xcb_disconnect(program.connection);
-        return 77;
-    }
+    program.connection = DisplayConnect();
     static const char* const names[atomCount] = {"_NET_WM_STATE",
                                                  "_NET_WM_STATE_ABOVE",
                                                  "_NET_WM_STATE_MAXIMIZED_VERT",

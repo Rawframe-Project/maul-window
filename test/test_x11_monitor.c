@@ -15,6 +15,7 @@
 // or RandR 1.5.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/monitor.h"
@@ -382,14 +383,11 @@ static bool HasMonitors(xcb_connection_t* connection)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
-    if (display == nullptr || display[0] == '\0')
-    {
-        return 77;
-    }
+    DisplayRequired();
     unsetenv("WAYLAND_DISPLAY");
-    xcb_connection_t* connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(connection) != 0 || !HasMonitors(connection))
+    xcb_connection_t* connection = DisplayConnect();
+    // An X server without RandR 1.5's monitors cannot run the test.
+    if (!HasMonitors(connection))
     {
         xcb_disconnect(connection);
         return 77;

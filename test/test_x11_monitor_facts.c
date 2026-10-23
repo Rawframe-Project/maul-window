@@ -10,6 +10,7 @@
 // after. Skipped (exit status 77) without DISPLAY or RandR 1.5.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/monitor.h"
@@ -244,22 +245,17 @@ static xcb_randr_output_t FirstOutput(xcb_connection_t* connection, xcb_window_t
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
-    if (display == nullptr || display[0] == '\0')
-    {
-        return 77;
-    }
+    DisplayRequired();
     unsetenv("WAYLAND_DISPLAY");
-    xcb_connection_t* connection = xcb_connect(nullptr, nullptr);
+    xcb_connection_t* connection = DisplayConnect();
     xcb_randr_query_version_reply_t* version = xcb_randr_query_version_reply(
         connection, xcb_randr_query_version(connection, 1, 5), nullptr);
     bool monitors =
         version != nullptr && (version->major_version > 1 || version->minor_version >= 5);
     free(version);
     const xcb_screen_t* screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
-    xcb_randr_output_t output = xcb_connection_has_error(connection) == 0 && monitors
-                                    ? FirstOutput(connection, screen->root)
-                                    : XCB_NONE;
+    xcb_randr_output_t output = monitors ? FirstOutput(connection, screen->root) : XCB_NONE;
+    // An X server without RandR 1.5 or an output cannot run the test.
     if (output == XCB_NONE)
     {
         xcb_disconnect(connection);

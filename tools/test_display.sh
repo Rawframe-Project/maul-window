@@ -26,7 +26,14 @@ start)
     chmod 700 "$runtime"
     : >"$pids"
     # Detached from ctest's pipes, which ctest would otherwise wait on.
-    Xvfb ":$number" -screen 0 1280x800x24 -nolisten tcp </dev/null >"$runtime/xvfb.log" 2>&1 &
+    # Without -noreset the server resets whenever its last client goes,
+    # reloading its keymap, and a test connecting meanwhile fails: the
+    # tests come and go in parallel. It writes its display number to
+    # descriptor 3 once it takes clients, some 40 ms after its socket
+    # file appears.
+    rm -f "$runtime/xvfb.ready"
+    Xvfb ":$number" -screen 0 1280x800x24 -nolisten tcp -noreset -displayfd 3 \
+        3>"$runtime/xvfb.ready" </dev/null >"$runtime/xvfb.log" 2>&1 &
     echo $! >>"$pids"
     if [ "${4:-}" = wayland ]; then
         XDG_RUNTIME_DIR=$runtime weston --backend=headless --socket=wayland-mwin --idle-time=0 \
@@ -35,7 +42,7 @@ start)
     fi
     for _ in $(seq 100); do
         ready=1
-        [ -S "/tmp/.X11-unix/X$number" ] || ready=0
+        [ -s "$runtime/xvfb.ready" ] || ready=0
         if [ "${4:-}" = wayland ] && [ ! -S "$runtime/wayland-mwin" ]; then ready=0; fi
         [ "$ready" = 1 ] && exit 0
         sleep 0.1

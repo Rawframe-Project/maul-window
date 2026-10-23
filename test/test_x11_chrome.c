@@ -16,6 +16,7 @@
 // Skipped (exit status 77) without an X server.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/event.h"
 #include "maul-window/native.h"
@@ -341,17 +342,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr)
-    {
-        return 77;
-    }
+    DisplayRequired();
     (void)unsetenv("WAYLAND_DISPLAY");
     static Program program;
-    program.connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(program.connection) != 0)
-    {
-        return 77;
-    }
+    program.connection = DisplayConnect();
     program.root = xcb_setup_roots_iterator(xcb_get_setup(program.connection)).data->root;
     const uint32_t mask = XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
     xcb_change_window_attributes(program.connection, program.root, XCB_CW_EVENT_MASK, &mask);

@@ -36,7 +36,8 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `checks` | `clang-format`, the family's rules, that the documentation site builds, that the gamepad and Android key tables match their generators, and clang-tidy. It runs on documentation changes too. |
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library, the test backend alone, macOS on its runner and `clang-cl` on Windows. All build with warnings as errors. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
-| `fuzz` | Every fuzz target from its committed seeds: 20 seconds each on a pull request, 90 on `main`, 600 at night. |
+| `fuzz` | Every fuzz target from its committed seeds, as many at a time as the runner has cores: 20 seconds each on a pull request, 90 on `main`. |
+| `fuzz-nightly` | Every night, each fuzz target in a job of its own for 600 seconds, from its corpus of the nights before ([Fuzzing](#fuzzing)). Not part of the required check. |
 | `ios-simulator` | The iOS backend and its tests built on every pull request; on `main` and at night, run in a booted simulator of the newest runtime. A simulator's boot and first launch take longer than the pull request budget leaves. |
 | `android-emulator` | The Android backend in an Android 11 emulator on the Linux runner with KVM. |
 | `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
@@ -48,6 +49,12 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 ## Fuzzing
 
 The fuzz targets (`test/fuzz_<area>.c`, built with `-DMAUL_WINDOW_FUZZ=ON` and Clang on the test backend) cover the bytes other programs and devices hand the library: EDID blocks, payloads (`text/uri-list`, dropped and pasted text in UTF-8 and UTF-16, zenity's output), compositions, POSIX locale names, X11 scroll valuators, gamepad reports through their mapping, and the X11 clipboard and primary selection reads (`fuzz_x11_selection`: the owner's answer, the property whole or in INCR pieces, and the events other clients cause meanwhile, against a stand-in X server). Each checks properties that hold for any input: no crash, text kept within its limit and valid UTF-8, a composition's offsets on character boundaries and fitting idempotent, sticks and triggers within their ranges, every clipboard request answered exactly once. A crash a fuzzer finds becomes a test in its module's suite ([Development](development.md#a-fuzz-finding)).
+
+Each target starts from its committed seeds (`test/seeds/<target>/`), inputs that reach what random bytes rarely would. The nightly run also carries a corpus per target from night to night in an Actions cache:
+
+- The cache key names the target and hashes the fuzz build's inputs (`src/`, `include/`, `protocols/`, `cmake/`, `CMakeLists.txt`, the target's source) and the compiler's version. A corpus only ever feeds the binary it was grown for, and a target whose build changed starts again from its seeds.
+- After its 600 seconds, the fuzzer's merge step minimizes the corpus to what reaches code the seeds do not, and that is saved for the next night.
+- The run's summary gives the seeds' coverage beside the corpus's, and the corpus is uploaded as `corpus-<target>` for seven days. Where the corpus reaches more, the inputs worth keeping are committed as seeds ([Development](development.md#a-fuzz-finding)).
 
 ## Budgets
 

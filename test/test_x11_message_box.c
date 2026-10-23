@@ -133,6 +133,23 @@ static void Close(xcb_window_t window)
     Send(window, event, XCB_EVENT_MASK_NO_EVENT);
 }
 
+// Whether the window titled `title` went within `tries` checks 10 ms
+// apart. The box asks the X server to destroy its window and returns;
+// requests of two connections are not ordered, so the server may not
+// have done it when this connection first asks.
+static bool Gone(const char* title, int tries)
+{
+    for (int tried = 0; tried < tries; tried++)
+    {
+        if (Titled(title, 1) == XCB_WINDOW_NONE)
+        {
+            return true;
+        }
+        (void)nanosleep(&(struct timespec){.tv_nsec = 10000000}, nullptr);
+    }
+    return false;
+}
+
 typedef enum Answer
 {
     kReturn,
@@ -180,7 +197,7 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
         }
     }
     (void)pthread_join(thread, nullptr);
-    return window != XCB_WINDOW_NONE && Titled(title, 1) == XCB_WINDOW_NONE;
+    return window != XCB_WINDOW_NONE && Gone(title, 100);
 }
 
 int main(void)

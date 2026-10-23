@@ -12,14 +12,43 @@
 # (wayland-mwin), the logs and the PIDs go; DISPLAY is the X display
 # number. ctest runs start before the tests that need a display and stop
 # after them (CMakeLists.txt); a repeated run (ctest --repeat) runs start
-# again, which keeps the servers it started while they run. Stop kills
-# only the PIDs start recorded, never a process found by name: other
-# builds and sessions run their own.
+# again, which keeps the servers it started while they run.
+#
+# Start records each process it starts as its PID, its start time
+# (field 22 of /proc/PID/stat) and the start of its command line. A
+# recorded PID is the fixture's only while all three still match: the
+# record outlives reboots and cancelled runs, and the kernel gives a PID
+# that went to another process, maybe another session's. Stop and a new
+# start signal only processes that match their record, and drop the
+# others unsignalled. Nothing is ever found by name.
 set -euo pipefail
 
 action=$1
 runtime=$2
 pids=$runtime/display.pids
+
+# A process's start time, in clock ticks after boot, or nothing.
+StartTime() {
+    local stat
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 0
+    # The fields after the command name, which may hold spaces, start at 3.
+    stat=${stat##*) }
+    echo "$stat" | cut -d ' ' -f 20
+}
+
+# Whether PID is the process a record names: the same start time and a
+# command line starting with COMMAND.
+Matches() {
+    local pid=$1 start=$2 command=$3 line
+    [ -n "$start" ] && [ "$(StartTime "$pid")" = "$start" ] || return 1
+    line=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null) || return 1
+    [ "${line#"$command"}" != "$line" ]
+}
+
+# Records the process just started, by PID and command.
+Record() {
+    echo "$1 $(StartTime "$1") $2" >>"$pids"
+}
 
 # Whether Xvfb, and weston where asked, take clients.
 Ready() {
@@ -27,26 +56,27 @@ Ready() {
     [ "${1:-}" != wayland ] || [ -S "$runtime/wayland-mwin" ]
 }
 
-# Whether every process start recorded runs, and they take clients.
+# Whether every recorded process is still the fixture's, and they take
+# clients.
 Running() {
     [ -s "$pids" ] || return 1
-    while read -r pid; do
-        kill -0 "$pid" 2>/dev/null || return 1
+    while read -r pid start command; do
+        Matches "$pid" "$start" "$command" || return 1
     done <"$pids"
     Ready "$@"
 }
 
-# Stops the processes start recorded, and waits until they are gone and
-# their display is free.
+# Stops the recorded processes that are still the fixture's, waits until
+# they are gone, and forgets the record.
 Stop() {
     [ -f "$pids" ] || return 0
-    while read -r pid; do
-        kill "$pid" 2>/dev/null || true
+    while read -r pid start command; do
+        if Matches "$pid" "$start" "$command"; then kill "$pid" 2>/dev/null || true; fi
     done <"$pids"
     for _ in $(seq 50); do
         alive=0
-        while read -r pid; do
-            if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+        while read -r pid start command; do
+            if Matches "$pid" "$start" "$command"; then alive=1; fi
         done <"$pids"
         [ "$alive" = 0 ] && break
         sleep 0.1
@@ -73,11 +103,11 @@ start)
     rm -f "$runtime/xvfb.ready"
     Xvfb ":$number" -screen 0 1280x800x24 -nolisten tcp -noreset -displayfd 3 \
         3>"$runtime/xvfb.ready" </dev/null >"$runtime/xvfb.log" 2>&1 &
-    echo $! >>"$pids"
+    Record $! "Xvfb :$number "
     if [ "${4:-}" = wayland ]; then
         XDG_RUNTIME_DIR=$runtime weston --backend=headless --socket=wayland-mwin --idle-time=0 \
             </dev/null >"$runtime/weston.log" 2>&1 &
-        echo $! >>"$pids"
+        Record $! "weston --backend=headless --socket=wayland-mwin "
     fi
     for _ in $(seq 100); do
         Ready "${4:-}" && exit 0

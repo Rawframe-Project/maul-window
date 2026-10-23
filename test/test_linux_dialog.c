@@ -399,14 +399,16 @@ int main(void)
     (void)mkdir(none, 0700);
     (void)setenv("PATH", s_directory, 1);
     static FakeBus fake;
-    if (FakeStart(&fake, s_directory))
+    FakeStarted started = FakeStart(&fake, s_directory);
+    if (started == fakeRunning)
     {
         Run(s_portal, 6, &fake, 1u << 20, "dialogs through the portal");
     }
-    else
+    else if (started == fakeAbsent)
     {
         (void)printf("no dbus-daemon or libdbus-1: the portal is not tested\n");
     }
+    CHECK(started != fakeBroken, fake.failure);
     FakeStop(&fake);
     (void)setenv("XDG_RUNTIME_DIR", s_directory, 1);
     Run(s_zenity, 6, nullptr, 32, "dialogs by zenity");

@@ -10,7 +10,8 @@
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away. It runs once
 // with XMODIFIERS naming Fcitx and once naming IBus. Skipped (exit status
-// 77) without DISPLAY or dbus-daemon.
+// 77) without DISPLAY, dbus-daemon or libdbus-1; a bus that cannot start
+// fails it.
 
 #include "linux_ime_fake.h"
 #include "test_harness.h"
@@ -322,20 +323,29 @@ static void Run(xcb_connection_t* connection, FakeBus* bus, int framework)
 int main(void)
 {
     DisplayRequired();
-    // The stand-in bus is a dbus-daemon of the test's: a machine without
-    // one cannot run the test.
-    if (access("/usr/bin/dbus-daemon", X_OK) != 0)
-    {
-        return 77;
-    }
     unsetenv("WAYLAND_DISPLAY");
     xcb_connection_t* connection = DisplayConnect();
     char directory[] = "/tmp/mwin-ime-XXXXXX";
+    if (mkdtemp(directory) == nullptr)
+    {
+        DisplayFail("cannot make the bus's folder");
+    }
+    // The stand-in bus is a dbus-daemon of the test's: a machine without
+    // one, or without libdbus-1, cannot run the test.
     static FakeBus bus;
-    if (mkdtemp(directory) == nullptr || !FakeStart(&bus, directory) || !FakeImeStart(&bus))
+    FakeStarted started = FakeStart(&bus, directory);
+    if (started != fakeRunning)
     {
         FakeStop(&bus);
-        DisplayFail("cannot start the stand-in bus and input method");
+        FakeClean(directory);
+        (void)rmdir(directory);
+        xcb_disconnect(connection);
+        return FakeNotRunning(&bus, started);
+    }
+    if (!FakeImeStart(&bus))
+    {
+        FakeStop(&bus);
+        DisplayFail("the bus refused the input methods' names");
     }
     Run(connection, &bus, 1);
     Run(connection, &bus, 2);

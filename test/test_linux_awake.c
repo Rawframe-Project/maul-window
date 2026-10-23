@@ -7,7 +7,8 @@
 // hidden and when it no longer asks; the portal asked with the idle
 // flag when the screensaver refuses, and its handle closed; the
 // screensaver let go at the program's end. Skipped (exit status 77)
-// without an X server, dbus-daemon or libdbus-1.
+// without an X server, dbus-daemon or libdbus-1; a bus that cannot start
+// fails it.
 
 #include "linux_bus_fake.h"
 #include "test_harness.h"
@@ -193,8 +194,13 @@ int main(void)
         return 77;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
-    int status = 77;
-    if (FakeStart(&fake, s_directory))
+    int status = 0;
+    FakeStarted started = FakeStart(&fake, s_directory);
+    if (started != fakeRunning)
+    {
+        status = FakeNotRunning(&fake, started);
+    }
+    else
     {
         Program program = {.fake = &fake};
         mwinAppDef def = mwinDefaultAppDef();

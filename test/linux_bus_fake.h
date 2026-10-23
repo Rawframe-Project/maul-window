@@ -101,6 +101,8 @@ typedef struct FakeBus
     int battery;
     // Started as the system bus.
     bool system;
+    // Which step of starting it failed, for a broken start.
+    const char* failure;
     // Another stand-in's answers, tried after these (linux_ime_fake.h).
     void* (*more)(struct FakeBus* fake, void* message);
 } FakeBus;
@@ -151,11 +153,31 @@ static inline bool FakeLoad(FakeBus* fake)
            FAKE_FIND(getFixedArray, dbus_message_iter_get_fixed_array);
 }
 
+// What starting the bus came to: running; absent, where the machine has
+// no dbus-daemon or libdbus-1, which a test skips for; or broken, a bus
+// present that did not start (fake->failure says where), which fails it.
+typedef enum FakeStarted
+{
+    fakeRunning,
+    fakeAbsent,
+    fakeBroken,
+} FakeStarted;
+
+static inline FakeStarted FakeBroke(FakeBus* fake, const char* failure)
+{
+    fake->failure = failure;
+    return fakeBroken;
+}
+
 // Starts the bus in a directory, names it in DBUS_SESSION_BUS_ADDRESS
 // (DBUS_SYSTEM_BUS_ADDRESS for fake->system), and takes the services'
-// names: false where there is no dbus-daemon or libdbus-1.
-static inline bool FakeStart(FakeBus* fake, const char* directory)
+// names.
+static inline FakeStarted FakeStart(FakeBus* fake, const char* directory)
 {
+    if (access("/usr/bin/dbus-daemon", X_OK) != 0 || !FakeLoad(fake))
+    {
+        return fakeAbsent;
+    }
     char path[256];
     char config[768];
     (void)snprintf(config, sizeof(config),
@@ -165,16 +187,14 @@ static inline bool FakeStart(FakeBus* fake, const char* directory)
                    directory);
     (void)snprintf(path, sizeof(path), "%s/bus.conf", directory);
     FILE* file = fopen(path, "w");
-    (void)fputs(config, file);
-    (void)fclose(file);
+    if (file == nullptr || fputs(config, file) < 0 || fclose(file) != 0)
+    {
+        return FakeBroke(fake, "the bus's configuration cannot be written");
+    }
     char argument[300];
     (void)snprintf(argument, sizeof(argument), "--config-file=%s", path);
     char* arguments[] = {(char*)"/usr/bin/dbus-daemon", argument, (char*)"--nofork",
                          (char*)"--nopidfile", nullptr};
-    if (access(arguments[0], X_OK) != 0)
-    {
-        return false;
-    }
     // The bus dies with the thread that starts it, the test's main one: a
     // test a sanitizer or a timeout ends never stops it, and orphaned
     // buses each hold an inotify instance until the user has none left
@@ -201,7 +221,7 @@ static inline bool FakeStart(FakeBus* fake, const char* directory)
     if (child < 0)
     {
         fake->daemon = 0;
-        return false;
+        return FakeBroke(fake, "dbus-daemon cannot be forked");
     }
     fake->daemon = child;
     (void)snprintf(path, sizeof(path), "%s/bus", directory);
@@ -211,27 +231,48 @@ static inline bool FakeStart(FakeBus* fake, const char* directory)
         struct timespec pause = {0, 10000000};
         (void)nanosleep(&pause, nullptr);
     }
+    if (stat(path, &status) != 0)
+    {
+        return FakeBroke(fake, "dbus-daemon made no socket in 5 s");
+    }
     (void)snprintf(config, sizeof(config), "unix:path=%s", path);
     (void)setenv(fake->system ? "DBUS_SYSTEM_BUS_ADDRESS" : "DBUS_SESSION_BUS_ADDRESS", config, 1);
     // libdbus keeps the addresses it saw first for its buses, so the
     // system bus is opened by its address.
-    fake->connection = !FakeLoad(fake) ? nullptr
-                       : fake->system  ? fake->openPrivate(config, nullptr)
-                                       : fake->busGet(0, nullptr);
-    if (fake->connection == nullptr ||
-        (fake->system && !fake->busRegister(fake->connection, nullptr)))
+    fake->connection = fake->system ? fake->openPrivate(config, nullptr) : fake->busGet(0, nullptr);
+    if (fake->connection == nullptr)
     {
-        return false;
+        return FakeBroke(fake, "the test cannot connect to its bus");
+    }
+    if (fake->system && !fake->busRegister(fake->connection, nullptr))
+    {
+        return FakeBroke(fake, "the test cannot register on its bus");
     }
     fake->setExit(fake->connection, 0);
     // 4: do not queue; 1: the primary owner.
-    if (fake->system)
+    bool named =
+        fake->system
+            ? fake->requestName(fake->connection, "org.freedesktop.UPower", 4, nullptr) == 1
+            : fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) ==
+                      1 &&
+                  fake->requestName(fake->connection, "org.freedesktop.ScreenSaver", 4, nullptr) ==
+                      1 &&
+                  fake->requestName(fake->connection, "org.freedesktop.portal.Desktop", 4,
+                                    nullptr) == 1;
+    return named ? fakeRunning : FakeBroke(fake, "the bus refused a service's name");
+}
+
+// The exit status of a test that needs the bus where it is not running:
+// skipped (77) where it is absent, failed with the reason where it broke.
+static inline int FakeNotRunning(const FakeBus* fake, FakeStarted started)
+{
+    if (started == fakeAbsent)
     {
-        return fake->requestName(fake->connection, "org.freedesktop.UPower", 4, nullptr) == 1;
+        (void)printf("no dbus-daemon or libdbus-1: skipped\n");
+        return 77;
     }
-    return fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) == 1 &&
-           fake->requestName(fake->connection, "org.freedesktop.ScreenSaver", 4, nullptr) == 1 &&
-           fake->requestName(fake->connection, "org.freedesktop.portal.Desktop", 4, nullptr) == 1;
+    (void)printf("FAIL: the stand-in bus did not start: %s\n", fake->failure);
+    return 1;
 }
 
 // The string argument an iterator is at, into a buffer; it moves on.

@@ -11,7 +11,7 @@ A start that fails prints the servers' logs; they stay in `out/<preset>/rt/` (`x
 ## Stand-ins
 
 - **Wayland:** most Wayland tests run a small compositor of their own on `libwayland-server` (`test/wayland_server.h` and its protocol extensions), since a headless weston has no seat, tablet, text input or activation to drive. It records what the backend asked for: parents and positioners, grabs, idle inhibitors, icon buffers, decoration modes.
-- **D-Bus:** `test/linux_bus_fake.h` starts a private `dbus-daemon` and serves stand-ins for the portal (settings, file chooser, inhibit, power profiles), the file manager, the screensaver, UPower on a private system bus, and IBus and Fcitx 5. Nothing on the machine's own buses is touched.
+- **D-Bus:** `test/linux_bus_fake.h` starts a private `dbus-daemon` and serves stand-ins for the portal (settings, file chooser, inhibit, power profiles), the file manager, the screensaver, UPower on a private system bus, and IBus and Fcitx 5. Nothing on the machine's own buses is touched. A test that needs the bus skips only where `dbus-daemon` or libdbus-1 is absent; a bus present that does not start fails it, naming the step that failed (`FakeStart`'s outcome).
 - **Programs:** stand-in `xdg-open`, `zenity` and `kdialog` scripts on `PATH`.
 - **Windows:** XInput, Raw Input with the HID parser, and Windows.Gaming.Input are tables of functions the tests replace, since no virtual pad of those kinds can be made; the real runtime is still started and stopped where the system has it.
 - **Gamepads on Linux:** real kernel devices made through `/dev/uinput` (the `uinput` label). Locally that needs write access to `/dev/uinput` and read access to `/dev/input/event*`.

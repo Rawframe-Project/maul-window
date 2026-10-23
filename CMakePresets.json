@@ -162,7 +162,8 @@
       "name": "windows-clang-cl",
       "inherits": "base",
       "configurePreset": "windows-clang-cl",
-      "configuration": "Release"
+      "configuration": "Release",
+      "execution": { "jobs": 1 }
     }
   ]
 }

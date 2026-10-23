@@ -18,7 +18,7 @@ A start that fails prints the servers' logs; they stay in `out/<preset>/rt/` (`x
 
 ## Windows
 
-The Windows tests run on the runner's interactive desktop, driving it through `SendInput`, touch injection and a synthetic pen, and some change the user's settings for a moment and put them back. They also run under Wine for a MinGW build, which injects neither touch nor pen; those tests skip there. Run them with `cmake --preset windows-clang-cl`, `cmake --build --preset windows-clang-cl` and `ctest --preset windows-clang-cl` on a desktop session.
+The Windows tests run on the runner's interactive desktop, driving it through `SendInput`, touch injection and a synthetic pen, and some change the user's settings for a moment and put them back. They run one at a time: any test's window can take the foreground another test's input needs. They also run under Wine for a MinGW build, which injects neither touch nor pen; those tests skip there. Run them with `cmake --preset windows-clang-cl`, `cmake --build --preset windows-clang-cl` and `ctest --preset windows-clang-cl` on a desktop session.
 
 ## macOS and iOS
 

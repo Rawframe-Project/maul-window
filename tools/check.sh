@@ -203,7 +203,10 @@ for target in "$out"/check-fuzz/fuzz_*; do
     name=$(basename "$target")
     corpus=$out/corpus/$name
     mkdir -p "$corpus"
-    "$target" -max_total_time=$fuzz_seconds -max_len=256 "$corpus" >"$out/$name.log" 2>&1 ||
+    # The committed seeds, read; what the run finds goes to the first.
+    seeds=()
+    [ -d "test/corpus/$name" ] && seeds=("test/corpus/$name")
+    "$target" -max_total_time=$fuzz_seconds -max_len=256 "$corpus" "${seeds[@]}" >"$out/$name.log" 2>&1 ||
         {
             tail -30 "$out/$name.log"
             exit 1

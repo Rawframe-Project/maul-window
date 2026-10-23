@@ -1,2 +1,0 @@
-# Fuzz inputs are bytes: never normalized as text.
-* binary

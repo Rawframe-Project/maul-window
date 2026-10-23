@@ -11,19 +11,58 @@
 # RUNTIME is the tests' XDG_RUNTIME_DIR, where weston's socket
 # (wayland-mwin), the logs and the PIDs go; DISPLAY is the X display
 # number. ctest runs start before the tests that need a display and stop
-# after them (CMakeLists.txt). Stop kills only the PIDs start recorded,
-# never a process found by name: other builds and sessions run their own.
+# after them (CMakeLists.txt); a repeated run (ctest --repeat) runs start
+# again, which keeps the servers it started while they run. Stop kills
+# only the PIDs start recorded, never a process found by name: other
+# builds and sessions run their own.
 set -euo pipefail
 
 action=$1
 runtime=$2
 pids=$runtime/display.pids
 
+# Whether Xvfb, and weston where asked, take clients.
+Ready() {
+    [ -s "$runtime/xvfb.ready" ] || return 1
+    [ "${1:-}" != wayland ] || [ -S "$runtime/wayland-mwin" ]
+}
+
+# Whether every process start recorded runs, and they take clients.
+Running() {
+    [ -s "$pids" ] || return 1
+    while read -r pid; do
+        kill -0 "$pid" 2>/dev/null || return 1
+    done <"$pids"
+    Ready "$@"
+}
+
+# Stops the processes start recorded, and waits until they are gone and
+# their display is free.
+Stop() {
+    [ -f "$pids" ] || return 0
+    while read -r pid; do
+        kill "$pid" 2>/dev/null || true
+    done <"$pids"
+    for _ in $(seq 50); do
+        alive=0
+        while read -r pid; do
+            if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+        done <"$pids"
+        [ "$alive" = 0 ] && break
+        sleep 0.1
+    done
+    rm -f "$pids"
+}
+
 case "$action" in
 start)
     number=$3
     mkdir -p "$runtime"
     chmod 700 "$runtime"
+    if Running "${4:-}"; then
+        exit 0
+    fi
+    Stop
     : >"$pids"
     # Detached from ctest's pipes, which ctest would otherwise wait on.
     # Without -noreset the server resets whenever its last client goes,
@@ -41,23 +80,15 @@ start)
         echo $! >>"$pids"
     fi
     for _ in $(seq 100); do
-        ready=1
-        [ -s "$runtime/xvfb.ready" ] || ready=0
-        if [ "${4:-}" = wayland ] && [ ! -S "$runtime/wayland-mwin" ]; then ready=0; fi
-        [ "$ready" = 1 ] && exit 0
+        Ready "${4:-}" && exit 0
         sleep 0.1
     done
     echo "the display fixture did not start; its logs:" >&2
-    tail -20 "$runtime"/*.log >&2 || true
+    tail -n 20 "$runtime"/*.log >&2 || true
     exit 1
     ;;
 stop)
-    if [ -f "$pids" ]; then
-        while read -r pid; do
-            kill "$pid" 2>/dev/null || true
-        done <"$pids"
-        rm -f "$pids"
-    fi
+    Stop
     ;;
 *)
     echo "usage: tools/test_display.sh start RUNTIME DISPLAY [wayland] | stop RUNTIME" >&2

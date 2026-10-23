@@ -161,6 +161,21 @@ typedef struct Mode
     xcb_randr_mode_t old;
 } Mode;
 
+// Whether the X server carried out a request, printing its error where
+// it did not.
+static bool Done(xcb_connection_t* connection, xcb_void_cookie_t cookie)
+{
+    xcb_generic_error_t* error = xcb_request_check(connection, cookie);
+    if (error != nullptr)
+    {
+        printf("X error %u (request %u.%u)\n", error->error_code, error->major_code,
+               error->minor_code);
+    }
+    bool done = error == nullptr;
+    free(error);
+    return done;
+}
+
 static xcb_timestamp_t ConfigTime(xcb_connection_t* connection, xcb_window_t root)
 {
     xcb_randr_get_screen_resources_current_reply_t* resources =
@@ -279,16 +294,21 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on the X server");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "variable refresh turned off, told as a change");
-    // Properties and a mode a run left behind would trouble the next.
-    xcb_randr_delete_output_property(connection, output, edidAtom);
-    xcb_randr_delete_output_property(connection, output, program.vrr);
+    // Properties and a mode a run left behind would trouble the next: the
+    // fixture's X server keeps them, as it never resets.
+    CHECK(Done(connection, xcb_randr_delete_output_property_checked(connection, output, edidAtom)),
+          "the EDID deleted");
+    CHECK(
+        Done(connection, xcb_randr_delete_output_property_checked(connection, output, program.vrr)),
+        "vrr_capable deleted");
     if (mode.made != XCB_NONE)
     {
         CHECK(SetCrtc(connection, screen->root, &mode, output, mode.old), "the mode put back");
-        xcb_randr_delete_output_mode(connection, output, mode.made);
-        xcb_randr_destroy_mode(connection, mode.made);
+        CHECK(Done(connection, xcb_randr_delete_output_mode_checked(connection, output, mode.made)),
+              "the mode taken off the output");
+        CHECK(Done(connection, xcb_randr_destroy_mode_checked(connection, mode.made)),
+              "the mode destroyed");
     }
-    xcb_flush(connection);
     xcb_disconnect(connection);
     return s_failures == 0 ? 0 : 1;
 }

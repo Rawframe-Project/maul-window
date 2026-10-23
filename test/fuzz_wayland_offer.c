@@ -381,7 +381,8 @@ static void Drain(mwinContext* context)
 }
 
 // A type of an offer, from the input: one the backend knows or a data
-// type, or bytes of the input's, which may be long or not ASCII.
+// type; bytes of the input's, which may be long or not ASCII; or letters
+// to a length, so a few bytes make a long list.
 static void NextType(char* type, size_t size)
 {
     static const char* const known[] = {
@@ -394,9 +395,19 @@ static void NextType(char* type, size_t size)
         "application/x-maul",
     };
     uint8_t shape = Byte();
-    if (shape % 8 < 7)
+    if (shape % 16 < 7)
     {
-        (void)snprintf(type, size, "%s", known[shape % 8]);
+        (void)snprintf(type, size, "%s", known[shape % 16]);
+        return;
+    }
+    if (shape % 16 > 7)
+    {
+        size_t letters = Byte() % 80;
+        for (size_t i = 0; i < letters; i++)
+        {
+            type[i] = (char)('a' + (i + shape) % 26);
+        }
+        type[letters] = '\0';
         return;
     }
     size_t length = Byte() % (size - 1);
@@ -408,8 +419,28 @@ static void NextType(char* type, size_t size)
     type[length] = '\0';
 }
 
+// The types a clipboard offer keeps, for a data read to ask for: in the
+// order announced, each of at most MWIN_CLIPBOARD_MIME bytes that still
+// fits whole, with its NUL, in what the store has left. None is cut and
+// nothing past the store is kept.
+static void CheckKept(const mwinWaylandTypes* kept, char (*announced)[128], uint8_t count)
+{
+    static char expected[MWIN_WAYLAND_TYPE_BYTES];
+    size_t used = 0;
+    for (uint8_t i = 0; i < count; i++)
+    {
+        size_t length = strlen(announced[i]);
+        if (length <= MWIN_CLIPBOARD_MIME && length + 1 <= sizeof(expected) - used)
+        {
+            memcpy(expected + used, announced[i], length + 1);
+            used += length + 1;
+        }
+    }
+    Expect(kept->length == used && memcmp(kept->bytes, expected, used) == 0);
+}
+
 // Makes an offer and announces its types through the device that made
-// it: false where the run has no room for it.
+// it: NULL where the run has no room for it.
 static Proxy* Offer(bool primary)
 {
     if (s_proxyCount + 8 > PROXIES)
@@ -417,15 +448,17 @@ static Proxy* Offer(bool primary)
         return nullptr;
     }
     Proxy* offer = NewProxy(primary ? proxyPrimaryOffer : proxyDataOffer);
-    uint8_t types = Byte() % 5;
-    char type[128];
+    uint8_t types = Byte() % 48;
+    static char announced[48][128];
+    char* type = nullptr;
     if (primary)
     {
         const struct zwp_primary_selection_device_v1_listener* device = s_primaryDevice->listener;
         device->data_offer(s_primaryDevice->data, (void*)s_primaryDevice, (void*)offer);
         for (uint8_t i = 0; i < types; i++)
         {
-            NextType(type, sizeof(type));
+            type = announced[i];
+            NextType(type, sizeof(announced[i]));
             const struct zwp_primary_selection_offer_v1_listener* listener = offer->listener;
             listener->offer(offer->data, (void*)offer, type);
         }
@@ -435,10 +468,12 @@ static Proxy* Offer(bool primary)
     device->data_offer(s_device->data, (void*)s_device, (void*)offer);
     for (uint8_t i = 0; i < types; i++)
     {
-        NextType(type, sizeof(type));
+        type = announced[i];
+        NextType(type, sizeof(announced[i]));
         const struct wl_data_offer_listener* listener = offer->listener;
         listener->offer(offer->data, (void*)offer, type);
     }
+    CheckKept(&s_platform.clipboard.incomingTypes, announced, types);
     return offer;
 }
 
@@ -593,6 +628,8 @@ static void Start(mwinContext* context)
     s_made = 0;
     s_dragging = false;
     s_dropOffer = nullptr;
+    memset(s_windows, 0, sizeof(s_windows));
+    memset(s_ids, 0, sizeof(s_ids));
     for (int i = 0; i < WRITERS; i++)
     {
         s_writers[i] = (Writer){.fd = -1};
@@ -629,7 +666,9 @@ static mwinResult Init(mwinContext* context, void* user)
         Expect(mwinCreateWindow(context, &def, &windows[i], nullptr) == mwin_success);
         s_windows[windows[i].index1 - 1].surface = (void*)&s_surfaces[windows[i].index1 - 1];
     }
-    while (s_size > 0)
+    // An op makes a few objects at most: the script ends cleanly before the
+    // stand-in could run out, whatever the input's length.
+    while (s_size > 0 && s_proxyCount + 16 <= PROXIES)
     {
         uint8_t op = Byte();
         uint32_t i = (op >> 4) % WINDOWS;

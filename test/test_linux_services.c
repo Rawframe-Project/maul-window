@@ -256,11 +256,13 @@ static const Step s_noOpener[] = {
 static void RunWithBus(const char* wayland)
 {
     static FakeBus fake;
-    if (!FakeStart(&fake, s_directory))
+    FakeStarted started = FakeStart(&fake, s_directory);
+    if (started == fakeAbsent)
     {
         (void)printf("no dbus-daemon or libdbus-1: the bus is not tested\n");
     }
-    else
+    CHECK(started != fakeBroken, fake.failure);
+    if (started == fakeRunning)
     {
         if (wayland != nullptr)
         {

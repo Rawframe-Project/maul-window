@@ -265,10 +265,18 @@ int main(void)
     xcb_connection_t* connection = DisplayConnect();
     xcb_randr_query_version_reply_t* version = xcb_randr_query_version_reply(
         connection, xcb_randr_query_version(connection, 1, 5), nullptr);
+    // A server without RandR closes xcb's connection; one whose RandR
+    // answers no version fails the test.
+    if (version == nullptr &&
+        xcb_connection_has_error(connection) != XCB_CONN_CLOSED_EXT_NOTSUPPORTED)
+    {
+        DisplayFail("RandR answered no version");
+    }
     bool monitors =
         version != nullptr && (version->major_version > 1 || version->minor_version >= 5);
     free(version);
-    const xcb_screen_t* screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
+    const xcb_screen_t* screen =
+        monitors ? xcb_setup_roots_iterator(xcb_get_setup(connection)).data : nullptr;
     xcb_randr_output_t output = monitors ? FirstOutput(connection, screen->root) : XCB_NONE;
     // An X server without RandR 1.5 or an output cannot run the test.
     if (output == XCB_NONE)

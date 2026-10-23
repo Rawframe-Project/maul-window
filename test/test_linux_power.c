@@ -10,7 +10,7 @@
 // - With the portal refusing and no system bus: both unknown, and no
 //   change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
-// libdbus-1.
+// libdbus-1; a bus that cannot start fails it.
 
 #include "linux_bus_fake.h"
 #include "test_harness.h"
@@ -161,8 +161,19 @@ int main(void)
     (void)snprintf(s_system, sizeof(s_system), "%s/system", s_directory);
     (void)mkdir(s_system, 0700);
     system.system = true;
-    int status = 77;
-    if (FakeStart(&session, s_directory) && FakeStart(&system, s_system))
+    int status = 0;
+    const FakeBus* failed = &session;
+    FakeStarted started = FakeStart(&session, s_directory);
+    if (started == fakeRunning)
+    {
+        failed = &system;
+        started = FakeStart(&system, s_system);
+    }
+    if (started != fakeRunning)
+    {
+        status = FakeNotRunning(failed, started);
+    }
+    else
     {
         session.saver = 1;
         system.battery = 0;

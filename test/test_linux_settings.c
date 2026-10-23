@@ -14,7 +14,7 @@
 //   none; a factor of 0 as a number;
 // - no answer: the facts left as they were, and no change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
-// libdbus-1.
+// libdbus-1; a bus that cannot start fails it.
 
 #include "linux_bus_fake.h"
 #include "test_harness.h"
@@ -185,8 +185,13 @@ int main(void)
         return 77;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
-    int status = 77;
-    if (FakeStart(&fake, s_directory))
+    int status = 0;
+    FakeStarted started = FakeStart(&fake, s_directory);
+    if (started != fakeRunning)
+    {
+        status = FakeNotRunning(&fake, started);
+    }
+    else
     {
         Run(&fake, fakeGnome, 4, "GNOME's settings and their changes");
         Run(&fake, fakeKde, 5, "KDE's settings and their changes");

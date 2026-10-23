@@ -370,11 +370,17 @@ static xcb_atom_t Intern(xcb_connection_t* connection, const char* name)
     return atom;
 }
 
-// RandR 1.5, which has monitors.
+// RandR 1.5, which has monitors. A server without RandR closes xcb's
+// connection; one whose RandR answers no version fails the test.
 static bool HasMonitors(xcb_connection_t* connection)
 {
     xcb_randr_query_version_reply_t* version = xcb_randr_query_version_reply(
         connection, xcb_randr_query_version(connection, 1, 5), nullptr);
+    if (version == nullptr &&
+        xcb_connection_has_error(connection) != XCB_CONN_CLOSED_EXT_NOTSUPPORTED)
+    {
+        DisplayFail("RandR answered no version");
+    }
     bool has = version != nullptr && (version->major_version > 1 ||
                                       (version->major_version == 1 && version->minor_version >= 5));
     free(version);

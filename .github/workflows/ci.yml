@@ -234,15 +234,24 @@ jobs:
                             key=lambda r: [int(p) for p in r.rsplit("iOS-", 1)[1].split("-")])
           print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"].startswith("iPhone")))')
           xcrun simctl boot "$udid"
-          xcrun simctl bootstatus "$udid" -b
-          # A new device's first launch takes minutes: paid here, not by a test.
-          xcrun simctl launch "$udid" com.apple.Preferences
-          xcrun simctl terminate "$udid" com.apple.Preferences
           echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
+          # Booting and a new device's first launch take minutes, so they run
+          # while the next step builds, and a test never pays for them.
+          (xcrun simctl bootstatus "$udid" -b &&
+            xcrun simctl launch "$udid" com.apple.Preferences &&
+            xcrun simctl terminate "$udid" com.apple.Preferences &&
+            touch "$RUNNER_TEMP/booted") >"$RUNNER_TEMP/boot.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/boot.pid"
       - name: Build
         run: |
           cmake --preset ios-simulator
           cmake --build --preset ios-simulator -j 4
+      - name: Wait for the simulator
+        timeout-minutes: 12
+        run: |
+          pid=$(cat "$RUNNER_TEMP/boot.pid")
+          while kill -0 "$pid" 2>/dev/null; do sleep 5; done
+          [ -f "$RUNNER_TEMP/booted" ] || { cat "$RUNNER_TEMP/boot.log"; exit 1; }
       - name: Test
         run: |
           ctest --preset ios-simulator | tee "$RUNNER_TEMP/ctest.log"

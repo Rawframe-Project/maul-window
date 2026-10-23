@@ -37,7 +37,7 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library, the test backend alone, macOS on its runner and `clang-cl` on Windows. All build with warnings as errors. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
 | `fuzz` | Every fuzz target: 20 seconds each on a pull request, 90 on `main` and at night. |
-| `ios-simulator` | The iOS backend in a booted simulator of the newest runtime. |
+| `ios-simulator` | The iOS backend and its tests built on every pull request; on `main` and at night, run in a booted simulator of the newest runtime. A simulator's boot and first launch take longer than the pull request budget leaves. |
 | `android-emulator` | The Android backend in an Android 11 emulator on the Linux runner with KVM. |
 | `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
@@ -51,4 +51,4 @@ The fuzz targets (`test/fuzz_<area>.c`, built with `-DMAUL_WINDOW_FUZZ=ON` and C
 
 ## Budgets
 
-Over a budget, tests are pruned or merged before anything else is added. The pull request check's longest jobs are the iOS simulator (about seven minutes, most of it booting), a Linux build cell and the Android emulator; the whole Linux suite runs in a few seconds once built.
+Over a budget, tests are pruned or merged before anything else is added. The pull request check's longest job is the Android emulator (about five minutes); the whole Linux suite runs in a few seconds once built. The iOS simulator run (eight to eleven minutes, most of it booting) is on `main` and at night.

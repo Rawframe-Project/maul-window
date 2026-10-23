@@ -211,21 +211,29 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The iOS backend in the simulator: the headless tests through simctl
-  # spawn, the UIKit ones as applications through tools/run_ios_app.sh, on
-  # an iPhone of the newest runtime.
+  # The iOS backend: built with its tests on every pull request, the only
+  # cell that compiles it, and run in the simulator on main and every night.
+  # A simulator's boot and first launch take minutes on the macOS runners,
+  # more than the pull request check's budget leaves. The headless tests run
+  # through simctl spawn, the UIKit ones as applications through
+  # tools/run_ios_app.sh, on an iPhone of the newest runtime.
   ios-simulator:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Build
+        run: |
+          cmake --preset ios-simulator
+          cmake --build --preset ios-simulator -j 4
       - name: Boot a simulator
+        if: github.event_name != 'pull_request'
         run: |
           udid=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -234,25 +242,13 @@ jobs:
                             key=lambda r: [int(p) for p in r.rsplit("iOS-", 1)[1].split("-")])
           print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"].startswith("iPhone")))')
           xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          # A new device's first launch takes minutes: paid here, not by a test.
+          xcrun simctl launch "$udid" com.apple.Preferences
+          xcrun simctl terminate "$udid" com.apple.Preferences
           echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
-          # Booting and a new device's first launch take minutes, so they run
-          # while the next step builds, and a test never pays for them.
-          (xcrun simctl bootstatus "$udid" -b &&
-            xcrun simctl launch "$udid" com.apple.Preferences &&
-            xcrun simctl terminate "$udid" com.apple.Preferences &&
-            touch "$RUNNER_TEMP/booted") >"$RUNNER_TEMP/boot.log" 2>&1 &
-          echo $! >"$RUNNER_TEMP/boot.pid"
-      - name: Build
-        run: |
-          cmake --preset ios-simulator
-          cmake --build --preset ios-simulator -j 4
-      - name: Wait for the simulator
-        timeout-minutes: 12
-        run: |
-          pid=$(cat "$RUNNER_TEMP/boot.pid")
-          while kill -0 "$pid" 2>/dev/null; do sleep 5; done
-          [ -f "$RUNNER_TEMP/booted" ] || { cat "$RUNNER_TEMP/boot.log"; exit 1; }
       - name: Test
+        if: github.event_name != 'pull_request'
         run: |
           ctest --preset ios-simulator | tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then

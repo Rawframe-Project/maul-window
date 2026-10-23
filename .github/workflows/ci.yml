@@ -193,9 +193,23 @@ jobs:
           [ -c /dev/uinput ] || { echo "::error::the runner has no /dev/uinput"; exit 1; }
           docker run --rm --device /dev/uinput -v /dev/input:/dev/input \
             --device-cgroup-rule='c 13:* rmw' -v "$PWD:/w" -w /w "$IMAGE" bash -c '
+              set -o pipefail
               cmake --preset linux-clang-20-asan >/dev/null
               cmake --build --preset linux-clang-20-asan -j 4 >/dev/null
-              ctest --test-dir out/linux-clang-20-asan -L "^uinput$" --output-on-failure --no-tests=error'
+              ctest --test-dir out/linux-clang-20-asan -L "^uinput$" --output-on-failure --no-tests=error |
+                tee out/gamepads-ctest.log'
+          # A test that exits 77 (no device) passes ctest; here it must fail.
+          if grep -E '\*\*\*(Skipped|Not Run)' out/gamepads-ctest.log; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-gamepads
+          path: out/linux-clang-20-asan/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The iOS backend in the simulator: the headless tests through simctl
   # spawn, the UIKit ones as applications through tools/run_ios_app.sh, on
@@ -235,6 +249,14 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-ios-simulator
+          path: out/ios-simulator/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The Android backend in the emulator, Android 11 (the oldest the backend
   # takes) on x86_64 with KVM: the headless tests through adb, the window
@@ -293,6 +315,14 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-android-emulator
+          path: out/android-emulator/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The web backend without Emscripten: Clang's wasm32-wasi, every test a
   # module in headless Chrome through puppeteer, with the JavaScript imports
@@ -326,6 +356,14 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-web-wasi
+          path: out/web-wasi/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The web backend built by Emscripten, its tests in headless Chrome through
   # puppeteer, and what the backend costs a program. The CI image has no
@@ -359,6 +397,14 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-web-emscripten
+          path: out/web-emscripten/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Size
         # The library, and what the web backend costs a program: the same
         # test program's wasm and JavaScript with the backend and without.

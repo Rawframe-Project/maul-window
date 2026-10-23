@@ -21,7 +21,7 @@ Each suite is `test/test_<name>.c` (or `.m`), one executable registered with CTe
 - `integration`: tests that drive a real window system, server, device, simulator, emulator or browser: the X11 and weston tests against the display fixture, the Wayland tests against a stand-in compositor on a thread of their own, the Linux bus tests, the virtual gamepad tests, and every macOS, iOS, Android, Windows desktop and web test. They may read the clock, take about a second each, and stay out of the `changed` tier.
 - `uinput`: the tests that make virtual gamepads through `/dev/uinput`. A container job has no input devices, so the Linux test presets leave them out; the `full` tier runs them where the device can be written, and CI every night.
 
-The Linux tests that need a display get the build's own Xvfb and headless weston from the display fixture ([Test environments](test-environments.md#the-display-fixture)); the stand-in compositors and buses need nothing installed but what the image has. Without integration tests the `changed` tier runs the contract on the test backend and the modules that take plain values, which cover most of the core. A test that cannot run exits 77, which CTest reports as skipped, and every CI cell fails on a skipped or unrun test, so a platform that did not start never passes with nothing tested.
+The Linux tests that need a display get the build's own Xvfb and headless weston from the display fixture ([Test environments](test-environments.md#the-display-fixture)); the stand-in compositors and buses need nothing installed but what the image has. Without integration tests the `changed` tier runs the contract on the test backend and the modules that take plain values, which cover most of the core. A test that cannot run exits 77, which CTest reports as skipped, and every CI cell fails on a skipped or unrun test, so a platform that did not start never passes with nothing tested. A failed test job uploads its CTest logs, kept for a week.
 
 ## In CI
 
@@ -38,8 +38,9 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `fuzz` | Every fuzz target: 20 seconds each on a pull request, 90 on `main` and at night. |
 | `ios-simulator` | The iOS backend in a booted simulator of the newest runtime. |
 | `android-emulator` | The Android backend in an Android 11 emulator on the Linux runner with KVM. |
+| `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
-| `gamepads` | Every night: the virtual gamepad tests, in the CI image run by `docker` with the runner's `/dev/uinput` passed in. |
+| `gamepads` | Every night: the virtual gamepad tests, in the CI image run by `docker` with the runner's `/dev/uinput` passed in. A skipped test fails it. |
 
 `pr-title.yml` checks that the pull request title is a conventional commit with a scope from `AGENTS.md`, and `pr-gate.yml` closes a pull request from outside the organization unless it closes an issue labeled `accepted`. `codeql.yml` runs CodeQL in the CI image on every pull request and on `main`. `scorecard.yml` grades the repository's security practices weekly, and Dependabot proposes updates of the pinned actions once a week.
 

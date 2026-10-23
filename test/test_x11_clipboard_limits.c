@@ -200,12 +200,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
+    DisplayRequired();
     static Peer peer;
-    if (display == nullptr || display[0] == '\0' || !PeerStart(&peer))
-    {
-        return 77;
-    }
+    PeerStart(&peer);
     static char s_got[PEER_PIECE];
     peer.got = s_got;
     unsetenv("WAYLAND_DISPLAY");

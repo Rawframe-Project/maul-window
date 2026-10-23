@@ -178,15 +178,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 int main(void)
 {
-    const char* display = getenv("DISPLAY");
+    DisplayRequired();
     static Peer s_peers[PEERS];
     static char s_got[PEERS][LARGE + PEER_PIECE];
     for (int i = 0; i < PEERS; i++)
     {
-        if (display == nullptr || display[0] == '\0' || !PeerStart(&s_peers[i]))
-        {
-            return 77;
-        }
+        PeerStart(&s_peers[i]);
         s_peers[i].got = s_got[i];
     }
     static char s_clipboard[LARGE];

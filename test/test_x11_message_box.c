@@ -9,6 +9,7 @@
 // skipped without DISPLAY.
 
 #include "test_harness.h"
+#include "x11_display.h"
 
 #include "maul-window/services.h"
 
@@ -202,15 +203,12 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr || mkdtemp(s_directory) == nullptr)
+    DisplayRequired();
+    if (mkdtemp(s_directory) == nullptr)
     {
-        return 77;
+        DisplayFail("cannot make the folder PATH points to");
     }
-    s_connection = xcb_connect(nullptr, nullptr);
-    if (xcb_connection_has_error(s_connection) != 0)
-    {
-        return 77;
-    }
+    s_connection = DisplayConnect();
     s_root = xcb_setup_roots_iterator(xcb_get_setup(s_connection)).data->root;
     // Neither zenity nor kdialog.
     setenv("PATH", s_directory, 1);

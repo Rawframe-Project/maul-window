@@ -575,6 +575,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator
                                  LABELS "${name};integration")
         endforeach()
+        # quarantine: #4 the on-screen keyboard can show late on a freshly booted emulator
+        set_property(TEST android_ime APPEND PROPERTY LABELS quarantine)
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,

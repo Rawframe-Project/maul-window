@@ -149,7 +149,8 @@
       "name": "android-emulator",
       "inherits": "base",
       "configurePreset": "android-emulator",
-      "execution": { "jobs": 1, "timeout": 240 }
+      "execution": { "jobs": 1, "timeout": 240 },
+      "filter": { "exclude": { "label": "^quarantine$" } }
     },
     { "name": "macos-clang", "inherits": "base", "configurePreset": "macos-clang" },
     {

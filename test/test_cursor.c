@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// Cursors made from images on the test backend (mwin-0027): defs refused
+// Cursors made from images on the test backend: defs refused
 // at the call; a cursor shown over a window, taking its image for the
 // scale; a shape in its place; a destroyed cursor leaving its window
 // the default shape and its id stale; the limit; cursors still live at

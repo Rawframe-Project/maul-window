@@ -107,7 +107,7 @@ typedef struct mwinX11Window
     int32_t modeRequest;
     uint64_t modeDeadlineNs;
     // The cursor the program asked for over the window: a shape, or a
-    // cursor made from images when cursorImage is live (mwin-0027); and
+    // cursor made from images when cursorImage is live; and
     // whether the pointer is grabbed to keep it inside.
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;

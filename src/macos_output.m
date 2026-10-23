@@ -51,7 +51,7 @@ static void RefreshOf(NSScreen* screen, mwinMonitorInfo* info)
     CGDisplayModeRelease(mode);
 }
 
-// The screen's extended dynamic range (mwin-0036): Apple tells headroom,
+// The screen's extended dynamic range: Apple tells headroom,
 // never nits. The headroom is what the screen shows over SDR white at its
 // brightness now once content asks for EDR; EDR is on while content on
 // the screen goes above SDR white.

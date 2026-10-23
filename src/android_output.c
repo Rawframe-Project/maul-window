@@ -4,7 +4,7 @@
 // The activity's display as the one monitor on Android (android.h): its
 // name, its whole size in pixels at the configuration's density, its
 // physical size from its dots per inch, its refresh rate, and its HDR
-// facts (mwin-0036) through the library's Java helper
+// facts through the library's Java helper
 // maul.window.Screen. HDR output is on while the HDR/SDR ratio
 // (Android 14) is above 1, which it is while HDR content shows; the
 // headroom is that ratio, unknown where the display can show HDR and

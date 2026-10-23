@@ -145,8 +145,8 @@ static bool IsSet(const char* name)
 
 // The backends to try for a kind, in order: for the native one, Win32
 // on Windows, AppKit on macOS, UIKit on iOS; on Linux Wayland where a
-// Wayland session names its display, then X11 where DISPLAY names one
-// (mwin-0006). Returns their count.
+// Wayland session names its display, then X11 where DISPLAY names one.
+// Returns their count.
 static int FindBackends(mwinBackendKind kind, const mwinBackendOps* backends[2])
 {
     int count = 0;
@@ -221,7 +221,7 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     context->misuse = &context->misuseCount;
     context->limits = *limits;
     // A copy: without Emscripten mwinRun returns while the program runs
-    // on, and the def may have been the caller's local (mwin-0022).
+    // on, and the def may have been the caller's local.
     context->app = *def;
     context->facts.textScale = 1.0f;
     mwinLayout carving = {0};

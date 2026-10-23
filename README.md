@@ -1,106 +1,68 @@
 # Maul Window
 
-Windows, input, gamepads and platform services for games, engines and
-editors. Written in C23 with public headers any C17 or C++17 program
-can include, first-party backends over each platform's own API, and an
-MIT license.
+Windows, input, gamepads and platform services in C, for games, engines and editors.
 
-It owns what a program needs from the platform's window system:
+[![CI](https://github.com/Rawframe-Project/maul-window/actions/workflows/ci.yml/badge.svg)](https://github.com/Rawframe-Project/maul-window/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/Rawframe-Project/maul-window)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Rawframe-Project/maul-window)](https://github.com/Rawframe-Project/maul-window/releases)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Rawframe-Project/maul-window/badge)](https://scorecard.dev/viewer/?uri=github.com/Rawframe-Project/maul-window)
 
-- windows and their lifecycle, monitors and per-monitor scale, and the
-  platform's event loop, whether the program or the platform owns it;
-- keyboard, text input and IME, mouse, touch and pen, and gamepads
-  with rumble;
-- the clipboard, drag and drop, file dialogs and other platform
-  services;
-- the native handles a GPU layer needs to create a surface, and nothing
-  of the GPU itself.
+A game or an editor needs the same things from every platform: a window that tells the truth about its size and scale, input that never leaves a key stuck, text from the user's input method, gamepads by where their buttons are, a clipboard, files dropped on it, a file dialog, and the handles to put a GPU surface on. Each platform answers differently, some at once and some much later, some on the program's thread and some only from inside a loop of their own.
 
-Every change to a window is a request answered by exactly one
-completion; events arrive in one ordered stream that the program
-drains; no library thread runs, and no callback delivers an event.
+Maul Window gives one contract over all of them:
 
-[The guide](docs/guide.md) walks through each part, and
-[the API reference](docs/api.md) lists all 104 public functions,
-generated from the headers.
+- **Windows** with their modes, styles, owned windows and popups, custom chrome with the platform's own moving, resizing and snap layouts, monitors with their scale, refresh rate and HDR facts, and native handles for a GPU layer.
+- **Input:** keys by physical position and by meaning, text and input method compositions, the on-screen keyboard, mouse, touch and pens, system and custom cursors, pointer capture, and which shortcuts the platform keeps.
+- **Gamepads** mapped by place through the platform or SDL_GameControllerDB, or raw, with rumble, trigger rumble and motion sensors.
+- **Services:** the clipboard (text, data by MIME type, the primary selection), drag and drop, file dialogs, message boxes, opening addresses, revealing files, keeping the display awake, the user's theme, accent, motion, text scale, power and languages, and hooks for accessibility adapters.
 
-## Status
+Every change to a window is a request answered by exactly one completion, everything arrives in one ordered stream the program drains each frame, no library thread runs and no callback delivers an event. Memory is fixed when the context is created, and everything other programs hand over is validated. A headless test backend lets a program test its window logic on any machine.
 
-0.13.0 is the current release. It has the whole contract on seven
-backends, Win32, macOS, iOS, Android, Wayland, X11 and the web (with
-Emscripten or as plain wasm32-wasi), and a headless test backend:
-
-1. Windows, their modes and styles, monitors with their scale, refresh
-   rate and HDR facts, and the platform's loop, owned by the program or
-   by the platform.
-2. The keyboard, text input and input methods (IBus and Fcitx 5 on
-   X11), the keys the platform keeps, the mouse, touch and pen, the
-   on-screen keyboard, cursors (the system's shapes or the program's
-   images) and pointer capture.
-3. Gamepads with rumble, and trigger rumble and motion where the pad
-   has them, mapped by SDL_GameControllerDB: Xbox pads through
-   Windows.Gaming.Input (XInput before Windows 10) and generic HID pads
-   on Windows, GameController on macOS and iOS, Android's input
-   devices, evdev on Linux, the Gamepad API on the web.
-4. The clipboard (text, data by MIME type, and the primary selection
-   on X11 and Wayland), drag and drop, file dialogs, message boxes,
-   opening addresses, revealing files and keeping the display awake.
-5. Owned windows, popups and custom chrome, and the hooks for
-   accessibility adapters (on the web, a host for ARIA elements that
-   keeps the window's focus and keys under a screen reader).
-6. System facts (theme, accent, motion, text scale, power) and the
-   preferred locales.
-7. A misuse count per context, and every size taken from a count
-   checked before it is allocated.
-
-## Building
-
-Requirements: CMake 3.25 and GCC 14 or Clang 19 or newer; on Windows,
-`clang-cl` (the Visual Studio component "C++ Clang tools for Windows");
-on macOS, Xcode 16's Apple Clang and SDK, the backend running on
-macOS 11 or newer (the display link needs macOS 14, a timer driving the
-frames before it); for iOS, the same Xcode, the backend running on
-iOS 15 or newer, and a program whose Info.plist has a
-`UIApplicationSceneManifest` (see the guide, section 11).
-`cmake/ios-simulator.cmake` builds for the iOS simulator, where the
-tests run on a booted device. For Android, the NDK r28 or newer, the
-backend running on Android 11 (API 30) or newer, and an application
-that carries the library's Java (`java/maul/window`) and names its
-activity, `maul.window.Activity`, in its manifest (see the guide,
-section 11). `cmake/android-emulator.cmake` builds for the emulator,
-where the tests run through adb.
-On Linux the Wayland backend also needs `wayland-scanner` and the
-development files of `wayland-client` 1.22, `wayland-protocols` 1.32
-and `xkbcommon` 1.0 (`libwayland-dev`, `wayland-protocols` and
-`libxkbcommon-dev` on Debian and Ubuntu), or
-`-DMAUL_WINDOW_WAYLAND=OFF`; the X11 backend needs the development
-files of `xcb`, `xcb-randr`, `xcb-xkb`, `xcb-cursor`, `xcb-render`,
-`xcb-xinput` and `xkbcommon-x11` (`libxcb1-dev`, `libxcb-randr0-dev`,
-`libxcb-xkb-dev`, `libxcb-cursor-dev`, `libxcb-render0-dev`,
-`libxcb-xinput-dev` and `libxkbcommon-x11-dev`), or
-`-DMAUL_WINDOW_X11=OFF`, and its tests `xcb-xtest` and `xcb-xfixes`
-(`libxcb-xtest0-dev` and `libxcb-xfixes0-dev`). For the web, Emscripten (`emcmake cmake`), or
-Clang's wasm32-wasi with wasi-libc
-(`-DCMAKE_TOOLCHAIN_FILE=cmake/wasm32-wasi.cmake`), whose build writes
-`maul-window.mjs` for the page (see the guide, section 11). The browser
-tests run in headless Chrome through puppeteer, found through
-`MWIN_NODE_MODULES`, and are skipped without it.
+## Quick start
 
 ```sh
+git clone https://github.com/Rawframe-Project/maul-window.git
+cd maul-window
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
-ctest --test-dir build
+./build/sample_window
 ```
 
-`samples/window.c` opens a window and prints what the platform says of
-it; F11 switches to fullscreen, T accepts text, Escape ends it.
+Install it with `cmake --install build --prefix <prefix>` and use it from CMake:
 
-## Design
+```cmake
+find_package(maul-window REQUIRED CONFIG)
+target_link_libraries(app PRIVATE maul-window::maul-window)
+```
 
-The rules every Maul library follows are in `docs/conventions.md` and
-`docs/adr/`; the records particular to this library are listed in
-`docs/adr/mwin.md`.
+or through pkg-config as `maul-window`. On Linux the build needs the Wayland and XCB development files, or `-DMAUL_WINDOW_WAYLAND=OFF` and `-DMAUL_WINDOW_X11=OFF`; [Getting started](docs/user/getting-started.md) lists them, with the build options and the model the API follows.
+
+## Platforms
+
+| Platform | Oldest supported | Built with |
+|---|---|---|
+| Windows | Windows 10 1703 | `clang-cl` |
+| macOS | macOS 11 | Xcode 16 |
+| iOS | iOS 15 | Xcode 16 |
+| Android | Android 11 (API 30) | NDK r28 |
+| Linux | Wayland and X11, chosen at run time | GCC 14 or Clang 19 |
+| The web | current browsers | Emscripten, or Clang's wasm32-wasi |
+
+CI builds and tests every platform: the desktops on their runners, iOS in the simulator, Android in the emulator, the web in headless Chrome. The public headers are C17 and C++17, so any C or C++ program can include them; the library itself is C23.
+
+## Documentation
+
+- [The documentation site](https://rawframe-project.github.io/maul-window/), with the API reference generated from the headers.
+- [User documentation](docs/README.md): one page per part of the library, and [what each platform asks of a program](docs/user/platforms.md).
+- [How it works](docs/internals/overview.md) and [how to develop it](docs/operations/development.md).
+- [Changelog](CHANGELOG.md).
+
+Maul Window belongs to the Maul family of standalone C libraries, which share one set of conventions; it depends on [Maul Unicode](https://github.com/Rawframe-Project/maul-unicode).
+
+## Contributing
+
+Issues are welcome. Pull requests are accepted for issues a maintainer has approved; see [CONTRIBUTING.md](https://github.com/Rawframe-Project/.github/blob/main/CONTRIBUTING.md). The project is developed with AI coding agents, directed and reviewed by its maintainers; outside contributions follow the [AI policy](https://github.com/Rawframe-Project/.github/blob/main/AI_POLICY.md).
 
 ## License
 
-MIT; see `LICENSE`.
+MIT; see [LICENSE](LICENSE). The gamepad mappings in `tools/gamepaddb/` are under the zlib license, Android's key layout in `tools/androidkeys/` under the Apache License 2.0, and the Wayland protocols in `protocols/` under their own MIT license.

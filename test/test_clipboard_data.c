@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The clipboard's data and the primary selection on the test backend
-// (mwin-0029): items refused at the call for a type that is not a MIME
+// The clipboard's data and the primary selection on the test backend:
+// items refused at the call for a type that is not a MIME
 // type, comes twice or is text that is not UTF-8, for no items or too
 // many, and past the limit in all; a write's data on the platform's
 // clipboard with its text item as the text; another program's data read

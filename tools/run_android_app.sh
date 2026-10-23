@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs a test application in the Android emulator (mwin-0026): installs
+# Runs a test application in the Android emulator: installs
 # it on the device ANDROID_SERIAL names (else the only one), starts its
 # activity, and waits, a minute at most, for the closing line its quit
 # writes to files/out, "result: N failures", read with run-as (the

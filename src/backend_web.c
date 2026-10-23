@@ -61,7 +61,7 @@ static uint64_t NowNs(void)
 }
 
 // The screen as a monitor, in device pixels. Its HDR facts are whether
-// it shows HDR (mwin-0036): the browser tells no luminance, so the
+// it shows HDR: the browser tells no luminance, so the
 // headroom of HDR output is unknown.
 static void ReadScreen(mwinWebPlatform* platform)
 {
@@ -118,7 +118,7 @@ static void StopLoop(mwinContext* context)
     emscripten_cancel_main_loop();
 }
 #else
-// The page's loop without Emscripten (mwin-0022): each animation frame
+// The page's loop without Emscripten: each animation frame
 // calls step with the context until it returns false, or until the loop
 // is stopped.
 typedef bool (*mwinWebStep)(mwinContext* context);

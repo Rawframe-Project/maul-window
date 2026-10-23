@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A test application (tools/build_android_app.sh, mwin-0026): the
+<!-- A test application (tools/build_android_app.sh): the
      library's activity running the test's native library. No
      configChanges: a rotation makes the activity anew. The accessibility
      client is enabled only by a test that asks the runner to. -->

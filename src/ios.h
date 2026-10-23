@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What the iOS backend keeps (mwin-0025): per window slot its scene, its
+// What the iOS backend keeps: per window slot its scene, its
 // UIWindow, the view controller and the library's view with its
 // CAMetalLayer, and what the program was told of it; per monitor slot
 // the screen shown there and what was last said of it; the scene waiting

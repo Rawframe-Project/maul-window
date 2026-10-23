@@ -7,7 +7,7 @@
 // The test ends by printing "mwin-test: exit <status>". Puppeteer comes
 // from MWIN_NODE_MODULES; without it the test is skipped (status 77).
 //
-// A test built without Emscripten (a module, mwin-0022) is a reactor: the
+// A test built without Emscripten (a module) is a reactor: the
 // page gives it a minimal WASI (standard output to the console, the
 // clocks, random bytes) and the imports written beside it
 // (<test>.mjs), then calls its main.

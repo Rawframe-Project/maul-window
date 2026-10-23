@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The Wayland backend's clipboard data and primary selection
-// (mwin-0029) against the test compositor of wayland_server.h: a data
+// against the test compositor of wayland_server.h: a data
 // write's source offers each MIME type beside the text types, serves
 // another client each item, a large one a piece at each pump, and closes
 // a type it lacks; a data read while the program owns the selection

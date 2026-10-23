@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What the Android backend keeps (mwin-0026): the activity the program
+// What the Android backend keeps: the activity the program
 // shows in, and the Java side reached through it; the activity's native
 // window and input queue; what drives the frames; whether the activity
 // is started and whether the program was told it stopped; and the one
@@ -45,7 +45,7 @@ typedef struct mwinAndroidWindow
     mwinInsets safeArea;
     mwinRect covered;
     // The cursor asked for: a shape, or a cursor made from images when
-    // cursorImage is live (mwin-0027).
+    // cursorImage is live.
     mwinCursorShape cursorShape;
     mwinCursorId cursorImage;
     // Whether the window was told its monitor.

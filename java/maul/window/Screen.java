@@ -12,7 +12,7 @@ import java.lang.reflect.Method;
 /**
  * The activity's display, the library's one monitor, as far as Android
  * tells it in Java only: its size, density, refresh rate and HDR facts
- * (mwin-0036). Called by the library on the main thread only.
+ *. Called by the library on the main thread only.
  */
 final class Screen {
     // Where the facts go in facts()'s answer.

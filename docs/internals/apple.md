@@ -1,0 +1,25 @@
+# Apple
+
+The macOS and iOS backends are Objective-C compiled with manual retain and release (`-fno-objc-arc`) at the library's C23 level, as Maul RHI's Metal driver is; only the backends' files are Objective-C and the core stays C. Each window's view is backed by a `CAMetalLayer`, which the native handles give for a GPU layer. What both share lives in the `apple_*` files: the preferred languages, the clipboard's types, the pads and their motors, and converting UTF-16 indexes to UTF-8 offsets for compositions.
+
+## macOS
+
+- **Oldest system:** macOS 11, the default deployment target, so the compiler refuses a later API used without an availability check. Later features are used where present: the screen's display link (14), Low Power Mode (12), the frame resize cursors (15).
+- **The loop:** `mwinRun` runs the application; frames come from a display link on macOS 14 and later, else a 60 Hz timer, both in the run loop's common modes so a live resize and an open menu keep frames coming. Code that spins the run loop inside a frame (a modal panel, an input method waiting on its server) would have the display link call a frame inside a frame, so a tick while the program's functions run is skipped. An application-defined event wakes the loop so a stop takes effect at once.
+- **Coordinates:** AppKit's bottom-up coordinates are turned so places run down from the primary screen's top left, as on every other platform; the view is flipped.
+- **Keys:** virtual key codes map to the contract's codes. On ISO keyboards macOS gives the key left of 1 and the key right of the left Shift each other's codes, which the backend turns back. macOS tells only that Caps Lock toggled, so each toggle posts a press and a release. AppKit keeps a key's release from the window while Command is held, so an event monitor of the application hands those releases on.
+- **Cursors:** confinement is unsupported: macOS can only warp a cursor back after it left, which shows and loses motion. A captured cursor is parted from the mouse and hidden while the window is key; its deltas are the events', which macOS has already accelerated.
+- **Pens** come as mouse events with the tablet subtype, turned into pen records and no mouse record. The upper side button, which tablet drivers give to their own commands, is left out.
+- **Chrome:** custom chrome is a titled window whose content fills the frame, its title bar clear and buttons hidden, so it keeps its shadow, edges and full screen. AppKit has no way to start a resize from inside the content, so an edge press is tracked by the backend from the events' places. A caption's double click does what the user set for title bars.
+- **Icons:** a macOS window has no icon, so an icon request sets the application's, the last request winning; none gives back the bundle's own.
+- **Owned windows** are child windows, which AppKit shows whenever their parent shows, so a window is made a child only while it shows.
+
+## iOS
+
+- **Oldest system:** iOS 15. Applications built with current SDKs must take the scene life cycle or stop at launch, so the library's application delegate gives every scene the library's scene delegate, and the program's Info.plist carries a scene manifest naming no class.
+- **The loop:** `mwinRun` leaves the context in the main thread's dictionary (the library keeps no global) and calls `UIApplicationMain`, which never returns. `init` runs when the first scene connects, so windows have a scene; frames come from a display link once a scene is in the foreground (a prewarmed scene runs none). A process without a bundle identifier cannot be an application, and UIKit would wait for it forever, so it is refused.
+- **Life cycle:** leaving the foreground with no other scene in it posts suspending and runs a frame at once, then suspended, and frames pause. Only resigning active (a notification, Control Center) keeps running: the program is still seen.
+- **Windows** are scenes' `UIWindow`s; a new window takes the scene that waits for one. More scenes on iPadOS are not served. The system sizes and places scenes, so size, place, mode and style requests are unsupported.
+- **Input:** a hardware keyboard's presses reach the view controller and are passed on to UIKit after posting. The view is a `UIKeyInput` client and the first responder while its window shows; the on-screen keyboard shows only while the program asks, since the view's input view is otherwise an empty view. Nothing is corrected, capitalized or completed. A mouse on an iPad comes as the cursor only where the program's Info.plist asks for indirect input events.
+- **Clipboard and services:** reading another application's pasteboard may ask the user, and the read waits; a refusal reads as no text. The message box runs the main run loop until answered, which needs a scene in the foreground, so it fails during `init`. There is no file manager: revealing is unsupported.
+- **Drops and dialogs** copy documents into the application's temporary folder or receive the picker's copies ([Clipboard and drops](clipboard-and-drops.md#drops), [Services](services.md#file-dialogs)).

@@ -724,12 +724,14 @@ static void TestRunAndMemory(void)
     mwinAppDef app = mwinDefaultAppDef();
     CHECK(app.version == MWIN_ABI_VERSION, "the default carries the headers' version");
     CHECK(mwinRun(&app) == mwin_errorInvalid, "an app without functions");
-    // A def built for another minor or major is refused before anything
-    // else of it is read, functions or none.
+    // A def built for another release is refused before anything else of
+    // it is read, functions or none.
     app.version = MWIN_ABI_VERSION + 1;
-    CHECK(mwinRun(&app) == mwin_errorVersion, "a def of a later minor");
+    CHECK(mwinRun(&app) == mwin_errorVersion, "a def of a later release");
     app.version = MWIN_ABI_VERSION ^ (1u << 16);
     CHECK(mwinRun(&app) == mwin_errorVersion, "a def of another major");
+    app.version = 0;
+    CHECK(mwinRun(&app) == mwin_errorVersion, "a def whose version was left zero");
     app.version = MWIN_ABI_VERSION;
     app.init = Init;
     app.frame = Frame;

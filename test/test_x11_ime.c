@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The X11 backend's input methods (mwin-0030) against stand-ins for Fcitx 5
+// The X11 backend's input methods against stand-ins for Fcitx 5
 // and IBus on a session bus of the test's own (linux_ime_fake.h), keys
 // driven through XTEST: text input enabled makes an input context and
 // gives it the focus and the caret in root coordinates, and a caret

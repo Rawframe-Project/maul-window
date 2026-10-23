@@ -68,7 +68,7 @@ static xcb_randr_get_output_property_reply_t* PropertyOf(const mwinX11Platform* 
 }
 
 // What an output says: HDR off, as X11 never shows it, with the
-// luminances its EDID gives (mwin-0036); whether its driver can vary its
+// luminances its EDID gives; whether its driver can vary its
 // refresh.
 // A mode's refresh rate in millihertz, 0 where it tells no timing: an
 // interlaced mode shows two fields a frame, a double-scanned one each

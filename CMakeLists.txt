@@ -7,7 +7,7 @@ set(MAUL_MACRO_PREFIX MWIN)
 set(MAUL_TITLE "Maul Window")
 set(MAUL_PREFIX MAUL_WINDOW)
 
-# The oldest macOS the backend runs on (mwin-0024), unless the build or
+# The oldest macOS the backend runs on, unless the build or
 # the project including the library asks for another; the compiler then
 # refuses a later API used without a check. A toolchain file says its
 # own (the iOS simulator's, cmake/ios-simulator.cmake, iOS 15).
@@ -64,7 +64,7 @@ else()
     set(MAUL_WINDOW_ANDROID_DEFAULT OFF)
 endif()
 option(MAUL_WINDOW_ANDROID "Build the Android backend" ${MAUL_WINDOW_ANDROID_DEFAULT})
-# The web: Emscripten's, or a plain WebAssembly toolchain's (mwin-0022).
+# The web: Emscripten's, or a plain WebAssembly toolchain's.
 if(EMSCRIPTEN OR CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set(MAUL_WINDOW_WEB_DEFAULT ON)
 else()
@@ -200,8 +200,50 @@ set(MAUL_PKG_REQUIRES_PRIVATE "maul-unicode >= ${MAUL_WINDOW_UNICODE_VERSION}")
 
 if(MAUL_WINDOW_BUILD_TESTS)
     enable_testing()
+    # The Linux backends' tests reach a display server of the build's own:
+    # an Xvfb, and a headless weston with the Wayland backend, which the
+    # display fixture starts before them and stops after
+    # (tools/test_display.sh). The display number comes from the build
+    # directory, so two build trees never share one; the stand-in
+    # compositors put their sockets in the same runtime directory.
+    if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
+        set(MWIN_TEST_RUNTIME ${PROJECT_BINARY_DIR}/rt)
+        file(MAKE_DIRECTORY ${MWIN_TEST_RUNTIME})
+        file(CHMOD ${MWIN_TEST_RUNTIME} DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
+        string(SHA1 hash ${PROJECT_BINARY_DIR})
+        string(SUBSTRING ${hash} 0 3 hash)
+        math(EXPR MWIN_TEST_DISPLAY "200 + 0x${hash} % 400")
+        set(compositor "")
+        if(MAUL_WINDOW_WAYLAND)
+            set(compositor wayland)
+        endif()
+        add_test(NAME display_start COMMAND ${PROJECT_SOURCE_DIR}/tools/test_display.sh start
+                 ${MWIN_TEST_RUNTIME} ${MWIN_TEST_DISPLAY} ${compositor})
+        add_test(NAME display_stop COMMAND ${PROJECT_SOURCE_DIR}/tools/test_display.sh stop
+                 ${MWIN_TEST_RUNTIME})
+        set_tests_properties(display_start PROPERTIES FIXTURES_SETUP display LABELS integration)
+        set_tests_properties(display_stop PROPERTIES FIXTURES_CLEANUP display LABELS integration)
+    endif()
+    # mwin_display_tests(<tests>): tests that need the display fixture. Both
+    # buses are named where none listens, so no test reaches the machine's
+    # own; the tests that need a bus start one of their own.
+    function(mwin_display_tests)
+        set_property(TEST ${ARGN} APPEND PROPERTY FIXTURES_REQUIRED display)
+        set_property(TEST ${ARGN} APPEND PROPERTY ENVIRONMENT DISPLAY=:${MWIN_TEST_DISPLAY}
+                     XDG_RUNTIME_DIR=${MWIN_TEST_RUNTIME} WAYLAND_DISPLAY=wayland-mwin
+                     DBUS_SESSION_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus
+                     DBUS_SYSTEM_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus)
+        set_property(TEST ${ARGN} APPEND PROPERTY LABELS integration)
+    endfunction()
+    # mwin_integration_tests(<tests>): tests that drive a real window
+    # system, device, simulator or browser. They stay out of the
+    # changed-files check (tools/check.sh changed).
+    function(mwin_integration_tests)
+        set_property(TEST ${ARGN} APPEND PROPERTY LABELS integration)
+    endfunction()
     maul_add_test(base)
-    # The guide's opening program, built only (family record 0019).
+    # The guide's opening program, built only, since it waits for its user
+    # to close the window.
     maul_add_test(guide_hello MANUAL)
     if(MAUL_WINDOW_TEST_BACKEND)
         maul_add_test(window)
@@ -251,10 +293,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
         endif()
     endif()
     if(MAUL_WINDOW_WAYLAND)
-        # Needs a compositor: skipped without WAYLAND_DISPLAY.
+        # Against the display fixture's weston.
         maul_add_test(wayland POSIX)
         target_compile_definitions(test_wayland PRIVATE _POSIX_C_SOURCE=200809L)
         set_tests_properties(wayland PROPERTIES SKIP_RETURN_CODE 77)
+        mwin_display_tests(wayland)
         mwin_add_wayland_server_test(wayland_input)
         mwin_add_wayland_server_test(wayland_clipboard)
         mwin_add_wayland_server_test(wayland_clipboard_data)
@@ -278,7 +321,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         endif()
     endif()
     if(MAUL_WINDOW_X11)
-        # Needs an X server: skipped without DISPLAY.
+        # Against the display fixture's Xvfb.
         maul_add_test(x11 POSIX)
         target_compile_definitions(test_x11 PRIVATE _POSIX_C_SOURCE=200809L)
         set_tests_properties(x11 PROPERTIES SKIP_RETURN_CODE 77)
@@ -358,6 +401,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
                              x11_drop x11_owned x11_chrome x11_monitor x11_monitor_facts PROPERTIES
                              SKIP_RETURN_CODE 77
                              RESOURCE_LOCK x11-focus)
+        mwin_display_tests(x11 x11_input x11_message_box x11_clipboard x11_clipboard_data
+                           x11_clipboard_limits x11_clipboard_readers x11_hints x11_icon x11_drop
+                           x11_owned x11_chrome x11_monitor x11_monitor_facts)
     endif()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         # Stand-ins for zenity and kdialog on PATH.
@@ -400,47 +446,52 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(linux_power POSIX)
         target_compile_definitions(test_linux_power PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_linux_power PRIVATE ${CMAKE_DL_LIBS})
-        # Input methods through Fcitx 5 and IBus of the test's own (mwin-0030).
+        # Input methods through Fcitx 5 and IBus of the test's own.
         maul_add_test(x11_ime POSIX)
         target_compile_definitions(test_x11_ime PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_ime PRIVATE ${CMAKE_DL_LIBS} PkgConfig::MWIN_TEST_XCB)
         set(MWIN_BUS_TESTS linux_services linux_awake linux_dialog linux_settings linux_power
             x11_ime)
         set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES SKIP_RETURN_CODE 77)
+        mwin_display_tests(${MWIN_BUS_TESTS})
         # It moves the X server's focus, as the X11 tests do.
         set_tests_properties(x11_ime PROPERTIES RESOURCE_LOCK x11-focus)
         if(MAUL_WINDOW_TSAN)
-            set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES
+            set_property(TEST ${MWIN_BUS_TESTS} APPEND PROPERTY
                 ENVIRONMENT "TSAN_OPTIONS=suppressions=${PROJECT_SOURCE_DIR}/test/tsan.supp")
         endif()
     endif()
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Numbered controls through their mapping.
         maul_add_test(pad_map WHITEBOX)
-        # Makes virtual gamepads through uinput: skipped without it or a
-        # display.
+        # Makes virtual gamepads through /dev/uinput, labeled uinput: a
+        # container without the device leaves them out.
         maul_add_test(linux_gamepad POSIX)
         target_compile_definitions(test_linux_gamepad PRIVATE _GNU_SOURCE)
         set_tests_properties(linux_gamepad PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK uinput)
+        set(pads linux_gamepad)
         # Where both backends are built, the X11 one too, Wayland's
         # display hidden; the pads of one run would be the other's.
         if(MAUL_WINDOW_WAYLAND AND MAUL_WINDOW_X11)
             add_test(NAME linux_gamepad_x11 COMMAND test_linux_gamepad)
             set_tests_properties(linux_gamepad_x11 PROPERTIES SKIP_RETURN_CODE 77
                                  ENVIRONMENT_MODIFICATION "WAYLAND_DISPLAY=unset:"
-                                 RESOURCE_LOCK uinput)
+                                 LABELS linux_gamepad RESOURCE_LOCK uinput)
+            list(APPEND pads linux_gamepad_x11)
         endif()
+        mwin_display_tests(${pads})
+        set_property(TEST ${pads} APPEND PROPERTY LABELS uinput)
     endif()
     if(MAUL_WINDOW_WEB)
         # Runs in headless Chrome through puppeteer, which the runner
         # finds through MWIN_NODE_MODULES: skipped without it. Without
         # Emscripten a test is a reactor whose main the runner calls, with
-        # its imports beside it (mwin-0022).
+        # its imports beside it.
         function(mwin_add_web_test name)
             maul_add_test(${name} MANUAL WHITEBOX)
             add_test(NAME ${name} COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                      $<TARGET_FILE:test_${name}>)
-            set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77)
+            set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77 LABELS "${name};integration")
             if(NOT EMSCRIPTEN)
                 target_link_options(test_${name} PRIVATE -mexec-model=reactor -Wl,--stack-first -Wl,--export-table
                                     -Wl,--export=main)
@@ -483,13 +534,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
                                   OBJC_STANDARD_REQUIRED ON OBJC_EXTENSIONS OFF)
             target_compile_options(test_${name} PRIVATE -fno-objc-arc)
             add_test(NAME ${name} COMMAND test_${name})
+            set_tests_properties(${name} PROPERTIES LABELS ${name})
         endforeach()
-        set_tests_properties(macos macos_input macos_ime macos_pen macos_services macos_drop
-                             macos_dialog macos_system macos_owned macos_chrome macos_access
-                             PROPERTIES TIMEOUT 60)
+        set(MWIN_MACOS_TESTS macos macos_input macos_ime macos_pen macos_services macos_drop
+            macos_dialog macos_system macos_owned macos_chrome macos_access)
         if(MAUL_WINDOW_GAMEPAD)
-            set_tests_properties(macos_gamepad PROPERTIES TIMEOUT 60)
+            list(APPEND MWIN_MACOS_TESTS macos_gamepad)
         endif()
+        set_tests_properties(${MWIN_MACOS_TESTS} PROPERTIES TIMEOUT 60)
+        mwin_integration_tests(${MWIN_MACOS_TESTS})
     endif()
     if(MAUL_WINDOW_ANDROID AND DEFINED ENV{ANDROID_HOME})
         # Applications in the emulator, built by tools/build_android_app.sh
@@ -519,7 +572,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
             add_custom_target(test_${name}_apk ALL DEPENDS ${PROJECT_BINARY_DIR}/test_${name}.apk)
             add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_android_app.sh
                      ${PROJECT_BINARY_DIR}/test_${name}.apk ${package})
-            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator)
+            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator
+                                 LABELS "${name};integration")
         endforeach()
     endif()
     if(MAUL_WINDOW_IOS)
@@ -546,7 +600,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
             target_compile_options(test_${name} PRIVATE -fno-objc-arc)
             add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
                      $<TARGET_BUNDLE_DIR:test_${name}>)
-            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator)
+            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
+                                 LABELS "${name};integration")
         endforeach()
         if(MAUL_WINDOW_GAMEPAD)
             target_link_libraries(test_ios_gamepad PRIVATE "-framework GameController")
@@ -629,6 +684,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
                              win32_chrome win32_touch_keyboard win32_message_box
                              win32_window_props
                              PROPERTIES RESOURCE_LOCK desktop)
+        mwin_integration_tests(win32 win32_input win32_pointer win32_ime win32_system
+                               win32_clipboard win32_services win32_dialog win32_owned
+                               win32_chrome win32_message_box win32_window_props win32_icon
+                               win32_class_icon win32_accessibility)
     endif()
     maul_add_header_tests()
 endif()

@@ -1,6 +1,6 @@
 # SDL_GameControllerDB
 
-The gamepad mappings the generator compiles (docs/adr/mwin-0009, W5),
+The gamepad mappings `tools/gen_gamepad_db.py` compiles,
 exactly as published in `https://github.com/mdqinc/SDL_GameControllerDB`
 at commit `c6d6e7ecca57ff106ef63350da3cc03728d88a5f` (2026-09-24).
 They are covered by the zlib license in `LICENSE`, Copyright (C)

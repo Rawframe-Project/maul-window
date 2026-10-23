@@ -25,7 +25,7 @@ import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
 /**
- * The activity of a Maul Window program on Android (mwin-0026). The
+ * The activity of a Maul Window program on Android. The
  * platform's NativeActivity hands the library its window's surface and
  * input queue; this class adds what the library's C cannot do itself:
  * a view that input methods type into, the window drawn behind the

@@ -53,7 +53,7 @@ typedef struct Program
     bool suspended;
     bool resumed;
     // Whether a frame saw the large document's copy part done (the
-    // copies' place, mwin-0026: the cache's maul-documents, a folder per
+    // copies' place: the cache's maul-documents, a folder per
     // copying dialog and per document; this is the first).
     bool partial;
     // The activity, kept while it shows: the window's handles have none

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The pen on Wayland (mwin-0037), against the test compositor of
+// The pen on Wayland, against the test compositor of
 // wayland_server.h with the tablet of wayland_tablet_server.h: a pen
 // coming near the window moves, hovering without pressure, tilted, with
 // the window's cursor shape set for it; it presses down with half the

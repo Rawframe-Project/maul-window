@@ -68,7 +68,7 @@ static mwinMonitorInfo InfoOf(UIScreen* screen, bool primary, CGFloat left)
     info.scale = (float)scale;
     info.refreshMilliHz = (uint32_t)screen.maximumFramesPerSecond * 1000u;
     info.variableRefresh = screen.maximumFramesPerSecond > 60;
-    // Extended dynamic range as on macOS (mwin-0036), from iOS 16.
+    // Extended dynamic range as on macOS, from iOS 16.
     if (@available(iOS 16.0, *))
     {
         CGFloat potential = screen.potentialEDRHeadroom;

@@ -221,10 +221,10 @@ jobs:
   # an unchanged build restores its own corpus exactly. A target whose build
   # changed restores its latest corpus of an earlier build: a corpus is only
   # inputs, which stay valid against a new binary. After the run the
-  # fuzzer's merge re-scores the corpus over the seeds and drops what adds
-  # no coverage, and it is saved for the next night. The summary compares the seeds' coverage with
-  # the corpus's, and the corpus is uploaded, to pick inputs worth committing
-  # as seeds.
+  # fuzzer's merge minimizes the seeds and the corpus together against this
+  # binary, and the result is saved for the next night. The summary compares
+  # the seeds' coverage with the corpus's, and the corpus is uploaded, to
+  # pick inputs worth committing as seeds.
   fuzz-nightly:
     needs: fuzz-targets
     strategy:
@@ -276,7 +276,8 @@ jobs:
         run: |
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
-          # The seeds go first, so the corpus adds only what they miss.
+          # Minimized together: the files of the seeds and the corpus that
+          # keep every feature either reaches, seeds among them.
           mkdir -p out/merged
           "out/fuzz/$TARGET" -merge=1 out/merged "${seeds[@]}" "out/corpus/$TARGET"
           rm -rf "out/corpus/$TARGET"

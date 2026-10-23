@@ -3,6 +3,6 @@
   "private": true,
   "description": "The headless browser test/web_runner.cjs drives, installed with npm ci.",
   "dependencies": {
-    "puppeteer": "25.13.0"
+    "puppeteer": "25.14.0"
   }
 }

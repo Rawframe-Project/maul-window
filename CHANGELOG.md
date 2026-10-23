@@ -5,6 +5,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.0.1](https://github.com/Rawframe-Project/maul-window/compare/v0.0.1...v0.0.1) (2026-10-23)
+
+
+### Chores
+
+* move maul-window to the organization standard ([#3](https://github.com/Rawframe-Project/maul-window/issues/3)) ([bb5e368](https://github.com/Rawframe-Project/maul-window/commit/bb5e3683f863e599d06cc1dc8f93b78ba1df67aa)), closes [#2](https://github.com/Rawframe-Project/maul-window/issues/2)
+
 ## 0.0.1
 
 The first release: windows, input, gamepads and platform services

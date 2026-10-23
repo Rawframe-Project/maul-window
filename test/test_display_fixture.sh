@@ -31,8 +31,14 @@ StartTime() {
     echo "$stat" | cut -d ' ' -f 20
 }
 
+# Whether a process runs: a zombie does not. A container whose first
+# process reaps no orphans, as CI's job containers, keeps a stopped
+# server a zombie.
 Alive() {
-    kill -0 "$1" 2>/dev/null
+    local stat
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    stat=${stat##*) }
+    [ "${stat%% *}" != Z ]
 }
 
 # Plants the two processes in the record.

@@ -15,7 +15,9 @@
 // - fullscreen and maximized states together are fullscreen;
 // - a maximize still waiting for its configure, superseded by a
 //   minimize, is answered once: a clipboard read that takes its slot
-//   is answered by its pipe, not by the next configure.
+//   is answered by its pipe, not by the next configure. Reads of the
+//   offered text go first until one finds it, so the client has heard
+//   of the offer.
 // Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -24,6 +26,7 @@
 #include "maul-window/clipboard.h"
 #include "maul-window/event.h"
 
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -64,6 +67,10 @@ typedef struct Program
     mwinRequestId request;
     mwinRequestId minimize;
     mwinRequestId read;
+    // A read that tells whether the client heard of the offer, and when
+    // the offer was made.
+    mwinRequestId probe;
+    uint64_t offeredNs;
     mwinEvent records[MAX_RECORDS];
     int count;
     bool timedOut;
@@ -160,8 +167,9 @@ static bool Ready(const Program* program)
     case phaseSuperseded:
         return CountCompletions(program) >= 2 && Find(program, mwin_eventModeChanged) != nullptr;
     case phaseStillMinimized:
-    case phaseOffered:
         return NowNs() - program->startNs >= SETTLE_NS;
+    case phaseOffered:
+        return OutcomeOf(program, program->probe) >= 0;
     case phaseAskMaximized:
         return ServerShell(program->server).maximizes >= 2;
     case phaseMaximized:
@@ -169,6 +177,12 @@ static bool Ready(const Program* program)
     default:
         return false;
     }
+}
+
+static void Probe(Program* program, mwinContext* context)
+{
+    CHECK(mwinRequestClipboardRead(context, program->window, &program->probe) == mwin_success,
+          "a read of the offer asked for");
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -254,8 +268,20 @@ static void Advance(Program* program, mwinContext* context)
               "the maximize superseded, the minimize done");
         // Another client's selection, which the client hears of first.
         DataOffer(program->data, "paste", 5);
+        program->offeredNs = NowNs();
+        Probe(program, context);
         break;
     case phaseOffered:
+        CHECK(OutcomeOf(program, program->probe) == mwin_outcomeDone, "a read of the offer");
+        if (!Found(context, program->probe, "paste", 5) &&
+            NowNs() - program->offeredNs < DEADLINE_NS)
+        {
+            // Read as empty: the offer has not reached the client yet.
+            Probe(program, context);
+            program->phase = phaseSuperseded;
+            break;
+        }
+        CHECK(Found(context, program->probe, "paste", 5), "the client hears of the offer");
         // The read takes the lowest free slot, the maximize's, and waits
         // for its pipe; the configure comes before any of its bytes.
         CHECK(mwinRequestClipboardRead(context, program->window, &program->read) == mwin_success &&
@@ -321,6 +347,9 @@ int main(void)
         return 77;
     }
     DataStart(&data, &server);
+    // The data server writes as another client would: a read the program
+    // dropped costs that writer EPIPE, and the checks say what went wrong.
+    (void)signal(SIGPIPE, SIG_IGN);
     static Program program;
     program = (Program){.server = &server, .data = &data};
     mwinAppDef def = mwinDefaultAppDef();

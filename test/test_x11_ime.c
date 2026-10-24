@@ -12,7 +12,9 @@
 // method has not answered when its window goes reaches no window made
 // in its slot by the answer's deadline (a fuzz finding); and a key the
 // method is not asked about, pressed while it holds others, comes after
-// them. It runs once with XMODIFIERS naming Fcitx and once naming IBus.
+// them, in a try that reached that path (B's answer is due 100 ms after
+// it is asked, so a slow run tries again, up to ORDER_TRIES times). It
+// runs once with XMODIFIERS naming Fcitx and once naming IBus.
 // Skipped (exit status 77) without DISPLAY, dbus-daemon or libdbus-1; a
 // bus that cannot start fails it.
 
@@ -35,6 +37,8 @@
 
 #define DEADLINE_NS 5000000000ull
 #define MAX_RECORDS 256
+// Tries at pressing C before B's answer is due.
+#define ORDER_TRIES 5
 // X11 key codes on a US layout: evdev codes plus 8.
 #define KEYCODE_A      38
 #define KEYCODE_B      56
@@ -73,6 +77,9 @@ typedef struct Program
     uint64_t startNs;
     mwinWindowId window;
     mwinEvent records[MAX_RECORDS];
+    // The frame each record was read in.
+    int frames[MAX_RECORDS];
+    int frame;
     int count;
     char text[64];
     uint32_t textLength;
@@ -88,8 +95,10 @@ typedef struct Program
     int focusIns;
     mwinWindowId gone;
     uint64_t madeNs;
-    // The keys the method held before the key that waits behind them.
+    // The keys the method held before the key that waits behind them,
+    // and the tries at C waiting behind B so far.
     int held;
+    int tries;
     bool timedOut;
 } Program;
 
@@ -139,6 +148,7 @@ static void Collect(Program* program, mwinContext* context)
                                  ? event.data.preedit.segments[0].style
                                  : mwin_preeditPlain;
         }
+        program->frames[program->count] = program->frame;
         program->records[program->count++] = event;
     }
 }
@@ -250,6 +260,14 @@ static bool Ready(const Program* program, const mwinContext* context)
     }
 }
 
+// Text input asked for in the window, the method's focus counted first.
+static void AskForText(Program* program, mwinContext* context)
+{
+    program->focusIns = s_fakeIme.focusIns;
+    CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) == mwin_success,
+          "text input asked for in the new window");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
     bool fcitx = program->framework == 1;
@@ -351,10 +369,7 @@ static void Advance(Program* program, mwinContext* context)
               "the new window focused");
         break;
     case phaseOrderFocus:
-        program->focusIns = s_fakeIme.focusIns;
-        CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
-                  mwin_success,
-              "text input asked for in the new window");
+        AskForText(program, context);
         break;
     case phaseOrderText:
         // The method, still holding, is asked about B and answers late.
@@ -371,9 +386,24 @@ static void Advance(Program* program, mwinContext* context)
         Press(program, KEYCODE_C);
         break;
     default:
-        CHECK(KeyAt(program, mwin_codeKeyB, true) < KeyAt(program, mwin_codeKeyC, false),
-              "a key the method is not asked about comes after the keys held before it");
+    {
+        int b = KeyAt(program, mwin_codeKeyB, true);
+        int c = KeyAt(program, mwin_codeKeyC, false);
+        CHECK(b < c, "a key the method is not asked about comes after the keys held before it");
+        // The pump reads the X server's events before the method's
+        // answers: C read in the frame that let B go waited behind it;
+        // in a later one, B's answer was due before C came.
+        program->tries += 1;
+        if (program->frames[b] != program->frames[c] && program->tries < ORDER_TRIES)
+        {
+            AskForText(program, context);
+            program->phase = phaseOrderFocus;
+            break;
+        }
+        CHECK(program->frames[b] == program->frames[c],
+              "C waited behind B in one of the tries (B's answer is due 100 ms after it)");
         break;
+    }
     }
     program->phase += 1;
     program->startNs = NowNs();
@@ -390,6 +420,7 @@ static mwinResult Init(mwinContext* context, void* user)
 static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
+    program->frame += 1;
     FakePump(program->bus);
     Collect(program, context);
     if (Ready(program, context))

@@ -20,13 +20,27 @@ Every change to a window is a request answered by exactly one completion, everyt
 
 ## Quick start
 
+It builds with CMake 3.25 or newer and GCC 14 or newer, Clang 19 or newer, or Apple Clang. On Linux and macOS:
+
 ```sh
 git clone https://github.com/Rawframe-Project/maul-window.git
 cd maul-window
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
+ctest --test-dir build
 ./build/sample_window
 ```
+
+Ubuntu 24.04's default compiler is GCC 13, which the build refuses ("GCC 14 or newer is required"). Install GCC 14, the development files of the Wayland and X11 backends, and the Xvfb and weston servers that `ctest --test-dir build` runs against, and configure again in a fresh build directory, since `build/` keeps the compiler it first found; then go on from `cmake --build build`:
+
+```sh
+sudo apt install gcc-14 pkg-config libwayland-dev wayland-protocols libxkbcommon-dev \
+    libxkbcommon-x11-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
+    libxcb-render0-dev libxcb-xinput-dev libxcb-xtest0-dev libxcb-xfixes0-dev xvfb weston
+rm -rf build && CC=gcc-14 cmake -B build -DCMAKE_BUILD_TYPE=Release
+```
+
+On Windows the library builds with `clang-cl`, and on the web with Emscripten or Clang's wasm32-wasi; [Getting started](docs/user/getting-started.md#requirements) lists what each needs.
 
 Install it with `cmake --install build --prefix <prefix>` and use it from CMake:
 

@@ -85,6 +85,14 @@ static void Touches(MwinIOSView* view, NSSet<UITouch*>* touches, UIEvent* event,
     }
 }
 
+- (void)mwinPencilHover:(UIHoverGestureRecognizer*)hover
+{
+    if (platform != nullptr)
+    {
+        mwinIOSPencilHover(platform, slot, hover);
+    }
+}
+
 - (void)mwinScroll:(UIPanGestureRecognizer*)pan
 {
     if (platform != nullptr)
@@ -197,6 +205,14 @@ UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame
     hover.cancelsTouchesInView = NO;
     [view addGestureRecognizer:hover];
     [hover release];
+    // The Pencil above the screen, on a recognizer of its own so that its
+    // records are pens.
+    UIHoverGestureRecognizer* pencil =
+        [[UIHoverGestureRecognizer alloc] initWithTarget:view action:@selector(mwinPencilHover:)];
+    pencil.allowedTouchTypes = @[ @(UITouchTypePencil) ];
+    pencil.cancelsTouchesInView = NO;
+    [view addGestureRecognizer:pencil];
+    [pencil release];
     UIPanGestureRecognizer* pan =
         [[UIPanGestureRecognizer alloc] initWithTarget:view action:@selector(mwinScroll:)];
     pan.allowedScrollTypesMask = UIScrollTypeMaskAll;

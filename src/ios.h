@@ -168,6 +168,7 @@ mwinModifiers mwinIOSModifiersOf(UIKeyModifierFlags flags);
 void mwinIOSTouches(mwinIOSPlatform* platform, uint32_t slot, NSSet<UITouch*>* touches,
                     UIEvent* event, mwinIOSTouchPhase phase);
 void mwinIOSHover(mwinIOSPlatform* platform, uint32_t slot, UIHoverGestureRecognizer* hover);
+void mwinIOSPencilHover(mwinIOSPlatform* platform, uint32_t slot, UIHoverGestureRecognizer* hover);
 void mwinIOSScroll(mwinIOSPlatform* platform, uint32_t slot, UIPanGestureRecognizer* pan);
 
 // Keys, text and the on-screen keyboard (ios_keys.m): a hardware

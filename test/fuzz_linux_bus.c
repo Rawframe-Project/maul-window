@@ -26,8 +26,9 @@
 // every request completes exactly once, and a dialog's paths are
 // absolute UTF-8 within the limits; committed text and compositions are
 // UTF-8, a composition's caret, selection and segments within its text
-// on character boundaries; and the facts the program reads are in range,
-// the text scale finite and above zero.
+// on character boundaries; the facts the program reads are in range,
+// the text scale finite and above zero; and a key goes only to the
+// window it was offered for.
 
 #include "linux_dialog.h"
 #include "linux_ime.h"
@@ -160,6 +161,16 @@ static struct
     uint32_t completions;
 } s_requests[TRACKED];
 static uint32_t s_made;
+
+// The windows of a run, by id: the keys offered for each, and the key
+// records the program read for it.
+static struct
+{
+    mwinWindowId id;
+    uint32_t offered;
+    uint32_t seen;
+} s_keyed[TRACKED];
+static uint32_t s_keyedCount;
 
 static Call* CallOf(DBusPendingCall* pending)
 {
@@ -890,6 +901,20 @@ static void Dialog(mwinContext* context, mwinWindowId window, uint8_t op)
     }
 }
 
+static uint32_t Keyed(mwinWindowId window)
+{
+    for (uint32_t i = 0; i < s_keyedCount; i++)
+    {
+        if (memcmp(&s_keyed[i].id, &window, sizeof(window)) == 0)
+        {
+            return i;
+        }
+    }
+    Expect(s_keyedCount < TRACKED);
+    s_keyed[s_keyedCount] = (typeof(s_keyed[0])){window, 0, 0};
+    return s_keyedCount++;
+}
+
 static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
 {
     static const char* const texts[] = {"a", "\xC3\xA9", "", "\xF0\x9F\x98\x80"};
@@ -899,6 +924,7 @@ static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
     key.data.key.code = (mwinKeyCode)(1 + (op >> 5));
     const char* text = key.type == mwin_eventKeyDown ? texts[Byte() & 3] : "";
     uint32_t keycode = 8u + (op >> 5);
+    s_keyed[Keyed(window)].offered++;
     uint32_t slot = window.index1 - 1;
     if (!mwinImeOffer(&s_ime, slot, 'a', keycode, 0, &key, text, (uint32_t)strlen(text),
                       mwinMonotonicNow()))
@@ -996,6 +1022,14 @@ static void Drain(mwinContext* context)
         case mwin_eventPowerChanged:
             CheckFacts(context);
             break;
+        case mwin_eventKeyDown:
+        case mwin_eventKeyUp:
+        {
+            uint32_t i = Keyed(event.window);
+            s_keyed[i].seen++;
+            Expect(s_keyed[i].seen <= s_keyed[i].offered);
+            break;
+        }
         case mwin_eventRequestCompleted:
         {
             const mwinCompletion* completion = &event.data.completion;
@@ -1044,6 +1078,7 @@ static void Start(mwinContext* context)
     s_callCount = 0;
     s_filterCount = 0;
     s_made = 0;
+    s_keyedCount = 0;
     s_session = (mwinLinuxBus){0};
     Join(&s_session, SESSION);
     uint64_t now = mwinMonotonicNow();

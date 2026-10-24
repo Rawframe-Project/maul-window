@@ -62,3 +62,40 @@ Always pass `-max_total_time`. A target's seeds, inputs that reach what random b
 The nightly run keeps each target's corpus from night to night ([Checks](checks.md#fuzzing)). When its summary shows the corpus reaching more than the seeds, download the `corpus-<target>` artifact of that run, copy the target's seeds into an empty folder `kept`, and let `./out/fuzz/<target> -merge=1 kept <artifact folder>` add the inputs that reach what the seeds miss; commit those worth keeping, under a name that says what each reaches.
 
 A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.
+
+## Debugging a failure
+
+Start from what the failed run left. A failed CI job uploads its CTest logs, kept for a week, as `logs-<preset>` (`logs-android-emulator`, `logs-ios-simulator`, and so on); the fuzz job uploads its logs and findings as `fuzz`. Fetch them with `gh run download <run> -n logs-<preset>`: `LastTest.log` holds every test's output, the passing ones' too. A job's log can be read while the run is still going, with `gh api repos/Rawframe-Project/maul-window/actions/jobs/<job>/logs`. Locally, `ctest --preset <preset> -R '^<name>$' --output-on-failure` runs one test, and the same log is in `out/<preset>/Testing/Temporary/`.
+
+**A test that hangs.** The CI image has no debugger. Run the test by hand from an AddressSanitizer build and end it with `SIGABRT`: ASan then prints the main thread's stack, where it waits. `ctest -N -V` prints a test's command and environment:
+
+```sh
+ctest --test-dir out/linux-clang-20-asan -N -V -R '^x11_clipboard$'
+DISPLAY=:538 ASAN_OPTIONS=handle_abort=1 timeout -s ABRT 60 out/linux-clang-20-asan/test_x11_clipboard
+```
+
+`timeout` signals only the process it started. Never signal a test found by its name: other build trees run the same names.
+
+**A test that needs the display.** Start the fixture by hand, with the arguments `ctest -N -V` prints for `display_start`, run the test with its environment, then stop the fixture:
+
+```sh
+tools/test_display.sh start "$PWD/out/linux-clang-20-asan/rt" 538 wayland
+DISPLAY=:538 out/linux-clang-20-asan/test_x11_clipboard
+tools/test_display.sh stop "$PWD/out/linux-clang-20-asan/rt"
+```
+
+The servers' logs stay in `out/<preset>/rt/` (`xvfb.log`, `weston.log`), and the processes the fixture started are in `display.pids`, each with its start time and command line. Stop them only through `tools/test_display.sh stop`, which signals a recorded PID only while it is still the fixture's. The fixture's watchdog stops the servers once the shell that started them is gone.
+
+**A fuzz finding.** Run the target on the input, and for `fuzz_linux_bus` set `MWIN_FUZZ_TRACE=1` to see each D-Bus message the module is handed ([A fuzz finding](#a-fuzz-finding)).
+
+**An iOS application that never finishes.** `tools/run_ios_app.sh` prints the application's output and standard error. It then prints a 15-second `sample` of where a stuck application is, or the newest crash report of one that ended. All of it is in the job's log and in `LastTest.log`.
+
+**An Android assertion.** The `android-emulator` preset builds Release, where `MWIN_ASSERT` is compiled out. To check the assertions, configure a tree of your own with `-DCMAKE_BUILD_TYPE=Debug` and run it on the emulator.
+
+**A test that fails now and then.** Repeat it until it fails, with `ctest --preset <preset> -R '^<name>$' --repeat until-fail:50`. CI cold-boots its emulator, so a race at an application's start may show only on a fresh emulator. For that case, use a loop that does the following each time:
+
+1. Boot an emulator of your own, cold and read-only (`-no-snapshot -read-only`), on a port no one else uses (`-port 5640`).
+2. Run the test against it, with `ANDROID_SERIAL=emulator-5640`.
+3. Stop the emulator by the PID you started.
+
+A test that stays intermittent is quarantined until its issue is fixed ([Checks](checks.md#tests-and-labels)).

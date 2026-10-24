@@ -65,7 +65,7 @@ A crash becomes a test in its module's suite with the minimized input (`-minimiz
 
 ## Debugging a failure
 
-Start from what the failed run left. A failed CI job uploads its CTest logs, kept for a week, as `logs-<preset>` (`logs-android-emulator`, `logs-ios-simulator`, and so on); the fuzz job uploads its logs and findings as `fuzz`. Fetch them with `gh run download <run> -n logs-<preset>`: `LastTest.log` holds every test's output, the passing ones' too. A job's log can be read while the run is still going, with `gh api repos/Rawframe-Project/maul-window/actions/jobs/<job>/logs`. Locally, `ctest --preset <preset> -R '^<name>$' --output-on-failure` runs one test, and the same log is in `out/<preset>/Testing/Temporary/`.
+Start from what the failed run left. A failed CI job uploads its CTest logs, kept for a week, as `logs-<preset>` (`logs-android-emulator`, `logs-ios-simulator`, and so on); the fuzz job uploads its logs and findings as `fuzz`. Fetch them with `gh run download <run> -n logs-<preset>`: `LastTest.log` holds every test's output, the passing ones' too. A job's log can be read as soon as that job has finished, while the rest of its run is still going, with `gh api repos/Rawframe-Project/maul-window/actions/jobs/<job>/logs`; a job still running has no log there yet. Locally, `ctest --preset <preset> -R '^<name>$' --output-on-failure` runs one test, and the same log is in `out/<preset>/Testing/Temporary/`.
 
 **A test that hangs.** The CI image has no debugger. Run the test by hand from an AddressSanitizer build and end it with `SIGABRT`: ASan then prints the main thread's stack, where it waits. `ctest -N -V` prints a test's command and environment:
 
@@ -88,7 +88,7 @@ The servers' logs stay in `out/<preset>/rt/` (`xvfb.log`, `weston.log`), and the
 
 **A fuzz finding.** Run the target on the input, and for `fuzz_linux_bus` set `MWIN_FUZZ_TRACE=1` to see each D-Bus message the module is handed ([A fuzz finding](#a-fuzz-finding)).
 
-**An iOS application that never finishes.** `tools/run_ios_app.sh` prints the application's output and standard error. It then prints a 15-second `sample` of where a stuck application is, or the newest crash report of one that ended. All of it is in the job's log and in `LastTest.log`.
+**An iOS application that never finishes.** `tools/run_ios_app.sh` prints the application's output and standard error. For an application still running, it then takes a one-second `sample` of its stacks (`sample <pid> 1`), waits 15 seconds for it, and prints its first 100 lines. For one that ended, it prints the newest crash report instead. All of it is in the job's log and in `LastTest.log`.
 
 **An Android assertion.** The `android-emulator` preset builds Release, where `MWIN_ASSERT` is compiled out. To check the assertions, configure a tree of your own with `-DCMAKE_BUILD_TYPE=Debug` and run it on the emulator.
 

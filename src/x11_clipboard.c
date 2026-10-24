@@ -87,15 +87,16 @@ int mwinX11WriteSelection(mwinX11Platform* platform, mwinRequestKind kind)
     mwinX11Clipboard* clipboard = &platform->clipboard;
     const mwinX11Api* api = &platform->api;
     int selection = kind == mwin_requestPrimaryWrite ? mwin_x11Primary : mwin_x11Clipboard;
-    if (!mwinX11EnsureClipboardWindow(platform))
-    {
-        return mwin_outcomeFailed;
-    }
-    // The readers taking the last text or data in pieces are dropped.
+    // The readers taking the last text or data in pieces are dropped,
+    // first: the core has already replaced those bytes.
     for (int i = 0; i < MWIN_X11_SENDS; i++)
     {
         clipboard->sends[i].requestor =
             clipboard->sends[i].selection == selection ? 0 : clipboard->sends[i].requestor;
+    }
+    if (!mwinX11EnsureClipboardWindow(platform))
+    {
+        return mwin_outcomeFailed;
     }
     if (selection == mwin_x11Clipboard && !InternTypes(platform))
     {

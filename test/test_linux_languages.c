@@ -367,7 +367,8 @@ static void Run(FakeBus* system, int steps, const char* what)
 int main(void)
 {
     static FakeBus system;
-    if (getenv("DISPLAY") == nullptr)
+    const char* display = getenv("DISPLAY");
+    if (display == nullptr || display[0] == '\0')
     {
         return 77;
     }

@@ -390,7 +390,8 @@ static const Step s_none[] = {
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr)
+    const char* display = getenv("DISPLAY");
+    if (display == nullptr || display[0] == '\0')
     {
         return 77;
     }

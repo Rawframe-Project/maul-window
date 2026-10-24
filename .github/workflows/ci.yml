@@ -28,6 +28,7 @@ defaults:
 
 env:
   PREFIX: MAUL_WINDOW
+  CCACHE_MAXSIZE: 2G
 
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
@@ -91,15 +92,30 @@ jobs:
           for f in pad_linux.c pad_windows.c android_keys.c; do
             diff -u "src/generated/$f" "out/regenerated/$f"
           done
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-checks-${{ github.sha }}
+          restore-keys: ccache-checks-
       - name: clang-tidy
         # The Linux build's sources; the other platforms' code is compiled
         # with warnings as errors by its own cell.
         run: |
-          cmake -B out/tidy -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-            -D${PREFIX}_BUILD_TESTS=OFF
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          ccache --zero-stats >/dev/null
+          cmake -B out/tidy -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -D${PREFIX}_BUILD_TESTS=OFF
           cmake --build out/tidy
+          ccache --show-stats
           python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('out/tidy/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file'] and '/generated/' not in e['file']})))" |
             while read -r f; do clang-tidy-20 -p out/tidy --quiet --warnings-as-errors='*' "$f"; done
+      - name: Save ccache
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-checks-${{ github.sha }}
 
   # Every cell builds with warnings as errors and runs its whole suite, the
   # header tests included. The Linux cells run the X11 and Wayland tests
@@ -164,11 +180,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-fuzz-${{ github.sha }}
+          restore-keys: ccache-fuzz-
       - name: Build
         run: |
-          cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
-            -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          ccache --zero-stats >/dev/null
+          cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -D${PREFIX}_FUZZ=ON -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
           cmake --build out/fuzz
+          ccache --show-stats
+      - name: Save ccache
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-fuzz-${{ github.sha }}
       - name: Run
         # As many targets at a time as the runner has cores; each keeps its
         # full time. A target's output goes to its log, printed when it
@@ -379,10 +410,37 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install ccache
+        # The runner has none: the release's binary, checked against its
+        # published hash.
+        run: |
+          name=ccache-4.14.1-darwin
+          curl -sSfL -o "$RUNNER_TEMP/ccache.tar.gz" \
+            "https://github.com/ccache/ccache/releases/download/v4.14.1/$name.tar.gz"
+          echo "c279fa81e2e806b4d9e64d4a06cb569a84ef54151feef796e5d4f4e95a464563  $RUNNER_TEMP/ccache.tar.gz" |
+            shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/ccache"
+          tar -xzf "$RUNNER_TEMP/ccache.tar.gz" -C "$RUNNER_TEMP/ccache" --strip-components=1 "$name/ccache"
+          echo "$RUNNER_TEMP/ccache" >> "$GITHUB_PATH"
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-ios-simulator-${{ github.sha }}
+          restore-keys: ccache-ios-simulator-
       - name: Build
         run: |
-          cmake --preset ios-simulator
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          ccache --zero-stats >/dev/null
+          CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_OBJC_COMPILER_LAUNCHER=ccache cmake --preset ios-simulator
           cmake --build --preset ios-simulator -j 4
+          ccache --show-stats
+      - name: Save ccache
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-ios-simulator-${{ github.sha }}
       - name: Boot an iPhone
         if: github.event_name != 'pull_request'
         run: |
@@ -476,10 +534,37 @@ jobs:
           done
           "$adb" shell getprop sys.boot_completed | grep -q 1 || { tail -50 emulator.log; exit 1; }
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Install ccache
+        # The runner has none: the release's static binary, checked against
+        # its published hash.
+        run: |
+          name=ccache-4.14.1-linux-x86_64-musl-static
+          curl -sSfL -o "$RUNNER_TEMP/ccache.tar.xz" \
+            "https://github.com/ccache/ccache/releases/download/v4.14.1/$name.tar.xz"
+          echo "fa1443c9fbea879c9bff6619d1284eda3102992e91831b9f6e546879972195cc  $RUNNER_TEMP/ccache.tar.xz" |
+            sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/ccache"
+          tar -xJf "$RUNNER_TEMP/ccache.tar.xz" -C "$RUNNER_TEMP/ccache" --strip-components=1 "$name/ccache"
+          echo "$RUNNER_TEMP/ccache" >> "$GITHUB_PATH"
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-android-emulator-${{ github.sha }}
+          restore-keys: ccache-android-emulator-
       - name: Build
         run: |
-          cmake --preset android-emulator
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          ccache --zero-stats >/dev/null
+          CMAKE_C_COMPILER_LAUNCHER=ccache cmake --preset android-emulator
           cmake --build --preset android-emulator -j 4
+          ccache --show-stats
+      - name: Save ccache
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-android-emulator-${{ github.sha }}
       - name: Test
         run: |
           ctest --preset android-emulator | tee "$RUNNER_TEMP/ctest.log"
@@ -525,10 +610,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Restore ccache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-web-wasi-${{ github.sha }}
+          restore-keys: ccache-web-wasi-
       - name: Build
         run: |
-          cmake --preset web-wasi
+          export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          ccache --zero-stats >/dev/null
+          CMAKE_C_COMPILER_LAUNCHER=ccache cmake --preset web-wasi
           cmake --build --preset web-wasi -j 4
+          ccache --show-stats
+      - name: Save ccache
+        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-web-wasi-${{ github.sha }}
       - name: Browser
         # puppeteer and its dependencies as test/browser's lockfile pins them.
         run: |

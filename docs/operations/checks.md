@@ -44,6 +44,8 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
 | `gamepads` | Every night: the virtual gamepad tests, in the CI image run by `docker` with the runner's `/dev/uinput` passed in. A skipped test fails it. |
 
+Every job that compiles on a pull request restores a ccache of its own, as `cpp.yml` does for its cells, and only `main` saves one, so a pull request reads the latest `main` cache and never writes. The CI image carries ccache; `android-emulator` and `ios-simulator` take a pinned release binary checked against its hash. `web-emscripten` has none: its build time is linking (`wasm-opt` on each test), which ccache does not cache. Each build prints ccache's hits and misses.
+
 `pr-title.yml` checks that the pull request title is a conventional commit with a scope from `AGENTS.md`, and `pr-gate.yml` closes a pull request from outside the organization unless it closes an issue labeled `accepted`. `codeql.yml` runs CodeQL in the CI image on every pull request and on `main`. `scorecard.yml` grades the repository's security practices weekly, and Dependabot proposes updates of the pinned actions once a week.
 
 ## Fuzzing

@@ -151,6 +151,7 @@ static uint32_t s_filterCount;
 static mwinLinuxBus s_session;
 static mwinLinuxSettings s_settings;
 static mwinLinuxPower s_power;
+static mwinLinuxBus s_system;
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
 
@@ -931,6 +932,10 @@ static void Pump(uint64_t nowNs)
 {
     mwinBusPump(&s_session, 0);
     mwinSettingsPump(&s_settings, nowNs);
+    if (s_system.connection != nullptr)
+    {
+        mwinBusPump(&s_system, 0);
+    }
     mwinPowerPump(&s_power, nowNs);
     mwinDialogsPump(&s_dialogs, nowNs);
     mwinImePump(&s_ime, nowNs);
@@ -1060,14 +1065,14 @@ static void JoinSystem(void)
     {
         filter = s_filters[i].data == &s_power ? s_filters[i].filter : filter;
     }
-    Expect(filter != nullptr && s_power.system.connection == nullptr);
-    Join(&s_power.system, SYSTEM);
+    Expect(filter != nullptr && s_system.connection == nullptr);
+    Join(&s_system, SYSTEM);
     s_power.systemListening = AddFilter(SYSTEM, filter, &s_power, nullptr);
     DBusMessage* get =
-        s_power.system.api.newMethodCall("org.freedesktop.UPower", "/org/freedesktop/UPower",
-                                         "org.freedesktop.DBus.Properties", "Get");
+        s_system.api.newMethodCall("org.freedesktop.UPower", "/org/freedesktop/UPower",
+                                   "org.freedesktop.DBus.Properties", "Get");
     Expect(get != nullptr);
-    (void)mwinBusSend(&s_power.system, get, &s_power.batteryCall, mwinMonotonicNow());
+    (void)mwinBusSend(&s_system, get, &s_power.batteryCall, mwinMonotonicNow());
 }
 
 static void Start(mwinContext* context)
@@ -1078,10 +1083,11 @@ static void Start(mwinContext* context)
     s_keyCount = 0;
     s_keyRead = 0;
     s_session = (mwinLinuxBus){0};
+    s_system = (mwinLinuxBus){.system = true};
     Join(&s_session, SESSION);
     uint64_t now = mwinMonotonicNow();
     mwinSettingsStart(&s_settings, context, &s_session, now);
-    mwinPowerStart(&s_power, context, &s_session, now);
+    mwinPowerStart(&s_power, context, &s_session, &s_system, now);
     JoinSystem();
     mwinDialogsStart(&s_dialogs, context, &s_session);
     mwinImeStart(&s_ime, context, &s_session);
@@ -1096,6 +1102,7 @@ static void Stop(mwinContext* context)
     mwinImeStop(&s_ime);
     mwinDialogsStop(&s_dialogs);
     mwinPowerStop(&s_power);
+    mwinBusClose(&s_system);
     mwinSettingsStop(&s_settings);
     Drain(context);
     Expect(s_filterCount == 0);

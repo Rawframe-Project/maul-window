@@ -79,6 +79,19 @@ Record() {
     echo "$1 $(StartTime "$1") $2" >>"$pids"
 }
 
+# Waits until the process recorded last runs the command it was
+# recorded with: a fork that has not run it yet carries this script's
+# command line, and a start or stop meanwhile would not know it.
+Settled() {
+    local pid start command
+    read -r pid start command < <(tail -n 1 "$pids")
+    for _ in $(seq 100); do
+        Matches "$pid" "$start" "$command" && return 0
+        sleep 0.05
+    done
+    return 1
+}
+
 # Whether Xvfb, and weston where asked, take clients.
 Ready() {
     [ -s "$runtime/xvfb.ready" ] || return 1
@@ -151,7 +164,8 @@ start)
         if Ready "${4:-}"; then
             bash "$0" watch "$runtime" "$PPID" "$(StartTime "$PPID")" </dev/null >/dev/null 2>&1 &
             Record $! "bash $0 watch $runtime "
-            exit 0
+            Settled && exit 0
+            break
         fi
         sleep 0.1
     done

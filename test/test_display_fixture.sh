@@ -8,7 +8,9 @@
 # the PID of a server that went to another process, and one with its
 # start time but another command line. Start and stop must leave both
 # alone, drop them from the record, and still run and stop their own
-# Xvfb; a second start keeps that Xvfb.
+# Xvfb; a second start keeps that Xvfb. The first start's watchdog is
+# slow to become one, as under load: start must wait for it, or the
+# second start would not know it and replace the Xvfb.
 #
 # A run killed outright never runs stop: start's watchdog must then stop
 # the servers and go itself, within a bounded time. A ctest-like parent
@@ -74,7 +76,12 @@ Plant() {
 }
 
 rm -rf "$runtime"
-mkdir -p "$runtime"
+mkdir -p "$runtime/slow"
+# A bash that waits before it runs, under the name bash: until then its
+# command line is not the watchdog's.
+real=$(command -v bash)
+printf '#!%s\nsleep 0.5\nexec -a bash %s "$@"\n' "$real" "$real" >"$runtime/slow/bash"
+chmod +x "$runtime/slow/bash"
 sleep 600 &
 stale=$!
 sleep 600 &
@@ -82,7 +89,7 @@ other=$!
 trap 'kill "$stale" "$other" 2>/dev/null || true; "$fixture" stop "$runtime" || true' EXIT
 
 Plant
-"$fixture" start "$runtime" "$number" || Fail "start with a planted record"
+PATH=$runtime/slow:$PATH "$fixture" start "$runtime" "$number" || Fail "start with a planted record"
 Alive "$stale" || Fail "start signalled a PID recorded with a stale start time"
 Alive "$other" || Fail "start signalled a PID recorded with another command line"
 if grep -q -E "^($stale|$other) " "$pids"; then

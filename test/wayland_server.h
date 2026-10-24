@@ -961,8 +961,6 @@ static inline void ServerRemoveShapes(Server* server)
     pthread_mutex_unlock(&server->lock);
 }
 
-// Starts the compositor on a new socket, which WAYLAND_DISPLAY then
-// names. False when it cannot.
 // Lets go what a start that failed partway made.
 static inline bool ServerAbandon(Server* server)
 {
@@ -975,6 +973,8 @@ static inline bool ServerAbandon(Server* server)
     return false;
 }
 
+// Starts the compositor on a new socket, which WAYLAND_DISPLAY then
+// names. False when it cannot.
 static inline bool ServerStart(Server* server, const char* layout, const char* variant)
 {
     *server = (Server){.repeatRate = 50, .repeatDelay = 40};

@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #define DEADLINE_NS 15000000000ull
 #define WINDOWS     3
@@ -287,11 +286,6 @@ int main(void)
         return 1;
     }
     setvbuf(stdout, nullptr, _IONBF, 0);
-    // What the library logs of the scenes goes with the output.
-    if (out != nullptr)
-    {
-        (void)dup2(fileno(stdout), STDERR_FILENO);
-    }
     printf("main\n");
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;

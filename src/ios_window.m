@@ -22,24 +22,11 @@
 #include "ios.h"
 
 #include <math.h>
-#include <stdarg.h>
 #include <string.h>
 
 // How long a window waits for the scene it asked for: the deadline the
 // library's other answers from outside get (linux_bus.h).
 #define SCENE_DEADLINE_NS 10000000000ull
-
-// TEMPORARY for #7's first runs on the iPad, removed before review: the
-// scenes' life, on the standard error the scenes test keeps.
-static void Log(const char* format, ...)
-{
-    va_list arguments;
-    va_start(arguments, format);
-    NSString* text = [[NSString alloc] initWithFormat:@(format) arguments:arguments];
-    va_end(arguments);
-    NSLog(@"scene: %@", text);
-    [text release];
-}
 
 static void Post(mwinIOSPlatform* platform, uint32_t slot, mwinEvent* event)
 {
@@ -242,7 +229,7 @@ static void Attach(mwinIOSPlatform* platform, uint32_t slot, UIWindowScene* scen
 }
 
 // UIKit refused the scene a window asked for.
-static void Refused(uint32_t slot, uint32_t ask, NSError* error)
+static void Refused(uint32_t slot, uint32_t ask)
 {
     mwinContext* context = mwinIOSCurrentContext();
     if (context == nullptr || slot >= context->limits.windows)
@@ -251,7 +238,6 @@ static void Refused(uint32_t slot, uint32_t ask, NSError* error)
     }
     mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
     mwinIOSWindow* window = &platform->windows[slot];
-    Log("refused, slot %u ask %u: %s", slot, ask, error.localizedDescription.UTF8String);
     if (window->asking && window->ask == ask)
     {
         window->asking = false;
@@ -267,15 +253,14 @@ static void Ask(mwinIOSPlatform* platform, uint32_t slot)
     window->ask = ++platform->asks;
     window->askDeadlineNs = mwinIOSNow() + SCENE_DEADLINE_NS;
     uint32_t ask = window->ask;
-    Log("activation requested, slot %u ask %u", slot, ask);
     // The handler may come on another queue.
     [UIApplication.sharedApplication requestSceneSessionActivation:nil
                                                       userActivity:nil
                                                            options:nil
                                                       errorHandler:^(NSError* error) {
-                                                        // The copied block holds the error.
+                                                        (void)error;
                                                         dispatch_async(dispatch_get_main_queue(), ^{
-                                                          Refused(slot, ask, error);
+                                                          Refused(slot, ask);
                                                         });
                                                       }];
 }
@@ -316,7 +301,6 @@ void mwinIOSSceneCame(mwinIOSPlatform* platform, UIWindowScene* scene)
             slot = (int32_t)i;
         }
     }
-    Log("will connect, for slot %d", (int)slot);
     if (slot >= 0)
     {
         Attach(platform, (uint32_t)slot, [scene retain]);
@@ -343,7 +327,6 @@ void mwinIOSSceneWent(mwinIOSPlatform* platform, UIScene* scene)
     }
     // The window can no longer show: it is asked to close.
     int32_t slot = mwinIOSSlotOfScene(platform, scene);
-    Log("did disconnect, slot %d", (int)slot);
     if (slot >= 0 && !platform->windows[slot].gone)
     {
         mwinIOSWindow* window = &platform->windows[slot];
@@ -362,7 +345,6 @@ void mwinIOSPumpScenes(mwinIOSPlatform* platform)
         mwinIOSWindow* window = &platform->windows[i];
         if (window->asking && now >= window->askDeadlineNs)
         {
-            Log("deadline, slot %u ask %u", i, window->ask);
             window->asking = false;
             Created(platform->context, i, mwin_outcomeFailed);
         }
@@ -413,7 +395,6 @@ void mwinIOSDestroyWindow(mwinContext* context, uint32_t slot)
             // The backend stopping leaves the scenes as they are.
             if (!window->gone && !platform->ending)
             {
-                Log("destruction requested, slot %u", slot);
                 [UIApplication.sharedApplication requestSceneSessionDestruction:scene.session
                                                                         options:nil
                                                                    errorHandler:nil];

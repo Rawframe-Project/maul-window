@@ -60,6 +60,14 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
+// When main began, which each phase's time counts from.
+static uint64_t s_launchNs;
+
+static double Since(void)
+{
+    return (double)(NowNs() - s_launchNs) / 1e9;
+}
+
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
@@ -207,7 +215,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     if (Ready(program))
     {
-        printf("phase %d\n", program->phase);
+        printf("phase %d at %.2f s\n", program->phase, Since());
         @autoreleasepool
         {
             Advance(program, context);
@@ -241,6 +249,7 @@ int main(void)
         return 1;
     }
     setvbuf(stdout, nullptr, _IONBF, 0);
+    s_launchNs = NowNs();
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;

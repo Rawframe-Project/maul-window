@@ -107,6 +107,14 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
+// When main began, which each phase's time counts from.
+static uint64_t s_launchNs;
+
+static double Since(void)
+{
+    return (double)(NowNs() - s_launchNs) / 1e9;
+}
+
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
@@ -230,7 +238,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     UIView* view = ViewOf(context, program->window);
     if (program->phase == 0 && program->shown && view != nil)
     {
-        printf("phase 0\n");
+        printf("phase 0 at %.2f s\n", Since());
         program->dropper = DropperOf(view);
         CHECK(program->dropper != nil, "a drop interaction on the view");
         program->session = SessionOf();
@@ -245,7 +253,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (program->phase == 1 && program->count >= 5)
     {
-        printf("phase 1\n");
+        printf("phase 1 at %.2f s\n", Since());
         CheckDrop(program, context);
         program->phase = 2;
         return mwin_frameStop;
@@ -278,6 +286,7 @@ int main(void)
         return 1;
     }
     setvbuf(stdout, nullptr, _IONBF, 0);
+    s_launchNs = NowNs();
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;

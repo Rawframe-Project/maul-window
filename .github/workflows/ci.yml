@@ -490,8 +490,9 @@ jobs:
   # The Android backend in the emulator, Android 11 (the oldest the backend
   # takes) on x86_64 with KVM: the headless tests through adb, the window
   # ones as applications built without Gradle (tools/build_android_app.sh).
-  # The runner carries the SDK and the NDK; the emulator and its system image
-  # come from the SDK manager.
+  # The runner carries the SDK. The pinned NDK comes from an Actions cache
+  # keyed by its version, else from the SDK manager; the emulator and its
+  # system image come from the SDK manager.
   android-emulator:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -507,6 +508,34 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: NDK version
+        id: ndk
+        run: echo "version=${ANDROID_NDK_HOME##*/}" >> "$GITHUB_OUTPUT"
+      - name: Restore the NDK
+        id: ndk-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.ANDROID_NDK_HOME }}
+          key: ndk-${{ runner.os }}-${{ steps.ndk.outputs.version }}
+      - name: Install the NDK
+        # Runner images move to newer NDKs and drop older ones: the pinned
+        # one is installed when neither the image nor the cache has it.
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
+        env:
+          VERSION: ${{ steps.ndk.outputs.version }}
+        run: |
+          [ -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" ] && exit 0
+          tools="$ANDROID_HOME/cmdline-tools/latest/bin"
+          yes | "$tools/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$tools/sdkmanager" --install "ndk;$VERSION" >/dev/null
+      - name: Save the NDK
+        if: >-
+          steps.ndk-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' &&
+          github.event_name != 'pull_request'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.ANDROID_NDK_HOME }}
+          key: ndk-${{ runner.os }}-${{ steps.ndk.outputs.version }}
       - name: Boot the emulator
         timeout-minutes: 15
         run: |
@@ -516,10 +545,6 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           yes | "$tools/sdkmanager" --licenses >/dev/null 2>&1 || true
-          # Runner images move to newer NDKs: the pinned one is installed
-          # when the image lacks it.
-          [ -f "$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" ] ||
-            "$tools/sdkmanager" --install "ndk;${ANDROID_NDK_HOME##*/}" >/dev/null
           mkdir -p "$ANDROID_AVD_HOME"
           "$tools/sdkmanager" --install emulator "system-images;android-30;google_apis;x86_64" >/dev/null
           echo no | "$tools/avdmanager" create avd -n maul30 -k "system-images;android-30;google_apis;x86_64" -d pixel_5 >/dev/null
@@ -553,8 +578,8 @@ jobs:
           key: ccache-android-emulator-${{ github.sha }}
           restore-keys: ccache-android-emulator-
       - name: Build
-        # The pinned NDK is installed anew by each run, so its compiler's
-        # time never matches the cache's: its version names it instead.
+        # The pinned NDK is restored or installed anew by each run, so its
+        # compiler's time need not match the cache's: its version names it.
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CCACHE_COMPILERCHECK="string:${ANDROID_NDK_HOME##*/}"

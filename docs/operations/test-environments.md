@@ -24,7 +24,7 @@ The Windows tests run on the runner's interactive desktop, driving it through `S
 
 The macOS tests need a logged-in session's window server, which CI's macOS runners have; they make the `NSEvent`s AppKit would deliver, since real input cannot be made without permissions. `cmake --preset macos-clang`.
 
-The iOS tests run in a booted simulator: `cmake/ios-simulator.cmake` builds for it, headless tests run through `simctl spawn`, and UIKit tests are applications run by `tools/run_ios_app.sh`, which installs and launches one, reads its output from a file named in its environment, waits at most a minute for its closing line, and shows where a stuck application is (`sample`) or its crash report. Boot a simulator, set `MWIN_IOS_DEVICE` to its UDID, then use the `ios-simulator` presets. A new device's first launch takes minutes; CI pays it once before the tests.
+The iOS tests run in a booted simulator: `cmake/ios-simulator.cmake` builds for it, the `ios-simulator` test preset runs `base` through `simctl spawn` as a smoke test of the build (the other test-backend suites test code `macos-clang` already runs with Apple clang on arm64, in milliseconds, against more than a second each when spawned in the simulator), and UIKit tests are applications run by `tools/run_ios_app.sh`, which installs and launches one, reads its output from a file named in its environment, waits at most a minute for its closing line, and shows where a stuck application is (`sample`) or its crash report. Boot a simulator, set `MWIN_IOS_DEVICE` to its UDID, then use the `ios-simulator` presets. A new device's first launch takes minutes; CI pays it once before the tests.
 
 ## Android
 

@@ -33,7 +33,7 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `changes` | Whether a pull request changes anything beyond documentation; when it does not, the build jobs are skipped. |
 | `docs` | The organization's documentation check. `protocols/`, `tools/gamepaddb/` and `tools/androidkeys/` hold third-party files and are excluded. |
 | `zizmor` | The workflows: injection, persisted credentials, permissions, unpinned actions. |
-| `checks` | `clang-format`, the family's rules, that the documentation site builds, that the gamepad and Android key tables match their generators, and clang-tidy. It runs on documentation changes too. |
+| `checks` | `clang-format`, the family's rules, that the documentation site builds, that the gamepad and Android key tables match their generators, and clang-tidy (`tools/run_tidy.sh`, as many files at a time as the runner has cores, each file's result in order and a failing file named). It runs on documentation changes too. |
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library, the test backend alone, macOS on its runner and `clang-cl` on Windows. All build with warnings as errors. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
 | `fuzz` | Every fuzz target from its committed seeds, as many at a time as the runner has cores: 20 seconds each on a pull request, 90 on `main`. |

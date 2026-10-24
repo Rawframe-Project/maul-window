@@ -182,14 +182,7 @@ python3 tools/build_docs.py >"$out/site.log"
 step "clang-tidy on the Linux build's sources"
 configure tidy -DCMAKE_C_COMPILER=clang-20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_WINDOW_BUILD_TESTS=OFF
 cmake --build "$out/check-tidy" -j "$jobs" >>"$out/check-tidy.log"
-python3 - "$out/check-tidy/compile_commands.json" >"$out/tidy-files.txt" <<'EOF'
-import json, sys
-files = {e["file"] for e in json.load(open(sys.argv[1]))}
-print("\n".join(sorted(f for f in files if "/src/" in f and "_deps" not in f and "/generated/" not in f)))
-EOF
-while read -r f; do
-    clang-tidy-20 -p "$out/check-tidy" --quiet --warnings-as-errors='*' "$f" 2>/dev/null
-done <"$out/tidy-files.txt"
+JOBS=$jobs tools/run_tidy.sh "$out/check-tidy"
 
 preset linux-clang-20-asan
 

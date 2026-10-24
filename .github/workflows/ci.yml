@@ -108,8 +108,7 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -D${PREFIX}_BUILD_TESTS=OFF
           cmake --build out/tidy
           ccache --show-stats
-          python3 -c "import json; print('\n'.join(sorted({e['file'] for e in json.load(open('out/tidy/compile_commands.json')) if '/src/' in e['file'] and '_deps' not in e['file'] and '/generated/' not in e['file']})))" |
-            while read -r f; do clang-tidy-20 -p out/tidy --quiet --warnings-as-errors='*' "$f"; done
+          tools/run_tidy.sh out/tidy
       - name: Save ccache
         if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -6,8 +6,9 @@
 #
 # Each file's output goes to <build directory>/tidy/. Once every file has
 # run, each prints one line in order, "clean" or "FAIL", and a failing
-# file's diagnostics follow its line. Exits 1 when any file failed; on
-# GitHub Actions each failure is also an error on its file.
+# file's diagnostics follow its line. Exits 1 when any file failed, or
+# when the build lists none of the library's sources; on GitHub Actions
+# each failure is also an error on its file.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 build=$(cd "$1" && pwd)
@@ -20,6 +21,11 @@ import json, sys
 files = {e["file"] for e in json.load(open(sys.argv[1]))}
 print("\n".join(sorted(f for f in files if "/src/" in f and "_deps" not in f and "/generated/" not in f)))
 EOF
+# A run that checks nothing must not pass.
+if ! grep -q . "$logs/files.txt"; then
+    echo "FAIL no library sources in $build/compile_commands.json"
+    exit 1
+fi
 
 # One file: its output in its log, and a marker beside it when it failed.
 tidy_one() {

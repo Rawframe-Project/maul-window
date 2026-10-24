@@ -148,6 +148,23 @@ void mwinBusDrop(mwinLinuxBus* bus, mwinBusCall* call)
     }
 }
 
+bool mwinBusEntry(const mwinDBusApi* api, mwinDBusIter* entries, const char** keyOut,
+                  mwinDBusIter* valueOut)
+{
+    *keyOut = nullptr;
+    if (api->argType(entries) != mwin_dbusTypeDictEntry)
+    {
+        return false;
+    }
+    api->recurse(entries, valueOut);
+    if (api->argType(valueOut) != mwin_dbusTypeString)
+    {
+        return false;
+    }
+    api->getBasic(valueOut, (void*)keyOut);
+    return api->next(valueOut);
+}
+
 void mwinBusClose(mwinLinuxBus* bus)
 {
     if (bus->connection != nullptr)

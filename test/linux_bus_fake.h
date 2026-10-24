@@ -8,7 +8,7 @@
 // and the desktop portal (Inhibit, FileChooser's OpenFile and SaveFile
 // answered by a Response when the test says, Close on a request, and
 // Settings' ReadAll answered with a desktop's settings when the test
-// says, and SettingChanged; PowerProfileMonitor's power-saver-enabled),
+// says, or with other types, and SettingChanged; PowerProfileMonitor's power-saver-enabled),
 // each writing down what it was asked and answering, or refusing as
 // told. Started as a system bus, it plays UPower (OnBattery) instead.
 
@@ -112,6 +112,8 @@ enum
     fakeNoSettings,
     fakeGnome,
     fakeKde,
+    // ReadAll answered a{is}, as a hostile owner of the portal's name may.
+    fakeOddSettings,
 };
 
 #define FAKE_FIND(field, name)                                                                     \
@@ -552,8 +554,30 @@ static inline void FakeSpaceEnd(FakeBus* fake, void* spaces, void* space, void* 
     (void)fake->closeContainer(spaces, space);
 }
 
+// Entries keyed by a basic type other than the string services use
+// ('i', 't' or 'd'), each holding a boolean: what a hostile owner of a
+// bus name may send for a{sv}.
+static inline void FakeOddEntries(FakeBus* fake, void* iter, int keyType)
+{
+    char signature[5] = {'{', (char)keyType, 'v', '}', '\0'};
+    void* entries[16];
+    void* entry[16];
+    const int32_t i = 7;
+    const uint64_t t = 7;
+    const double d = 7.0;
+    const unsigned yes = 1;
+    const void* key = keyType == 'i' ? (const void*)&i : keyType == 't' ? (const void*)&t : &d;
+    (void)fake->openContainer(iter, 'a', signature, entries);
+    (void)fake->openContainer(entries, 'e', nullptr, entry);
+    (void)fake->appendBasic(entry, keyType, key);
+    FakeVariant(fake, entry, 'b', &yes);
+    (void)fake->closeContainer(entries, entry);
+    (void)fake->closeContainer(iter, entries);
+}
+
 // ReadAll: GNOME's dark style, an accent, animations off and large
-// text; or KDE's no preference and animations off, its factor as text.
+// text; KDE's no preference and animations off, its factor as text; or
+// a{is}, the shape of a fuzz finding.
 static inline void* FakeReadAll(FakeBus* fake, void* message)
 {
     fake->readAlls += 1;
@@ -562,6 +586,22 @@ static inline void* FakeReadAll(FakeBus* fake, void* message)
         return nullptr;
     }
     void* reply = fake->newReturn(message);
+    if (fake->desktop == fakeOddSettings)
+    {
+        void* iter[16];
+        void* entries[16];
+        void* entry[16];
+        const int32_t key = 7;
+        const char* value = "org.freedesktop.appearance";
+        fake->initAppend(reply, iter);
+        (void)fake->openContainer(iter, 'a', "{is}", entries);
+        (void)fake->openContainer(entries, 'e', nullptr, entry);
+        (void)fake->appendBasic(entry, 'i', &key);
+        (void)fake->appendBasic(entry, 's', (const void*)&value);
+        (void)fake->closeContainer(entries, entry);
+        (void)fake->closeContainer(iter, entries);
+        return reply;
+    }
     void* iter[16];
     void* spaces[16];
     void* space[16];
@@ -639,6 +679,37 @@ static inline void* FakeGet(FakeBus* fake, void* message)
     fake->initAppend(reply, iter);
     FakeVariant(fake, iter, 'b', &boolean);
     return reply;
+}
+
+// A Response whose results are keyed by doubles, a{dv}: the shape of a
+// fuzz finding.
+static inline void FakeRespondOdd(FakeBus* fake, uint32_t code)
+{
+    void* message = fake->newSignal(fake->handle, "org.freedesktop.portal.Request", "Response");
+    void* iter[16];
+    (void)fake->setDestination(message, fake->caller);
+    fake->initAppend(message, iter);
+    (void)fake->appendBasic(iter, 'u', (const void*)&code);
+    FakeOddEntries(fake, iter, 'd');
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
+}
+
+// Tells every listener of a change whose a{sv} is keyed by numbers.
+static inline void FakeOddChanged(FakeBus* fake, const char* path, const char* interface)
+{
+    void* message = fake->newSignal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    void* iter[16];
+    void* invalidated[16];
+    fake->initAppend(message, iter);
+    (void)fake->appendBasic(iter, 's', (const void*)&interface);
+    FakeOddEntries(fake, iter, 't');
+    (void)fake->openContainer(iter, 'a', "s", invalidated);
+    (void)fake->closeContainer(iter, invalidated);
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
 }
 
 // Tells every listener of a boolean property's change.

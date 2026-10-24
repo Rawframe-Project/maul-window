@@ -64,6 +64,14 @@ DBusMessage* mwinBusAnswer(mwinLinuxBus* bus, mwinBusCall* call, uint64_t nowNs,
 // Lets a call go unanswered.
 void mwinBusDrop(mwinLinuxBus* bus, mwinBusCall* call);
 
+// Enters the dict entry an array's iterator is at: its key, when it is a
+// string, and the iterator of its value, whose type the caller checks
+// before reading it. False for an entry of another key or none: a reply
+// or a signal is whatever the bus name's owner sent, and libdbus ends the
+// process on a read of the wrong type.
+bool mwinBusEntry(const mwinDBusApi* api, mwinDBusIter* entries, const char** keyOut,
+                  mwinDBusIter* valueOut);
+
 // Closes the connection, which lets the calls on it go, and the library.
 void mwinBusClose(mwinLinuxBus* bus);
 

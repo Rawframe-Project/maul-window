@@ -8,7 +8,8 @@
 // many files, the filters as case-blind globs, the first chosen, the
 // folder as bytes, answered with file URIs; SaveFile with the name,
 // closed by the user; a folder; a dialog closed when its window goes;
-// a URI of no local file failed; zenity where the portal refuses.
+// a URI of no local file failed; results keyed by numbers (a{dv}, the
+// shape of a fuzz finding) failed; zenity where the portal refuses.
 // Without a bus, zenity: its arguments, a choice of several, closed, a
 // save with no title or folder given its name alone, failing, a choice
 // of exactly the limits and one past them, and missing. Skipped (exit
@@ -57,6 +58,8 @@ typedef struct Step
     const char* asked;
     // The window is destroyed while the portal shows the dialog.
     bool destroy;
+    // The Response's results are keyed by numbers.
+    bool odd;
     // The dialog has no title and no folder.
     bool bare;
 } Step;
@@ -174,6 +177,10 @@ static void Answer(mwinContext* context, Program* program)
     if (step->destroy)
     {
         CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroy");
+    }
+    else if (step->odd)
+    {
+        FakeRespondOdd(fake, (uint32_t)step->code);
     }
     else
     {
@@ -317,6 +324,11 @@ static const Step s_portal[] = {
      .kind = mwin_dialogOpen,
      .uris = s_web,
      .uriCount = 1,
+     .outcome = mwin_outcomeFailed,
+     .asked = nullptr},
+    {.what = "results keyed by numbers failed",
+     .kind = mwin_dialogOpen,
+     .odd = true,
      .outcome = mwin_outcomeFailed,
      .asked = nullptr},
     {.what = "zenity where the portal refuses",

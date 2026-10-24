@@ -268,7 +268,7 @@ struct mwinX11Platform
     mwinX11Drag drag;
     // Addresses, files and the bus (linux_services.c).
     mwinLinuxServices services;
-    // The input method over the session bus (linux_ime.c, W40).
+    // The input method over the session bus (linux_ime.c).
     mwinLinuxIme ime;
     // The time of the latest key or button event, which taking the
     // selection quotes.

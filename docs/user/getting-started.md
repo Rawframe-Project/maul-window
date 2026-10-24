@@ -2,6 +2,15 @@
 
 Maul Window gives a program its windows, input, gamepads and the platform services around them, on Windows, macOS, iOS, Android, Linux (Wayland and X11) and the web. This page covers building the library, the model every part of the API follows, and the rules for results, ids and memory.
 
+## Contents
+
+- [Requirements](#requirements)
+- [Building](#building)
+- [The model](#the-model)
+- [Results, ids and defs](#results-ids-and-defs)
+- [Memory and limits](#memory-and-limits)
+- [Where to go next](#where-to-go-next)
+
 ## Requirements
 
 - CMake 3.25 and GCC 14 or Clang 19 or newer. On Windows, `clang-cl` (the Visual Studio component "C++ Clang tools for Windows"). On macOS and iOS, Xcode 16.

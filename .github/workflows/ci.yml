@@ -396,7 +396,7 @@ jobs:
       - name: Test
         if: github.event_name != 'pull_request'
         run: |
-          ctest --preset ios-simulator | tee "$RUNNER_TEMP/ctest.log"
+          ctest --preset ios-simulator -E '^ios_scenes$' | tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
@@ -409,8 +409,8 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl launch "$udid" com.apple.Preferences
           xcrun simctl terminate "$udid" com.apple.Preferences
-          # The window test, until a test needs several scenes.
-          MWIN_IOS_DEVICE=$udid ctest --preset ios-simulator -R '^ios$' --no-tests=error |
+          # The window test, and the one that needs several scenes.
+          MWIN_IOS_DEVICE=$udid ctest --preset ios-simulator -R '^ios(_scenes)?$' --no-tests=error |
             tee "$RUNNER_TEMP/ctest-ipad.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest-ipad.log"; then
             echo "::error::a test did not run"; exit 1

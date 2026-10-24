@@ -32,7 +32,7 @@ The services (opening addresses, revealing files, keeping awake, file dialogs, t
 
 The program's Info.plist carries:
 
-- a `UIApplicationSceneManifest`, which may name no configuration: the library gives every scene its own delegate;
+- a `UIApplicationSceneManifest`, which may name no configuration: the library gives every scene its own delegate; with `UIApplicationSupportsMultipleScenes`, an iPad shows a scene per window;
 - a `UILaunchScreen`, so the application fills the screen;
 - `UIApplicationSupportsIndirectInputEvents`, so a mouse's clicks come as the cursor's rather than as touches.
 

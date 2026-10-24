@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- A test application's Info.plist in the iOS simulator: the
-     scene manifest the library's scenes need, naming no class; a mouse's
+     scene manifest the library's scenes need, naming no class, with
+     several scenes, which iPadOS shows side by side; a mouse's
      clicks as the pointer's, not a finger's; and a launch screen, without
      which iOS shows the application letterboxed. -->
 <plist version="1.0">
@@ -38,7 +39,7 @@
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
+        <true/>
     </dict>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>

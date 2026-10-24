@@ -162,6 +162,9 @@ static void Detach(mwinAndroidPlatform* platform)
 // at once or by the frame callback that waits.
 static void Finish(mwinAndroidPlatform* platform)
 {
+    // An ended program's callbacks find no program and its frame frees
+    // it without stepping: nothing finishes it twice.
+    MWIN_ASSERT(!platform->ended);
     mwinContext* context = platform->context;
     SetProgram(platform, nullptr);
     (void)mwinEndProgram(context);
@@ -198,6 +201,7 @@ static void OnFrame(int64_t frameTimeNanos, void* data);
 
 static void PostFrame(mwinAndroidPlatform* platform)
 {
+    MWIN_ASSERT(!platform->ended);
     if (!platform->framePosted && platform->started)
     {
         AChoreographer_postFrameCallback64(platform->choreographer, OnFrame, platform);
@@ -209,6 +213,8 @@ static void OnFrame(int64_t frameTimeNanos, void* data)
 {
     (void)frameTimeNanos;
     mwinAndroidPlatform* platform = data;
+    // The choreographer calls back only the one frame callback posted.
+    MWIN_ASSERT(platform->framePosted);
     platform->framePosted = false;
     if (platform->ended)
     {
@@ -421,6 +427,7 @@ static void OnConfigurationChanged(ANativeActivity* activity)
 // program stopped meanwhile and has ended.
 static bool EndOld(mwinAndroidPlatform* platform)
 {
+    MWIN_ASSERT(platform->activity != nullptr);
     mwinContext* context = platform->context;
     if (platform->nativeWindow != nullptr)
     {
@@ -441,6 +448,8 @@ static bool EndOld(mwinAndroidPlatform* platform)
 // The program shows in the activity from now on.
 static void Attach(mwinAndroidPlatform* platform, ANativeActivity* activity)
 {
+    // The activity before it ended first, its surface let go.
+    MWIN_ASSERT(platform->activity == nullptr && platform->nativeWindow == nullptr);
     platform->activity = activity;
     activity->instance = platform;
     ANativeActivityCallbacks* callbacks = activity->callbacks;

@@ -474,6 +474,9 @@ jobs:
         # required check, until their issue is fixed (the quarantine label).
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
+          if ! ctest --test-dir out/android-emulator -N -L '^quarantine$' | grep -q 'Total Tests: [1-9]'; then
+            echo "no test is quarantined"; exit 0
+          fi
           ctest --test-dir out/android-emulator -L '^quarantine$' --output-on-failure --timeout 240 \
             --no-tests=error | tee "$RUNNER_TEMP/quarantine.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/quarantine.log"; then

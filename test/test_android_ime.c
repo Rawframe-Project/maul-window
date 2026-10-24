@@ -277,8 +277,11 @@ static bool Ready(const Program* program, mwinContext* context)
         return state.virtualKeyboard.height > 0.0f;
     case 7:
     case 9:
-    case 10:
         return program->completions >= 1;
+    // The keyboard for an address up before it is hidden: hidden sooner,
+    // Android's report of it showing could come after phase 11.
+    case 10:
+        return program->completions >= 1 && state.virtualKeyboard.height > 0.0f;
     case 8:
         return state.virtualKeyboard.height == 0.0f;
     // Android's own insets settled, half a second without a change.

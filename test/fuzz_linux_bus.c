@@ -27,8 +27,9 @@
 // absolute UTF-8 within the limits; committed text and compositions are
 // UTF-8, a composition's caret, selection and segments within its text
 // on character boundaries; the facts the program reads are in range,
-// the text scale finite and above zero; and a key goes only to the
-// window it was offered for.
+// the text scale finite and above zero; and the program reads each
+// key at most once, in the order offered, and only for the window it
+// was offered for.
 
 #include "linux_dialog.h"
 #include "linux_ime.h"
@@ -58,6 +59,7 @@
 #define CALLS   512
 #define FILTERS 8
 #define TRACKED 128
+#define KEYS    1024
 // How deep variants may nest in a value.
 #define DEPTH 6
 
@@ -162,15 +164,16 @@ static struct
 } s_requests[TRACKED];
 static uint32_t s_made;
 
-// The windows of a run, by id: the keys offered for each, and the key
-// records the program read for it.
+// The keys offered in a run, by the serial each carries as its time
+// (from 1): its window and its type. The queue orders records by its
+// own sequence, never by their time. The serial of the last key read.
 static struct
 {
-    mwinWindowId id;
-    uint32_t offered;
-    uint32_t seen;
-} s_keyed[TRACKED];
-static uint32_t s_keyedCount;
+    mwinWindowId window;
+    mwinEventType type;
+} s_keys[KEYS];
+static uint32_t s_keyCount;
+static uint64_t s_keyRead;
 
 static Call* CallOf(DBusPendingCall* pending)
 {
@@ -901,30 +904,20 @@ static void Dialog(mwinContext* context, mwinWindowId window, uint8_t op)
     }
 }
 
-static uint32_t Keyed(mwinWindowId window)
-{
-    for (uint32_t i = 0; i < s_keyedCount; i++)
-    {
-        if (memcmp(&s_keyed[i].id, &window, sizeof(window)) == 0)
-        {
-            return i;
-        }
-    }
-    Expect(s_keyedCount < TRACKED);
-    s_keyed[s_keyedCount] = (typeof(s_keyed[0])){window, 0, 0};
-    return s_keyedCount++;
-}
-
 static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
 {
     static const char* const texts[] = {"a", "\xC3\xA9", "", "\xF0\x9F\x98\x80"};
+    if (s_keyCount == KEYS)
+    {
+        return;
+    }
     mwinEvent key = {0};
     key.type = (op & 16) != 0 ? mwin_eventKeyUp : mwin_eventKeyDown;
-    key.timeNs = mwinMonotonicNow();
+    s_keys[s_keyCount] = (typeof(s_keys[0])){window, key.type};
+    key.timeNs = ++s_keyCount;
     key.data.key.code = (mwinKeyCode)(1 + (op >> 5));
     const char* text = key.type == mwin_eventKeyDown ? texts[Byte() & 3] : "";
     uint32_t keycode = 8u + (op >> 5);
-    s_keyed[Keyed(window)].offered++;
     uint32_t slot = window.index1 - 1;
     if (!mwinImeOffer(&s_ime, slot, 'a', keycode, 0, &key, text, (uint32_t)strlen(text),
                       mwinMonotonicNow()))
@@ -1025,9 +1018,13 @@ static void Drain(mwinContext* context)
         case mwin_eventKeyDown:
         case mwin_eventKeyUp:
         {
-            uint32_t i = Keyed(event.window);
-            s_keyed[i].seen++;
-            Expect(s_keyed[i].seen <= s_keyed[i].offered);
+            // A key may be taken or dropped, never moved, repeated or
+            // given another window or type.
+            uint64_t serial = event.timeNs;
+            Expect(serial > s_keyRead && serial <= s_keyCount);
+            Expect(memcmp(&s_keys[serial - 1].window, &event.window, sizeof(event.window)) == 0 &&
+                   s_keys[serial - 1].type == event.type);
+            s_keyRead = serial;
             break;
         }
         case mwin_eventRequestCompleted:
@@ -1078,7 +1075,8 @@ static void Start(mwinContext* context)
     s_callCount = 0;
     s_filterCount = 0;
     s_made = 0;
-    s_keyedCount = 0;
+    s_keyCount = 0;
+    s_keyRead = 0;
     s_session = (mwinLinuxBus){0};
     Join(&s_session, SESSION);
     uint64_t now = mwinMonotonicNow();

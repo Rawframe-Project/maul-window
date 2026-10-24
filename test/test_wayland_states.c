@@ -12,7 +12,9 @@
 // - minimized, it stays so through a configure that does not activate
 //   it, and is restored by one that does;
 // - a maximized mode asked for and configured is done;
-// - fullscreen and maximized states together are fullscreen.
+// - fullscreen and maximized states together are fullscreen;
+// - a maximize still waiting for its configure, superseded by a
+//   minimize, is answered once: the next configure answers nothing.
 // Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -43,6 +45,8 @@ typedef enum Phase
     phaseAskMaximized,
     phaseMaximized,
     phaseFullscreen,
+    phaseSuperseded,
+    phaseForgotten,
     phaseDone,
 } Phase;
 
@@ -53,6 +57,7 @@ typedef struct Program
     uint64_t startNs;
     mwinWindowId window;
     mwinRequestId request;
+    mwinRequestId minimize;
     mwinEvent records[MAX_RECORDS];
     int count;
     bool timedOut;
@@ -63,6 +68,32 @@ static uint64_t NowNs(void)
     struct timespec now;
     (void)clock_gettime(CLOCK_MONOTONIC, &now);
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
+}
+
+// The outcome the program read for a request, or -1.
+static int OutcomeOf(const Program* program, mwinRequestId request)
+{
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* record = &program->records[i];
+        if (record->type == mwin_eventRequestCompleted &&
+            record->data.completion.request.index1 == request.index1 &&
+            record->data.completion.request.generation == request.generation)
+        {
+            return (int)record->data.completion.outcome;
+        }
+    }
+    return -1;
+}
+
+static int CountCompletions(const Program* program)
+{
+    int completions = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        completions += program->records[i].type == mwin_eventRequestCompleted;
+    }
+    return completions;
 }
 
 static const mwinEvent* Find(const Program* program, mwinEventType type)
@@ -107,7 +138,10 @@ static bool Ready(const Program* program)
     case phaseMinimized:
     case phaseRestored:
     case phaseFullscreen:
+    case phaseForgotten:
         return Find(program, mwin_eventModeChanged) != nullptr;
+    case phaseSuperseded:
+        return CountCompletions(program) >= 2 && Find(program, mwin_eventModeChanged) != nullptr;
     case phaseStillMinimized:
         return NowNs() - program->startNs >= SETTLE_NS;
     case phaseAskMaximized:
@@ -184,9 +218,27 @@ static void Advance(Program* program, mwinContext* context)
               "a maximized mode asked for and configured is done");
         Configure(program, 0, 0, s_both, 3);
         break;
-    default:
+    case phaseFullscreen:
         CHECK(ModeIs(program, mwin_modeBorderlessFullscreen),
               "fullscreen and maximized states together are fullscreen");
+        // A maximize waits for its configure; the minimize after it
+        // supersedes it and is done at once.
+        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request) ==
+                      mwin_success &&
+                  mwinRequestMode(context, program->window, mwin_modeMinimized,
+                                  &program->minimize) == mwin_success,
+              "maximize, then minimize before the configure");
+        break;
+    case phaseSuperseded:
+        CHECK(OutcomeOf(program, program->request) == mwin_outcomeSuperseded &&
+                  OutcomeOf(program, program->minimize) == mwin_outcomeDone &&
+                  ModeIs(program, mwin_modeMinimized),
+              "the maximize superseded, the minimize done");
+        Configure(program, 0, 0, s_activated, 1);
+        break;
+    default:
+        CHECK(ModeIs(program, mwin_modeWindowed) && CountCompletions(program) == 0,
+              "the configure after them restores the window and answers nothing");
         break;
     }
     program->phase += 1;

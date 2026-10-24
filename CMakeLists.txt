@@ -520,6 +520,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         mwin_add_web_test(web_drop)
         mwin_add_web_test(web_locales)
         mwin_add_web_test(web_power)
+        mwin_add_web_test(web_records)
     endif()
     if(MAUL_WINDOW_MACOS)
         # Needs the session's window server, which CI's macOS runners have.
@@ -715,7 +716,8 @@ if(MAUL_WINDOW_FUZZ)
     target_compile_options(maul-window PRIVATE -fsanitize=fuzzer-no-link,address,undefined
                                                -fno-sanitize-recover=all)
     target_link_options(maul-window PUBLIC -fsanitize=address,undefined)
-    set(MWIN_FUZZ_AREAS edid payload preedit)
+    # The web backend's records run on the host too (web_records).
+    set(MWIN_FUZZ_AREAS edid payload preedit web_records)
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         list(APPEND MWIN_FUZZ_AREAS locale)
     endif()
@@ -742,6 +744,12 @@ if(MAUL_WINDOW_FUZZ)
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         target_compile_definitions(fuzz_payload PRIVATE MAUL_WINDOW_ZENITY)
     endif()
+    # The web backend's C files, built for the host with its page's
+    # functions declared weak (web_js.h); the message box is left out, as
+    # the host's own is in the library.
+    target_sources(fuzz_web_records PRIVATE src/backend_web.c src/web_clipboard.c
+                   src/web_cursor.c src/web_drop.c src/web_input.c src/web_page.c
+                   src/web_services.c src/web_text.c src/web_window.c)
     if(MAUL_WINDOW_X11)
         target_include_directories(fuzz_scroll SYSTEM PRIVATE ${MWIN_XCB_INCLUDE_DIRS})
         target_include_directories(fuzz_x11_selection SYSTEM PRIVATE ${MWIN_XCB_INCLUDE_DIRS})

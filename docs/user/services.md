@@ -40,7 +40,7 @@ On Linux it runs zenity or kdialog; where neither is there it draws a plain box 
 
 Changes arrive as `mwin_eventThemeChanged` and `mwin_eventPowerChanged`. `mwinGetPreferredLocales` gives the user's languages in order as BCP 47 tags separated by commas (`de-DE,en-GB`), and `mwin_eventLocaleChanged` says they changed.
 
-Not every platform knows every fact. On Linux they come from the desktop portal, UPower and the environment, so they are unknown for the first frames and then arrive as change records. A page knows no accent, text scale or power saving. A fact a platform does not tell stays unknown, never guessed.
+Not every platform knows every fact. On Linux they come from the desktop portal, UPower and the environment, so they are unknown for the first frames and then arrive as change records. The locales on Linux are the ones the session's environment set at login: a language changed in the desktop's settings while the program runs is not seen, and no `mwin_eventLocaleChanged` comes. A page knows no accent, text scale or power saving. A fact a platform does not tell stays unknown, never guessed.
 
 ## Accessibility hooks
 

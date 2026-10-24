@@ -264,7 +264,8 @@ static void StartDescribing(Program* program)
 
 // Whether the reader read the test's window. The system can learn which
 // window is active after the client connects: until it does, the client
-// reads nothing, and the reader reads again, until the phase's deadline.
+// names the active window's package instead of a count, and the reader
+// reads again, until the phase's deadline.
 static bool Described(Program* program)
 {
     if (!atomic_load(&program->described))
@@ -272,11 +273,12 @@ static bool Described(Program* program)
         return false;
     }
     (void)pthread_join(program->reader, nullptr);
-    if (program->texts[0] == '\0')
+    if (program->texts[0] < '0' || program->texts[0] > '9')
     {
         if (!program->readAgain)
         {
-            printf("the active window not yet the test's; reading again\n");
+            printf("the active window not yet the test's (%s); reading again\n",
+                   program->texts[0] != '\0' ? program->texts : "no answer");
             program->readAgain = true;
         }
         StartDescribing(program);

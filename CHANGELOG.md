@@ -5,6 +5,69 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.1.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.1.0) (2026-10-24)
+
+### Changed
+
+- `mwinMessageBoxDef` carries the ABI version, like the application
+  def, and `mwinShowMessageBox` refuses a def from other headers with
+  `mwin_errorVersion`. A program must rebuild against the new headers
+  and build its def with `mwinDefaultMessageBoxDef()`, which now sets
+  the version; a def filled in field by field must also set
+  `version = MWIN_ABI_VERSION`
+  ([#31](https://github.com/Rawframe-Project/maul-window/pull/31)).
+- On iOS, a window created when no scene is free completes
+  `mwin_outcomeUnsupported` where the application cannot show several
+  scenes (an iPhone, or an Info.plist without
+  `UIApplicationSupportsMultipleScenes`), instead of
+  `mwin_outcomeFailed`
+  ([#69](https://github.com/Rawframe-Project/maul-window/pull/69)).
+
+### Added
+
+- iPadOS windows: each further window gets a scene of its own, which
+  the system shows side by side or in Stage Manager. Creating one can
+  take up to ten seconds, and completes `mwin_outcomeFailed` if the
+  system refuses or no scene comes. A scene the user closes asks its
+  window to close, and a window the program destroys while others remain
+  closes its scene
+  ([#69](https://github.com/Rawframe-Project/maul-window/pull/69)).
+- A hovering Apple Pencil is reported on iPadOS as pen motion without
+  contact, with its tilt on iOS 16.4 and later, as the other platforms
+  report a hovering pen
+  ([#62](https://github.com/Rawframe-Project/maul-window/pull/62)).
+- On Linux the preferred locales follow the desktop while the program
+  runs: a language changed in GNOME's settings or in KDE Plasma's
+  `plasma-localerc` replaces the list, and `mwin_eventLocaleChanged`
+  says so. The list still starts from the program's environment, and
+  without a system bus or a configuration folder it simply stays
+  ([#67](https://github.com/Rawframe-Project/maul-window/pull/67)).
+
+### Fixed
+
+- On Linux a desktop portal or power service answering with values of
+  an unexpected type no longer ends the program, and a text scale that
+  is infinite or out of range no longer reaches it
+  ([#32](https://github.com/Rawframe-Project/maul-window/pull/32)).
+- On X11 a key held for the input method's answer reaches only the
+  window it was pressed in, not a new window made in its place
+  ([#34](https://github.com/Rawframe-Project/maul-window/pull/34)).
+- On the web, records, strings, drops and clipboard text from the page
+  are checked and repaired before the program sees them, so another
+  script on the page can no longer crash the program or hand it
+  positions, pressures, sizes or codes outside the contract
+  ([#41](https://github.com/Rawframe-Project/maul-window/pull/41)).
+- On Android 11 the on-screen keyboard asked for as an activity starts
+  now shows, rather than depending on when input starts on the view
+  ([#47](https://github.com/Rawframe-Project/maul-window/pull/47)).
+- On Wayland a minimize that supersedes a waiting maximize or
+  fullscreen request no longer lets a later configure answer another
+  request with that mode's outcome
+  ([#56](https://github.com/Rawframe-Project/maul-window/pull/56)).
+- On iOS destroying a window whose creation failed no longer crashes,
+  and a scene the system closed is never given to the next window
+  ([#69](https://github.com/Rawframe-Project/maul-window/pull/69)).
+
 ## [0.0.1](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.0.1) (2026-10-23)
 
 The first release: windows, input, gamepads and platform services

@@ -963,6 +963,18 @@ static inline void ServerRemoveShapes(Server* server)
 
 // Starts the compositor on a new socket, which WAYLAND_DISPLAY then
 // names. False when it cannot.
+// Lets go what a start that failed partway made.
+static inline bool ServerAbandon(Server* server)
+{
+    if (server->display != nullptr)
+    {
+        wl_display_destroy(server->display);
+    }
+    free(server->keymap);
+    *server = (Server){0};
+    return false;
+}
+
 static inline bool ServerStart(Server* server, const char* layout, const char* variant)
 {
     *server = (Server){.repeatRate = 50, .repeatDelay = 40};
@@ -971,10 +983,11 @@ static inline bool ServerStart(Server* server, const char* layout, const char* v
         return false;
     }
     server->display = wl_display_create();
-    server->socket = wl_display_add_socket_auto(server->display);
+    server->socket =
+        server->display != nullptr ? wl_display_add_socket_auto(server->display) : nullptr;
     if (server->socket == nullptr)
     {
-        return false;
+        return ServerAbandon(server);
     }
     server->loop = wl_display_get_event_loop(server->display);
     wl_global_create(server->display, &wl_compositor_interface, 4, server, ServerBindCompositor);
@@ -995,7 +1008,12 @@ static inline bool ServerStart(Server* server, const char* layout, const char* v
     wl_display_init_shm(server->display);
     setenv("WAYLAND_DISPLAY", server->socket, 1);
     pthread_mutex_init(&server->lock, nullptr);
-    return pthread_create(&server->thread, nullptr, ServerRun, server) == 0;
+    if (pthread_create(&server->thread, nullptr, ServerRun, server) != 0)
+    {
+        pthread_mutex_destroy(&server->lock);
+        return ServerAbandon(server);
+    }
+    return true;
 }
 
 static inline void ServerStop(Server* server)

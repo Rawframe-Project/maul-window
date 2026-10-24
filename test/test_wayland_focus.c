@@ -252,9 +252,14 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 int main(void)
 {
     const char* runtime = getenv("XDG_RUNTIME_DIR");
-    if (runtime == nullptr || runtime[0] == '\0' || !ServerStart(&s_server, "us", ""))
+    if (runtime == nullptr || runtime[0] == '\0')
     {
         return 77;
+    }
+    if (!ServerStart(&s_server, "us", ""))
+    {
+        printf("FAIL: the stand-in compositor did not start\n");
+        return 1;
     }
     pthread_mutex_lock(&s_server.lock);
     wl_global_create(s_server.display, &xdg_activation_v1_interface, 1, nullptr, BindActivation);

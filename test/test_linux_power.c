@@ -156,9 +156,14 @@ int main(void)
 {
     static FakeBus session;
     static FakeBus system;
-    if (getenv("DISPLAY") == nullptr || mkdtemp(s_directory) == nullptr)
+    if (getenv("DISPLAY") == nullptr)
     {
         return 77;
+    }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
     (void)snprintf(s_system, sizeof(s_system), "%s/system", s_directory);

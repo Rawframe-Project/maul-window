@@ -52,7 +52,8 @@ int main(void)
 {
     if (mkdtemp(s_root) == nullptr)
     {
-        return 77;
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     Folders("class/input/event7/device/device/power_supply/ps-controller-battery-0");
     Write("class/input/event7/device/device/power_supply/ps-controller-battery-0/capacity", "73\n");

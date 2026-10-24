@@ -276,9 +276,14 @@ static void RunWithBus(const char* wayland)
 int main(void)
 {
     const char* display = getenv("DISPLAY");
-    if (display == nullptr || mkdtemp(s_directory) == nullptr)
+    if (display == nullptr)
     {
         return 77;
+    }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     const char* wayland = getenv("WAYLAND_DISPLAY");
     const char* runtime = getenv("XDG_RUNTIME_DIR");

@@ -59,16 +59,20 @@ public final class Client extends AccessibilityService {
 
     /**
      * The active window's nodes: their count, a colon, and their texts with
-     * commas; empty until the active window is the test's. Not on the main
-     * thread: the window answers there.
+     * commas; until the active window is the test's, "active: " and the
+     * package of the one that is, or "none". Not on the main thread: the
+     * window answers there.
      */
     public static String describe() {
         Client client = running;
         AccessibilityNodeInfo root = client != null ? client.getRootInActiveWindow() : null;
         // The system can learn which window is active after the client
         // connects: until then there is none, or another application's.
-        if (root == null || !client.getPackageName().contentEquals(root.getPackageName())) {
-            return "";
+        if (root == null) {
+            return "active: none";
+        }
+        if (!client.getPackageName().contentEquals(root.getPackageName())) {
+            return "active: " + root.getPackageName();
         }
         StringBuilder texts = new StringBuilder();
         int count = collect(root, texts);

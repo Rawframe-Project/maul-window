@@ -230,11 +230,13 @@ mwinOutcome mwinLinuxCanKeepAwake(mwinLinuxServices* services)
 void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awake)
 {
     mwinBusPump(&services->bus, 0);
+    mwinSettingsPump(&services->settings, nowNs);
+    // The system bus is read after the settings are taken, as the power
+    // module read it in its own pump.
     if (services->system.connection != nullptr)
     {
         mwinBusPump(&services->system, 0);
     }
-    mwinSettingsPump(&services->settings, nowNs);
     mwinPowerPump(&services->power, nowNs);
     PumpReveals(services, nowNs);
     PumpOpeners(services, nowNs);

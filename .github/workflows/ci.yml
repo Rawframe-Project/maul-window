@@ -396,7 +396,7 @@ jobs:
       - name: Test
         if: github.event_name != 'pull_request'
         run: |
-          ctest --preset ios-simulator -E '^ios_scenes$' | tee "$RUNNER_TEMP/ctest.log"
+          ctest --preset ios-simulator -E '^ios_scenes$' --no-tests=error | tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
@@ -477,7 +477,7 @@ jobs:
           cmake --build --preset android-emulator -j 4
       - name: Test
         run: |
-          ctest --preset android-emulator | tee "$RUNNER_TEMP/ctest.log"
+          ctest --preset android-emulator --no-tests=error | tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
@@ -532,7 +532,7 @@ jobs:
           npm ci --prefix "$RUNNER_TEMP/browser"
       - name: Test
         run: |
-          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-wasi |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-wasi --no-tests=error |
             tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
@@ -573,7 +573,7 @@ jobs:
           npm ci --prefix "$RUNNER_TEMP/browser"
       - name: Test
         run: |
-          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-emscripten |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" ctest --preset web-emscripten --no-tests=error |
             tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1

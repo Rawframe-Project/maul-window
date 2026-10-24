@@ -196,6 +196,17 @@ static inline bool mwinWebWhole(float value, uint32_t most)
     return value >= 1.0f && value <= (float)most && value == floorf(value);
 }
 
+// The modifier bits there are; a record's others are the page's junk.
+#define MWIN_WEB_MODIFIERS                                                                         \
+    (mwin_modShift | mwin_modControl | mwin_modAlt | mwin_modMeta | mwin_modCapsLock |             \
+     mwin_modNumLock)
+
+// A scale of the page's: above 0 and finite, else 1.
+static inline float mwinWebScaleOf(float value)
+{
+    return isfinite(value) && value > 0.0f ? value : 1.0f;
+}
+
 // A float of the page's from 0 to 1.
 static inline float mwinWebUnit(float value)
 {

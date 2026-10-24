@@ -328,8 +328,9 @@ EM_JS(int, mwinWebSetFullscreen, (const mwinContext* context, uint32_t slot, boo
     return 0;
 });
 
+// Anything but a number, which another script can make it, is 1.
 EM_JS(float, mwinWebScale, (void), {
-    return devicePixelRatio;
+    return typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 });
 
 EM_JS(void, mwinWebCheckScale, (const mwinContext* context), {
@@ -352,8 +353,10 @@ EM_JS(bool, mwinWebReducedMotion, (void), {
     return matchMedia('(prefers-reduced-motion: reduce)').matches;
 });
 
+// Anything but a number is unknown, 0; the backend checks the number.
 EM_JS(int, mwinWebOnBattery, (const mwinContext* context), {
-    return Module.mwinWeb.get(context).onBattery;
+    const said = Module.mwinWeb.get(context).onBattery;
+    return typeof said === 'number' ? said : 0;
 });
 
 EM_JS(uint32_t, mwinWebLocales, (char* out, uint32_t capacity), {

@@ -22,8 +22,8 @@
 // window's limit, a composition's offsets on character boundaries;
 // positions, sizes, scales, wheel turns and motion are finite, a scale
 // above zero and a size not below it; pressures are from 0 to 1 (a
-// touch's may be -1), tilts finite; buttons, key codes and what keys mean
-// are ones there are; and the sanitizers see no read past an array and no
+// touch's may be -1), tilts finite; buttons, modifiers, key codes, what
+// keys mean and the facts are ones there are; and the sanitizers see no read past an array and no
 // conversion of a number that does not fit.
 
 #include "web.h"
@@ -197,10 +197,11 @@ bool mwinWebHighDynamicRange(void)
     return (Byte() & 1) != 0;
 }
 
-// What the page's functions give for the facts: matchMedia's answers.
+// What the page's functions give for the facts: matchMedia's answers,
+// and the power source another script can set to anything.
 int mwinWebTheme(void)
 {
-    return Byte() % 3;
+    return Integer();
 }
 
 bool mwinWebReducedMotion(void)
@@ -211,7 +212,7 @@ bool mwinWebReducedMotion(void)
 int mwinWebOnBattery(const mwinContext* context)
 {
     (void)context;
-    return Byte() % 3;
+    return Integer();
 }
 
 uint32_t mwinWebLocales(char* out, uint32_t capacity)
@@ -444,7 +445,7 @@ static void CheckPreedit(const mwinPreeditEvent* preedit)
 
 static void CheckKey(const mwinKeyEvent* key)
 {
-    Expect(key->code < 256);
+    Expect(key->code < 256 && (key->modifiers & ~MWIN_WEB_MODIFIERS) == 0);
     mwinKey meaning = key->key;
     bool named = (meaning & MWIN_KEY_NAMED) != 0;
     Expect(named ? (meaning & ~MWIN_KEY_NAMED) < 256
@@ -525,6 +526,14 @@ static void CheckMonitors(const mwinContext* context)
     }
 }
 
+static void CheckFacts(const mwinContext* context)
+{
+    mwinSystemFacts facts;
+    Expect(mwinGetSystemFacts(context, &facts) == mwin_success);
+    Expect(facts.theme <= mwin_themeDark && facts.onBattery <= mwin_yes &&
+           facts.lowPower <= mwin_yes);
+}
+
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
@@ -549,7 +558,8 @@ static void Drain(mwinContext* context)
         case mwin_eventButtonDown:
         case mwin_eventButtonUp:
             Expect(Finite(data->pointer.position) && data->pointer.button <= mwin_buttonForward &&
-                   data->pointer.buttons < 32);
+                   data->pointer.buttons < 32 &&
+                   (data->pointer.modifiers & ~MWIN_WEB_MODIFIERS) == 0);
             break;
         case mwin_eventWheel:
             Expect(isfinite(data->wheel.x) && isfinite(data->wheel.y));
@@ -589,6 +599,10 @@ static void Drain(mwinContext* context)
             Expect(isfinite(data->scale.scale) && data->scale.scale > 0.0f &&
                    isfinite(data->scale.suggestedSize.width) &&
                    isfinite(data->scale.suggestedSize.height));
+            break;
+        case mwin_eventThemeChanged:
+        case mwin_eventPowerChanged:
+            CheckFacts(context);
             break;
         case mwin_eventMonitorAdded:
         case mwin_eventMonitorChanged:

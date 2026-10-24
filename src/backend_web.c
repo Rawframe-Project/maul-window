@@ -93,9 +93,15 @@ static void ReadFacts(mwinWebPlatform* platform)
 {
     mwinContext* context = platform->context;
     mwinSystemFacts facts = {.textScale = 1.0f};
-    facts.theme = (mwinTheme)mwinWebTheme();
+    // The power source sits on the page's object, which other scripts can
+    // reach: anything but a tristate is unknown.
+    int theme = mwinWebTheme();
+    int battery = mwinWebOnBattery(context);
+    facts.theme = theme >= mwin_themeUnknown && theme <= mwin_themeDark ? (mwinTheme)theme
+                                                                        : mwin_themeUnknown;
     facts.reducedMotion = mwinWebReducedMotion();
-    facts.onBattery = (mwinTristate)mwinWebOnBattery(context);
+    facts.onBattery =
+        battery >= mwin_unknown && battery <= mwin_yes ? (mwinTristate)battery : mwin_unknown;
     mwinSetSystemFacts(context, &facts, NowNs());
     // A list past the limit is left as it was.
     char locales[MWIN_WEB_LOCALE_BYTES];
@@ -218,7 +224,9 @@ static mwinResult Start(mwinContext* context)
     platform->text = (char*)(block + parts.text);
     platform->context = context;
     platform->monitor = -1;
-    platform->scale = mwinWebScale();
+    // devicePixelRatio can be redefined by other scripts, as the records
+    // can be pushed.
+    platform->scale = mwinWebScaleOf(mwinWebScale());
     platform->keyHost = mwinWebReadKeyHost();
     context->backendData = platform;
     mwinWebAttach(context, Lifecycle);

@@ -10,7 +10,10 @@
 // outcome there is not, and a time past what nanoseconds hold: the shapes
 // of the findings of fuzz_web_records. Before them, entries that are not
 // records at all, and a drop, a read's text and a composition's string of
-// other shapes, which the page's own functions must not throw on. Each is left out or repaired:
+// other shapes, which the page's own functions must not throw on. The
+// page's devicePixelRatio is redefined as NaN before the program starts,
+// and its power source set to 7: the screen's and the window's scales are
+// above 0, and the power source a tristate. Each is left out or repaired:
 // what the program reads is within the contract, and a key pushed after them arrives as sent.
 
 #include "test_harness.h"
@@ -19,6 +22,9 @@
 #include "maul-window/clipboard.h"
 #include "maul-window/event.h"
 #include "maul-window/input.h"
+#include "maul-window/monitor.h"
+#include "maul-window/system.h"
+#include "maul-window/window.h"
 
 #include <math.h>
 
@@ -55,6 +61,13 @@ EM_JS(void, PushJunk, (const mwinContext* context, int slot), {
     state.clipboardTexts.push("not bytes");
     state.strings.push({});
     state.queue.push([20, slot, 0, 0, 0, 0, 0, 0, 0, 0, 10]);
+    state.onBattery = 7;
+    state.queue.push([7, -1, 0, 0, 0, 0, 0, 0, 0, 0, 10]);
+});
+
+// What another script can do to the page before the program starts.
+EM_JS(void, SpoilScale, (void), {
+    Object.defineProperty(window, 'devicePixelRatio', {value: NaN, configurable: true});
 });
 // clang-format on
 
@@ -160,9 +173,36 @@ static bool Right(const mwinEvent* event)
     }
 }
 
+// Whether the facts and the screens the program reads are within the
+// contract.
+static bool RightFacts(const mwinContext* context, const Program* program)
+{
+    mwinSystemFacts facts;
+    mwinMonitorId monitors[4];
+    size_t count = 0;
+    mwinWindowState state;
+    bool right = mwinGetSystemFacts(context, &facts) == mwin_success &&
+                 facts.onBattery <= mwin_yes && facts.theme <= mwin_themeDark &&
+                 mwinGetMonitors(context, monitors, 4, &count) == mwin_success &&
+                 mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                 isfinite(state.scale) && state.scale > 0.0f;
+    for (size_t i = 0; right && i < count && i < 4; i++)
+    {
+        mwinMonitorInfo info;
+        right = mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success &&
+                isfinite(info.scale) && info.scale > 0.0f;
+    }
+    return right;
+}
+
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
+    if (!RightFacts(context, program))
+    {
+        (void)printf("facts or scales out of the contract\n");
+        program->wrong += 1;
+    }
     while (mwinNextEvent(context, &event) == mwin_success)
     {
         if (!Right(&event))
@@ -228,6 +268,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
 int main(void)
 {
     static Program program;
+    SpoilScale();
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;

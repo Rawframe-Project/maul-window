@@ -252,7 +252,8 @@ static void OnKey(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecord*
     uint32_t said = mwinWebWhole(record->z, 0x10FFFF) ? (uint32_t)record->z : 0;
     mwinKey meaning = said != 0 && (said < 0xD800 || said > 0xDFFF) ? said : MWIN_KEY_NAMED | code;
     mwinEvent event = {.type = record->x != 0.0f ? mwin_eventKeyDown : mwin_eventKeyUp};
-    event.data.key = (mwinKeyEvent){code, (mwinModifiers)record->extra, meaning, record->y != 0.0f};
+    mwinModifiers modifiers = (mwinModifiers)(record->extra & MWIN_WEB_MODIFIERS);
+    event.data.key = (mwinKeyEvent){code, modifiers, meaning, record->y != 0.0f};
     Post(platform, slot, &event, record->timeMs);
 }
 
@@ -303,8 +304,9 @@ static void OnMouse(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecor
         return;
     }
     mwinEvent event = {.type = types[record->code]};
-    event.data.pointer = (mwinPointerEvent){position, (mwinModifiers)record->extra, window->buttons,
-                                            button, window->clicks.clicks};
+    mwinModifiers modifiers = (mwinModifiers)(record->extra & MWIN_WEB_MODIFIERS);
+    event.data.pointer =
+        (mwinPointerEvent){position, modifiers, window->buttons, button, window->clicks.clicks};
     Post(platform, slot, &event, record->timeMs);
 }
 

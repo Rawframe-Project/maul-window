@@ -20,6 +20,11 @@
 // - Another file of the folder written: plasma-localerc not read.
 // - The user's change from another program on the bus, to every listener
 //   or to the program alone: nothing told.
+// - AccountsService restarting under a new unique name: a change from the
+//   old connection while no one holds the name tells nothing; the user
+//   found and read again, nothing told where the list is the same; a
+//   change from the old connection or another program then tells nothing,
+//   and one from the new connection is followed.
 // - With no system bus and no configuration folder, or AccountsService
 //   refusing the user and plasma-localerc no file: the starting list,
 //   and nothing told.
@@ -74,7 +79,8 @@ static const Expected s_steps[] = {
     {kindChange, "en-US"},       {kindChange, "pt-BR"},       {kindChange, "sv-SE"},
     {kindChange, "es,ca-ES"},    {kindQuietFile, "es,ca-ES"}, {kindQuietFile, "es,ca-ES"},
     {kindQuietFile, "es,ca-ES"}, {kindQuietBus, "es,ca-ES"},  {kindQuietFile, "es,ca-ES"},
-    {kindQuietBus, "es,ca-ES"},  {kindChange, "nl"},
+    {kindQuietBus, "es,ca-ES"},  {kindQuietBus, "es,ca-ES"},  {kindQuietBus, "es,ca-ES"},
+    {kindChange, "fi-FI"},       {kindChange, "nl"},
 };
 
 typedef struct Program
@@ -133,8 +139,10 @@ static void Act(Program* program)
         FakeLanguagesChanged(system, "de_DE:en_US");
         break;
     case 2:
+        // Changed twice: the second waits while the first is handled.
         User(system, "de_DE:en_US", "");
         FakeLanguagesChanged(system, "de_DE:en_US");
+        FakeUserChanged(system);
         FakeUserChanged(system);
         break;
     case 3:
@@ -197,6 +205,23 @@ static void Act(Program* program)
         CHECK(FakeSpoof(system, "ja_JP"), "another program sent the user's change");
         FakeUserChanged(system);
         break;
+    case 13:
+        // The same user, under the same list; the old connection's change
+        // between the two steps.
+        CHECK(FakeRelease(system) &&
+                  FakeSpoofFrom(system, system->retired, "ja_JP", "org.example.Gap") &&
+                  FakeTakeOver(system),
+              "AccountsService restarted");
+        break;
+    case 14:
+        CHECK(FakeSpoofFrom(system, system->retired, "ja_JP", "org.example.Old") &&
+                  FakeSpoof(system, "ja_JP"),
+              "the old connection and another program sent the user's change");
+        FakeUserChanged(system);
+        break;
+    case 15:
+        FakeLanguagesChanged(system, "fi_FI");
+        break;
     default:
         WRITE(s_file, "[Translations]\nLANGUAGE=nl\n");
         break;
@@ -253,12 +278,16 @@ static void Step(mwinContext* context, Program* program)
               program->step == 10   ? "the user's repeat after the file's change tells nothing"
               : program->step == 11 ? "another file's write reads nothing"
               : program->step == 12 ? "another program's change of the user tells nothing"
+              : program->step == 13 ? "a restart with the same list tells nothing"
+              : program->step == 14 ? "the old connection's change tells nothing"
               : expected->kind == kindQuietBus ? "repeats and odd changes on the bus tell nothing"
                                                : "a file with a NUL, too long, or with the same "
                                                  "LANGUAGE tells nothing");
     }
     CHECK(program->step != 4 || program->system->getAlls == program->getAlls + 1,
           "Changed reads the user again");
+    CHECK(program->step != 13 || program->system->finds == 2,
+          "a restart finds the user again, once");
     program->changes = 0;
     program->quiet = 0;
     program->step += 1;

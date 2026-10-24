@@ -14,7 +14,7 @@
 // AccountsService instead: FindUserById, the user's GetAll with its
 // Languages and Language, and their PropertiesChanged and Changed; and
 // another program on that bus, sending the user's PropertiesChanged in
-// its place.
+// its place; and AccountsService restarting under a new unique name.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -48,6 +48,7 @@ typedef struct FakeBus
     void* (*openPrivate)(const char* address, void* error);
     unsigned (*busRegister)(void* connection, void* error);
     int (*requestName)(void* connection, const char* name, unsigned flags, void* error);
+    int (*releaseName)(void* connection, const char* name, void* error);
     unsigned (*readWrite)(void* connection, int timeout);
     void* (*pop)(void* connection);
     unsigned (*isCall)(void* message, const char* interface, const char* method);
@@ -112,8 +113,10 @@ typedef struct FakeBus
     bool noUser;
     int finds;
     int getAlls;
-    // The unique name of the connection that asked for the user.
+    // The unique name of the connection that asked for the user, and the
+    // stand-in's connection from before AccountsService restarted.
     char client[64];
+    void* retired;
     // Started as the system bus.
     bool system;
     // Which step of starting it failed, for a broken start.
@@ -145,6 +148,7 @@ static inline bool FakeLoad(FakeBus* fake)
            FAKE_FIND(openPrivate, dbus_connection_open_private) &&
            FAKE_FIND(busRegister, dbus_bus_register) &&
            FAKE_FIND(requestName, dbus_bus_request_name) &&
+           FAKE_FIND(releaseName, dbus_bus_release_name) &&
            FAKE_FIND(readWrite, dbus_connection_read_write) &&
            FAKE_FIND(pop, dbus_connection_pop_message) &&
            FAKE_FIND(isCall, dbus_message_is_method_call) &&
@@ -851,20 +855,32 @@ static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
     fake->flush(fake->connection);
 }
 
-// Another program on the bus sends the user's Languages changing, to
-// every listener and to the client alone. It asks the bus for a name
-// afterwards, which the bus answers only once it passed both on, ahead
-// of what the stand-in sends next.
-static inline bool FakeSpoof(FakeBus* fake, const char* names)
+// A connection of the test's own to the system bus, or NULL.
+static inline void* FakeOpen(FakeBus* fake)
 {
     const char* address = getenv("DBUS_SYSTEM_BUS_ADDRESS");
     void* other = address != nullptr ? fake->openPrivate(address, nullptr) : nullptr;
     if (other == nullptr)
     {
-        return false;
+        return nullptr;
     }
     fake->setExit(other, 0);
-    bool sent = fake->busRegister(other, nullptr);
+    if (!fake->busRegister(other, nullptr))
+    {
+        fake->close(other);
+        fake->unrefConnection(other);
+        return nullptr;
+    }
+    return other;
+}
+
+// A connection that is not AccountsService's sends the user's Languages
+// changing, to every listener and to the client alone. It asks the bus
+// for a name afterwards, which the bus answers only once it passed both
+// on, ahead of what the stand-in sends next.
+static inline bool FakeSpoofFrom(FakeBus* fake, void* other, const char* names, const char* name)
+{
+    bool sent = true;
     for (int i = 0; i < 2 && sent; i++)
     {
         void* message = FakeLanguagesSignal(fake, names);
@@ -872,10 +888,45 @@ static inline bool FakeSpoof(FakeBus* fake, const char* names)
                fake->send(other, message, nullptr);
         fake->unref(message);
     }
-    sent = sent && fake->requestName(other, "org.example.Spoof", 4, nullptr) == 1;
+    return sent && fake->requestName(other, name, 4, nullptr) == 1;
+}
+
+// Another program on the bus sends the user's Languages changing.
+static inline bool FakeSpoof(FakeBus* fake, const char* names)
+{
+    void* other = FakeOpen(fake);
+    if (other == nullptr)
+    {
+        return false;
+    }
+    bool sent = FakeSpoofFrom(fake, other, names, "org.example.Spoof");
     fake->close(other);
     fake->unrefConnection(other);
     return sent;
+}
+
+// AccountsService restarts in two steps: its connection gives up the name
+// and stays on the bus (fake->retired); then a new one takes the name and
+// answers from then on. 1: released; 1: the primary owner.
+static inline bool FakeRelease(FakeBus* fake)
+{
+    if (fake->retired != nullptr)
+    {
+        return false;
+    }
+    fake->retired = fake->connection;
+    return fake->releaseName(fake->retired, "org.freedesktop.Accounts", nullptr) == 1;
+}
+
+static inline bool FakeTakeOver(FakeBus* fake)
+{
+    void* fresh = FakeOpen(fake);
+    if (fresh == nullptr)
+    {
+        return false;
+    }
+    fake->connection = fresh;
+    return fake->requestName(fresh, "org.freedesktop.Accounts", 4, nullptr) == 1;
 }
 
 // Tells every listener that something of the user changed, the older
@@ -960,6 +1011,11 @@ static inline void FakePump(FakeBus* fake)
 
 static inline void FakeStop(FakeBus* fake)
 {
+    if (fake->retired != nullptr)
+    {
+        fake->close(fake->retired);
+        fake->unrefConnection(fake->retired);
+    }
     if (fake->connection != nullptr)
     {
         fake->close(fake->connection);

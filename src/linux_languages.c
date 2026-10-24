@@ -22,6 +22,7 @@
 #define ACCOUNTS_PATH "/org/freedesktop/Accounts"
 #define USER          "org.freedesktop.Accounts.User"
 #define PLASMA        "plasma-localerc"
+#define BUS           "org.freedesktop.DBus"
 
 static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
 {
@@ -133,30 +134,94 @@ static void ReadUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     }
 }
 
-// Listens for the user's changes from AccountsService: PropertiesChanged,
-// and the older Changed, which says only that something changed.
-static void Listen(mwinLinuxLanguages* languages)
+// Adds or removes (member AddMatch or RemoveMatch) a match rule.
+static void Match(mwinLinuxLanguages* languages, const char* member, const char* rule)
+{
+    mwinLinuxBus* system = languages->system;
+    DBusMessage* match = mwinBusMethod(system, BUS, "/org/freedesktop/DBus", BUS, member);
+    if (match != nullptr)
+    {
+        mwinDBusIter arguments;
+        system->api.iterInitAppend(match, &arguments);
+        (void)AppendString(&system->api, &arguments, rule);
+        mwinBusTell(system, match);
+    }
+}
+
+// Listens, or stops listening, for the changes of a user's path from
+// AccountsService: PropertiesChanged, and the older Changed, which says
+// only that something changed.
+static void Listen(mwinLinuxLanguages* languages, const char* member, const char* path)
 {
     static const char* const rules[] = {
         "type='signal',sender='" ACCOUNTS "',interface='" PROPERTIES "',"
         "member='PropertiesChanged',path='%s',arg0='" USER "'",
         "type='signal',sender='" ACCOUNTS "',interface='" USER "',member='Changed',path='%s'",
     };
-    mwinLinuxBus* system = languages->system;
     for (size_t i = 0; i < sizeof(rules) / sizeof(rules[0]); i++)
     {
         char rule[256 + MWIN_LINUX_USER_PATH_BYTES];
-        (void)snprintf(rule, sizeof(rule), rules[i], languages->user);
-        DBusMessage* match = mwinBusMethod(system, "org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "AddMatch");
-        if (match != nullptr)
+        (void)snprintf(rule, sizeof(rule), rules[i], path);
+        Match(languages, member, rule);
+    }
+}
+
+// Asks AccountsService for the user's path.
+static void FindUser(mwinLinuxLanguages* languages, uint64_t nowNs)
+{
+    mwinLinuxBus* system = languages->system;
+    DBusMessage* find = mwinBusMethod(system, ACCOUNTS, ACCOUNTS_PATH, ACCOUNTS, "FindUserById");
+    if (find == nullptr)
+    {
+        return;
+    }
+    int64_t user = (int64_t)getuid();
+    mwinDBusIter arguments;
+    system->api.iterInitAppend(find, &arguments);
+    if (system->api.appendBasic(&arguments, mwin_dbusTypeInt64, &user))
+    {
+        (void)mwinBusSend(system, find, &languages->userCall, nowNs);
+    }
+    else
+    {
+        system->api.unrefMessage(find);
+    }
+}
+
+// AccountsService's name changed owner, NameOwnerChanged(s name, s old,
+// s new) from the bus itself: the old owner is trusted no more from here
+// on, and the pump forgets its calls and asks a new one for the user
+// again, as its path may differ. What it says is told only where it
+// differs from what the old one said.
+static void OwnerChanged(mwinLinuxLanguages* languages, DBusMessage* message)
+{
+    const mwinDBusApi* api = &languages->system->api;
+    const char* sender = api->sender(message);
+    const char* names[3] = {nullptr, nullptr, nullptr};
+    mwinDBusIter arguments;
+    bool read = sender != nullptr && strcmp(sender, BUS) == 0 && api->iterInit(message, &arguments);
+    for (size_t i = 0; i < 3 && read; i++)
+    {
+        read = api->argType(&arguments) == mwin_dbusTypeString;
+        if (read)
         {
-            mwinDBusIter arguments;
-            system->api.iterInitAppend(match, &arguments);
-            (void)AppendString(&system->api, &arguments, rule);
-            mwinBusTell(system, match);
+            api->getBasic(&arguments, (void*)&names[i]);
+            (void)api->next(&arguments);
         }
     }
+    if (!read || strcmp(names[0], ACCOUNTS) != 0)
+    {
+        return;
+    }
+    if (languages->user[0] != '\0')
+    {
+        memcpy(languages->stale, languages->user, sizeof(languages->stale));
+    }
+    languages->user[0] = '\0';
+    languages->owner[0] = '\0';
+    languages->forget = true;
+    languages->refind = names[2][0] != '\0';
+    languages->reread = false;
 }
 
 // The user's properties, a{sv}, once they came.
@@ -185,14 +250,21 @@ static void TakeProperties(mwinLinuxLanguages* languages, uint64_t nowNs)
 }
 
 // The user's signals: PropertiesChanged(s interface, a{sv} changed, as
-// invalidated) of its interface, or Changed, after which its properties
-// are asked for again. Another connection's are left alone: any program
-// may send a signal on the system bus, to every listener or to this one.
+// invalidated) of its interface, or Changed, after which the pump asks
+// for its properties again. Another connection's are left alone: any
+// program may send a signal on the system bus, to every listener or to
+// this one. Nothing is sent from here: a send pumps the bus, which must
+// not dispatch again from inside its dispatch.
 static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, void* data)
 {
     (void)connection;
     mwinLinuxLanguages* languages = data;
     const mwinDBusApi* api = &languages->system->api;
+    if (api->isSignal(message, BUS, "NameOwnerChanged"))
+    {
+        OwnerChanged(languages, message);
+        return mwin_dbusNotHandled;
+    }
     const char* path = api->path(message);
     const char* sender = api->sender(message);
     if (languages->user[0] == '\0' || path == nullptr || strcmp(path, languages->user) != 0 ||
@@ -202,9 +274,7 @@ static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, 
     }
     if (api->isSignal(message, USER, "Changed"))
     {
-        // An answer on its way may be older than the change.
-        mwinBusDrop(languages->system, &languages->readCall);
-        ReadUser(languages, mwinMonotonicNow());
+        languages->reread = true;
         return mwin_dbusNotHandled;
     }
     mwinDBusIter arguments;
@@ -323,22 +393,10 @@ void mwinLanguagesStart(mwinLinuxLanguages* languages, mwinContext* context, mwi
         system->api.addFilter(system->connection, Filter, languages, nullptr))
     {
         languages->listening = true;
-        DBusMessage* find =
-            mwinBusMethod(system, ACCOUNTS, ACCOUNTS_PATH, ACCOUNTS, "FindUserById");
-        int64_t user = (int64_t)getuid();
-        mwinDBusIter arguments;
-        if (find != nullptr)
-        {
-            system->api.iterInitAppend(find, &arguments);
-            if (system->api.appendBasic(&arguments, mwin_dbusTypeInt64, &user))
-            {
-                (void)mwinBusSend(system, find, &languages->userCall, nowNs);
-            }
-            else
-            {
-                system->api.unrefMessage(find);
-            }
-        }
+        Match(languages, "AddMatch",
+              "type='signal',sender='" BUS "',interface='" BUS "',member='NameOwnerChanged',"
+              "arg0='" ACCOUNTS "'");
+        FindUser(languages, nowNs);
     }
     Watch(languages, nowNs);
 }
@@ -364,7 +422,7 @@ static void TakeUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     {
         memcpy(languages->user, path, strlen(path) + 1);
         memcpy(languages->owner, owner, strlen(owner) + 1);
-        Listen(languages);
+        Listen(languages, "AddMatch", languages->user);
         ReadUser(languages, nowNs);
     }
     if (reply != nullptr)
@@ -402,11 +460,37 @@ static void PumpWatch(mwinLinuxLanguages* languages, uint64_t nowNs)
 
 void mwinLanguagesPump(mwinLinuxLanguages* languages, uint64_t nowNs)
 {
-    if (languages->userCall.pending != nullptr)
+    // An owner that went: its answers, even ones that came, are let go.
+    if (languages->forget)
+    {
+        languages->forget = false;
+        mwinBusDrop(languages->system, &languages->userCall);
+        mwinBusDrop(languages->system, &languages->readCall);
+        if (languages->stale[0] != '\0')
+        {
+            Listen(languages, "RemoveMatch", languages->stale);
+            languages->stale[0] = '\0';
+        }
+    }
+    if (languages->refind)
+    {
+        languages->refind = false;
+        FindUser(languages, nowNs);
+    }
+    // An answer on its way may be older than the change.
+    if (languages->reread && languages->user[0] != '\0')
+    {
+        mwinBusDrop(languages->system, &languages->readCall);
+        ReadUser(languages, nowNs);
+    }
+    languages->reread = false;
+    // The sends above pumped the bus: an owner that went meanwhile is
+    // forgotten at the next pump, and its answers are not taken.
+    if (languages->userCall.pending != nullptr && !languages->forget)
     {
         TakeUser(languages, nowNs);
     }
-    if (languages->readCall.pending != nullptr)
+    if (languages->readCall.pending != nullptr && !languages->forget)
     {
         TakeProperties(languages, nowNs);
     }

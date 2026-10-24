@@ -7,7 +7,8 @@
 //   the system bus: the user's path from FindUserById, its properties
 //   from GetAll, then their PropertiesChanged, or GetAll again on the
 //   older Changed signal; signals only from the connection that gave the
-//   user's path.
+//   user's path. When AccountsService's name changes owner (a restart),
+//   the old one is trusted no more and the new one asked for the user.
 // - KDE Plasma's, plasma-localerc's [Translations] LANGUAGE in the
 //   configuration folder ($XDG_CONFIG_HOME, else ~/.config), watched
 //   through inotify, read without waiting at each pump and at most once
@@ -53,6 +54,14 @@ typedef struct mwinLinuxLanguages
     // connection that gave it.
     char user[MWIN_LINUX_USER_PATH_BYTES];
     char owner[MWIN_LINUX_OWNER_BYTES];
+    // What the filter saw for the pump to do, as nothing may be sent from
+    // inside a dispatch: forget the old owner's calls and stop listening
+    // at its path (stale, "" for none), ask a new owner for the user, read
+    // the user again.
+    bool forget;
+    bool refind;
+    bool reread;
+    char stale[MWIN_LINUX_USER_PATH_BYTES];
     // The starting list, and the most a list may hold.
     char start[MWIN_LINUX_LOCALE_BYTES];
     uint16_t startLength;

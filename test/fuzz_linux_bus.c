@@ -6,7 +6,8 @@
 // SettingChanged (linux_settings.c), the file chooser's handle and its
 // Response with the URIs (linux_dialog.c), the power profile monitor's
 // and UPower's Get and PropertiesChanged (linux_power.c), AccountsService's
-// user, its GetAll, PropertiesChanged and Changed (linux_languages.c),
+// user, its GetAll, PropertiesChanged and Changed, and its name's owner
+// changing (linux_languages.c),
 // and Fcitx 5's and IBus's input contexts, key answers, committed text
 // and compositions (linux_ime.c). Each input runs on a context of the test
 // backend, its dialog requests going to the portal code, with the
@@ -99,6 +100,7 @@ static struct
     DBusMessage* (*signal)(const char* path, const char* interface, const char* name);
     mwinDBusBool (*setErrorName)(DBusMessage* message, const char* name);
     mwinDBusBool (*setReplySerial)(DBusMessage* message, uint32_t serial);
+    mwinDBusBool (*setSender)(DBusMessage* message, const char* sender);
     void (*setSerial)(DBusMessage* message, uint32_t serial);
     mwinDBusBool (*marshal)(DBusMessage* message, char** bytes, int* length);
     DBusMessage* (*demarshal)(const char* bytes, int length, void* error);
@@ -853,9 +855,39 @@ static void PropertiesChanged(uint8_t op)
                  CONTENTS(s_propertyTypes)));
 }
 
-// The user's PropertiesChanged, or the older Changed.
+// The user's PropertiesChanged, the older Changed, or NameOwnerChanged
+// from the bus, or now and then from another connection.
 static void UserSignal(uint8_t op)
 {
+    if ((op & 160) == 160)
+    {
+        // Mostly a name and owners of its own, now and then the script's.
+        static const char* const names[] = {"org.freedesktop.Accounts", "org.freedesktop.UPower"};
+        static const char* const owners[] = {"", ":1.7", ":1.8", ""};
+        DBusMessage* message =
+            Signal("/org/freedesktop/DBus", "org.freedesktop.DBus", "NameOwnerChanged");
+        uint8_t shape = Byte();
+        if (message == nullptr)
+        {
+            return;
+        }
+        (void)s_dbus.setSender(message, (op & 16) != 0 ? ":1.9" : "org.freedesktop.DBus");
+        if ((shape & 1) != 0)
+        {
+            Deliver(SYSTEM, Fill(message, "sss", nullptr, 0));
+            return;
+        }
+        const char* arguments[] = {names[(shape >> 1) & 1], owners[(shape >> 2) & 3],
+                                   owners[(shape >> 4) & 3]};
+        mwinDBusIter iter;
+        s_session.api.iterInitAppend(message, &iter);
+        for (size_t i = 0; i < 3; i++)
+        {
+            Basic(&iter, mwin_dbusTypeString, &arguments[i]);
+        }
+        Deliver(SYSTEM, Fill(message, "", nullptr, 0));
+        return;
+    }
     const char* path = Path();
     if ((op & 128) != 0)
     {
@@ -1297,6 +1329,7 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
     *(void**)&s_dbus.signal = dlsym(library, "dbus_message_new_signal");
     *(void**)&s_dbus.setErrorName = dlsym(library, "dbus_message_set_error_name");
     *(void**)&s_dbus.setReplySerial = dlsym(library, "dbus_message_set_reply_serial");
+    *(void**)&s_dbus.setSender = dlsym(library, "dbus_message_set_sender");
     *(void**)&s_dbus.setSerial = dlsym(library, "dbus_message_set_serial");
     *(void**)&s_dbus.marshal = dlsym(library, "dbus_message_marshal");
     *(void**)&s_dbus.demarshal = dlsym(library, "dbus_message_demarshal");
@@ -1305,9 +1338,10 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
     *(void**)&s_dbus.signature = dlsym(library, "dbus_message_get_signature");
     s_trace = getenv("MWIN_FUZZ_TRACE") != nullptr;
     Expect(s_dbus.make != nullptr && s_dbus.signal != nullptr && s_dbus.setErrorName != nullptr &&
-           s_dbus.setReplySerial != nullptr && s_dbus.setSerial != nullptr &&
-           s_dbus.marshal != nullptr && s_dbus.demarshal != nullptr && s_dbus.release != nullptr &&
-           s_dbus.member != nullptr && s_dbus.signature != nullptr);
+           s_dbus.setReplySerial != nullptr && s_dbus.setSender != nullptr &&
+           s_dbus.setSerial != nullptr && s_dbus.marshal != nullptr &&
+           s_dbus.demarshal != nullptr && s_dbus.release != nullptr && s_dbus.member != nullptr &&
+           s_dbus.signature != nullptr);
     return 0;
 }
 

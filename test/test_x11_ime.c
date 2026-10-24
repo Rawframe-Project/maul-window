@@ -10,10 +10,11 @@
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away; a key the
 // method has not answered when its window goes reaches no window made
-// in its slot by the answer's deadline (a fuzz finding). It runs once
-// with XMODIFIERS naming Fcitx and once naming IBus. Skipped (exit status
-// 77) without DISPLAY, dbus-daemon or libdbus-1; a bus that cannot start
-// fails it.
+// in its slot by the answer's deadline (a fuzz finding); and a key the
+// method is not asked about, pressed while it holds others, comes after
+// them. It runs once with XMODIFIERS naming Fcitx and once naming IBus.
+// Skipped (exit status 77) without DISPLAY, dbus-daemon or libdbus-1; a
+// bus that cannot start fails it.
 
 #include "linux_ime_fake.h"
 #include "test_harness.h"
@@ -37,6 +38,7 @@
 // X11 key codes on a US layout: evdev codes plus 8.
 #define KEYCODE_A      38
 #define KEYCODE_B      56
+#define KEYCODE_C      54
 #define KEYCODE_RETURN 36
 
 typedef enum Phase
@@ -53,6 +55,10 @@ typedef enum Phase
     phaseHeld,
     phaseGone,
     phaseReplaced,
+    phaseOrderFocus,
+    phaseOrderText,
+    phaseOrderHeld,
+    phaseOrdered,
     phaseDone,
 } Phase;
 
@@ -82,6 +88,8 @@ typedef struct Program
     int focusIns;
     mwinWindowId gone;
     uint64_t madeNs;
+    // The keys the method held before the key that waits behind them.
+    int held;
     bool timedOut;
 } Program;
 
@@ -147,6 +155,22 @@ static int CountKeys(const Program* program, mwinKeyCode code)
     return keys;
 }
 
+// The position of the first or the last key record of a code, or -1.
+static int KeyAt(const Program* program, mwinKeyCode code, bool last)
+{
+    int at = -1;
+    for (int i = 0; i < program->count && (last || at < 0); i++)
+    {
+        const mwinEvent* record = &program->records[i];
+        if ((record->type == mwin_eventKeyDown || record->type == mwin_eventKeyUp) &&
+            record->data.key.code == code)
+        {
+            at = i;
+        }
+    }
+    return at;
+}
+
 static bool Has(const Program* program, mwinEventType type)
 {
     for (int i = 0; i < program->count; i++)
@@ -182,8 +206,10 @@ static bool CaretOnScreen(Program* program, mwinContext* context, int32_t* xOut,
     return true;
 }
 
-static bool Ready(const Program* program)
+static bool Ready(const Program* program, const mwinContext* context)
 {
+    mwinWindowState state = {0};
+    (void)mwinGetWindowState(context, program->window, &state);
     switch (program->phase)
     {
     case phaseCreate:
@@ -211,6 +237,14 @@ static bool Ready(const Program* program)
     case phaseReplaced:
         // Past the deadline of a key the method does not answer.
         return NowNs() - program->madeNs > 300000000u;
+    case phaseOrderFocus:
+        return state.focused;
+    case phaseOrderText:
+        return s_fakeIme.focusIns > program->focusIns;
+    case phaseOrderHeld:
+        return s_fakeIme.held >= program->held + 2;
+    case phaseOrdered:
+        return CountKeys(program, mwin_codeKeyB) >= 2 && CountKeys(program, mwin_codeKeyC) >= 2;
     default:
         return false;
     }
@@ -310,9 +344,35 @@ static void Advance(Program* program, mwinContext* context)
         program->madeNs = NowNs();
         break;
     }
-    default:
+    case phaseReplaced:
         CHECK(CountKeys(program, mwin_codeKeyB) == 0,
               "the held key reaches no window made in its slot");
+        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success,
+              "the new window focused");
+        break;
+    case phaseOrderFocus:
+        program->focusIns = s_fakeIme.focusIns;
+        CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
+                  mwin_success,
+              "text input asked for in the new window");
+        break;
+    case phaseOrderText:
+        // The method, still holding, is asked about B and answers late.
+        program->count = 0;
+        program->held = s_fakeIme.held;
+        Press(program, KEYCODE_B);
+        break;
+    case phaseOrderHeld:
+        // Without text input the method is not asked about C, which still
+        // waits behind B.
+        CHECK(mwinRequestTextInput(context, program->window, false, s_caret, nullptr) ==
+                  mwin_success,
+              "text input given up with B held");
+        Press(program, KEYCODE_C);
+        break;
+    default:
+        CHECK(KeyAt(program, mwin_codeKeyB, true) < KeyAt(program, mwin_codeKeyC, false),
+              "a key the method is not asked about comes after the keys held before it");
         break;
     }
     program->phase += 1;
@@ -332,7 +392,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     FakePump(program->bus);
     Collect(program, context);
-    if (Ready(program))
+    if (Ready(program, context))
     {
         Advance(program, context);
     }

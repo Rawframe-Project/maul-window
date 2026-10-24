@@ -190,7 +190,12 @@ extern "C"
 
     /// Creates a window. Its id is valid at once; mwin_eventWindowCreated
     /// follows when the platform has made it, then the completion of the
-    /// request.
+    /// request. On iPadOS a window with no scene free waits for the new
+    /// scene it asks the system for, up to ten seconds: past that, or when
+    /// the system refuses, the request completes `mwin_outcomeFailed` and
+    /// no mwin_eventWindowCreated comes. Without several scenes (an
+    /// iPhone, or an Info.plist without UIApplicationSupportsMultipleScenes)
+    /// such a window completes `mwin_outcomeUnsupported`.
     ///
     /// @param context    The context.
     /// @param def        The window: a valid cookie, a positive size, a

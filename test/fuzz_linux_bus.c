@@ -5,9 +5,10 @@
 // whatever owns a bus name: the Settings portal's ReadAll and
 // SettingChanged (linux_settings.c), the file chooser's handle and its
 // Response with the URIs (linux_dialog.c), the power profile monitor's
-// and UPower's Get and PropertiesChanged (linux_power.c), and Fcitx 5's
-// and IBus's input contexts, key answers, committed text and
-// compositions (linux_ime.c). Each input runs on a context of the test
+// and UPower's Get and PropertiesChanged (linux_power.c), AccountsService's
+// user, its GetAll, PropertiesChanged and Changed (linux_languages.c),
+// and Fcitx 5's and IBus's input contexts, key answers, committed text
+// and compositions (linux_ime.c). Each input runs on a context of the test
 // backend, its dialog requests going to the portal code, with the
 // modules on stand-in connections: the real libdbus builds and reads the
 // messages, and only the functions that would reach a bus are replaced.
@@ -27,12 +28,15 @@
 // absolute UTF-8 within the limits; committed text and compositions are
 // UTF-8, a composition's caret, selection and segments within its text
 // on character boundaries; the facts the program reads are in range,
-// the text scale finite and above zero; and the program reads each
+// the text scale finite and above zero; the preferred locales are never
+// empty, and hold tags of letters, digits and hyphens between single
+// commas; and the program reads each
 // key at most once, in the order offered, and only for the window it
 // was offered for.
 
 #include "linux_dialog.h"
 #include "linux_ime.h"
+#include "linux_languages.h"
 #include "linux_power.h"
 #include "linux_settings.h"
 #include "monotonic.h"
@@ -123,6 +127,8 @@ typedef enum CallKind
     callChoose,
     callCreate,
     callKey,
+    callFindUser,
+    callGetAll,
 } CallKind;
 
 typedef struct Call
@@ -152,6 +158,7 @@ static mwinLinuxBus s_session;
 static mwinLinuxSettings s_settings;
 static mwinLinuxPower s_power;
 static mwinLinuxBus s_system;
+static mwinLinuxLanguages s_languages;
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
 
@@ -202,6 +209,8 @@ static mwinDBusBool SendWithReply(DBusConnection* connection, DBusMessage* messa
                  : strcmp(member, "SaveFile") == 0           ? callChoose
                  : strcmp(member, "CreateInputContext") == 0 ? callCreate
                  : strcmp(member, "ProcessKeyEvent") == 0    ? callKey
+                 : strcmp(member, "FindUserById") == 0       ? callFindUser
+                 : strcmp(member, "GetAll") == 0             ? callGetAll
                                                              : callOther;
     *pending = (DBusPendingCall*)call;
     return 1;
@@ -340,6 +349,12 @@ static const char* const s_words[] = {
     "power-saver-enabled",
     "org.freedesktop.UPower",
     "OnBattery",
+    "org.freedesktop.Accounts.User",
+    "Languages",
+    "Language",
+    "de_DE.UTF-8",
+    "sr_RS@latin",
+    "C",
     "uris",
     "choices",
     "file:///tmp/a",
@@ -415,8 +430,8 @@ static const char* Text(void)
     return s_text;
 }
 
-// An object path: a dialog's request, the input context's, others, or a
-// long one.
+// An object path: a dialog's request, the input context's, the user's,
+// others, or a long one.
 static const char* Path(void)
 {
     uint8_t shape = Byte();
@@ -432,7 +447,7 @@ static const char* Path(void)
     case 4:
         return "/org/freedesktop/IBus/InputContext_7";
     case 5:
-        return "/";
+        return (shape & 32) != 0 && s_languages.user[0] == '/' ? s_languages.user : "/";
     default:
         s_text[0] = '/';
         size_t length = 1;
@@ -729,6 +744,7 @@ static DBusMessage* Fill(DBusMessage* message, const char* types, const char* co
 static const char* const s_settingTypes[] = {"u", "b", "d", "s", "(ddd)"};
 static const char* const s_propertyTypes[] = {"b", "u", "s"};
 static const char* const s_resultTypes[] = {"as", "s", "a(sa(us))"};
+static const char* const s_languageTypes[] = {"as", "s"};
 // IBus's serialized objects: a text, its attribute list, an attribute.
 static const char* const s_ibusTypes[] = {"(sa{sv}sv)", "(sa{sv}av)", "(sa{sv}uuuu)", "s"};
 
@@ -764,6 +780,10 @@ static DBusMessage* Reply(const Call* call)
         return Fill(reply, (shape & 8) != 0 ? "oay" : "o", nullptr, 0);
     case callKey:
         return Fill(reply, "b", nullptr, 0);
+    case callFindUser:
+        return Fill(reply, "o", nullptr, 0);
+    case callGetAll:
+        return Fill(reply, "a{sv}", CONTENTS(s_languageTypes));
     default:
         return Fill(reply, "", nullptr, 0);
     }
@@ -831,6 +851,20 @@ static void PropertiesChanged(uint8_t op)
     Deliver((op & 32) != 0 ? SYSTEM : SESSION,
             Fill(Signal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged"), "sa{sv}as",
                  CONTENTS(s_propertyTypes)));
+}
+
+// The user's PropertiesChanged, or the older Changed.
+static void UserSignal(uint8_t op)
+{
+    const char* path = Path();
+    if ((op & 128) != 0)
+    {
+        Deliver(SYSTEM,
+                Fill(Signal(path, "org.freedesktop.Accounts.User", "Changed"), "", nullptr, 0));
+        return;
+    }
+    Deliver(SYSTEM, Fill(Signal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged"),
+                         "sa{sv}as", CONTENTS(s_languageTypes)));
 }
 
 static void Response(void)
@@ -937,6 +971,7 @@ static void Pump(uint64_t nowNs)
         mwinBusPump(&s_system, 0);
     }
     mwinPowerPump(&s_power, nowNs);
+    mwinLanguagesPump(&s_languages, nowNs);
     mwinDialogsPump(&s_dialogs, nowNs);
     mwinImePump(&s_ime, nowNs);
 }
@@ -1003,6 +1038,24 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
     Expect(paths == count);
 }
 
+static bool IsTagByte(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+}
+
+// The preferred locales: never empty, tags between single commas.
+static void CheckLocales(const mwinContext* context)
+{
+    char locales[MWIN_LINUX_LOCALE_BYTES];
+    size_t length = 0;
+    Expect(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+           length > 0 && locales[0] != ',' && locales[length - 1] != ',');
+    for (size_t i = 0; i < length; i++)
+    {
+        Expect(IsTagByte(locales[i]) || (locales[i] == ',' && locales[i + 1] != ','));
+    }
+}
+
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
@@ -1019,6 +1072,9 @@ static void Drain(mwinContext* context)
         case mwin_eventThemeChanged:
         case mwin_eventPowerChanged:
             CheckFacts(context);
+            break;
+        case mwin_eventLocaleChanged:
+            CheckLocales(context);
             break;
         case mwin_eventKeyDown:
         case mwin_eventKeyUp:
@@ -1089,6 +1145,8 @@ static void Start(mwinContext* context)
     mwinSettingsStart(&s_settings, context, &s_session, now);
     mwinPowerStart(&s_power, context, &s_session, &s_system, now);
     JoinSystem();
+    // It finds the stand-in, and no configuration folder.
+    mwinLanguagesStart(&s_languages, context, &s_system, "en-US", 5, now);
     mwinDialogsStart(&s_dialogs, context, &s_session);
     mwinImeStart(&s_ime, context, &s_session);
     s_test = context->backend;
@@ -1102,6 +1160,7 @@ static void Stop(mwinContext* context)
     mwinImeStop(&s_ime);
     mwinDialogsStop(&s_dialogs);
     mwinPowerStop(&s_power);
+    mwinLanguagesStop(&s_languages);
     mwinBusClose(&s_system);
     mwinSettingsStop(&s_settings);
     Drain(context);
@@ -1138,10 +1197,17 @@ static mwinResult Init(mwinContext* context, void* user)
             Answer(callReadAll);
             break;
         case 2:
-            PropertiesChanged(op);
+            if ((op & 64) != 0)
+            {
+                UserSignal(op);
+            }
+            else
+            {
+                PropertiesChanged(op);
+            }
             break;
         case 3:
-            Answer(callGet);
+            Answer((op & 48) == 16 ? callFindUser : (op & 48) == 32 ? callGetAll : callGet);
             break;
         case 4:
             Dialog(context, windows[i], op);
@@ -1224,6 +1290,7 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
     // portal fails answers unsupported.
     (void)setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/nonexistent/mwin-fuzz", 1);
     (void)setenv("PATH", "/nonexistent/mwin-fuzz", 1);
+    (void)setenv("XDG_CONFIG_HOME", "/nonexistent/mwin-fuzz", 1);
     void* library = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
     Expect(library != nullptr);
     *(void**)&s_dbus.make = dlsym(library, "dbus_message_new");

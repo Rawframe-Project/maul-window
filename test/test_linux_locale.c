@@ -9,6 +9,11 @@
 // - names of no language left out;
 // - tags that do not fit left out whole;
 // - the messages locale taken from LC_ALL, else LC_MESSAGES, else LANG.
+// plasma-localerc's [Translations] LANGUAGE:
+// - found among other groups and keys, with blanks and CR LF line ends;
+// - the last of several taken;
+// - no language where the key is missing, empty or names none;
+// - a text with a NUL refused.
 
 #include "linux_locale.h"
 #include "test_harness.h"
@@ -24,6 +29,21 @@ static bool Gives(const char* language, const char* messages, size_t capacity, c
     return length == strlen(expected) && memcmp(out, expected, length) == 0 &&
            (capacity == sizeof(out) || out[capacity] == '#');
 }
+
+// What plasma-localerc's text gives: its tags, or "!" where it is refused.
+static bool Plasma(const char* text, size_t length, size_t capacity, const char* expected)
+{
+    char out[64];
+    memset(out, '#', sizeof(out));
+    size_t got = 99;
+    if (!mwinLinuxPlasmaLocales(text, length, out, capacity, &got))
+    {
+        return strcmp(expected, "!") == 0;
+    }
+    return got == strlen(expected) && memcmp(out, expected, got) == 0 && out[capacity] == '#';
+}
+
+#define PLASMA(text, capacity, expected) Plasma(text, sizeof(text) - 1, capacity, expected)
 
 int main(void)
 {
@@ -54,6 +74,23 @@ int main(void)
               Gives("de_DE:it", "en_US", 1, "") && Gives("de_DE:it", "en_US", 7, "de-DE") &&
               Gives("de_DE:it", "en_US", 5, "de-DE"),
           "tags that do not fit left out whole, a first that just fits kept");
+    CHECK(PLASMA("[Formats]\nLANG=de_DE.UTF-8\nLANGUAGE=it\n\n[Translations]\nLANGUAGES=es\n"
+                 "LANGUAGE=fr:en_GB:de\n[Other]\nLANGUAGE=pt\n",
+                 32, "fr,en-GB,de"),
+          "the key of its group only");
+    CHECK(PLASMA("  [Translations] \r\n\tLANGUAGE \t= de_DE:en_US  \r\n", 32, "de-DE,en-US") &&
+              PLASMA("[Translations]\nLANGUAGE=de", 32, "de"),
+          "blanks, CR LF line ends and no last line end");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de\nLANGUAGE=fr:it\n", 32, "fr,it"),
+          "the last of several");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=\n", 32, "") &&
+              PLASMA("[Translations]\nLANGUAGE=C:x1:\xff\xfe\n", 32, "") &&
+              PLASMA("[Formats]\nLANG=de_DE\n", 32, "") && PLASMA("", 32, "") &&
+              PLASMA("[Translations]\nLANGUAGEX=de\nLANGUAGE de\n", 32, ""),
+          "no language where the key is missing, empty or names none");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9, "de-DE,it"),
+          "tags that do not fit left out whole");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de\0\n", 32, "!"), "a NUL refused");
     char out[64];
     (void)unsetenv("LC_ALL");
     (void)unsetenv("LANGUAGE");

@@ -36,6 +36,8 @@ void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context)
     mwinSettingsStart(&services->settings, context, &services->bus, mwinMonotonicNow());
     mwinPowerStart(&services->power, context, &services->bus, &services->system,
                    mwinMonotonicNow());
+    mwinLanguagesStart(&services->languages, context, &services->system, locales, length,
+                       mwinMonotonicNow());
 }
 
 // Runs xdg-open on a target, followed until it ends: -1, or the outcome
@@ -238,6 +240,7 @@ void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awa
         mwinBusPump(&services->system, 0);
     }
     mwinPowerPump(&services->power, nowNs);
+    mwinLanguagesPump(&services->languages, nowNs);
     PumpReveals(services, nowNs);
     PumpOpeners(services, nowNs);
     mwinDialogsPump(&services->dialogs, nowNs);
@@ -257,6 +260,7 @@ void mwinLinuxServicesStop(mwinLinuxServices* services)
     mwinDialogsStop(&services->dialogs);
     mwinSettingsStop(&services->settings);
     mwinPowerStop(&services->power);
+    mwinLanguagesStop(&services->languages);
     mwinBusClose(&services->system);
     if (services->bus.connection != nullptr)
     {

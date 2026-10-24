@@ -113,6 +113,12 @@ typedef struct FakeBus
     bool noUser;
     int finds;
     int getAlls;
+    // GetAll asked since the last FindUserById; whether the next
+    // FindUserById's answer is followed at once by a restart (FakePump),
+    // and whether that restart went through.
+    int getAllsSinceFind;
+    bool restartAfterFind;
+    bool restartedAfterFind;
     // The unique name of the connection that asked for the user, and the
     // stand-in's connection from before AccountsService restarted.
     char client[64];
@@ -788,6 +794,7 @@ static inline void* FakeFindUser(FakeBus* fake, void* message)
 {
     void* iter[16];
     fake->finds += 1;
+    fake->getAllsSinceFind = 0;
     (void)snprintf(fake->client, sizeof(fake->client), "%s", fake->sender(message));
     if (fake->noUser || !fake->iterInit(message, iter) || fake->argType(iter) != 'x')
     {
@@ -815,6 +822,7 @@ static inline void* FakeGetAll(FakeBus* fake, void* message)
         return fake->newError(message, "org.freedesktop.DBus.Error.UnknownInterface", "none");
     }
     fake->getAlls += 1;
+    fake->getAllsSinceFind += 1;
     void* reply = fake->newReturn(message);
     const char* name = "mwin";
     const char* language = fake->language;
@@ -906,13 +914,15 @@ static inline bool FakeSpoof(FakeBus* fake, const char* names)
 }
 
 // AccountsService restarts in two steps: its connection gives up the name
-// and stays on the bus (fake->retired); then a new one takes the name and
-// answers from then on. 1: released; 1: the primary owner.
+// and stays on the bus (fake->retired, the one retired before closed);
+// then a new one takes the name and answers from then on. 1: released;
+// 1: the primary owner.
 static inline bool FakeRelease(FakeBus* fake)
 {
     if (fake->retired != nullptr)
     {
-        return false;
+        fake->close(fake->retired);
+        fake->unrefConnection(fake->retired);
     }
     fake->retired = fake->connection;
     return fake->releaseName(fake->retired, "org.freedesktop.Accounts", nullptr) == 1;
@@ -987,13 +997,16 @@ static inline void* FakeAnswer(FakeBus* fake, void* message)
     return fake->more != nullptr ? fake->more(fake, message) : nullptr;
 }
 
-// Answers what the services were asked.
+// Answers what the services were asked; after a FindUserById answer,
+// restarts at once where told, so that the client finds the owner change
+// right behind the answer.
 static inline void FakePump(FakeBus* fake)
 {
     if (fake == nullptr || fake->connection == nullptr)
     {
         return;
     }
+    int finds = fake->finds;
     (void)fake->readWrite(fake->connection, 0);
     for (void* message = fake->pop(fake->connection); message != nullptr;
          message = fake->pop(fake->connection))
@@ -1007,6 +1020,11 @@ static inline void FakePump(FakeBus* fake)
         fake->unref(message);
     }
     fake->flush(fake->connection);
+    if (fake->restartAfterFind && fake->finds > finds)
+    {
+        fake->restartAfterFind = false;
+        fake->restartedAfterFind = FakeRelease(fake) && FakeTakeOver(fake);
+    }
 }
 
 static inline void FakeStop(FakeBus* fake)

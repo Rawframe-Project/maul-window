@@ -14,7 +14,8 @@
 // modules on stand-in connections: the real libdbus builds and reads the
 // messages, and only the functions that would reach a bus are replaced.
 // The input is a script of replies to the calls the modules made (of the
-// shape asked, of another, or an error), signals, dialogs, focus and keys
+// shape asked, of another, or an error), signals (an owner change now
+// and then held for a later dispatch), dialogs, focus and keys
 // for the input method, pumps and deadlines, and windows destroyed. Each
 // message's types follow the shape the module expects with others put in
 // their place now and then, and every message is marshalled and read
@@ -292,9 +293,22 @@ static mwinDBusBool ReadWrite(DBusConnection* connection, int timeoutMs)
     return 1;
 }
 
+static void Deliver(DBusConnection* connection, DBusMessage* message);
+
+// A system bus signal held back, delivered at the dispatch after the
+// next: as a message the bus reads after a pump's own dispatch, while a
+// module still uses what that pump took.
+static DBusMessage* s_held;
+static int s_heldSkips;
+
 static int Dispatch(DBusConnection* connection)
 {
-    (void)connection;
+    if (connection == SYSTEM && s_held != nullptr && s_heldSkips-- == 0)
+    {
+        DBusMessage* held = s_held;
+        s_held = nullptr;
+        Deliver(SYSTEM, held);
+    }
     // DBUS_DISPATCH_COMPLETE.
     return 1;
 }
@@ -861,7 +875,8 @@ static void UserSignal(uint8_t op)
 {
     if ((op & 160) == 160)
     {
-        // Mostly a name and owners of its own, now and then the script's.
+        // Mostly a name and owners of its own, now and then the script's;
+        // now and then held back (s_held).
         static const char* const names[] = {"org.freedesktop.Accounts", "org.freedesktop.UPower"};
         static const char* const owners[] = {"", ":1.7", ":1.8", ""};
         DBusMessage* message =
@@ -885,7 +900,14 @@ static void UserSignal(uint8_t op)
         {
             Basic(&iter, mwin_dbusTypeString, &arguments[i]);
         }
-        Deliver(SYSTEM, Fill(message, "", nullptr, 0));
+        message = Fill(message, "", nullptr, 0);
+        if ((shape & 64) != 0 && s_held == nullptr)
+        {
+            s_held = message;
+            s_heldSkips = 1;
+            return;
+        }
+        Deliver(SYSTEM, message);
         return;
     }
     const char* path = Path();
@@ -1194,6 +1216,11 @@ static void Stop(mwinContext* context)
     mwinPowerStop(&s_power);
     mwinLanguagesStop(&s_languages);
     mwinBusClose(&s_system);
+    if (s_held != nullptr)
+    {
+        s_session.api.unrefMessage(s_held);
+        s_held = nullptr;
+    }
     mwinSettingsStop(&s_settings);
     Drain(context);
     Expect(s_filterCount == 0);

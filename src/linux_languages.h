@@ -18,6 +18,10 @@
 // no language; mwin_eventLocaleChanged comes only when the list changes.
 // A source that is not there changes nothing, and a reply or file in a
 // shape not expected is left alone like any other input from outside.
+// The calls are only queued (mwinBusQueue), never sent with a pump: a
+// pump dispatches, and a filter run then, as for an owner that went,
+// would change the state the module is in the middle of using. A
+// dispatch from inside a dispatch would also wait on itself.
 
 #ifndef MAUL_WINDOW_SRC_LINUX_LANGUAGES_H
 #define MAUL_WINDOW_SRC_LINUX_LANGUAGES_H
@@ -54,10 +58,9 @@ typedef struct mwinLinuxLanguages
     // connection that gave it.
     char user[MWIN_LINUX_USER_PATH_BYTES];
     char owner[MWIN_LINUX_OWNER_BYTES];
-    // What the filter saw for the pump to do, as nothing may be sent from
-    // inside a dispatch: forget the old owner's calls and stop listening
-    // at its path (stale, "" for none), ask a new owner for the user, read
-    // the user again.
+    // What the filter saw for the pump to do: forget the old owner's calls
+    // and stop listening at its path (stale, "" for none), ask a new owner
+    // for the user, read the user again.
     bool forget;
     bool refind;
     bool reread;

@@ -113,10 +113,14 @@ static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* 
     return list || one;
 }
 
-// Asks for the user's properties.
+// Asks for the user's properties, once its path is known.
 static void ReadUser(mwinLinuxLanguages* languages, uint64_t nowNs)
 {
     mwinLinuxBus* system = languages->system;
+    if (languages->user[0] == '\0')
+    {
+        return;
+    }
     DBusMessage* get = mwinBusMethod(system, ACCOUNTS, languages->user, PROPERTIES, "GetAll");
     if (get == nullptr)
     {
@@ -126,7 +130,7 @@ static void ReadUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     system->api.iterInitAppend(get, &arguments);
     if (AppendString(&system->api, &arguments, USER))
     {
-        (void)mwinBusSend(system, get, &languages->readCall, nowNs);
+        (void)mwinBusQueue(system, get, &languages->readCall, nowNs);
     }
     else
     {
@@ -144,7 +148,7 @@ static void Match(mwinLinuxLanguages* languages, const char* member, const char*
         mwinDBusIter arguments;
         system->api.iterInitAppend(match, &arguments);
         (void)AppendString(&system->api, &arguments, rule);
-        mwinBusTell(system, match);
+        mwinBusQueueTell(system, match);
     }
 }
 
@@ -180,7 +184,7 @@ static void FindUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     system->api.iterInitAppend(find, &arguments);
     if (system->api.appendBasic(&arguments, mwin_dbusTypeInt64, &user))
     {
-        (void)mwinBusSend(system, find, &languages->userCall, nowNs);
+        (void)mwinBusQueue(system, find, &languages->userCall, nowNs);
     }
     else
     {
@@ -253,8 +257,7 @@ static void TakeProperties(mwinLinuxLanguages* languages, uint64_t nowNs)
 // invalidated) of its interface, or Changed, after which the pump asks
 // for its properties again. Another connection's are left alone: any
 // program may send a signal on the system bus, to every listener or to
-// this one. Nothing is sent from here: a send pumps the bus, which must
-// not dispatch again from inside its dispatch.
+// this one. The filter only notes what the pump is to send.
 static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, void* data)
 {
     (void)connection;
@@ -484,13 +487,11 @@ void mwinLanguagesPump(mwinLinuxLanguages* languages, uint64_t nowNs)
         ReadUser(languages, nowNs);
     }
     languages->reread = false;
-    // The sends above pumped the bus: an owner that went meanwhile is
-    // forgotten at the next pump, and its answers are not taken.
-    if (languages->userCall.pending != nullptr && !languages->forget)
+    if (languages->userCall.pending != nullptr)
     {
         TakeUser(languages, nowNs);
     }
-    if (languages->readCall.pending != nullptr && !languages->forget)
+    if (languages->readCall.pending != nullptr)
     {
         TakeProperties(languages, nowNs);
     }

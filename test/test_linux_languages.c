@@ -25,6 +25,9 @@
 //   found and read again, nothing told where the list is the same; a
 //   change from the old connection or another program then tells nothing,
 //   and one from the new connection is followed.
+// - A restart right behind the new owner's answer to FindUserById: the
+//   user found once more from the owner after it, nothing told for the
+//   same list, and that owner's change followed.
 // - With no system bus and no configuration folder, or AccountsService
 //   refusing the user and plasma-localerc no file: the starting list,
 //   and nothing told.
@@ -66,6 +69,9 @@ typedef enum Kind
     kindQuietBus,
     // Nothing told by the file, judged QUIET_FRAMES frames on.
     kindQuietFile,
+    // Nothing told on the bus, judged at the first GetAll after the user
+    // was found twice.
+    kindFoundTwice,
 } Kind;
 
 typedef struct Expected
@@ -80,7 +86,8 @@ static const Expected s_steps[] = {
     {kindChange, "es,ca-ES"},    {kindQuietFile, "es,ca-ES"}, {kindQuietFile, "es,ca-ES"},
     {kindQuietFile, "es,ca-ES"}, {kindQuietBus, "es,ca-ES"},  {kindQuietFile, "es,ca-ES"},
     {kindQuietBus, "es,ca-ES"},  {kindQuietBus, "es,ca-ES"},  {kindQuietBus, "es,ca-ES"},
-    {kindChange, "fi-FI"},       {kindChange, "nl"},
+    {kindChange, "fi-FI"},       {kindFoundTwice, "fi-FI"},   {kindChange, "ko-KR"},
+    {kindChange, "nl"},
 };
 
 typedef struct Program
@@ -92,6 +99,7 @@ typedef struct Program
     int frames;
     int quiet;
     int getAlls;
+    int finds;
     uint64_t startNs;
     bool done;
 } Program;
@@ -125,6 +133,7 @@ static void Act(Program* program)
     FakeBus* system = program->system;
     const char* text = "es";
     program->getAlls = system->getAlls;
+    program->finds = system->finds;
     switch (program->step)
     {
     case 0:
@@ -222,6 +231,16 @@ static void Act(Program* program)
     case 15:
         FakeLanguagesChanged(system, "fi_FI");
         break;
+    case 16:
+        // A restart whose FindUserById answer the owner change follows at
+        // once: the program has the answer and the change in one read.
+        User(system, "fi_FI", "");
+        system->restartAfterFind = true;
+        CHECK(FakeRelease(system) && FakeTakeOver(system), "AccountsService restarted");
+        break;
+    case 17:
+        FakeLanguagesChanged(system, "ko_KR");
+        break;
     default:
         WRITE(s_file, "[Translations]\nLANGUAGE=nl\n");
         break;
@@ -261,9 +280,12 @@ static void Step(mwinContext* context, Program* program)
         return;
     }
     const Expected* expected = &s_steps[program->step];
+    const FakeBus* system = program->system;
     bool reached = expected->kind == kindChange     ? LocalesAre(context, expected->locales)
-                   : expected->kind == kindQuietBus ? program->system->getAlls > program->getAlls
-                                                    : ++program->quiet == QUIET_FRAMES;
+                   : expected->kind == kindQuietBus ? system->getAlls > program->getAlls
+                   : expected->kind == kindFoundTwice
+                       ? system->finds >= program->finds + 2 && system->getAllsSinceFind > 0
+                       : ++program->quiet == QUIET_FRAMES;
     if (!reached)
     {
         return;
@@ -280,6 +302,8 @@ static void Step(mwinContext* context, Program* program)
               : program->step == 12 ? "another program's change of the user tells nothing"
               : program->step == 13 ? "a restart with the same list tells nothing"
               : program->step == 14 ? "the old connection's change tells nothing"
+              : program->step == 16 ? "an owner change right behind the user's answer tells "
+                                      "nothing"
               : expected->kind == kindQuietBus ? "repeats and odd changes on the bus tell nothing"
                                                : "a file with a NUL, too long, or with the same "
                                                  "LANGUAGE tells nothing");
@@ -288,6 +312,9 @@ static void Step(mwinContext* context, Program* program)
           "Changed reads the user again");
     CHECK(program->step != 13 || program->system->finds == 2,
           "a restart finds the user again, once");
+    CHECK(program->step != 16 ||
+              (program->system->restartedAfterFind && program->system->finds == program->finds + 2),
+          "a restart behind the answer finds the user once more");
     program->changes = 0;
     program->quiet = 0;
     program->step += 1;

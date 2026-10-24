@@ -6,7 +6,8 @@
 // window's root, read by an accessibility client of the test's own
 // (Client.java), which the runner enables and which asks for touch
 // exploration: the client finds the tree's nodes through the system,
-// the window tells the program a client asked; with no root the client
+// once the system knows the test's window is the active one, and the
+// window tells the program a client asked; with no root the client
 // still reads the window but nothing of the tree; and with the root
 // again, a finger the emulator's console puts on the right half and
 // moves to the left is explored, announcing "Beta", then "Alpha" until
@@ -50,6 +51,8 @@ typedef struct Program
     mwinPixelSize size;
     pthread_t reader;
     atomic_bool described;
+    // The reader found another window and read again, said once.
+    bool readAgain;
     int changes;
     char texts[256];
 } Program;
@@ -259,6 +262,9 @@ static void StartDescribing(Program* program)
     CHECK(pthread_create(&program->reader, nullptr, Describe, program) == 0, "a reader started");
 }
 
+// Whether the reader read the test's window. The system can learn which
+// window is active after the client connects: until it does, the client
+// reads nothing, and the reader reads again, until the phase's deadline.
 static bool Described(Program* program)
 {
     if (!atomic_load(&program->described))
@@ -266,6 +272,16 @@ static bool Described(Program* program)
         return false;
     }
     (void)pthread_join(program->reader, nullptr);
+    if (program->texts[0] == '\0')
+    {
+        if (!program->readAgain)
+        {
+            printf("the active window not yet the test's; reading again\n");
+            program->readAgain = true;
+        }
+        StartDescribing(program);
+        return false;
+    }
     return true;
 }
 

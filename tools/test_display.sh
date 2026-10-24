@@ -7,12 +7,20 @@
 #
 #   tools/test_display.sh start RUNTIME DISPLAY [wayland]
 #   tools/test_display.sh stop RUNTIME
+#   tools/test_display.sh watch RUNTIME PARENT START   (start's own)
 #
 # RUNTIME is the tests' XDG_RUNTIME_DIR, where weston's socket
 # (wayland-mwin), the logs and the PIDs go; DISPLAY is the X display
 # number. ctest runs start before the tests that need a display and stop
 # after them (CMakeLists.txt); a repeated run (ctest --repeat) runs start
 # again, which keeps the servers it started while they run.
+#
+# Start also leaves a watchdog (this script's watch action), since a
+# ctest run killed or cancelled never runs stop: once that run, start's
+# parent by PID and start time, is gone, the watchdog stops the servers.
+# It goes itself once stop has run or a new start replaced it. The
+# watchdog and the servers close every descriptor they inherit, so none
+# holds ctest's pipes or a lock of whoever runs it.
 #
 # Start records each process it starts as its PID, its start time
 # (field 22 of /proc/PID/stat) and the start of its command line. A
@@ -34,6 +42,27 @@ StartTime() {
     # The fields after the command name, which may hold spaces, start at 3.
     stat=${stat##*) }
     echo "$stat" | cut -d ' ' -f 20
+}
+
+# Whether a process runs, as the one that started at START: a zombie
+# does not.
+Runs() {
+    local stat
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    stat=${stat##*) }
+    [ "${stat%% *}" != Z ] && [ "$(StartTime "$1")" = "$2" ]
+}
+
+# Closes every descriptor this process inherited but the standard three
+# and bash's hold on the script (255).
+CloseInherited() {
+    local fd
+    for fd in /proc/"$BASHPID"/fd/*; do
+        fd=${fd##*/}
+        if [ "$fd" -gt 2 ] && [ "$fd" != 255 ]; then
+            eval "exec $fd>&-"
+        fi
+    done
 }
 
 # Whether PID is the process a record names: the same start time and a
@@ -70,13 +99,16 @@ Running() {
 # they are gone, and forgets the record.
 Stop() {
     [ -f "$pids" ] || return 0
+    # The watchdog stopping the servers never signals itself.
     while read -r pid start command; do
-        if Matches "$pid" "$start" "$command"; then kill "$pid" 2>/dev/null || true; fi
+        if [ "$pid" != $$ ] && Matches "$pid" "$start" "$command"; then
+            kill "$pid" 2>/dev/null || true
+        fi
     done <"$pids"
     for _ in $(seq 50); do
         alive=0
         while read -r pid start command; do
-            if Matches "$pid" "$start" "$command"; then alive=1; fi
+            if [ "$pid" != $$ ] && Matches "$pid" "$start" "$command"; then alive=1; fi
         done <"$pids"
         [ "$alive" = 0 ] && break
         sleep 0.1
@@ -101,16 +133,26 @@ start)
     # descriptor 3 once it takes clients, some 40 ms after its socket
     # file appears.
     rm -f "$runtime/xvfb.ready"
-    Xvfb ":$number" -screen 0 1280x800x24 -nolisten tcp -noreset -displayfd 3 \
-        3>"$runtime/xvfb.ready" </dev/null >"$runtime/xvfb.log" 2>&1 &
+    (
+        CloseInherited
+        exec Xvfb ":$number" -screen 0 1280x800x24 -nolisten tcp -noreset -displayfd 3 \
+            3>"$runtime/xvfb.ready" </dev/null >"$runtime/xvfb.log" 2>&1
+    ) &
     Record $! "Xvfb :$number "
     if [ "${4:-}" = wayland ]; then
-        XDG_RUNTIME_DIR=$runtime weston --backend=headless --socket=wayland-mwin --idle-time=0 \
-            </dev/null >"$runtime/weston.log" 2>&1 &
+        (
+            CloseInherited
+            XDG_RUNTIME_DIR=$runtime exec weston --backend=headless --socket=wayland-mwin \
+                --idle-time=0 </dev/null >"$runtime/weston.log" 2>&1
+        ) &
         Record $! "weston --backend=headless --socket=wayland-mwin "
     fi
     for _ in $(seq 100); do
-        Ready "${4:-}" && exit 0
+        if Ready "${4:-}"; then
+            bash "$0" watch "$runtime" "$PPID" "$(StartTime "$PPID")" </dev/null >/dev/null 2>&1 &
+            Record $! "bash $0 watch $runtime "
+            exit 0
+        fi
         sleep 0.1
     done
     echo "the display fixture did not start; its logs:" >&2
@@ -119,6 +161,19 @@ start)
     ;;
 stop)
     Stop
+    ;;
+watch)
+    parent=$3
+    started=$4
+    CloseInherited
+    while sleep 1; do
+        # Stop ran, or a new start replaced this watchdog.
+        grep -q "^$$ " "$pids" 2>/dev/null || exit 0
+        if ! Runs "$parent" "$started"; then
+            Stop
+            exit 0
+        fi
+    done
     ;;
 *)
     echo "usage: tools/test_display.sh start RUNTIME DISPLAY [wayland] | stop RUNTIME" >&2

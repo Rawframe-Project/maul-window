@@ -10,7 +10,11 @@
 // Settings' ReadAll answered with a desktop's settings when the test
 // says, or with other types, and SettingChanged; PowerProfileMonitor's power-saver-enabled),
 // each writing down what it was asked and answering, or refusing as
-// told. Started as a system bus, it plays UPower (OnBattery) instead.
+// told. Started as a system bus, it plays UPower (OnBattery) and
+// AccountsService instead: FindUserById, the user's GetAll with its
+// Languages and Language, and their PropertiesChanged and Changed; and
+// another program on that bus, sending the user's PropertiesChanged in
+// its place; and AccountsService restarting under a new unique name.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -30,8 +34,10 @@
 
 extern char** environ;
 
-#define FAKE_COOKIE 7u
-#define FAKE_HANDLE "/org/freedesktop/portal/desktop/request/1_1/mwin"
+#define FAKE_COOKIE        7u
+#define FAKE_HANDLE        "/org/freedesktop/portal/desktop/request/1_1/mwin"
+#define FAKE_USER          "/org/freedesktop/Accounts/User1000"
+#define FAKE_ACCOUNTS_USER "org.freedesktop.Accounts.User"
 
 typedef struct FakeBus
 {
@@ -42,6 +48,7 @@ typedef struct FakeBus
     void* (*openPrivate)(const char* address, void* error);
     unsigned (*busRegister)(void* connection, void* error);
     int (*requestName)(void* connection, const char* name, unsigned flags, void* error);
+    int (*releaseName)(void* connection, const char* name, void* error);
     unsigned (*readWrite)(void* connection, int timeout);
     void* (*pop)(void* connection);
     unsigned (*isCall)(void* message, const char* interface, const char* method);
@@ -99,6 +106,23 @@ typedef struct FakeBus
     // The power: power-saver-enabled and OnBattery, -1 to refuse Get.
     int saver;
     int battery;
+    // The user: its Languages, names separated by colons, and Language;
+    // whether FindUserById is refused; how often each was asked.
+    char languages[128];
+    char language[32];
+    bool noUser;
+    int finds;
+    int getAlls;
+    // GetAll asked since the last FindUserById; whether the next
+    // FindUserById's answer is followed at once by a restart (FakePump),
+    // and whether that restart went through.
+    int getAllsSinceFind;
+    bool restartAfterFind;
+    bool restartedAfterFind;
+    // The unique name of the connection that asked for the user, and the
+    // stand-in's connection from before AccountsService restarted.
+    char client[64];
+    void* retired;
     // Started as the system bus.
     bool system;
     // Which step of starting it failed, for a broken start.
@@ -130,6 +154,7 @@ static inline bool FakeLoad(FakeBus* fake)
            FAKE_FIND(openPrivate, dbus_connection_open_private) &&
            FAKE_FIND(busRegister, dbus_bus_register) &&
            FAKE_FIND(requestName, dbus_bus_request_name) &&
+           FAKE_FIND(releaseName, dbus_bus_release_name) &&
            FAKE_FIND(readWrite, dbus_connection_read_write) &&
            FAKE_FIND(pop, dbus_connection_pop_message) &&
            FAKE_FIND(isCall, dbus_message_is_method_call) &&
@@ -254,7 +279,8 @@ static inline FakeStarted FakeStart(FakeBus* fake, const char* directory)
     // 4: do not queue; 1: the primary owner.
     bool named =
         fake->system
-            ? fake->requestName(fake->connection, "org.freedesktop.UPower", 4, nullptr) == 1
+            ? fake->requestName(fake->connection, "org.freedesktop.UPower", 4, nullptr) == 1 &&
+                  fake->requestName(fake->connection, "org.freedesktop.Accounts", 4, nullptr) == 1
             : fake->requestName(fake->connection, "org.freedesktop.FileManager1", 4, nullptr) ==
                       1 &&
                   fake->requestName(fake->connection, "org.freedesktop.ScreenSaver", 4, nullptr) ==
@@ -732,8 +758,207 @@ static inline void FakePropertyChanged(FakeBus* fake, const char* path, const ch
     fake->flush(fake->connection);
 }
 
+// The user's Languages, names separated by colons, in an a{sv}.
+static inline void FakeLanguages(FakeBus* fake, void* keys, const char* names)
+{
+    void* entry[16];
+    void* variant[16];
+    void* list[16];
+    const char* key = "Languages";
+    char copy[128];
+    (void)snprintf(copy, sizeof(copy), "%s", names);
+    (void)fake->openContainer(keys, 'e', nullptr, entry);
+    (void)fake->appendBasic(entry, 's', (const void*)&key);
+    (void)fake->openContainer(entry, 'v', "as", variant);
+    (void)fake->openContainer(variant, 'a', "s", list);
+    for (char* name = copy; name != nullptr;)
+    {
+        char* colon = strchr(name, ':');
+        if (colon != nullptr)
+        {
+            *colon = '\0';
+        }
+        if (name[0] != '\0')
+        {
+            (void)fake->appendBasic(list, 's', (const void*)&name);
+        }
+        name = colon != nullptr ? colon + 1 : nullptr;
+    }
+    (void)fake->closeContainer(variant, list);
+    (void)fake->closeContainer(entry, variant);
+    (void)fake->closeContainer(keys, entry);
+}
+
+// FindUserById(x): the user's path, or a refusal as told.
+static inline void* FakeFindUser(FakeBus* fake, void* message)
+{
+    void* iter[16];
+    fake->finds += 1;
+    fake->getAllsSinceFind = 0;
+    (void)snprintf(fake->client, sizeof(fake->client), "%s", fake->sender(message));
+    if (fake->noUser || !fake->iterInit(message, iter) || fake->argType(iter) != 'x')
+    {
+        return fake->newError(message, "org.freedesktop.Accounts.Error.Failed", "none");
+    }
+    void* reply = fake->newReturn(message);
+    const char* path = FAKE_USER;
+    fake->initAppend(reply, iter);
+    (void)fake->appendBasic(iter, 'o', (const void*)&path);
+    return reply;
+}
+
+// The user's GetAll: its name, Languages and Language.
+static inline void* FakeGetAll(FakeBus* fake, void* message)
+{
+    void* iter[16];
+    void* keys[16];
+    char interface[64] = "";
+    if (fake->iterInit(message, iter))
+    {
+        FakeString(fake, iter, interface, sizeof(interface));
+    }
+    if (strcmp(fake->path(message), FAKE_USER) != 0 || strcmp(interface, FAKE_ACCOUNTS_USER) != 0)
+    {
+        return fake->newError(message, "org.freedesktop.DBus.Error.UnknownInterface", "none");
+    }
+    fake->getAlls += 1;
+    fake->getAllsSinceFind += 1;
+    void* reply = fake->newReturn(message);
+    const char* name = "mwin";
+    const char* language = fake->language;
+    fake->initAppend(reply, iter);
+    (void)fake->openContainer(iter, 'a', "{sv}", keys);
+    FakeSetting(fake, keys, "UserName", 's', &name);
+    FakeLanguages(fake, keys, fake->languages);
+    FakeSetting(fake, keys, "Language", 's', &language);
+    (void)fake->closeContainer(iter, keys);
+    return reply;
+}
+
+// The user's PropertiesChanged of its Languages.
+static inline void* FakeLanguagesSignal(FakeBus* fake, const char* names)
+{
+    void* message =
+        fake->newSignal(FAKE_USER, "org.freedesktop.DBus.Properties", "PropertiesChanged");
+    void* iter[16];
+    void* changed[16];
+    void* invalidated[16];
+    const char* interface = FAKE_ACCOUNTS_USER;
+    fake->initAppend(message, iter);
+    (void)fake->appendBasic(iter, 's', (const void*)&interface);
+    (void)fake->openContainer(iter, 'a', "{sv}", changed);
+    FakeLanguages(fake, changed, names);
+    (void)fake->closeContainer(iter, changed);
+    (void)fake->openContainer(iter, 'a', "s", invalidated);
+    (void)fake->closeContainer(iter, invalidated);
+    return message;
+}
+
+// Tells every listener of the user's Languages changing.
+static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
+{
+    void* message = FakeLanguagesSignal(fake, names);
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
+}
+
+// A connection of the test's own to the system bus, or NULL.
+static inline void* FakeOpen(FakeBus* fake)
+{
+    const char* address = getenv("DBUS_SYSTEM_BUS_ADDRESS");
+    void* other = address != nullptr ? fake->openPrivate(address, nullptr) : nullptr;
+    if (other == nullptr)
+    {
+        return nullptr;
+    }
+    fake->setExit(other, 0);
+    if (!fake->busRegister(other, nullptr))
+    {
+        fake->close(other);
+        fake->unrefConnection(other);
+        return nullptr;
+    }
+    return other;
+}
+
+// A connection that is not AccountsService's sends the user's Languages
+// changing, to every listener and to the client alone. It asks the bus
+// for a name afterwards, which the bus answers only once it passed both
+// on, ahead of what the stand-in sends next.
+static inline bool FakeSpoofFrom(FakeBus* fake, void* other, const char* names, const char* name)
+{
+    bool sent = true;
+    for (int i = 0; i < 2 && sent; i++)
+    {
+        void* message = FakeLanguagesSignal(fake, names);
+        sent = (i == 0 || fake->setDestination(message, fake->client)) &&
+               fake->send(other, message, nullptr);
+        fake->unref(message);
+    }
+    return sent && fake->requestName(other, name, 4, nullptr) == 1;
+}
+
+// Another program on the bus sends the user's Languages changing.
+static inline bool FakeSpoof(FakeBus* fake, const char* names)
+{
+    void* other = FakeOpen(fake);
+    if (other == nullptr)
+    {
+        return false;
+    }
+    bool sent = FakeSpoofFrom(fake, other, names, "org.example.Spoof");
+    fake->close(other);
+    fake->unrefConnection(other);
+    return sent;
+}
+
+// AccountsService restarts in two steps: its connection gives up the name
+// and stays on the bus (fake->retired, the one retired before closed);
+// then a new one takes the name and answers from then on. 1: released;
+// 1: the primary owner.
+static inline bool FakeRelease(FakeBus* fake)
+{
+    if (fake->retired != nullptr)
+    {
+        fake->close(fake->retired);
+        fake->unrefConnection(fake->retired);
+    }
+    fake->retired = fake->connection;
+    return fake->releaseName(fake->retired, "org.freedesktop.Accounts", nullptr) == 1;
+}
+
+static inline bool FakeTakeOver(FakeBus* fake)
+{
+    void* fresh = FakeOpen(fake);
+    if (fresh == nullptr)
+    {
+        return false;
+    }
+    fake->connection = fresh;
+    return fake->requestName(fresh, "org.freedesktop.Accounts", 4, nullptr) == 1;
+}
+
+// Tells every listener that something of the user changed, the older
+// way.
+static inline void FakeUserChanged(FakeBus* fake)
+{
+    void* message = fake->newSignal(FAKE_USER, FAKE_ACCOUNTS_USER, "Changed");
+    (void)fake->send(fake->connection, message, nullptr);
+    fake->unref(message);
+    fake->flush(fake->connection);
+}
+
 static inline void* FakeAnswer(FakeBus* fake, void* message)
 {
+    if (fake->isCall(message, "org.freedesktop.Accounts", "FindUserById"))
+    {
+        return FakeFindUser(fake, message);
+    }
+    if (fake->isCall(message, "org.freedesktop.DBus.Properties", "GetAll"))
+    {
+        return FakeGetAll(fake, message);
+    }
     if (fake->isCall(message, "org.freedesktop.DBus.Properties", "Get"))
     {
         return FakeGet(fake, message);
@@ -772,13 +997,16 @@ static inline void* FakeAnswer(FakeBus* fake, void* message)
     return fake->more != nullptr ? fake->more(fake, message) : nullptr;
 }
 
-// Answers what the services were asked.
+// Answers what the services were asked; after a FindUserById answer,
+// restarts at once where told, so that the client finds the owner change
+// right behind the answer.
 static inline void FakePump(FakeBus* fake)
 {
     if (fake == nullptr || fake->connection == nullptr)
     {
         return;
     }
+    int finds = fake->finds;
     (void)fake->readWrite(fake->connection, 0);
     for (void* message = fake->pop(fake->connection); message != nullptr;
          message = fake->pop(fake->connection))
@@ -792,10 +1020,20 @@ static inline void FakePump(FakeBus* fake)
         fake->unref(message);
     }
     fake->flush(fake->connection);
+    if (fake->restartAfterFind && fake->finds > finds)
+    {
+        fake->restartAfterFind = false;
+        fake->restartedAfterFind = FakeRelease(fake) && FakeTakeOver(fake);
+    }
 }
 
 static inline void FakeStop(FakeBus* fake)
 {
+    if (fake->retired != nullptr)
+    {
+        fake->close(fake->retired);
+        fake->unrefConnection(fake->retired);
+    }
     if (fake->connection != nullptr)
     {
         fake->close(fake->connection);

@@ -5,14 +5,17 @@
 // whatever owns a bus name: the Settings portal's ReadAll and
 // SettingChanged (linux_settings.c), the file chooser's handle and its
 // Response with the URIs (linux_dialog.c), the power profile monitor's
-// and UPower's Get and PropertiesChanged (linux_power.c), and Fcitx 5's
-// and IBus's input contexts, key answers, committed text and
-// compositions (linux_ime.c). Each input runs on a context of the test
+// and UPower's Get and PropertiesChanged (linux_power.c), AccountsService's
+// user, its GetAll, PropertiesChanged and Changed, and its name's owner
+// changing (linux_languages.c),
+// and Fcitx 5's and IBus's input contexts, key answers, committed text
+// and compositions (linux_ime.c). Each input runs on a context of the test
 // backend, its dialog requests going to the portal code, with the
 // modules on stand-in connections: the real libdbus builds and reads the
 // messages, and only the functions that would reach a bus are replaced.
 // The input is a script of replies to the calls the modules made (of the
-// shape asked, of another, or an error), signals, dialogs, focus and keys
+// shape asked, of another, or an error), signals (an owner change now
+// and then held for a later dispatch), dialogs, focus and keys
 // for the input method, pumps and deadlines, and windows destroyed. Each
 // message's types follow the shape the module expects with others put in
 // their place now and then, and every message is marshalled and read
@@ -27,12 +30,15 @@
 // absolute UTF-8 within the limits; committed text and compositions are
 // UTF-8, a composition's caret, selection and segments within its text
 // on character boundaries; the facts the program reads are in range,
-// the text scale finite and above zero; and the program reads each
+// the text scale finite and above zero; the preferred locales are never
+// empty, and hold tags of letters, digits and hyphens between single
+// commas; and the program reads each
 // key at most once, in the order offered, and only for the window it
 // was offered for.
 
 #include "linux_dialog.h"
 #include "linux_ime.h"
+#include "linux_languages.h"
 #include "linux_power.h"
 #include "linux_settings.h"
 #include "monotonic.h"
@@ -95,6 +101,7 @@ static struct
     DBusMessage* (*signal)(const char* path, const char* interface, const char* name);
     mwinDBusBool (*setErrorName)(DBusMessage* message, const char* name);
     mwinDBusBool (*setReplySerial)(DBusMessage* message, uint32_t serial);
+    mwinDBusBool (*setSender)(DBusMessage* message, const char* sender);
     void (*setSerial)(DBusMessage* message, uint32_t serial);
     mwinDBusBool (*marshal)(DBusMessage* message, char** bytes, int* length);
     DBusMessage* (*demarshal)(const char* bytes, int length, void* error);
@@ -123,6 +130,8 @@ typedef enum CallKind
     callChoose,
     callCreate,
     callKey,
+    callFindUser,
+    callGetAll,
 } CallKind;
 
 typedef struct Call
@@ -152,6 +161,7 @@ static mwinLinuxBus s_session;
 static mwinLinuxSettings s_settings;
 static mwinLinuxPower s_power;
 static mwinLinuxBus s_system;
+static mwinLinuxLanguages s_languages;
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
 
@@ -202,6 +212,8 @@ static mwinDBusBool SendWithReply(DBusConnection* connection, DBusMessage* messa
                  : strcmp(member, "SaveFile") == 0           ? callChoose
                  : strcmp(member, "CreateInputContext") == 0 ? callCreate
                  : strcmp(member, "ProcessKeyEvent") == 0    ? callKey
+                 : strcmp(member, "FindUserById") == 0       ? callFindUser
+                 : strcmp(member, "GetAll") == 0             ? callGetAll
                                                              : callOther;
     *pending = (DBusPendingCall*)call;
     return 1;
@@ -281,9 +293,22 @@ static mwinDBusBool ReadWrite(DBusConnection* connection, int timeoutMs)
     return 1;
 }
 
+static void Deliver(DBusConnection* connection, DBusMessage* message);
+
+// A system bus signal held back, delivered at the dispatch after the
+// next: as a message the bus reads after a pump's own dispatch, while a
+// module still uses what that pump took.
+static DBusMessage* s_held;
+static int s_heldSkips;
+
 static int Dispatch(DBusConnection* connection)
 {
-    (void)connection;
+    if (connection == SYSTEM && s_held != nullptr && s_heldSkips-- == 0)
+    {
+        DBusMessage* held = s_held;
+        s_held = nullptr;
+        Deliver(SYSTEM, held);
+    }
     // DBUS_DISPATCH_COMPLETE.
     return 1;
 }
@@ -340,6 +365,12 @@ static const char* const s_words[] = {
     "power-saver-enabled",
     "org.freedesktop.UPower",
     "OnBattery",
+    "org.freedesktop.Accounts.User",
+    "Languages",
+    "Language",
+    "de_DE.UTF-8",
+    "sr_RS@latin",
+    "C",
     "uris",
     "choices",
     "file:///tmp/a",
@@ -415,8 +446,8 @@ static const char* Text(void)
     return s_text;
 }
 
-// An object path: a dialog's request, the input context's, others, or a
-// long one.
+// An object path: a dialog's request, the input context's, the user's,
+// others, or a long one.
 static const char* Path(void)
 {
     uint8_t shape = Byte();
@@ -432,7 +463,7 @@ static const char* Path(void)
     case 4:
         return "/org/freedesktop/IBus/InputContext_7";
     case 5:
-        return "/";
+        return (shape & 32) != 0 && s_languages.user[0] == '/' ? s_languages.user : "/";
     default:
         s_text[0] = '/';
         size_t length = 1;
@@ -729,6 +760,7 @@ static DBusMessage* Fill(DBusMessage* message, const char* types, const char* co
 static const char* const s_settingTypes[] = {"u", "b", "d", "s", "(ddd)"};
 static const char* const s_propertyTypes[] = {"b", "u", "s"};
 static const char* const s_resultTypes[] = {"as", "s", "a(sa(us))"};
+static const char* const s_languageTypes[] = {"as", "s"};
 // IBus's serialized objects: a text, its attribute list, an attribute.
 static const char* const s_ibusTypes[] = {"(sa{sv}sv)", "(sa{sv}av)", "(sa{sv}uuuu)", "s"};
 
@@ -764,6 +796,10 @@ static DBusMessage* Reply(const Call* call)
         return Fill(reply, (shape & 8) != 0 ? "oay" : "o", nullptr, 0);
     case callKey:
         return Fill(reply, "b", nullptr, 0);
+    case callFindUser:
+        return Fill(reply, "o", nullptr, 0);
+    case callGetAll:
+        return Fill(reply, "a{sv}", CONTENTS(s_languageTypes));
     default:
         return Fill(reply, "", nullptr, 0);
     }
@@ -831,6 +867,58 @@ static void PropertiesChanged(uint8_t op)
     Deliver((op & 32) != 0 ? SYSTEM : SESSION,
             Fill(Signal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged"), "sa{sv}as",
                  CONTENTS(s_propertyTypes)));
+}
+
+// The user's PropertiesChanged, the older Changed, or NameOwnerChanged
+// from the bus, or now and then from another connection.
+static void UserSignal(uint8_t op)
+{
+    if ((op & 160) == 160)
+    {
+        // Mostly a name and owners of its own, now and then the script's;
+        // now and then held back (s_held).
+        static const char* const names[] = {"org.freedesktop.Accounts", "org.freedesktop.UPower"};
+        static const char* const owners[] = {"", ":1.7", ":1.8", ""};
+        DBusMessage* message =
+            Signal("/org/freedesktop/DBus", "org.freedesktop.DBus", "NameOwnerChanged");
+        uint8_t shape = Byte();
+        if (message == nullptr)
+        {
+            return;
+        }
+        (void)s_dbus.setSender(message, (op & 16) != 0 ? ":1.9" : "org.freedesktop.DBus");
+        if ((shape & 1) != 0)
+        {
+            Deliver(SYSTEM, Fill(message, "sss", nullptr, 0));
+            return;
+        }
+        const char* arguments[] = {names[(shape >> 1) & 1], owners[(shape >> 2) & 3],
+                                   owners[(shape >> 4) & 3]};
+        mwinDBusIter iter;
+        s_session.api.iterInitAppend(message, &iter);
+        for (size_t i = 0; i < 3; i++)
+        {
+            Basic(&iter, mwin_dbusTypeString, &arguments[i]);
+        }
+        message = Fill(message, "", nullptr, 0);
+        if ((shape & 64) != 0 && s_held == nullptr)
+        {
+            s_held = message;
+            s_heldSkips = 1;
+            return;
+        }
+        Deliver(SYSTEM, message);
+        return;
+    }
+    const char* path = Path();
+    if ((op & 128) != 0)
+    {
+        Deliver(SYSTEM,
+                Fill(Signal(path, "org.freedesktop.Accounts.User", "Changed"), "", nullptr, 0));
+        return;
+    }
+    Deliver(SYSTEM, Fill(Signal(path, "org.freedesktop.DBus.Properties", "PropertiesChanged"),
+                         "sa{sv}as", CONTENTS(s_languageTypes)));
 }
 
 static void Response(void)
@@ -937,6 +1025,7 @@ static void Pump(uint64_t nowNs)
         mwinBusPump(&s_system, 0);
     }
     mwinPowerPump(&s_power, nowNs);
+    mwinLanguagesPump(&s_languages, nowNs);
     mwinDialogsPump(&s_dialogs, nowNs);
     mwinImePump(&s_ime, nowNs);
 }
@@ -1003,6 +1092,24 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
     Expect(paths == count);
 }
 
+static bool IsTagByte(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+}
+
+// The preferred locales: never empty, tags between single commas.
+static void CheckLocales(const mwinContext* context)
+{
+    char locales[MWIN_LINUX_LOCALE_BYTES];
+    size_t length = 0;
+    Expect(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+           length > 0 && locales[0] != ',' && locales[length - 1] != ',');
+    for (size_t i = 0; i < length; i++)
+    {
+        Expect(IsTagByte(locales[i]) || (locales[i] == ',' && locales[i + 1] != ','));
+    }
+}
+
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
@@ -1019,6 +1126,9 @@ static void Drain(mwinContext* context)
         case mwin_eventThemeChanged:
         case mwin_eventPowerChanged:
             CheckFacts(context);
+            break;
+        case mwin_eventLocaleChanged:
+            CheckLocales(context);
             break;
         case mwin_eventKeyDown:
         case mwin_eventKeyUp:
@@ -1089,6 +1199,8 @@ static void Start(mwinContext* context)
     mwinSettingsStart(&s_settings, context, &s_session, now);
     mwinPowerStart(&s_power, context, &s_session, &s_system, now);
     JoinSystem();
+    // It finds the stand-in, and no configuration folder.
+    mwinLanguagesStart(&s_languages, context, &s_system, "en-US", 5, now);
     mwinDialogsStart(&s_dialogs, context, &s_session);
     mwinImeStart(&s_ime, context, &s_session);
     s_test = context->backend;
@@ -1102,7 +1214,13 @@ static void Stop(mwinContext* context)
     mwinImeStop(&s_ime);
     mwinDialogsStop(&s_dialogs);
     mwinPowerStop(&s_power);
+    mwinLanguagesStop(&s_languages);
     mwinBusClose(&s_system);
+    if (s_held != nullptr)
+    {
+        s_session.api.unrefMessage(s_held);
+        s_held = nullptr;
+    }
     mwinSettingsStop(&s_settings);
     Drain(context);
     Expect(s_filterCount == 0);
@@ -1138,10 +1256,17 @@ static mwinResult Init(mwinContext* context, void* user)
             Answer(callReadAll);
             break;
         case 2:
-            PropertiesChanged(op);
+            if ((op & 64) != 0)
+            {
+                UserSignal(op);
+            }
+            else
+            {
+                PropertiesChanged(op);
+            }
             break;
         case 3:
-            Answer(callGet);
+            Answer((op & 48) == 16 ? callFindUser : (op & 48) == 32 ? callGetAll : callGet);
             break;
         case 4:
             Dialog(context, windows[i], op);
@@ -1224,12 +1349,14 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
     // portal fails answers unsupported.
     (void)setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/nonexistent/mwin-fuzz", 1);
     (void)setenv("PATH", "/nonexistent/mwin-fuzz", 1);
+    (void)setenv("XDG_CONFIG_HOME", "/nonexistent/mwin-fuzz", 1);
     void* library = dlopen("libdbus-1.so.3", RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
     Expect(library != nullptr);
     *(void**)&s_dbus.make = dlsym(library, "dbus_message_new");
     *(void**)&s_dbus.signal = dlsym(library, "dbus_message_new_signal");
     *(void**)&s_dbus.setErrorName = dlsym(library, "dbus_message_set_error_name");
     *(void**)&s_dbus.setReplySerial = dlsym(library, "dbus_message_set_reply_serial");
+    *(void**)&s_dbus.setSender = dlsym(library, "dbus_message_set_sender");
     *(void**)&s_dbus.setSerial = dlsym(library, "dbus_message_set_serial");
     *(void**)&s_dbus.marshal = dlsym(library, "dbus_message_marshal");
     *(void**)&s_dbus.demarshal = dlsym(library, "dbus_message_demarshal");
@@ -1238,9 +1365,10 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
     *(void**)&s_dbus.signature = dlsym(library, "dbus_message_get_signature");
     s_trace = getenv("MWIN_FUZZ_TRACE") != nullptr;
     Expect(s_dbus.make != nullptr && s_dbus.signal != nullptr && s_dbus.setErrorName != nullptr &&
-           s_dbus.setReplySerial != nullptr && s_dbus.setSerial != nullptr &&
-           s_dbus.marshal != nullptr && s_dbus.demarshal != nullptr && s_dbus.release != nullptr &&
-           s_dbus.member != nullptr && s_dbus.signature != nullptr);
+           s_dbus.setReplySerial != nullptr && s_dbus.setSender != nullptr &&
+           s_dbus.setSerial != nullptr && s_dbus.marshal != nullptr &&
+           s_dbus.demarshal != nullptr && s_dbus.release != nullptr && s_dbus.member != nullptr &&
+           s_dbus.signature != nullptr);
     return 0;
 }
 

@@ -3,8 +3,10 @@
 //
 // Fuzzes the preferred locales the environment names: the input is
 // LANGUAGE, a NUL, the messages locale, and the capacity in its first
-// byte. The list must fit the capacity and hold tags of letters, digits
-// and hyphens, separated by single commas, none twice.
+// byte. The same bytes after the first are read as plasma-localerc too.
+// Each list must fit the capacity and hold tags of letters, digits and
+// hyphens, separated by single commas, none twice; a text with a NUL is
+// refused as plasma-localerc.
 
 #include "linux_locale.h"
 
@@ -71,6 +73,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     size_t length = mwinLinuxLocalesOf(language, messages, out, capacity);
     Expect(length <= capacity);
     CheckList(out, length);
+    length = capacity + 1;
+    bool read = mwinLinuxPlasmaLocales((const char*)data + 1, size - 1, out, capacity, &length);
+    Expect(read == (memchr(data + 1, '\0', size - 1) == nullptr));
+    Expect(!read || length <= capacity);
+    if (read)
+    {
+        CheckList(out, length);
+    }
     free(out);
     free(text);
     return 0;

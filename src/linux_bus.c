@@ -82,7 +82,7 @@ DBusMessage* mwinBusMethod(mwinLinuxBus* bus, const char* destination, const cha
                                : nullptr;
 }
 
-bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uint64_t nowNs)
+bool mwinBusQueue(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uint64_t nowNs)
 {
     call->pending = nullptr;
     // The library's own timeout never fires without a main loop; the
@@ -91,6 +91,12 @@ bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uin
                 call->pending != nullptr;
     bus->api.unrefMessage(message);
     call->deadlineNs = nowNs + MWIN_BUS_DEADLINE_NS;
+    return sent;
+}
+
+bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uint64_t nowNs)
+{
+    bool sent = mwinBusQueue(bus, message, call, nowNs);
     if (sent)
     {
         mwinBusPump(bus, 0);
@@ -98,10 +104,15 @@ bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uin
     return sent;
 }
 
-void mwinBusTell(mwinLinuxBus* bus, DBusMessage* message)
+void mwinBusQueueTell(mwinLinuxBus* bus, DBusMessage* message)
 {
     (void)bus->api.send(bus->connection, message, nullptr);
     bus->api.unrefMessage(message);
+}
+
+void mwinBusTell(mwinLinuxBus* bus, DBusMessage* message)
+{
+    mwinBusQueueTell(bus, message);
     mwinBusPump(bus, 0);
 }
 

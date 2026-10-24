@@ -143,7 +143,7 @@ add_library(maul-window ${MAUL_LIBRARY_KIND}
 # POSIX.
 if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
     set(MWIN_POSIX_SOURCES src/dbus_api.c src/linux_bus.c src/linux_dialog.c src/linux_inhibit.c
-        src/linux_locale.c src/linux_power.c src/linux_services.c
+        src/linux_languages.c src/linux_locale.c src/linux_power.c src/linux_services.c
         src/linux_settings.c src/linux_zenity.c src/posix_message_box.c)
     target_sources(maul-window PRIVATE ${MWIN_POSIX_SOURCES})
     set_source_files_properties(${MWIN_POSIX_SOURCES} PROPERTIES
@@ -454,12 +454,17 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(linux_power POSIX)
         target_compile_definitions(test_linux_power PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_linux_power PRIVATE ${CMAKE_DL_LIBS})
+        # The desktop's languages through AccountsService of the test's own
+        # and a configuration folder of its own.
+        maul_add_test(linux_languages POSIX)
+        target_compile_definitions(test_linux_languages PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_linux_languages PRIVATE ${CMAKE_DL_LIBS})
         # Input methods through Fcitx 5 and IBus of the test's own.
         maul_add_test(x11_ime POSIX)
         target_compile_definitions(test_x11_ime PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_ime PRIVATE ${CMAKE_DL_LIBS} PkgConfig::MWIN_TEST_XCB)
         set(MWIN_BUS_TESTS linux_services linux_awake linux_dialog linux_settings linux_power
-            x11_ime)
+            linux_languages x11_ime)
         set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES SKIP_RETURN_CODE 77)
         mwin_display_tests(${MWIN_BUS_TESTS})
         # It moves the X server's focus, as the X11 tests do.

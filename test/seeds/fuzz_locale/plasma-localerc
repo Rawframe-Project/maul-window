@@ -1,0 +1,5 @@
+@[Formats]
+LANG=de_DE.UTF-8
+
+[Translations]
+  LANGUAGE = sr_RS@latin:de:x1:es_419::C

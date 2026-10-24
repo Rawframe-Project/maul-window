@@ -74,8 +74,9 @@ linux_motion: core
 linux_pad: allocator core linux_battery linux_motion monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
+linux_languages: core linux_bus linux_locale monotonic
 linux_locale:
-linux_services: answer core linux_bus linux_dialog linux_inhibit linux_locale linux_power linux_settings monotonic
+linux_services: answer core linux_bus linux_dialog linux_inhibit linux_languages linux_locale linux_power linux_settings monotonic
 linux_power: core linux_bus monotonic
 linux_settings: core linux_bus monotonic
 linux_zenity: allocator core dialog

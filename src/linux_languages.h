@@ -6,7 +6,8 @@
 // - GNOME's, the user's Languages (else Language) in AccountsService on
 //   the system bus: the user's path from FindUserById, its properties
 //   from GetAll, then their PropertiesChanged, or GetAll again on the
-//   older Changed signal.
+//   older Changed signal; signals only from the connection that gave the
+//   user's path.
 // - KDE Plasma's, plasma-localerc's [Translations] LANGUAGE in the
 //   configuration folder ($XDG_CONFIG_HOME, else ~/.config), watched
 //   through inotify, read without waiting at each pump and at most once
@@ -26,6 +27,8 @@
 
 // The longest AccountsService user path kept, in bytes.
 #define MWIN_LINUX_USER_PATH_BYTES 128
+// The longest unique bus name of AccountsService kept, in bytes.
+#define MWIN_LINUX_OWNER_BYTES 64
 // The longest configuration folder followed, in bytes.
 #define MWIN_LINUX_CONFIG_PATH_BYTES 512
 // The most of plasma-localerc read: a longer file is left alone.
@@ -46,8 +49,10 @@ typedef struct mwinLinuxLanguages
     mwinBusCall userCall;
     mwinBusCall readCall;
     bool listening;
-    // The user's path, "" until known.
+    // The user's path, "" until known, and the unique name of the
+    // connection that gave it.
     char user[MWIN_LINUX_USER_PATH_BYTES];
+    char owner[MWIN_LINUX_OWNER_BYTES];
     // The starting list, and the most a list may hold.
     char start[MWIN_LINUX_LOCALE_BYTES];
     uint16_t startLength;

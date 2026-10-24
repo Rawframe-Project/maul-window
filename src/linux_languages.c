@@ -133,14 +133,14 @@ static void ReadUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     }
 }
 
-// Listens for the user's changes: PropertiesChanged, and the older
-// Changed, which says only that something changed.
+// Listens for the user's changes from AccountsService: PropertiesChanged,
+// and the older Changed, which says only that something changed.
 static void Listen(mwinLinuxLanguages* languages)
 {
     static const char* const rules[] = {
-        "type='signal',interface='" PROPERTIES "',member='PropertiesChanged',path='%s',"
-        "arg0='" USER "'",
-        "type='signal',interface='" USER "',member='Changed',path='%s'",
+        "type='signal',sender='" ACCOUNTS "',interface='" PROPERTIES "',"
+        "member='PropertiesChanged',path='%s',arg0='" USER "'",
+        "type='signal',sender='" ACCOUNTS "',interface='" USER "',member='Changed',path='%s'",
     };
     mwinLinuxBus* system = languages->system;
     for (size_t i = 0; i < sizeof(rules) / sizeof(rules[0]); i++)
@@ -186,14 +186,17 @@ static void TakeProperties(mwinLinuxLanguages* languages, uint64_t nowNs)
 
 // The user's signals: PropertiesChanged(s interface, a{sv} changed, as
 // invalidated) of its interface, or Changed, after which its properties
-// are asked for again.
+// are asked for again. Another connection's are left alone: any program
+// may send a signal on the system bus, to every listener or to this one.
 static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, void* data)
 {
     (void)connection;
     mwinLinuxLanguages* languages = data;
     const mwinDBusApi* api = &languages->system->api;
     const char* path = api->path(message);
-    if (languages->user[0] == '\0' || path == nullptr || strcmp(path, languages->user) != 0)
+    const char* sender = api->sender(message);
+    if (languages->user[0] == '\0' || path == nullptr || strcmp(path, languages->user) != 0 ||
+        strcmp(sender != nullptr ? sender : "", languages->owner) != 0)
     {
         return mwin_dbusNotHandled;
     }
@@ -340,8 +343,8 @@ void mwinLanguagesStart(mwinLinuxLanguages* languages, mwinContext* context, mwi
     Watch(languages, nowNs);
 }
 
-// The user's path, once it came: then its changes are listened for and
-// its properties asked for.
+// The user's path and the connection that gave it, once they came: then
+// its changes are listened for and its properties asked for.
 static void TakeUser(mwinLinuxLanguages* languages, uint64_t nowNs)
 {
     mwinLinuxBus* system = languages->system;
@@ -354,9 +357,13 @@ static void TakeUser(mwinLinuxLanguages* languages, uint64_t nowNs)
     {
         system->api.getBasic(&arguments, (void*)&path);
     }
-    if (path != nullptr && strlen(path) < sizeof(languages->user))
+    const char* owner = reply != nullptr ? system->api.sender(reply) : nullptr;
+    owner = owner != nullptr ? owner : "";
+    if (path != nullptr && strlen(path) < sizeof(languages->user) &&
+        strlen(owner) < sizeof(languages->owner))
     {
         memcpy(languages->user, path, strlen(path) + 1);
+        memcpy(languages->owner, owner, strlen(owner) + 1);
         Listen(languages);
         ReadUser(languages, nowNs);
     }

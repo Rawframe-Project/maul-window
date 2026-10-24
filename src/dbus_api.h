@@ -80,6 +80,7 @@ typedef struct mwinDBusApi
     void (*removeFilter)(DBusConnection* connection, mwinDBusFilter* filter, void* data);
     mwinDBusBool (*isSignal)(DBusMessage* message, const char* interface, const char* name);
     const char* (*path)(DBusMessage* message);
+    const char* (*sender)(DBusMessage* message);
     const char* (*uniqueName)(DBusConnection* connection);
     mwinDBusBool (*next)(mwinDBusIter* iter);
     void (*recurse)(mwinDBusIter* iter, mwinDBusIter* sub);

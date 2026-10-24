@@ -18,6 +18,8 @@
 //   same LANGUAGE: nothing told.
 // - The user's repeat after plasma-localerc's change: nothing told.
 // - Another file of the folder written: plasma-localerc not read.
+// - The user's change from another program on the bus, to every listener
+//   or to the program alone: nothing told.
 // - With no system bus and no configuration folder, or AccountsService
 //   refusing the user and plasma-localerc no file: the starting list,
 //   and nothing told.
@@ -72,7 +74,7 @@ static const Expected s_steps[] = {
     {kindChange, "en-US"},       {kindChange, "pt-BR"},       {kindChange, "sv-SE"},
     {kindChange, "es,ca-ES"},    {kindQuietFile, "es,ca-ES"}, {kindQuietFile, "es,ca-ES"},
     {kindQuietFile, "es,ca-ES"}, {kindQuietBus, "es,ca-ES"},  {kindQuietFile, "es,ca-ES"},
-    {kindChange, "nl"},
+    {kindQuietBus, "es,ca-ES"},  {kindChange, "nl"},
 };
 
 typedef struct Program
@@ -191,6 +193,10 @@ static void Act(Program* program)
         (void)remove(path);
         break;
     }
+    case 12:
+        CHECK(FakeSpoof(system, "ja_JP"), "another program sent the user's change");
+        FakeUserChanged(system);
+        break;
     default:
         WRITE(s_file, "[Translations]\nLANGUAGE=nl\n");
         break;
@@ -246,6 +252,7 @@ static void Step(mwinContext* context, Program* program)
         CHECK(program->changes == 0 && LocalesAre(context, expected->locales),
               program->step == 10   ? "the user's repeat after the file's change tells nothing"
               : program->step == 11 ? "another file's write reads nothing"
+              : program->step == 12 ? "another program's change of the user tells nothing"
               : expected->kind == kindQuietBus ? "repeats and odd changes on the bus tell nothing"
                                                : "a file with a NUL, too long, or with the same "
                                                  "LANGUAGE tells nothing");

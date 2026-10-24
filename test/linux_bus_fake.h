@@ -12,7 +12,9 @@
 // each writing down what it was asked and answering, or refusing as
 // told. Started as a system bus, it plays UPower (OnBattery) and
 // AccountsService instead: FindUserById, the user's GetAll with its
-// Languages and Language, and their PropertiesChanged and Changed.
+// Languages and Language, and their PropertiesChanged and Changed; and
+// another program on that bus, sending the user's PropertiesChanged in
+// its place.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -110,6 +112,8 @@ typedef struct FakeBus
     bool noUser;
     int finds;
     int getAlls;
+    // The unique name of the connection that asked for the user.
+    char client[64];
     // Started as the system bus.
     bool system;
     // Which step of starting it failed, for a broken start.
@@ -780,6 +784,7 @@ static inline void* FakeFindUser(FakeBus* fake, void* message)
 {
     void* iter[16];
     fake->finds += 1;
+    (void)snprintf(fake->client, sizeof(fake->client), "%s", fake->sender(message));
     if (fake->noUser || !fake->iterInit(message, iter) || fake->argType(iter) != 'x')
     {
         return fake->newError(message, "org.freedesktop.Accounts.Error.Failed", "none");
@@ -818,8 +823,8 @@ static inline void* FakeGetAll(FakeBus* fake, void* message)
     return reply;
 }
 
-// Tells every listener of the user's Languages changing.
-static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
+// The user's PropertiesChanged of its Languages.
+static inline void* FakeLanguagesSignal(FakeBus* fake, const char* names)
 {
     void* message =
         fake->newSignal(FAKE_USER, "org.freedesktop.DBus.Properties", "PropertiesChanged");
@@ -834,9 +839,43 @@ static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
     (void)fake->closeContainer(iter, changed);
     (void)fake->openContainer(iter, 'a', "s", invalidated);
     (void)fake->closeContainer(iter, invalidated);
+    return message;
+}
+
+// Tells every listener of the user's Languages changing.
+static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
+{
+    void* message = FakeLanguagesSignal(fake, names);
     (void)fake->send(fake->connection, message, nullptr);
     fake->unref(message);
     fake->flush(fake->connection);
+}
+
+// Another program on the bus sends the user's Languages changing, to
+// every listener and to the client alone. It asks the bus for a name
+// afterwards, which the bus answers only once it passed both on, ahead
+// of what the stand-in sends next.
+static inline bool FakeSpoof(FakeBus* fake, const char* names)
+{
+    const char* address = getenv("DBUS_SYSTEM_BUS_ADDRESS");
+    void* other = address != nullptr ? fake->openPrivate(address, nullptr) : nullptr;
+    if (other == nullptr)
+    {
+        return false;
+    }
+    fake->setExit(other, 0);
+    bool sent = fake->busRegister(other, nullptr);
+    for (int i = 0; i < 2 && sent; i++)
+    {
+        void* message = FakeLanguagesSignal(fake, names);
+        sent = (i == 0 || fake->setDestination(message, fake->client)) &&
+               fake->send(other, message, nullptr);
+        fake->unref(message);
+    }
+    sent = sent && fake->requestName(other, "org.example.Spoof", 4, nullptr) == 1;
+    fake->close(other);
+    fake->unrefConnection(other);
+    return sent;
 }
 
 // Tells every listener that something of the user changed, the older

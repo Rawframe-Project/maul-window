@@ -38,7 +38,7 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
 | `fuzz` | Every fuzz target from its committed seeds, as many at a time as the runner has cores: 20 seconds each on a pull request, 90 on `main`. |
 | `fuzz-nightly` | Every night, each fuzz target in a job of its own for 600 seconds, from its corpus of the nights before ([Fuzzing](#fuzzing)). Not part of the required check. |
-| `ios-simulator` | The iOS backend and its tests built on every pull request; on `main` and at night, run in a booted simulator of the newest runtime. A simulator's boot and first launch take longer than the pull request budget leaves. |
+| `ios-simulator` | The iOS backend and its tests built on every pull request; on `main` and at night, run on an iPhone simulator of the newest runtime, then what needs several scenes on an iPad of that runtime, one device booted at a time (`tools/ci_simulator.sh` picks each, and fails when the runtime has none). A simulator's boot and first launch take longer than the pull request budget leaves. |
 | `android-emulator` | The Android backend in an Android 11 emulator on the Linux runner with KVM. |
 | `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
@@ -58,4 +58,4 @@ Each target starts from its committed seeds (`test/seeds/<target>/`), inputs tha
 
 ## Budgets
 
-Over a budget, tests are pruned or merged before anything else is added. The pull request check's longest job is the Android emulator (about five minutes); the whole Linux suite runs in a few seconds once built. The iOS simulator run (eight to eleven minutes, most of it booting) is on `main` and at night.
+Over a budget, tests are pruned or merged before anything else is added. The pull request check's longest job is the Android emulator (about five minutes); the whole Linux suite runs in a few seconds once built. The iOS simulator run (eight to eleven minutes on the iPhone, most of it booting, then the iPad's boot and its tests) is on `main` and at night.

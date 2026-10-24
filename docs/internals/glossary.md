@@ -2,7 +2,7 @@
 
 - **Backend:** the code for one window system (Win32, macOS, iOS, Android, Wayland, X11, the web) or the headless test platform, behind [backend.h](../../src/backend.h).
 - **Context:** the object `mwinRun` creates, which owns everything the library keeps for a program.
-- **Def:** a struct that describes an object to create, built by its `mwinDefault...` function and checked by its cookie. The application def is the root def and also carries the ABI version.
+- **Def:** a struct that describes an object to create, built by its `mwinDefault...` function and checked by its cookie. The root defs, of the calls a program can make first (the application def and the message box def), also carry the ABI version.
 - **Record:** one entry of the event stream (`mwinEvent`): a notification, an input record or a completion.
 - **Notification:** a record that reports state (size, scale, mode, focus, a monitor, a system fact). Newer ones of a class replace older ones still waiting.
 - **Discrete input:** keys, text, buttons, and touches and pen contacts beginning or ending. Never merged; a lost one becomes a reset.

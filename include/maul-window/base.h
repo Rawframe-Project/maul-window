@@ -31,8 +31,10 @@ extern "C"
 // The binary interface a program is built for: the whole version before
 // 1.0, when any release may break it, and the major and minor version from
 // 1.0 on. The top bit is always set, so a zeroed def never matches. The
-// application def carries it (mwinDefaultAppDef), and mwinRun refuses a def
-// built for another; every other def is used inside that run.
+// root defs carry it, those of the calls a program can make first: the
+// application def (mwinDefaultAppDef) and the message box def
+// (mwinDefaultMessageBoxDef). mwinRun and mwinShowMessageBox refuse a def
+// built for another; every other def is used inside a run.
 #define MWIN_ABI_VERSION                                                                           \
     (UINT32_C(0x80000000) | ((uint32_t)MWIN_VERSION_MAJOR << 16) |                                 \
      (MWIN_VERSION_MAJOR == 0                                                                      \

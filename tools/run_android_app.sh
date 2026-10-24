@@ -54,7 +54,7 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
         esac
     done
     grep -q '^result: ' "$out" && break
-    sleep 0.5
+    sleep 0.1
 done
 echo "waited until $(($(date +%s) - start)) s"
 grep -v -E '^(adb|emu): ' "$out" || true

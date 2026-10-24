@@ -25,7 +25,7 @@ pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
 while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
-    sleep 1
+    sleep 0.2
 done
 echo "waited until $(($(date +%s) - start)) s"
 cat "$out"

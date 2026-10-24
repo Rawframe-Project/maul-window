@@ -6,7 +6,8 @@
 // - At the start: power saving from the portal, battery from UPower, as
 //   one change or two, as the answers come.
 // - Each followed as it changes.
-// - A change of another interface, or of the wrong type, left alone.
+// - A change of another interface, or of the wrong type, left alone; and
+//   one keyed by numbers (a{tv}, the shape of a fuzz finding).
 // - With the portal refusing and no system bus: both unknown, and no
 //   change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
@@ -80,6 +81,8 @@ static void Change(const Program* program)
         FakePropertyChanged(program->system, UPOWER_PATH, UPOWER, "OnBattery", 'u', &no);
         FakePropertyChanged(program->system, UPOWER_PATH, UPOWER, "power-saver-enabled", 'b', &no);
         FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "OnBattery", 'b', &no);
+        FakeOddChanged(program->system, UPOWER_PATH, UPOWER);
+        FakeOddChanged(program->session, PORTAL_PATH, MONITOR);
         FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 'b',
                             &yes);
     }

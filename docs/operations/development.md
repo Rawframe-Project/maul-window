@@ -54,6 +54,7 @@ cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -DMAUL_WINDOW_FUZZ=ON -DM
 cmake --build out/fuzz
 ./out/fuzz/fuzz_x11_selection -max_total_time=60 out/corpus/fuzz_x11_selection test/seeds/fuzz_x11_selection
 ./out/fuzz/fuzz_x11_selection crash-<hash>      # reproduce one input
+MWIN_FUZZ_TRACE=1 ./out/fuzz/fuzz_linux_bus crash-<hash>   # and the D-Bus messages it sent
 ```
 
 Always pass `-max_total_time`. A target's seeds, inputs that reach what random bytes rarely would, are committed in `test/seeds/<target>/`; the runs read them and write what they find to the first folder.

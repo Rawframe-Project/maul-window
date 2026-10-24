@@ -704,6 +704,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
                                win32_class_icon win32_accessibility)
     endif()
     maul_add_header_tests()
+    # The program defines mwinAndroidMain; the library only declares it.
+    maul_add_exports_test(PROGRAM mwinAndroidMain)
 endif()
 
 # The fuzz targets: test/fuzz_<area>.c, run as fuzz_<area> <corpus dir>,

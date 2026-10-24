@@ -32,21 +32,21 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@927292043ce9cd831a92a80486da8b377b05f4ae # v0.0.15
     permissions:
       pull-requests: read
 
   # The organization's documentation check. protocols/, tools/gamepaddb/ and
   # tools/androidkeys/ hold third-party files kept as published.
   docs:
-    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@927292043ce9cd831a92a80486da8b377b05f4ae # v0.0.15
     permissions:
       contents: read
     with:
       exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@927292043ce9cd831a92a80486da8b377b05f4ae # v0.0.15
     permissions:
       contents: read
 
@@ -119,7 +119,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@927292043ce9cd831a92a80486da8b377b05f4ae # v0.0.15
     permissions:
       contents: read
     with:

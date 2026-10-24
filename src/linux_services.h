@@ -54,6 +54,9 @@ typedef struct mwinLinuxServices
 {
     mwinContext* context;
     mwinLinuxBus bus;
+    // The system bus, for the services that use one, connected at the
+    // first use.
+    mwinLinuxBus system;
     mwinLinuxOpener openers[MWIN_LINUX_OPENERS];
     mwinLinuxReveal reveals[MWIN_LINUX_REVEALS];
     mwinLinuxInhibit inhibit;

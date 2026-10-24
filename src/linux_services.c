@@ -26,7 +26,7 @@ extern char** environ;
 
 void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context)
 {
-    *services = (mwinLinuxServices){.context = context};
+    *services = (mwinLinuxServices){.context = context, .system = {.system = true}};
     mwinDialogsStart(&services->dialogs, context, &services->bus);
     char locales[MWIN_LINUX_LOCALE_BYTES];
     size_t capacity = context->limits.localeBytes;
@@ -34,7 +34,8 @@ void mwinLinuxServicesStart(mwinLinuxServices* services, mwinContext* context)
         mwinLinuxLocales(locales, capacity < sizeof(locales) ? capacity : sizeof(locales));
     (void)mwinSetLocales(context, locales, length, mwinMonotonicNow());
     mwinSettingsStart(&services->settings, context, &services->bus, mwinMonotonicNow());
-    mwinPowerStart(&services->power, context, &services->bus, mwinMonotonicNow());
+    mwinPowerStart(&services->power, context, &services->bus, &services->system,
+                   mwinMonotonicNow());
 }
 
 // Runs xdg-open on a target, followed until it ends: -1, or the outcome
@@ -229,6 +230,10 @@ mwinOutcome mwinLinuxCanKeepAwake(mwinLinuxServices* services)
 void mwinLinuxServicesPump(mwinLinuxServices* services, uint64_t nowNs, bool awake)
 {
     mwinBusPump(&services->bus, 0);
+    if (services->system.connection != nullptr)
+    {
+        mwinBusPump(&services->system, 0);
+    }
     mwinSettingsPump(&services->settings, nowNs);
     mwinPowerPump(&services->power, nowNs);
     PumpReveals(services, nowNs);
@@ -250,6 +255,7 @@ void mwinLinuxServicesStop(mwinLinuxServices* services)
     mwinDialogsStop(&services->dialogs);
     mwinSettingsStop(&services->settings);
     mwinPowerStop(&services->power);
+    mwinBusClose(&services->system);
     if (services->bus.connection != nullptr)
     {
         mwinInhibitStop(&services->bus, &services->inhibit);

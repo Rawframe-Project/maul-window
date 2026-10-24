@@ -32,21 +32,21 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
     permissions:
       pull-requests: read
 
   # The organization's documentation check. protocols/, tools/gamepaddb/ and
   # tools/androidkeys/ hold third-party files kept as published.
   docs:
-    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
     permissions:
       contents: read
     with:
       exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
     permissions:
       contents: read
 
@@ -58,7 +58,9 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    container:
+      image: ghcr.io/rawframe-project/ci-cpp:2026.10.6@sha256:50c383f608f992c272196139d749f15978e35143a2876362b1e0aef6993480bd
+      options: --init
     permissions:
       contents: read
     steps:
@@ -117,7 +119,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@edc466dd0b7fd8ccab1a02e8034128753ebeb93b # v0.0.6
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@036410213683b626b781f74df50d4172b7e2ec8c # v0.0.12
     permissions:
       contents: read
     with:
@@ -151,7 +153,9 @@ jobs:
     if: needs.changes.outputs.code == 'true' && (github.event_name == 'pull_request' || github.event_name == 'push')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    container:
+      image: ghcr.io/rawframe-project/ci-cpp:2026.10.6@sha256:50c383f608f992c272196139d749f15978e35143a2876362b1e0aef6993480bd
+      options: --init
     permissions:
       contents: read
     env:
@@ -233,7 +237,9 @@ jobs:
         target: ${{ fromJSON(needs.fuzz-targets.outputs.targets) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    container:
+      image: ghcr.io/rawframe-project/ci-cpp:2026.10.6@sha256:50c383f608f992c272196139d749f15978e35143a2876362b1e0aef6993480bd
+      options: --init
     permissions:
       contents: read
     env:
@@ -330,7 +336,7 @@ jobs:
           persist-credentials: false
       - name: Virtual gamepads
         env:
-          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.6@sha256:50c383f608f992c272196139d749f15978e35143a2876362b1e0aef6993480bd
         run: |
           sudo modprobe uinput
           [ -c /dev/uinput ] || { echo "::error::the runner has no /dev/uinput"; exit 1; }
@@ -490,7 +496,9 @@ jobs:
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    container: ghcr.io/rawframe-project/ci-cpp:2026.10.4@sha256:9715ff153db04ba0ed4f520b6d2528ff7860f803de61ab011ba60a4eed572836
+    container:
+      image: ghcr.io/rawframe-project/ci-cpp:2026.10.6@sha256:50c383f608f992c272196139d749f15978e35143a2876362b1e0aef6993480bd
+      options: --init
     permissions:
       contents: read
     steps:

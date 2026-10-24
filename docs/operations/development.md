@@ -1,5 +1,15 @@
 # Development
 
+## Contents
+
+- [Toolchain](#toolchain)
+- [Building and running tests](#building-and-running-tests)
+- [Generated files](#generated-files)
+- [Vendored data](#vendored-data)
+- [Platform code on Linux](#platform-code-on-linux)
+- [A fuzz finding](#a-fuzz-finding)
+- [Debugging a failure](#debugging-a-failure)
+
 ## Toolchain
 
 GCC 14 or Clang 20, CMake 3.25, Ninja, Python 3, the pinned `clang-format` and `clang-tidy-20`, and for the Linux tests Xvfb, weston and `dbus-daemon`. The organization's CI image (`ghcr.io/rawframe-project/ci-cpp`) has all of them; running the checks in it is the surest way to match CI:

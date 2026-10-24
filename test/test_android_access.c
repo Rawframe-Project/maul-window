@@ -54,7 +54,10 @@ typedef struct Program
     // The reader found another window and read again, said once.
     bool readAgain;
     int changes;
+    // What the reader writes, read only once it is joined, and its last
+    // finished answer, the main thread's own.
     char texts[256];
+    char answer[256];
 } Program;
 
 static uint64_t NowNs(void)
@@ -273,6 +276,7 @@ static bool Described(Program* program)
         return false;
     }
     (void)pthread_join(program->reader, nullptr);
+    memcpy(program->answer, program->texts, sizeof(program->answer));
     if (program->texts[0] < '0' || program->texts[0] > '9')
     {
         if (!program->readAgain)
@@ -470,8 +474,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         char exited[64];
         Said(program, "entered", entered, sizeof(entered));
         Said(program, "exited", exited, sizeof(exited));
+        // A reader may be writing its texts: its last finished answer.
         printf("timed out in phase %d (texts \"%s\", entered \"%s\", exited \"%s\")\n",
-               program->phase, program->texts, entered, exited);
+               program->phase, program->answer, entered, exited);
         s_failures += 1;
         return mwin_frameStop;
     }

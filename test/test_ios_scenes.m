@@ -8,8 +8,8 @@
 // request for it and is never taken again; a third window on another new
 // scene; that window destroyed while the first remains, which lets its
 // scene go. After a scene goes, the test brings the first one forward, as
-// the user would, so the application keeps running. Each step prints when
-// it was reached. mwinRun never returns on iOS: quit prints the closing
+// the user would, so the application runs again. Each step and each
+// scene's change print when they came. mwinRun never returns on iOS: quit prints the closing
 // line the runner waits for.
 
 #include "test_harness.h"
@@ -119,6 +119,36 @@ static void Forward(UIWindowScene* scene)
                          }];
 }
 
+// Says what each scene does, with its title and when; a scene other than
+// the first going away brings the first forward, as the user would: the
+// application leaves the foreground when its frontmost scene goes, and
+// its frames pause until a scene comes back.
+static void Watch(Program* program)
+{
+    NSNotificationName names[] = {UISceneWillEnterForegroundNotification,
+                                  UISceneDidEnterBackgroundNotification,
+                                  UISceneDidDisconnectNotification};
+    const char* said[] = {"foreground", "background", "disconnected"};
+    for (int i = 0; i < 3; i++)
+    {
+        const char* what = said[i];
+        bool gone = i == 2;
+        [NSNotificationCenter.defaultCenter
+            addObserverForName:names[i]
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification* note) {
+                      UIWindowScene* scene = note.object;
+                      printf("scene \"%s\" %s at %.2f s\n", scene.title.UTF8String, what,
+                             (double)(NowNs() - program->launchNs) / 1e9);
+                      if (gone && scene != program->scenes[0])
+                      {
+                          Forward(program->scenes[0]);
+                      }
+                    }];
+    }
+}
+
 static mwinResult Create(Program* program, mwinContext* context, int index)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
@@ -155,6 +185,7 @@ static void Advance(Program* program, mwinContext* context)
     case 0:
         CHECK(program->created[0] == mwin_outcomeDone, "the first window on the launch scene");
         program->scenes[0] = SceneOf(context, program->windows[0]);
+        Watch(program);
         printf("launch scene %p, multiple scenes %d, %lu connected\n", (void*)program->scenes[0],
                (int)UIApplication.sharedApplication.supportsMultipleScenes,
                (unsigned long)UIApplication.sharedApplication.connectedScenes.count);
@@ -177,7 +208,6 @@ static void Advance(Program* program, mwinContext* context)
                               }];
         break;
     case 2:
-        Forward(program->scenes[0]);
         program->failed = -1;
         CHECK(mwinRequestTitle(context, program->windows[1], "Gone", 4, &program->failing) ==
                   mwin_success,
@@ -200,7 +230,6 @@ static void Advance(Program* program, mwinContext* context)
               "the third destroyed while the first remains");
         break;
     default:
-        Forward(program->scenes[0]);
         CHECK(Connected(program->scenes[0]), "the first scene still connected");
         break;
     }

@@ -27,6 +27,7 @@ git clone https://github.com/Rawframe-Project/maul-window.git
 cd maul-window
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
+ctest --test-dir build
 ./build/sample_window
 ```
 

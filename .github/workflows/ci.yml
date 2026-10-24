@@ -553,8 +553,11 @@ jobs:
           key: ccache-android-emulator-${{ github.sha }}
           restore-keys: ccache-android-emulator-
       - name: Build
+        # The pinned NDK is installed anew by each run, so its compiler's
+        # time never matches the cache's: its version names it instead.
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CCACHE_COMPILERCHECK="string:${ANDROID_NDK_HOME##*/}"
           ccache --zero-stats >/dev/null
           CMAKE_C_COMPILER_LAUNCHER=ccache cmake --preset android-emulator
           cmake --build --preset android-emulator -j 4

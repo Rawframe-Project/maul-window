@@ -51,6 +51,22 @@ Gone() {
     ! Alive "$1" || [ "$(StartTime "$1" 2>/dev/null)" != "$2" ]
 }
 
+# Prints the first descriptor of the held ones that PID keeps and
+# succeeds, or prints nothing and fails.
+Kept() {
+    local fd target kept
+    for fd in /proc/"$1"/fd/*; do
+        target=$(readlink "$fd" 2>/dev/null) || continue
+        for kept in "${held[@]}"; do
+            if [ "$target" = "$kept" ]; then
+                echo "$kept"
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
 # Plants the two processes in the record.
 Plant() {
     echo "$stale 1 Xvfb :$number " >>"$pids"
@@ -116,13 +132,14 @@ if [ "${line#sleep }" = "$line" ]; then
 else
     mapfile -t recorded < <(cut -d ' ' -f 1,2 "$pids")
     [ "${#recorded[@]}" = 2 ] || Fail "start recorded ${#recorded[@]} processes, not an Xvfb and a watchdog"
+    # The watchdog closes them once its bash runs, which nothing orders
+    # before the parent's exec: each process gets a second.
     for process in "${recorded[@]}"; do
-        for fd in /proc/"${process%% *}"/fd/*; do
-            target=$(readlink "$fd" 2>/dev/null) || continue
-            for kept in "${held[@]}"; do
-                [ "$target" = "$kept" ] && Fail "process ${process%% *} keeps its parent's $kept"
-            done
+        for _ in $(seq 10); do
+            kept=$(Kept "${process%% *}") || break
+            sleep 0.1
         done
+        [ -n "$kept" ] && Fail "process ${process%% *} keeps its parent's $kept"
     done
     # The shell's notice of the killed job goes to the discarded stderr.
     { kill -9 "$parent" && wait "$parent"; } 2>/dev/null || true

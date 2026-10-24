@@ -29,6 +29,8 @@ Filters are extensions only, matched in any case: every platform takes them (glo
 
 The Linux services, the X11 input methods and the system facts reach the session bus (and the system bus for UPower) through libdbus-1, opened at run time the first time a service needs it and never unloaded, since it keeps process-wide caches other libraries may share ([dbus_api.c](../../src/dbus_api.c), [linux_bus.c](../../src/linux_bus.c)). Its headers are not needed to build. The connections are private to the context and never end the process when the bus goes. The library never lets libdbus start a bus: the address comes from `DBUS_SESSION_BUS_ADDRESS`, else the user's socket in `XDG_RUNTIME_DIR`, else there is none. Calls are read without blocking at each pump, each with its own ten-second deadline, since libdbus's timeouts need a main loop the program does not have.
 
+A reply or a signal is whatever the owner of a bus name sent, and any program on the session bus may own a name nothing else holds. libdbus ends the process on a read of the wrong type, so every argument's type is checked before it is read or entered, and a dict entry only through `mwinBusEntry`, which takes its key only when it is a string. A value of an unexpected type is passed over; a text scale a `float` cannot hold, or one that rounds to zero, is no scale. `fuzz_linux_bus` hands the services and the input methods messages of the shapes they expect, with other types in their place, through libdbus itself.
+
 ## Message boxes
 
 A message box needs no context, so a program can report the error that stops it from starting. It must depend on nothing the program had to build.

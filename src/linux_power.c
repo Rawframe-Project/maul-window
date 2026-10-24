@@ -52,7 +52,8 @@ static void Publish(mwinLinuxPower* power, uint64_t nowNs)
 }
 
 // PropertiesChanged(s interface, a{sv} changed, as invalidated): the
-// fact of the interface the signal names, where it changed.
+// fact of the interface the signal names, where it changed; an entry of
+// other types is passed over.
 static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, void* data)
 {
     mwinLinuxPower* power = data;
@@ -78,9 +79,11 @@ static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, 
     {
         mwinDBusIter entry;
         const char* name = nullptr;
-        api->recurse(&changed, &entry);
-        api->getBasic(&entry, (void*)&name);
-        (void)api->next(&entry);
+        if (!mwinBusEntry(api, &changed, &name, &entry) ||
+            api->argType(&entry) != mwin_dbusTypeVariant)
+        {
+            continue;
+        }
         int8_t* fact = monitor && strcmp(name, SAVER) == 0    ? &power->saver
                        : upower && strcmp(name, BATTERY) == 0 ? &power->battery
                                                               : nullptr;

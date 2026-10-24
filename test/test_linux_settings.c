@@ -7,12 +7,14 @@
 //   animations off, and large text;
 // - the standard reduced-motion key over GNOME's own;
 // - the light style, and an accent out of range as none;
-// - settings of the wrong type left alone;
+// - settings of the wrong type left alone, and text scales a float
+//   cannot hold (1e300, infinity), the shape of a fuzz finding;
 // - KDE's answer: no preference as an unknown theme, and reduced motion
 //   from an animation factor of 0 given as text ("0.0"), then of 1.5;
 //   factors of text that is no number (a point alone, two points) as
 //   none; a factor of 0 as a number;
-// - no answer: the facts left as they were, and no change told.
+// - no answer, or one of other types (a{is}, the shape of a fuzz
+//   finding): the facts left as they were, and no change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
 // libdbus-1; a bus that cannot start fails it.
 
@@ -22,6 +24,7 @@
 #include "maul-window/event.h"
 #include "maul-window/system.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
@@ -87,6 +90,8 @@ static void Change(FakeBus* fake, int phase)
     const double far[3] = {2.0, 0.0, 0.0};
     const char* darkText = "1";
     const double plain = 1.0;
+    const double huge = 1e300;
+    const double infinite = (double)INFINITY;
     // A factor, and the theme that marks the phase.
     const char* factors[3] = {"1.5", ".", "0.0.0"};
     const double off = 0.0;
@@ -116,6 +121,9 @@ static void Change(FakeBus* fake, int phase)
     {
         FakeSettingChanged(fake, APPEARANCE, "color-scheme", 's', (const void*)&darkText);
         FakeSettingChanged(fake, "org.gnome.desktop.interface", "text-scaling-factor", 'd', &plain);
+        FakeSettingChanged(fake, "org.gnome.desktop.interface", "text-scaling-factor", 'd', &huge);
+        FakeSettingChanged(fake, "org.gnome.desktop.interface", "text-scaling-factor", 'd',
+                           &infinite);
         FakeSettingChanged(fake, "org.gnome.desktop.interface", "text-scaling-factor", 's',
                            (const void*)&darkText);
     }
@@ -142,7 +150,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "facts");
     const Expected* expected = program->fake->desktop == fakeGnome ? s_gnome : s_kde;
     program->frames += 1;
-    if (program->fake->desktop == fakeNoSettings)
+    if (program->fake->desktop == fakeNoSettings || program->fake->desktop == fakeOddSettings)
     {
         program->done = program->fake->readAlls == 1 && program->frames > 50;
         CHECK(facts.theme == mwin_themeUnknown && facts.textScale == 1.0f && program->changes == 0,
@@ -196,6 +204,7 @@ int main(void)
         Run(&fake, fakeGnome, 4, "GNOME's settings and their changes");
         Run(&fake, fakeKde, 5, "KDE's settings and their changes");
         Run(&fake, fakeNoSettings, 0, "no settings");
+        Run(&fake, fakeOddSettings, 0, "settings of other types");
         status = s_failures == 0 ? 0 : 1;
     }
     FakeStop(&fake);

@@ -12,6 +12,6 @@ Releases are made by release-please from the conventional commit titles on `main
 
 ## Notes
 
-- Before 1.0 every release has its own ABI: the shared library's `SOVERSION` is the whole version, the CMake package accepts only the exact version, and `mwinRun` refuses an application def stamped by another release's headers.
+- Before 1.0 every release has its own ABI: the shared library's `SOVERSION` is the whole version, the CMake package accepts only the exact version, and `mwinRun` and `mwinShowMessageBox` refuse a def stamped by another release's headers.
 - The shared family files must match their canonical copies in the organization's `.github` repository before a release.
 - Maul UI and Maul RHI's test seam fetch this library by tag; each moves its pin in a pull request of its own after a release.

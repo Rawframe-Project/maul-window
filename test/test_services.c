@@ -9,7 +9,10 @@
 // refusal leaves it; and the text of a request cancelled with its
 // window, or never answered at the context's end, given back (the
 // sanitizer builds would report a leak), and for a stale window given
-// back with the size it was lent.
+// back with the size it was lent. A message box def is a root, so one
+// built for another release is refused with mwin_errorVersion before
+// anything else of it is read; no box is shown here, since a valid def
+// would reach the platform's.
 
 #include "test_program.h"
 
@@ -200,8 +203,29 @@ static void StaleStep(Program* program, mwinContext* context, int step)
     program->done = true;
 }
 
+static void CheckMessageBoxVersion(void)
+{
+    mwinMessageBoxDef def = mwinDefaultMessageBoxDef();
+    CHECK(def.cookie == MWIN_MESSAGE_BOX_DEF_COOKIE && def.version == MWIN_ABI_VERSION,
+          "the default carries the headers' version");
+    // An invalid kind as well: the version is refused before it is read.
+    def.kind = 3;
+    CHECK(mwinShowMessageBox(&def, nullptr) == mwin_errorInvalid, "an invalid kind");
+    def.version = MWIN_ABI_VERSION + 1;
+    CHECK(mwinShowMessageBox(&def, nullptr) == mwin_errorVersion, "a def of a later release");
+    def.version = MWIN_ABI_VERSION ^ (1u << 16);
+    CHECK(mwinShowMessageBox(&def, nullptr) == mwin_errorVersion, "a def of another major");
+    def.version = 0;
+    CHECK(mwinShowMessageBox(&def, nullptr) == mwin_errorVersion,
+          "a def whose version was left zero");
+    // Without the cookie nothing else of it is read, the version neither.
+    def.cookie = 0;
+    CHECK(mwinShowMessageBox(&def, nullptr) == mwin_errorInvalid, "a def without its cookie");
+}
+
 int main(void)
 {
+    CheckMessageBoxVersion();
     Program stale = {.step = StaleStep};
     mwinContextDef def = mwinDefaultContextDef();
     def.allocator = (mwinAllocator){CountAlloc, CountFree, nullptr};

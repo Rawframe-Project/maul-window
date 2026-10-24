@@ -94,7 +94,7 @@ Windows, monitors, gamepads, cursors and requests are ids with a generation. An 
 
 Each `mwin_errorInvalid` a live context returns also counts as one misuse, which `mwinGetContextMisuse` reads. A release build can watch the count to catch a program's bugs; stale ids count nothing.
 
-Defs carry a cookie. Build each with its `mwinDefault...` function and change the fields; a def made any other way is refused. The application def also carries the version of the headers the program was built with, and `mwinRun` refuses a def built against another release with `mwin_errorVersion` before reading anything else of it.
+Defs carry a cookie. Build each with its `mwinDefault...` function and change the fields; a def made any other way is refused. The application def and the message box def, which need no context, also carry the version of the headers the program was built with, and `mwinRun` and `mwinShowMessageBox` refuse a def built against another release with `mwin_errorVersion` before reading anything else of it.
 
 ## Memory and limits
 

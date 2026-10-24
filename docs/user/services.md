@@ -26,7 +26,7 @@ The services around a program's windows are requests of a window, answered by a 
 
 ## Message boxes
 
-`mwinShowMessageBox` shows a modal box with a title, a message, a kind (information, warning, error) and buttons (OK, OK and Cancel, Yes and No), waits for the user, and says whether the box was accepted. It needs no context: a program reports with it the error that stops it from starting.
+`mwinShowMessageBox` shows a modal box with a title, a message, a kind (information, warning, error) and buttons (OK, OK and Cancel, Yes and No), waits for the user, and says whether the box was accepted. It needs no context: a program reports with it the error that stops it from starting. So its def, like the application def, carries the version of the headers the program was built with, and a def built against another release is refused with `mwin_errorVersion`.
 
 On Linux it runs zenity or kdialog; where neither is there it draws a plain box of its own on the X server `DISPLAY` names, in the core "fixed" font, so text beyond Latin-1 shows as "?". Without any of them it answers `mwin_errorUnsupported`, and the program falls back to its standard error. Android has no message box: it forbids waiting on its main thread.
 

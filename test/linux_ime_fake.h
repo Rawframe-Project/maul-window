@@ -8,7 +8,7 @@
 // starts a composition of "あ", Return commits it, and every other key
 // is left to the program. The compositions and commits go out as each
 // framework's signals, formatted preedit for Fcitx and IBusText for
-// IBus.
+// IBus. Told to hold, it answers no key, as a method that is slow.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_IME_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_IME_FAKE_H
@@ -39,6 +39,9 @@ typedef struct FakeIme
     int releases;
     uint32_t capabilities;
     bool composing;
+    // Keys go unanswered while hold is set; how many did.
+    bool hold;
+    int held;
 } FakeIme;
 
 static FakeIme s_fakeIme;
@@ -196,6 +199,11 @@ static inline void* FakeImeKey(FakeBus* fake, void* message, bool fcitx)
         release = (state & (1u << 30)) != 0;
     }
     s_fakeIme.releases += release != 0;
+    if (s_fakeIme.hold)
+    {
+        s_fakeIme.held += 1;
+        return nullptr;
+    }
     unsigned taken = keysym == 'a' || (keysym == 0xFF0D && s_fakeIme.composing);
     if (taken && !release && keysym == 'a')
     {

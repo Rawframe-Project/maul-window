@@ -8,7 +8,9 @@
 // that only widens is told again; "a" taken by the
 // method shows a composition and no key; Return commits it as text; "b",
 // which the method leaves, arrives as a key with its text; text input
-// disabled resets the context and takes its focus away. It runs once
+// disabled resets the context and takes its focus away; a key the
+// method has not answered when its window goes reaches no window made
+// in its slot by the answer's deadline (a fuzz finding). It runs once
 // with XMODIFIERS naming Fcitx and once naming IBus. Skipped (exit status
 // 77) without DISPLAY, dbus-daemon or libdbus-1; a bus that cannot start
 // fails it.
@@ -47,6 +49,10 @@ typedef enum Phase
     phaseCommit,
     phasePassed,
     phaseDisabled,
+    phaseRefocused,
+    phaseHeld,
+    phaseGone,
+    phaseReplaced,
     phaseDone,
 } Phase;
 
@@ -71,6 +77,11 @@ typedef struct Program
     mwinPreeditStyle style;
     int preedits;
     int ends;
+    // The focus the method was told of before text input came back, the
+    // window that went with a key held, and when its slot was made again.
+    int focusIns;
+    mwinWindowId gone;
+    uint64_t madeNs;
     bool timedOut;
 } Program;
 
@@ -191,6 +202,15 @@ static bool Ready(const Program* program)
         return CountKeys(program, mwin_codeKeyB) >= 2;
     case phaseDisabled:
         return s_fakeIme.focusOuts > 0;
+    case phaseRefocused:
+        return s_fakeIme.focusIns > program->focusIns;
+    case phaseHeld:
+        return s_fakeIme.held >= 2;
+    case phaseGone:
+        return Has(program, mwin_eventWindowDestroyed);
+    case phaseReplaced:
+        // Past the deadline of a key the method does not answer.
+        return NowNs() - program->madeNs > 300000000u;
     default:
         return false;
     }
@@ -262,8 +282,37 @@ static void Advance(Program* program, mwinContext* context)
                   mwin_success,
               "text input given up");
         break;
-    default:
+    case phaseDisabled:
         CHECK(s_fakeIme.resets > 0, "the context reset");
+        program->focusIns = s_fakeIme.focusIns;
+        CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
+                  mwin_success,
+              "text input asked for again");
+        break;
+    case phaseRefocused:
+        s_fakeIme.hold = true;
+        Press(program, KEYCODE_B);
+        break;
+    case phaseHeld:
+        program->gone = program->window;
+        program->count = 0;
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success,
+              "the window goes with its keys held");
+        break;
+    case phaseGone:
+    {
+        // Its end drained, its slot takes the next window.
+        mwinWindowDef def = mwinDefaultWindowDef();
+        CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success &&
+                  program->window.index1 == program->gone.index1,
+              "a window made in the slot again");
+        program->count = 0;
+        program->madeNs = NowNs();
+        break;
+    }
+    default:
+        CHECK(CountKeys(program, mwin_codeKeyB) == 0,
+              "the held key reaches no window made in its slot");
         break;
     }
     program->phase += 1;

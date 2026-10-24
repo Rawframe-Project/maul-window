@@ -58,6 +58,13 @@ typedef struct mwinIOSWindow
     // was last posted.
     mwinDragContents dragContents;
     mwinPosition dragPosition;
+    // A window waiting for the scene asked for it: the number of the ask
+    // and when it gives up. Its scene let go by the system (gone): the
+    // window shows no more, and its scene is never taken again.
+    bool asking;
+    uint32_t ask;
+    uint64_t askDeadlineNs;
+    bool gone;
 } mwinIOSWindow;
 
 // Where a touch is in its life, as UIKit's touch methods tell.
@@ -78,14 +85,18 @@ struct mwinIOSPlatform
     id* screens;
     mwinMonitorInfo* screenInfo;
     // A scene of the application's role that has no window yet (held),
-    // which the next window takes; nil when none waits.
+    // which the next window takes; nil when none waits. The number of the
+    // last scene asked for.
     UIWindowScene* waitingScene;
+    uint32_t asks;
     // What calls the program's frames: the display link, and the object
     // it calls.
     CADisplayLink* link;
     id stepper;
     // Whether the program was told the application stopped running.
     bool suspended;
+    // Whether the backend stops, its windows' scenes left as they are.
+    bool ending;
     // What each printing key typed when last pressed under the current
     // layout (0 before), the keys held, and what tells of the on-screen
     // keyboard's frame and of the input mode's changes.
@@ -228,6 +239,18 @@ void mwinIOSLayout(mwinIOSPlatform* platform, uint32_t slot);
 
 // The slot of the window a scene shows, or -1.
 int32_t mwinIOSSlotOfScene(const mwinIOSPlatform* platform, UIScene* scene);
+
+// A scene of the application's role connected: the window that waits
+// longest for one takes it; else it waits for the next window, unless
+// one already does, and then its session is let go (ios_window.m).
+void mwinIOSSceneCame(mwinIOSPlatform* platform, UIWindowScene* scene);
+
+// The system let a scene go: one waiting is forgotten, and a window
+// showing it is asked to close and never shows again.
+void mwinIOSSceneWent(mwinIOSPlatform* platform, UIScene* scene);
+
+// Fails the creation of a window whose scene did not come in time.
+void mwinIOSPumpScenes(mwinIOSPlatform* platform);
 
 // The backend's window operations (ios_window.m).
 void mwinIOSCreateWindow(mwinContext* context, uint32_t slot);

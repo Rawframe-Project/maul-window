@@ -27,7 +27,7 @@ Places and sizes are logical units, measured down and to the right from the top 
 - Wayland places no window and lets the compositor decide modes; a mode request is answered by the compositor's next configure. A focus request is answered done once activation was asked for; the compositor may still refuse it.
 - X11 leaves modes to the window manager; a mode request is denied when the window manager does not show the mode within half a second, and unsupported without one.
 - The web has no place, maximizing, minimizing or size limits; full screen needs a user's gesture there.
-- On iOS a window is a scene's, which the system sizes and places; its title is what the app switcher shows, and a program on an iPhone has one window. Android has one window, the activity's, drawn edge to edge behind the system bars; `safeArea` in the window state says what they cover.
+- On iOS a window is a scene's, which the system sizes and places; its title is what the app switcher shows. A program on an iPhone has one window. On an iPad, with `UIApplicationSupportsMultipleScenes` in the Info.plist, each further window is a new scene, made once iPadOS connects it (or failed after ten seconds), and a scene the user closes asks its window to close. Android has one window, the activity's, drawn edge to edge behind the system bars; `safeArea` in the window state says what they cover.
 - A macOS window has no icon of its own, so an icon request sets the application's. A Windows window given no icon shows the program's own.
 
 An icon is up to four RGBA images (straight alpha) of up to 256 pixels a side; the platform takes the smallest at least as large as the size it shows, else the largest.

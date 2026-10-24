@@ -108,6 +108,7 @@ static void Pump(mwinContext* context)
     mwinIOSPlatform* platform = mwinIOSPlatformOf(context);
     mwinIOSKeepAwake(platform, mwinWantsAwake(context));
     mwinIOSPumpDialogs(platform);
+    mwinIOSPumpScenes(platform);
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinApplePumpPads(&platform->pads, mwinIOSNow());
 #endif
@@ -177,9 +178,9 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
         return;
     }
     if ([session.role isEqual:UIWindowSceneSessionRoleApplication] &&
-        platform->waitingScene == nil && [scene isKindOfClass:[UIWindowScene class]])
+        [scene isKindOfClass:[UIWindowScene class]])
     {
-        platform->waitingScene = (UIWindowScene*)[scene retain];
+        mwinIOSSceneCame(platform, (UIWindowScene*)scene);
     }
     mwinIOSReadScreens(platform, mwinIOSNow());
     if (platform->link != nil)
@@ -210,18 +211,7 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
     {
         return;
     }
-    if (platform->waitingScene == scene)
-    {
-        [platform->waitingScene release];
-        platform->waitingScene = nil;
-    }
-    // The system let the scene go: the window can no longer show.
-    int32_t slot = mwinIOSSlotOfScene(platform, scene);
-    if (slot >= 0)
-    {
-        mwinEvent event = {.type = mwin_eventCloseRequested, .timeNs = mwinIOSNow()};
-        mwinPost(platform->context, (uint32_t)slot, &event);
-    }
+    mwinIOSSceneWent(platform, scene);
     mwinIOSReadScreens(platform, mwinIOSNow());
 }
 
@@ -301,6 +291,7 @@ static void Stop(mwinContext* context)
         [platform->link release];
         [platform->stepper release];
         mwinIOSCloseDialogs(platform, -1);
+        platform->ending = true;
         for (uint32_t i = 0; i < context->limits.windows; i++)
         {
             if (platform->windows[i].window != nil)

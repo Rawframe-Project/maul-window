@@ -709,8 +709,11 @@ if(MAUL_WINDOW_FUZZ)
         message(FATAL_ERROR "The fuzz targets run on the test backend: set MAUL_WINDOW_TEST_BACKEND")
     endif()
     # The library is instrumented too: its coverage guides libFuzzer, and
-    # the sanitizers watch its code, not only the targets'.
-    target_compile_options(maul-window PRIVATE -fsanitize=fuzzer-no-link,address,undefined)
+    # the sanitizers watch its code, not only the targets'. Undefined
+    # behavior stops the run as a crash would, as in the sanitizer cells;
+    # by default UBSan only prints it, and libFuzzer goes on.
+    target_compile_options(maul-window PRIVATE -fsanitize=fuzzer-no-link,address,undefined
+                                               -fno-sanitize-recover=all)
     target_link_options(maul-window PUBLIC -fsanitize=address,undefined)
     set(MWIN_FUZZ_AREAS edid payload preedit)
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
@@ -732,7 +735,8 @@ if(MAUL_WINDOW_FUZZ)
         # The targets reach the library's own functions.
         target_include_directories(fuzz_${area} PRIVATE ${PROJECT_SOURCE_DIR}/src)
         maul_apply_flags(fuzz_${area})
-        target_compile_options(fuzz_${area} PRIVATE -fsanitize=fuzzer,address,undefined)
+        target_compile_options(fuzz_${area} PRIVATE -fsanitize=fuzzer,address,undefined
+                                                    -fno-sanitize-recover=all)
         target_link_options(fuzz_${area} PRIVATE -fsanitize=fuzzer,address,undefined)
     endforeach()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)

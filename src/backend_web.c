@@ -69,10 +69,11 @@ static void ReadScreen(mwinWebPlatform* platform)
     mwinWebScreen(screen);
     float scale = platform->scale;
     mwinMonitorInfo info = {0};
-    info.bounds = (mwinPixelRect){0, 0, (uint32_t)lroundf(screen[0] * scale),
-                                  (uint32_t)lroundf(screen[1] * scale)};
-    info.workArea = (mwinPixelRect){0, 0, (uint32_t)lroundf(screen[2] * scale),
-                                    (uint32_t)lroundf(screen[3] * scale)};
+    // The page's screen, which other scripts can redefine, as counts.
+    info.bounds = (mwinPixelRect){0, 0, mwinWebCount(roundf(screen[0] * scale)),
+                                  mwinWebCount(roundf(screen[1] * scale))};
+    info.workArea = (mwinPixelRect){0, 0, mwinWebCount(roundf(screen[2] * scale)),
+                                    mwinWebCount(roundf(screen[3] * scale))};
     info.scale = scale;
     info.primary = true;
     bool high = mwinWebHighDynamicRange();
@@ -263,6 +264,78 @@ static void Rescale(mwinWebPlatform* platform, float scale, uint64_t timeNs)
     }
 }
 
+void mwinWebHandleRecord(mwinWebPlatform* platform, const mwinWebRecord* reported)
+{
+    mwinContext* context = platform->context;
+    mwinWebRecord repaired = *reported;
+    const mwinWebRecord* record = &repaired;
+    float* numbers[] = {&repaired.x, &repaired.y, &repaired.z,
+                        &repaired.w, &repaired.v, &repaired.u};
+    for (size_t i = 0; i < sizeof(numbers) / sizeof(numbers[0]); i++)
+    {
+        *numbers[i] = isfinite(*numbers[i]) ? *numbers[i] : 0.0f;
+    }
+    // A slot names a live window or none.
+    if (repaired.slot < 0 || (uint32_t)repaired.slot >= context->limits.windows ||
+        context->windows[repaired.slot].status != mwin_slotLive)
+    {
+        repaired.slot = -1;
+    }
+    uint64_t timeNs = mwinWebNanoseconds(record->timeMs);
+    switch (record->kind)
+    {
+    case mwin_webScaled:
+        if (record->x > 0.0f)
+        {
+            Rescale(platform, record->x, timeNs);
+        }
+        break;
+    case mwin_webVisibility:
+        PostToWindows(platform, record->code != 0 ? mwin_eventRevealed : mwin_eventOccluded,
+                      timeNs);
+        break;
+    case mwin_webFacts:
+        ReadFacts(platform);
+        ReadScreen(platform);
+        break;
+    case mwin_webLocales:
+        ReadFacts(platform);
+        break;
+    case mwin_webClipboardWritten:
+    case mwin_webClipboardRead:
+        mwinWebHandleClipboardRecord(platform, record);
+        break;
+    case mwin_webDrag:
+    case mwin_webDropped:
+        mwinWebHandleDropRecord(platform, record);
+        break;
+    case mwin_webLayout:
+    {
+        mwinEvent event = {.type = mwin_eventKeyboardLayoutChanged, .timeNs = timeNs};
+        mwinPostGlobal(context, &event);
+        break;
+    }
+    default:
+        if (record->slot < 0)
+        {
+            break;
+        }
+        if (record->kind == mwin_webCommit || record->kind == mwin_webPreedit)
+        {
+            mwinWebHandleTextRecord(platform, record);
+        }
+        else if (record->kind >= mwin_webKey && record->kind <= mwin_webLockFailed)
+        {
+            mwinWebHandleInputRecord(platform, record);
+        }
+        else
+        {
+            mwinWebHandleWindowRecord(platform, record);
+        }
+        break;
+    }
+}
+
 static void Pump(mwinContext* context)
 {
     mwinWebPlatform* platform = PlatformOf(context);
@@ -271,56 +344,7 @@ static void Pump(mwinContext* context)
     mwinWebRecord record;
     while (mwinWebNext(context, &record))
     {
-        uint64_t timeNs = mwinWebNanoseconds(record.timeMs);
-        switch (record.kind)
-        {
-        case mwin_webScaled:
-            Rescale(platform, record.x, timeNs);
-            break;
-        case mwin_webVisibility:
-            PostToWindows(platform, record.code != 0 ? mwin_eventRevealed : mwin_eventOccluded,
-                          timeNs);
-            break;
-        case mwin_webFacts:
-            ReadFacts(platform);
-            ReadScreen(platform);
-            break;
-        case mwin_webLocales:
-            ReadFacts(platform);
-            break;
-        case mwin_webClipboardWritten:
-        case mwin_webClipboardRead:
-            mwinWebHandleClipboardRecord(platform, &record);
-            break;
-        case mwin_webDrag:
-        case mwin_webDropped:
-            mwinWebHandleDropRecord(platform, &record);
-            break;
-        case mwin_webLayout:
-        {
-            mwinEvent event = {.type = mwin_eventKeyboardLayoutChanged, .timeNs = timeNs};
-            mwinPostGlobal(context, &event);
-            break;
-        }
-        default:
-            if (record.slot < 0 || context->windows[record.slot].status != mwin_slotLive)
-            {
-                break;
-            }
-            if (record.kind == mwin_webCommit || record.kind == mwin_webPreedit)
-            {
-                mwinWebHandleTextRecord(platform, &record);
-            }
-            else if (record.kind >= mwin_webKey && record.kind <= mwin_webLockFailed)
-            {
-                mwinWebHandleInputRecord(platform, &record);
-            }
-            else
-            {
-                mwinWebHandleWindowRecord(platform, &record);
-            }
-            break;
-        }
+        mwinWebHandleRecord(platform, &record);
     }
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinWebPadsPump(&platform->pads, NowNs());

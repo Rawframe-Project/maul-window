@@ -211,6 +211,8 @@ UIView* mwinIOSCreateView(mwinIOSPlatform* platform, uint32_t slot, CGRect frame
         [[UIHoverGestureRecognizer alloc] initWithTarget:view action:@selector(mwinPencilHover:)];
     pencil.allowedTouchTypes = @[ @(UITouchTypePencil) ];
     pencil.cancelsTouchesInView = NO;
+    // The Pencil's touches reach it too: their ends go to the view at once.
+    pencil.delaysTouchesEnded = NO;
     [view addGestureRecognizer:pencil];
     [pencil release];
     UIPanGestureRecognizer* pan =

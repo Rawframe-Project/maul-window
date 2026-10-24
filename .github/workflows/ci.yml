@@ -365,12 +365,14 @@ jobs:
   # A simulator's boot and first launch take minutes on the macOS runners,
   # more than the pull request check's budget leaves. The headless tests run
   # through simctl spawn, the UIKit ones as applications through
-  # tools/run_ios_app.sh, on an iPhone of the newest runtime.
+  # tools/run_ios_app.sh, on an iPhone of the newest runtime; then, one
+  # device booted at a time, what needs an iPad (several scenes) on an
+  # iPad of that runtime.
   ios-simulator:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
@@ -381,15 +383,10 @@ jobs:
         run: |
           cmake --preset ios-simulator
           cmake --build --preset ios-simulator -j 4
-      - name: Boot a simulator
+      - name: Boot an iPhone
         if: github.event_name != 'pull_request'
         run: |
-          udid=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          devices = json.load(sys.stdin)["devices"]
-          runtimes = sorted((r for r in devices if ".iOS-" in r),
-                            key=lambda r: [int(p) for p in r.rsplit("iOS-", 1)[1].split("-")])
-          print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"].startswith("iPhone")))')
+          udid=$(tools/ci_simulator.sh iPhone)
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           # A new device's first launch takes minutes: paid here, not by a test.
@@ -401,6 +398,21 @@ jobs:
         run: |
           ctest --preset ios-simulator | tee "$RUNNER_TEMP/ctest.log"
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
+            echo "::error::a test did not run"; exit 1
+          fi
+      - name: Test on an iPad
+        if: github.event_name != 'pull_request'
+        run: |
+          xcrun simctl shutdown "$MWIN_IOS_DEVICE"
+          udid=$(tools/ci_simulator.sh iPad)
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl launch "$udid" com.apple.Preferences
+          xcrun simctl terminate "$udid" com.apple.Preferences
+          # The window test, until a test needs several scenes.
+          MWIN_IOS_DEVICE=$udid ctest --preset ios-simulator -R '^ios$' --no-tests=error |
+            tee "$RUNNER_TEMP/ctest-ipad.log"
+          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest-ipad.log"; then
             echo "::error::a test did not run"; exit 1
           fi
       - name: Test logs

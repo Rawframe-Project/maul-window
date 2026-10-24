@@ -6,8 +6,8 @@
 // own touches and events for a finger's down, move and up and another's
 // cancel, the Pencil touching with half its force at 45 degrees, the
 // pointer's clicks with Shift and two buttons; its own recognizers for
-// the pointer's hover and scrolling, through the actions the view gives
-// them. The simulator cannot make these itself.
+// the pointer's hover and scrolling and the Pencil's hover, through the
+// actions the view gives them. The simulator cannot make these itself.
 
 #include "test_harness.h"
 
@@ -110,6 +110,29 @@
 }
 @end
 
+// The Pencil above the screen, at 45 degrees toward positive x.
+@interface FakePencilHover : FakeHover
+@end
+
+@implementation FakePencilHover
+- (CGPoint)locationInView:(UIView*)view
+{
+    (void)view;
+    return CGPointMake(120.0, 130.0);
+}
+
+- (CGFloat)altitudeAngle
+{
+    return M_PI / 4.0;
+}
+
+- (CGFloat)azimuthAngleInView:(UIView*)view
+{
+    (void)view;
+    return 0.0;
+}
+@end
+
 @interface FakePan : UIPanGestureRecognizer
 @end
 
@@ -130,6 +153,7 @@
 // The actions the view gives its recognizers.
 @interface UIView (MwinActions)
 - (void)mwinHover:(UIHoverGestureRecognizer*)hover;
+- (void)mwinPencilHover:(UIHoverGestureRecognizer*)hover;
 - (void)mwinScroll:(UIPanGestureRecognizer*)pan;
 @end
 
@@ -216,6 +240,16 @@ static void Pencil(UIView* view)
     pencil->place = CGPointMake(105.0, 115.0);
     Send(view, @selector(touchesMoved:withEvent:), pencil, nil);
     Send(view, @selector(touchesEnded:withEvent:), pencil, nil);
+    // Then above the screen: it comes, moves on and goes.
+    FakePencilHover* hover = [[[FakePencilHover alloc] initWithTarget:nil action:nil] autorelease];
+    const UIGestureRecognizerState states[] = {UIGestureRecognizerStateBegan,
+                                               UIGestureRecognizerStateChanged,
+                                               UIGestureRecognizerStateEnded};
+    for (int i = 0; i < 3; i++)
+    {
+        hover->now = states[i];
+        [view mwinPencilHover:hover];
+    }
 }
 
 static void Pointer(UIView* view)
@@ -286,6 +320,22 @@ static void CheckPencil(const Program* program)
               moved->data.pen.flags == mwin_penContact,
           "moved touching");
     CHECK(up != nullptr && up->data.pen.flags == 0, "lifted");
+    int hovering = 0;
+    bool tilted = true;
+    for (const mwinEvent* found = Next(program, &at, mwin_eventPenMoved); found != nullptr;
+         found = Next(program, &at, mwin_eventPenMoved))
+    {
+        const mwinPenEvent* pen = &found->data.pen;
+        hovering += pen->flags == 0 && pen->pressure == 0.0f && pen->position.x == 120.0f &&
+                    pen->position.y == 130.0f;
+        tilted = tilted && fabsf(pen->tiltX - 45.0f) < 0.01f && fabsf(pen->tiltY) < 0.01f;
+    }
+    CHECK(hovering == 2, "hovering, it moves without contact as it comes and moves on; going posts "
+                         "nothing");
+    if (@available(iOS 16.4, *))
+    {
+        CHECK(tilted, "hovering, tilted 45 degrees toward positive x");
+    }
     at = 0;
     CHECK(Next(program, &at, mwin_eventPenButtonDown) == nullptr, "no button: the Pencil has none");
 }

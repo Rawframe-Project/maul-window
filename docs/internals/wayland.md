@@ -15,7 +15,7 @@ The headers `wayland-scanner` writes call `libwayland-client` by name from inlin
 
 ## Windows and modes
 
-A window is an `xdg_toplevel`; its first configure makes it. The compositor decides modes, so a mode request is answered by the next configure: done when granted, denied otherwise. Minimizing is answered at once, since no configure reports it. Wayland gives no window a place, and has no request for visibility, aspect ratio or opacity.
+A window is an `xdg_toplevel`; its first configure makes it. The compositor decides modes, so a mode request is answered by the next configure: done when granted, denied otherwise. Minimizing is answered at once, since no configure reports it, and a mode request it supersedes no longer waits for the next configure. Wayland gives no window a place, and has no request for visibility, aspect ratio or opacity.
 
 With the viewporter, the surface's logical size is its viewport's destination and the renderer's buffer is in pixels at any scale, fractional scaling included; without it, the scale is the integer buffer scale.
 

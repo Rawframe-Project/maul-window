@@ -16,9 +16,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-// The notification classes of a window that coalesce, plus created and
-// destroyed: with its completions, the most notifications that can wait
-// for it.
+// The most notifications besides its completions that can wait for a
+// window: one of each of the 13 classes that coalesce in its ring
+// (queue.c's CoalesceClass, less the critical and global ones), plus
+// mwin_eventWindowCreated and mwin_eventAccessibilityRequested, each
+// posted once per window. Its destruction drops all but the completions
+// before it appends its end. A new record a window can have waiting that
+// does not coalesce must raise it: the reset and destruction appends
+// assert the room this bound gives them.
 #define FIXED_RECORDS 15
 
 // The classes of the context's own notifications that coalesce, beyond

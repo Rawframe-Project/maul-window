@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // A Wayland window's states as the compositor configures them, against
-// the test compositor of wayland_server.h:
+// the test compositor of wayland_server.h and its data device:
 // - a window made maximized asks the compositor for it, and has focus
 //   once configured activated;
 // - a largest size with a free height leaves the height free;
@@ -12,15 +12,20 @@
 // - minimized, it stays so through a configure that does not activate
 //   it, and is restored by one that does;
 // - a maximized mode asked for and configured is done;
-// - fullscreen and maximized states together are fullscreen.
+// - fullscreen and maximized states together are fullscreen;
+// - a maximize still waiting for its configure, superseded by a
+//   minimize, is answered once: a clipboard read that takes its slot
+//   is answered by its pipe, not by the next configure.
 // Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
-#include "wayland_server.h"
+#include "wayland_data_server.h"
 
+#include "maul-window/clipboard.h"
 #include "maul-window/event.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #define DEADLINE_NS 5000000000ull
@@ -43,16 +48,22 @@ typedef enum Phase
     phaseAskMaximized,
     phaseMaximized,
     phaseFullscreen,
+    phaseSuperseded,
+    phaseOffered,
+    phaseForgotten,
     phaseDone,
 } Phase;
 
 typedef struct Program
 {
     Server* server;
+    DataServer* data;
     Phase phase;
     uint64_t startNs;
     mwinWindowId window;
     mwinRequestId request;
+    mwinRequestId minimize;
+    mwinRequestId read;
     mwinEvent records[MAX_RECORDS];
     int count;
     bool timedOut;
@@ -63,6 +74,41 @@ static uint64_t NowNs(void)
     struct timespec now;
     (void)clock_gettime(CLOCK_MONOTONIC, &now);
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
+}
+
+// The outcome the program read for a request, or -1.
+static int OutcomeOf(const Program* program, mwinRequestId request)
+{
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* record = &program->records[i];
+        if (record->type == mwin_eventRequestCompleted &&
+            record->data.completion.request.index1 == request.index1 &&
+            record->data.completion.request.generation == request.generation)
+        {
+            return (int)record->data.completion.outcome;
+        }
+    }
+    return -1;
+}
+
+static int CountCompletions(const Program* program)
+{
+    int completions = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        completions += program->records[i].type == mwin_eventRequestCompleted;
+    }
+    return completions;
+}
+
+static bool Found(const mwinContext* context, mwinRequestId read, const char* expected,
+                  size_t length)
+{
+    char text[16];
+    size_t found = 0;
+    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
+           found == length && memcmp(text, expected, length) == 0;
 }
 
 static const mwinEvent* Find(const Program* program, mwinEventType type)
@@ -108,7 +154,13 @@ static bool Ready(const Program* program)
     case phaseRestored:
     case phaseFullscreen:
         return Find(program, mwin_eventModeChanged) != nullptr;
+    case phaseForgotten:
+        return OutcomeOf(program, program->read) >= 0 &&
+               Find(program, mwin_eventModeChanged) != nullptr;
+    case phaseSuperseded:
+        return CountCompletions(program) >= 2 && Find(program, mwin_eventModeChanged) != nullptr;
     case phaseStillMinimized:
+    case phaseOffered:
         return NowNs() - program->startNs >= SETTLE_NS;
     case phaseAskMaximized:
         return ServerShell(program->server).maximizes >= 2;
@@ -184,9 +236,38 @@ static void Advance(Program* program, mwinContext* context)
               "a maximized mode asked for and configured is done");
         Configure(program, 0, 0, s_both, 3);
         break;
-    default:
+    case phaseFullscreen:
         CHECK(ModeIs(program, mwin_modeBorderlessFullscreen),
               "fullscreen and maximized states together are fullscreen");
+        // A maximize waits for its configure; the minimize after it
+        // supersedes it and is done at once.
+        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request) ==
+                      mwin_success &&
+                  mwinRequestMode(context, program->window, mwin_modeMinimized,
+                                  &program->minimize) == mwin_success,
+              "maximize, then minimize before the configure");
+        break;
+    case phaseSuperseded:
+        CHECK(OutcomeOf(program, program->request) == mwin_outcomeSuperseded &&
+                  OutcomeOf(program, program->minimize) == mwin_outcomeDone &&
+                  ModeIs(program, mwin_modeMinimized),
+              "the maximize superseded, the minimize done");
+        // Another client's selection, which the client hears of first.
+        DataOffer(program->data, "paste", 5);
+        break;
+    case phaseOffered:
+        // The read takes the lowest free slot, the maximize's, and waits
+        // for its pipe; the configure comes before any of its bytes.
+        CHECK(mwinRequestClipboardRead(context, program->window, &program->read) == mwin_success &&
+                  program->read.index1 == program->request.index1,
+              "a clipboard read in the maximize's slot");
+        Configure(program, 0, 0, s_activated, 1);
+        break;
+    default:
+        CHECK(OutcomeOf(program, program->read) == mwin_outcomeDone &&
+                  Found(context, program->read, "paste", 5) && CountCompletions(program) == 1,
+              "the configure answers nothing: the read is done with the offered text");
+        CHECK(ModeIs(program, mwin_modeWindowed), "the configure restores the window");
         break;
     }
     program->phase += 1;
@@ -234,12 +315,14 @@ int main(void)
 {
     const char* runtime = getenv("XDG_RUNTIME_DIR");
     static Server server;
+    static DataServer data;
     if (runtime == nullptr || runtime[0] == '\0' || !ServerStart(&server, "us", ""))
     {
         return 77;
     }
+    DataStart(&data, &server);
     static Program program;
-    program = (Program){.server = &server};
+    program = (Program){.server = &server, .data = &data};
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
@@ -248,5 +331,6 @@ int main(void)
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
     ServerStop(&server);
+    DataStop(&data);
     return s_failures == 0 ? 0 : 1;
 }

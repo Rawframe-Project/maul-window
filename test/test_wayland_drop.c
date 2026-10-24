@@ -232,9 +232,14 @@ int main(void)
     const char* runtime = getenv("XDG_RUNTIME_DIR");
     static Server server;
     static DataServer data;
-    if (runtime == nullptr || runtime[0] == '\0' || !ServerStart(&server, "us", ""))
+    if (runtime == nullptr || runtime[0] == '\0')
     {
         return 77;
+    }
+    if (!ServerStart(&server, "us", ""))
+    {
+        printf("FAIL: the stand-in compositor did not start\n");
+        return 1;
     }
     DataStart(&data, &server);
     Program program = {.data = &data};

@@ -407,9 +407,14 @@ int main(void)
     static Server server;
     static DataServer data;
     static PrimaryServer primary;
-    if (runtime == nullptr || runtime[0] == '\0' || !ServerStart(&server, "us", ""))
+    if (runtime == nullptr || runtime[0] == '\0')
     {
         return 77;
+    }
+    if (!ServerStart(&server, "us", ""))
+    {
+        printf("FAIL: the stand-in compositor did not start\n");
+        return 1;
     }
     DataStart(&data, &server);
     PrimaryStart(&primary, &server);

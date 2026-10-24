@@ -192,9 +192,14 @@ int main(void)
 {
     const char* runtime = getenv("XDG_RUNTIME_DIR");
     static Server server;
-    if (runtime == nullptr || runtime[0] == '\0' || !ServerStart(&server, "us", ""))
+    if (runtime == nullptr || runtime[0] == '\0')
     {
         return 77;
+    }
+    if (!ServerStart(&server, "us", ""))
+    {
+        printf("FAIL: the stand-in compositor did not start\n");
+        return 1;
     }
     pthread_mutex_lock(&server.lock);
     wl_global_create(server.display, &zwp_idle_inhibit_manager_v1_interface, 1, nullptr,

@@ -204,14 +204,20 @@ int main(void)
 {
     const char* runtime = getenv("XDG_RUNTIME_DIR");
     static Server server;
-    if (runtime == nullptr || runtime[0] == '\0' || mkdtemp(s_directory) == nullptr)
+    if (runtime == nullptr || runtime[0] == '\0')
     {
         return 77;
     }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
+    }
     if (!WriteTheme() || !ServerStart(&server, "us", ""))
     {
+        printf("FAIL: the cursor theme was not written or the stand-in compositor did not start\n");
         RemoveTheme();
-        return 77;
+        return 1;
     }
     ServerRemoveShapes(&server);
     (void)setenv("XCURSOR_PATH", s_directory, 1);

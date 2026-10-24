@@ -367,9 +367,14 @@ static void Run(FakeBus* system, int steps, const char* what)
 int main(void)
 {
     static FakeBus system;
-    if (getenv("DISPLAY") == nullptr || mkdtemp(s_directory) == nullptr)
+    if (getenv("DISPLAY") == nullptr)
     {
         return 77;
+    }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
     (void)unsetenv("LANGUAGE");

@@ -390,9 +390,14 @@ static const Step s_none[] = {
 
 int main(void)
 {
-    if (getenv("DISPLAY") == nullptr || mkdtemp(s_directory) == nullptr)
+    if (getenv("DISPLAY") == nullptr)
     {
         return 77;
+    }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
     char script[256];

@@ -140,7 +140,8 @@ int main(void)
 {
     if (mkdtemp(s_directory) == nullptr)
     {
-        return 77;
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     setenv("PATH", s_directory, 1);
     (void)unsetenv("DISPLAY");

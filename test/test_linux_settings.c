@@ -188,9 +188,14 @@ static void Run(FakeBus* fake, int desktop, int phases, const char* what)
 int main(void)
 {
     static FakeBus fake;
-    if (getenv("DISPLAY") == nullptr || mkdtemp(s_directory) == nullptr)
+    if (getenv("DISPLAY") == nullptr)
     {
         return 77;
+    }
+    if (mkdtemp(s_directory) == nullptr)
+    {
+        perror("FAIL: mkdtemp");
+        return 1;
     }
     (void)unsetenv("WAYLAND_DISPLAY");
     int status = 0;

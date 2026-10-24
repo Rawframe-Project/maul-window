@@ -186,6 +186,7 @@ static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t pro
     strncpy(setup.name, name, UINPUT_MAX_NAME_SIZE - 1);
     if (ioctl(fd, UI_DEV_SETUP, &setup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0)
     {
+        perror("FAIL: making a uinput device");
         close(fd);
         return false;
     }
@@ -224,6 +225,7 @@ static bool MakeMotion(Device* device)
     strncpy(setup.name, "Kernel Pad Motion Sensors", UINPUT_MAX_NAME_SIZE - 1);
     if (ioctl(fd, UI_DEV_SETUP, &setup) < 0 || ioctl(fd, UI_DEV_CREATE) < 0)
     {
+        perror("FAIL: making a uinput device");
         close(fd);
         return false;
     }
@@ -538,10 +540,17 @@ int main(void)
     program.kernel.fd = -1;
     program.motion.fd = -1;
     program.raw.fd = -1;
+    // Without /dev/uinput open for writing there are no pads to make.
+    int uinput = open("/dev/uinput", O_RDWR);
+    if (uinput < 0)
+    {
+        return 77;
+    }
+    close(uinput);
     // Connected before the program starts: found when it does.
     if (!Make(&program.xbox, "Xbox Pi", 0x045E, 0x028E, 0x0114, s_xboxButtons, 11, true))
     {
-        return 77;
+        return 1;
     }
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;

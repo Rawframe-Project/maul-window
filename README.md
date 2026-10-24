@@ -30,10 +30,12 @@ cmake --build build
 ./build/sample_window
 ```
 
-Ubuntu 24.04's default compiler is GCC 13, which the build refuses ("GCC 14 or newer is required"). Install GCC 14 and configure again in a fresh build directory, since `build/` keeps the compiler it first found; then go on from `cmake --build build`:
+Ubuntu 24.04's default compiler is GCC 13, which the build refuses ("GCC 14 or newer is required"). Install GCC 14, the development files of the Wayland and X11 backends, and the Xvfb and weston servers that `ctest --test-dir build` runs against, and configure again in a fresh build directory, since `build/` keeps the compiler it first found; then go on from `cmake --build build`:
 
 ```sh
-sudo apt install gcc-14
+sudo apt install gcc-14 pkg-config libwayland-dev wayland-protocols libxkbcommon-dev \
+    libxkbcommon-x11-dev libxcb1-dev libxcb-randr0-dev libxcb-xkb-dev libxcb-cursor-dev \
+    libxcb-render0-dev libxcb-xinput-dev libxcb-xtest0-dev libxcb-xfixes0-dev xvfb weston
 rm -rf build && CC=gcc-14 cmake -B build -DCMAKE_BUILD_TYPE=Release
 ```
 

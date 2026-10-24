@@ -154,6 +154,7 @@ static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t pro
     int fd = open("/dev/uinput", O_RDWR);
     if (fd < 0)
     {
+        perror("FAIL: opening /dev/uinput");
         return false;
     }
     (void)ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -206,6 +207,7 @@ static bool MakeMotion(Device* device)
     int fd = open("/dev/uinput", O_RDWR);
     if (fd < 0)
     {
+        perror("FAIL: opening /dev/uinput");
         return false;
     }
     (void)ioctl(fd, UI_SET_EVBIT, EV_ABS);

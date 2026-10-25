@@ -20,6 +20,7 @@ static inline void DisplayRequired(void)
     const char* display = getenv("DISPLAY");
     if (display == nullptr || display[0] == '\0')
     {
+        // hygiene: no X server here is a skip, and CI requires one
         exit(77);
     }
 }

@@ -193,6 +193,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 500000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;

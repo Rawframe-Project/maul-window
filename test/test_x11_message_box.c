@@ -48,44 +48,62 @@ static xcb_atom_t Atom(const char* name)
     return atom;
 }
 
-// The top-level window titled `title`, asking `tries` times 10 ms apart.
-static xcb_window_t Titled(const char* title, int tries)
+static uint64_t NowNs(void)
 {
-    for (int tried = 0; tried < tries; tried++)
+    struct timespec now;
+    (void)clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
+}
+
+static void Pause(void)
+{
+    // hygiene: polls the X server for a window another thread makes or ends
+    (void)nanosleep(&(struct timespec){.tv_nsec = 10000000}, nullptr);
+}
+
+// The viewable top-level window titled `title`, or none.
+static xcb_window_t Find(const char* title)
+{
+    xcb_query_tree_reply_t* tree =
+        xcb_query_tree_reply(s_connection, xcb_query_tree(s_connection, s_root), nullptr);
+    xcb_window_t found = XCB_WINDOW_NONE;
+    const int count = tree != nullptr ? xcb_query_tree_children_length(tree) : 0;
+    const xcb_window_t* children = tree != nullptr ? xcb_query_tree_children(tree) : nullptr;
+    for (int i = 0; i < count && found == XCB_WINDOW_NONE; i++)
     {
-        xcb_query_tree_reply_t* tree =
-            xcb_query_tree_reply(s_connection, xcb_query_tree(s_connection, s_root), nullptr);
-        xcb_window_t found = XCB_WINDOW_NONE;
-        const int count = tree != nullptr ? xcb_query_tree_children_length(tree) : 0;
-        const xcb_window_t* children = tree != nullptr ? xcb_query_tree_children(tree) : nullptr;
-        for (int i = 0; i < count && found == XCB_WINDOW_NONE; i++)
+        xcb_get_property_reply_t* name =
+            xcb_get_property_reply(s_connection,
+                                   xcb_get_property(s_connection, 0, children[i], XCB_ATOM_WM_NAME,
+                                                    XCB_ATOM_STRING, 0, 64),
+                                   nullptr);
+        if (name != nullptr && (size_t)xcb_get_property_value_length(name) == strlen(title) &&
+            memcmp(xcb_get_property_value(name), title, strlen(title)) == 0)
         {
-            xcb_get_property_reply_t* name =
-                xcb_get_property_reply(s_connection,
-                                       xcb_get_property(s_connection, 0, children[i],
-                                                        XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 0, 64),
-                                       nullptr);
-            if (name != nullptr && (size_t)xcb_get_property_value_length(name) == strlen(title) &&
-                memcmp(xcb_get_property_value(name), title, strlen(title)) == 0)
+            xcb_get_window_attributes_reply_t* attributes = xcb_get_window_attributes_reply(
+                s_connection, xcb_get_window_attributes(s_connection, children[i]), nullptr);
+            if (attributes != nullptr && attributes->map_state == XCB_MAP_STATE_VIEWABLE)
             {
-                xcb_get_window_attributes_reply_t* attributes = xcb_get_window_attributes_reply(
-                    s_connection, xcb_get_window_attributes(s_connection, children[i]), nullptr);
-                if (attributes != nullptr && attributes->map_state == XCB_MAP_STATE_VIEWABLE)
-                {
-                    found = children[i];
-                }
-                free(attributes);
+                found = children[i];
             }
-            free(name);
+            free(attributes);
         }
-        free(tree);
-        if (found != XCB_WINDOW_NONE)
-        {
-            return found;
-        }
-        (void)nanosleep(&(struct timespec){.tv_nsec = 10000000}, nullptr);
+        free(name);
     }
-    return XCB_WINDOW_NONE;
+    free(tree);
+    return found;
+}
+
+// The window titled `title`, looked for until `waitMs` have passed.
+static xcb_window_t Titled(const char* title, uint64_t waitMs)
+{
+    const uint64_t startNs = NowNs();
+    xcb_window_t found = Find(title);
+    while (found == XCB_WINDOW_NONE && NowNs() - startNs < waitMs * 1000000u)
+    {
+        Pause();
+        found = Find(title);
+    }
+    return found;
 }
 
 static void Send(xcb_window_t window, const void* event, uint32_t mask)
@@ -134,21 +152,20 @@ static void Close(xcb_window_t window)
     Send(window, event, XCB_EVENT_MASK_NO_EVENT);
 }
 
-// Whether the window titled `title` went within `tries` checks 10 ms
-// apart. The box asks the X server to destroy its window and returns;
-// requests of two connections are not ordered, so the server may not
-// have done it when this connection first asks.
-static bool Gone(const char* title, int tries)
+// Whether the window titled `title` went within `waitMs`. The box asks
+// the X server to destroy its window and returns; requests of two
+// connections are not ordered, so the server may not have done it when
+// this connection first asks.
+static bool Gone(const char* title, uint64_t waitMs)
 {
-    for (int tried = 0; tried < tries; tried++)
+    const uint64_t startNs = NowNs();
+    bool gone = Find(title) == XCB_WINDOW_NONE;
+    while (!gone && NowNs() - startNs < waitMs * 1000000u)
     {
-        if (Titled(title, 1) == XCB_WINDOW_NONE)
-        {
-            return true;
-        }
-        (void)nanosleep(&(struct timespec){.tv_nsec = 10000000}, nullptr);
+        Pause();
+        gone = Find(title) == XCB_WINDOW_NONE;
     }
-    return false;
+    return gone;
 }
 
 typedef enum Answer
@@ -176,7 +193,7 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
     {
         return false;
     }
-    const xcb_window_t window = Titled(title, 500);
+    const xcb_window_t window = Titled(title, 5000);
     if (window != XCB_WINDOW_NONE)
     {
         // The buttons, right to left from the bottom right corner: 16
@@ -198,7 +215,7 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
         }
     }
     (void)pthread_join(thread, nullptr);
-    return window != XCB_WINDOW_NONE && Gone(title, 100);
+    return window != XCB_WINDOW_NONE && Gone(title, 1000);
 }
 
 int main(void)

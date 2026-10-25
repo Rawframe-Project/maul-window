@@ -330,6 +330,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->done ? mwin_frameStop : mwin_frameContinue;
@@ -372,6 +373,7 @@ static mwinFrameResult AskingFrame(mwinContext* context, void* user)
         }
     }
     struct timespec pause = {0, 1000000};
+    // hygiene: yields between frames; the wait ends on a report, within the deadline
     (void)nanosleep(&pause, nullptr);
     return asking->outcome >= 0 || NowNs() - asking->startNs > DEADLINE_NS ? mwin_frameStop
                                                                            : mwin_frameContinue;

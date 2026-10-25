@@ -8,9 +8,9 @@ What verifies a change, locally and in CI, and the time each may take.
 
 | Tier | Runs | Budget |
 |---|---|---|
-| `changed` | The source, module, length, API documentation and snippet rules, the organization's documentation check, `clang-format` on the changed C and Objective-C files, and in the `linux-clang-20-asan` preset the tests whose labels the changed files reach, integration tests left out. | under 2 minutes |
+| `changed` | The source, module, length, API documentation, snippet and test hygiene rules, the organization's documentation check, `clang-format` on the changed C and Objective-C files, and in the `linux-clang-20-asan` preset that every test carries a label and the tests whose labels the changed files reach, integration tests left out. | under 2 minutes |
 | `pr` | Every rule on every file, the generated tables against their generators, that the documentation site builds, clang-tidy over the Linux build's sources, the whole `linux-clang-20-asan` suite with the display fixture, and 10 seconds of fuzzing per target. | under 10 minutes |
-| `full` | Also the other Linux presets (ThreadSanitizer, shared, minimal, Clang and GCC Release), the virtual gamepad tests where `/dev/uinput` can be written, and 60 seconds per fuzz target. | under 20 minutes |
+| `full` | Also the other Linux presets (ThreadSanitizer, shared, minimal, Clang and GCC Release), each with its tests' labels checked, the virtual gamepad tests where `/dev/uinput` can be written, and 60 seconds per fuzz target. | under 20 minutes |
 
 Run `changed` before every push. On the shared development machine, run `pr` and `full` through the workspace's heavy-job wrapper. The macOS, iOS, Android, Windows and web cells run in CI; [Test environments](test-environments.md) says how to run each by hand.
 
@@ -24,6 +24,8 @@ Each suite is `test/test_<name>.c` (or `.m`), one executable registered with CTe
 
 The Linux tests that need a display get the build's own Xvfb and headless weston from the display fixture ([Test environments](test-environments.md#the-display-fixture)); the stand-in compositors and buses need nothing installed but what the image has. Without integration tests the `changed` tier runs the contract on the test backend and the modules that take plain values, which cover most of the core. A test that cannot run exits 77, which CTest reports as skipped, and every CI cell fails on a skipped or unrun test, so a platform that did not start never passes with nothing tested. A skip is only for a platform that is missing (no display, no runtime folder, no input devices); a test whose own setup fails, such as a temporary folder or its stand-in compositor, prints `FAIL:` with the reason and fails. A failed test job uploads its CTest logs, kept for a week.
 
+A test never sleeps, reads the wall clock, tries again or skips without saying why: `tools/check_test_hygiene.py` rejects each, and every test registered without a label. A use that must stay carries `// hygiene: <reason>` (`# hygiene:` in CMake) on its line or the one before. Here those are the pauses of a frame loop or a poll while a server, a bus or another thread answers, each ended by what it reports within the test's deadline; the skips for a missing platform, which CI fails; input left waiting in Windows' queue on purpose; and three tries again, each saying why where it is: the X11 input method's key order, a Win32 maximize no run has yet shown to need it, and the iOS test's relaunch of Settings.
+
 ## In CI
 
 `.github/workflows/ci.yml` runs on every pull request, every push to `main` and every night. The Linux jobs run in the organization's CI image, pinned by digest, and install nothing. The ruleset requires only its `required` job, which passes when every other job passed or was skipped, and the title check.
@@ -31,9 +33,9 @@ The Linux tests that need a display get the build's own Xvfb and headless weston
 | Job | What it guards |
 |---|---|
 | `changes` | Whether a pull request changes anything beyond documentation; when it does not, the build jobs are skipped. |
-| `docs` | The organization's documentation check. `protocols/`, `tools/gamepaddb/` and `tools/androidkeys/` hold third-party files and are excluded. |
+| `docs` | The organization's documentation check, run from the pinned commit of `.github`. `protocols/`, `tools/gamepaddb/` and `tools/androidkeys/` hold third-party files and are excluded. |
 | `zizmor` | The workflows: injection, persisted credentials, permissions, unpinned actions. |
-| `checks` | `clang-format`, the family's rules, that the documentation site builds, that the gamepad and Android key tables match their generators, and clang-tidy (`tools/run_tidy.sh`, as many files at a time as the runner has cores, each file's result in order and a failing file named). It runs on documentation changes too. |
+| `checks` | `clang-format`, the family's rules, test hygiene and that every test the Linux, shared, minimal and wasm32-wasi configurations register carries a label, that the documentation site builds, that the gamepad and Android key tables match their generators, and clang-tidy (`tools/run_tidy.sh`, as many files at a time as the runner has cores, each file's result in order and a failing file named). It runs on documentation changes too. |
 | `build` | One call of the organization's `cpp.yml` per preset: GCC 14 and Clang 20 in Release, Clang with AddressSanitizer and UBSan (each test repeated up to three times on a pull request, so a flaky one fails before it merges), Clang with ThreadSanitizer, the shared library, the test backend alone, macOS on its runner and `clang-cl` on Windows. All build with warnings as errors. |
 | `msvc-headers` | Every public header compiled by MSVC's `cl` as C17 and C++17 with `/W4 /WX`. |
 | `fuzz` | Every fuzz target from its committed seeds, as many at a time as the runner has cores: 20 seconds each on a pull request, 90 on `main`. |

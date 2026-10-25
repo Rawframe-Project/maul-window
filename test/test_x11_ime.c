@@ -37,7 +37,7 @@
 
 #define DEADLINE_NS 5000000000ull
 #define MAX_RECORDS 256
-// Tries at pressing C before B's answer is due.
+// hygiene: C must beat B's 100 ms answer deadline, which a slow run misses
 #define ORDER_TRIES 5
 // X11 key codes on a US layout: evdev codes plus 8.
 #define KEYCODE_A      38
@@ -95,9 +95,9 @@ typedef struct Program
     int focusIns;
     mwinWindowId gone;
     uint64_t madeNs;
-    // The keys the method held before the key that waits behind them,
-    // and the tries at C waiting behind B so far.
+    // The keys the method held before the key that waits behind them.
     int held;
+    // hygiene: the tries at C waiting behind B so far, up to ORDER_TRIES
     int tries;
     bool timedOut;
 } Program;
@@ -393,8 +393,8 @@ static void Advance(Program* program, mwinContext* context)
         // The pump reads the X server's events before the method's
         // answers: C read in the frame that let B go waited behind it;
         // in a later one, B's answer was due before C came.
-        program->tries += 1;
-        if (program->frames[b] != program->frames[c] && program->tries < ORDER_TRIES)
+        // hygiene: a try that missed the path, the order still checked above
+        if (program->frames[b] != program->frames[c] && ++program->tries < ORDER_TRIES)
         {
             AskForText(program, context);
             program->phase = phaseOrderFocus;
@@ -436,6 +436,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 500000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;

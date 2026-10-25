@@ -196,6 +196,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -206,6 +207,7 @@ int main(void)
     const char* display = getenv("WAYLAND_DISPLAY");
     if (display == nullptr || display[0] == '\0')
     {
+        // hygiene: no Wayland display here is a skip, and CI requires one
         return 77;
     }
     Program program = {0};

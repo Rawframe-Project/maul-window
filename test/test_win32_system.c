@@ -229,6 +229,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else
     {
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         Sleep(1);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;

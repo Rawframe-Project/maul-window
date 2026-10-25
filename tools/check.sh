@@ -5,11 +5,11 @@
 # The checks, in three tiers. Each tier includes the one before it.
 #
 #   tools/check.sh changed   the files changed against origin/main: the
-#                            source rules, formatting, the documentation
-#                            checks, and in the linux-clang-20-asan preset
-#                            the tests the changes reach, integration tests
-#                            left out. Under two minutes; run it before every
-#                            push.
+#                            source and test hygiene rules, formatting, the
+#                            documentation checks, and in the
+#                            linux-clang-20-asan preset the tests the
+#                            changes reach, integration tests left out.
+#                            Under two minutes; run it before every push.
 #   tools/check.sh pr        what the pull request check runs on Linux:
 #                            every rule, the generated tables, the
 #                            documentation site, clang-tidy, the whole
@@ -55,13 +55,15 @@ configure() { # name, then cmake arguments
     cmake -S "$root" -B "$out/$name" -G Ninja -DMAUL_WINDOW_WERROR=ON "$@" >"$out/$name.log"
 }
 
-# A CI cell: its configure, build and test presets. More ctest arguments
-# (a label filter) follow the preset's name.
+# A CI cell: its configure, build and test presets, every test it
+# registers labeled. More ctest arguments (a label filter) follow the
+# preset's name.
 preset() {
     local name=$1
     shift
     step "preset $name"
     cmake --preset "$name" >"$out/$name.log"
+    python3 tools/check_test_hygiene.py --ctest "out/$name"
     cmake --build --preset "$name" -j "$jobs" >>"$out/$name.log"
     ctest --preset "$name" -j "$jobs" "$@"
 }
@@ -96,12 +98,14 @@ labels_for() {
 }
 
 source_checks() {
-    step "source, module, length, documentation and snippet rules"
+    step "source, module, length, documentation, snippet and test hygiene rules"
     python3 tools/check_source.py
     python3 tools/check_modules.py
     python3 tools/check_lengths.py
     python3 tools/check_docs.py
     python3 tools/check_guide.py
+    python3 tools/check_test_hygiene.py --self-test
+    python3 tools/check_test_hygiene.py
     if [ -f "$org/scripts/docs_check.py" ]; then
         python3 "$org/scripts/docs_check.py" --strict --exclude protocols --exclude tools/gamepaddb \
             --exclude tools/androidkeys
@@ -143,6 +147,7 @@ if [ "$tier" = changed ]; then
     fi
     step "preset linux-clang-20-asan, integration tests left out"
     cmake --preset linux-clang-20-asan >"$out/linux-clang-20-asan.log"
+    python3 tools/check_test_hygiene.py --ctest out/linux-clang-20-asan
     cmake --build --preset linux-clang-20-asan -j "$jobs" >>"$out/linux-clang-20-asan.log"
     # By the build tree rather than the test preset, whose own label filter
     # would replace -LE.

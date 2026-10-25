@@ -232,6 +232,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                  ${MWIN_TEST_RUNTIME} ${MWIN_TEST_DISPLAY} ${compositor})
         add_test(NAME display_stop COMMAND ${PROJECT_SOURCE_DIR}/tools/test_display.sh stop
                  ${MWIN_TEST_RUNTIME})
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(display_start PROPERTIES FIXTURES_SETUP display SKIP_RETURN_CODE 77
                                                       LABELS integration)
         set_tests_properties(display_stop PROPERTIES FIXTURES_CLEANUP display LABELS integration)
@@ -242,6 +243,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                  COMMAND ${PROJECT_SOURCE_DIR}/test/test_display_fixture.sh
                          ${PROJECT_SOURCE_DIR}/tools/test_display.sh
                          ${PROJECT_BINARY_DIR}/rt-fixture ${display})
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(display_fixture PROPERTIES SKIP_RETURN_CODE 77 LABELS integration)
     endif()
     # mwin_display_tests(<tests>): tests that need the display fixture. Both
@@ -316,6 +318,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Against the display fixture's weston.
         maul_add_test(wayland POSIX)
         target_compile_definitions(test_wayland PRIVATE _POSIX_C_SOURCE=200809L)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(wayland PROPERTIES SKIP_RETURN_CODE 77)
         mwin_display_tests(wayland)
         mwin_add_wayland_server_test(wayland_input)
@@ -344,23 +347,27 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Against the display fixture's Xvfb.
         maul_add_test(x11 POSIX)
         target_compile_definitions(test_x11 PRIVATE _POSIX_C_SOURCE=200809L)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11 PROPERTIES SKIP_RETURN_CODE 77)
         # Drives the X server through XTEST, which the test links.
         pkg_check_modules(MWIN_TEST_XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-xfixes)
         maul_add_test(x11_input POSIX)
         target_compile_definitions(test_x11_input PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_input PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11_input PROPERTIES SKIP_RETURN_CODE 77)
         # The library's own message box, answered by the test's own
         # connection where neither zenity nor kdialog is on PATH.
         maul_add_test(x11_message_box POSIX)
         target_compile_definitions(test_x11_message_box PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_message_box PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11_message_box PROPERTIES SKIP_RETURN_CODE 77)
         # Another client of the test's own connection shares CLIPBOARD.
         maul_add_test(x11_clipboard POSIX)
         target_compile_definitions(test_x11_clipboard PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_clipboard PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11_clipboard PROPERTIES SKIP_RETURN_CODE 77)
         # Its data and PRIMARY likewise.
         maul_add_test(x11_clipboard_data POSIX)
@@ -370,11 +377,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_icon POSIX)
         target_compile_definitions(test_x11_icon PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_icon PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11_icon PROPERTIES SKIP_RETURN_CODE 77)
         # A drag source of the test's own connection, by XDND.
         maul_add_test(x11_drop POSIX)
         target_compile_definitions(test_x11_drop PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_drop PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(x11_drop PROPERTIES SKIP_RETURN_CODE 77)
         # Reads at the edges of the clipboard's limit.
         maul_add_test(x11_clipboard_limits POSIX)
@@ -424,6 +433,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                              x11_clipboard_limits x11_clipboard_readers x11_hints x11_icon
                              x11_drop x11_owned x11_chrome x11_monitor x11_monitor_facts
                              x11_visibility PROPERTIES
+                             # hygiene: exit 77 is a missing platform, and CI fails any skipped test
                              SKIP_RETURN_CODE 77
                              RESOURCE_LOCK x11-focus)
         mwin_display_tests(x11 x11_input x11_message_box x11_clipboard x11_clipboard_data
@@ -482,6 +492,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_link_libraries(test_x11_ime PRIVATE ${CMAKE_DL_LIBS} PkgConfig::MWIN_TEST_XCB)
         set(MWIN_BUS_TESTS linux_services linux_awake linux_dialog linux_settings linux_power
             linux_languages x11_ime)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(${MWIN_BUS_TESTS} PROPERTIES SKIP_RETURN_CODE 77)
         mwin_display_tests(${MWIN_BUS_TESTS})
         # It moves the X server's focus, as the X11 tests do.
@@ -498,12 +509,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # container without the device leaves them out.
         maul_add_test(linux_gamepad POSIX)
         target_compile_definitions(test_linux_gamepad PRIVATE _GNU_SOURCE)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(linux_gamepad PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK uinput)
         set(pads linux_gamepad)
         # Where both backends are built, the X11 one too, Wayland's
         # display hidden; the pads of one run would be the other's.
         if(MAUL_WINDOW_WAYLAND AND MAUL_WINDOW_X11)
             add_test(NAME linux_gamepad_x11 COMMAND test_linux_gamepad)
+            # hygiene: exit 77 is a missing platform, and CI fails any skipped test
             set_tests_properties(linux_gamepad_x11 PROPERTIES SKIP_RETURN_CODE 77
                                  ENVIRONMENT_MODIFICATION "WAYLAND_DISPLAY=unset:"
                                  LABELS linux_gamepad RESOURCE_LOCK uinput)
@@ -521,6 +534,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
             maul_add_test(${name} MANUAL WHITEBOX)
             add_test(NAME ${name} COMMAND node ${PROJECT_SOURCE_DIR}/test/web_runner.cjs
                      $<TARGET_FILE:test_${name}>)
+            # hygiene: exit 77 is a missing platform, and CI fails any skipped test
             set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77 LABELS "${name};integration")
             if(NOT EMSCRIPTEN)
                 target_link_options(test_${name} PRIVATE -mexec-model=reactor -Wl,--stack-first -Wl,--export-table
@@ -643,6 +657,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)
         target_link_libraries(test_win32 PRIVATE user32 shcore dwmapi)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(win32 PROPERTIES SKIP_RETURN_CODE 77)
         # Drives the desktop through SendInput.
         maul_add_test(win32_input)
@@ -650,6 +665,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Injects touch and pen: skipped where Windows cannot (wine).
         maul_add_test(win32_pointer)
         target_link_libraries(test_win32_pointer PRIVATE user32)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(win32_pointer PROPERTIES SKIP_RETURN_CODE 77)
         if(MAUL_WINDOW_GAMEPAD AND MAUL_WINDOW_TEST_BACKEND)
             # The XInput gamepads against a stand-in for XInput.
@@ -664,6 +680,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Composes through the input context: skipped with no input method.
         maul_add_test(win32_ime)
         target_link_libraries(test_win32_ime PRIVATE user32 imm32)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(win32_ime PROPERTIES SKIP_RETURN_CODE 77)
         # Changes the user's settings for a moment, and puts them back.
         maul_add_test(win32_system)

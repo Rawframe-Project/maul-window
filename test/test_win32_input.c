@@ -318,6 +318,7 @@ static void AdvancePointer(Program* program)
         Mouse(MOUSEEVENTF_XDOWN, 0, 0, XBUTTON2);
         Mouse(MOUSEEVENTF_XUP, 0, 0, XBUTTON2);
         Mouse(MOUSEEVENTF_RIGHTUP, 0, 0, 0);
+        // hygiene: the scenario: buttons left waiting in the queue LATE_MS
         Sleep(LATE_MS);
         break;
     }
@@ -593,6 +594,7 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         Key(KEY_A, false);
         KeyAt(KEY_A, true, GetTickCount() - 100u);
         KeyAt(KEY_A, false, GetTickCount() - 100u);
+        // hygiene: the scenario: keys left waiting in the queue LATE_MS
         Sleep(LATE_MS);
         break;
     case phaseLate:
@@ -692,6 +694,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else
     {
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         Sleep(1);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;

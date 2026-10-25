@@ -169,6 +169,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -181,6 +182,7 @@ static bool Released(FakeBus* fake)
     {
         FakePump(fake);
         struct timespec pause = {0, 2000000};
+        // hygiene: polls until the stand-ins hear the program's end
         (void)nanosleep(&pause, nullptr);
     }
     return fake->inhibited == 0;
@@ -192,6 +194,7 @@ int main(void)
     const char* display = getenv("DISPLAY");
     if (display == nullptr || display[0] == '\0')
     {
+        // hygiene: no X server here is a skip, and CI requires one
         return 77;
     }
     if (mkdtemp(s_directory) == nullptr)

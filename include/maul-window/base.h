@@ -25,7 +25,7 @@ extern "C"
 #define MWIN_VERSION_MINOR 1
 // x-release-please-end
 // x-release-please-start-patch
-#define MWIN_VERSION_PATCH 0
+#define MWIN_VERSION_PATCH 1
 // x-release-please-end
 
 // The binary interface a program is built for: the whole version before

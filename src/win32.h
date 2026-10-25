@@ -160,6 +160,8 @@ struct mwinWin32Platform
     bool inSizeMove;
     // The mouse's raw input goes to the window with focus.
     bool rawInput;
+    // The time of the latest input record (mwinWin32InputTime).
+    uint64_t lastInputNs;
     // OLE started on the thread: drags reach windows through their drop
     // targets. Without it, only dropped files come, as WM_DROPFILES.
     bool ole;
@@ -186,6 +188,17 @@ struct mwinWin32Platform
     HRESULT(WINAPI* deleteString)(void*);
     bool keyboardTried;
 };
+
+// An input record's time, never before the record stamped last, of any
+// kind. Times from GetMessageTime are a tick step off either way, and
+// touch and pen times are exact, so two records in order could read
+// out of order: a program dividing by the interval would see it
+// negative.
+static inline uint64_t mwinWin32InputTime(mwinWin32Platform* platform, uint64_t timeNs)
+{
+    platform->lastInputNs = timeNs > platform->lastInputNs ? timeNs : platform->lastInputNs;
+    return platform->lastInputNs;
+}
 
 // The logical units per pixel of a DPI.
 static inline float mwinWin32Scale(uint32_t dpi)

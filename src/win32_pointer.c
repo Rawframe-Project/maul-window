@@ -15,10 +15,11 @@ static void Post(mwinWin32Window* window, const mwinEvent* event)
 
 // When a pointer's input happened: the performance counter's value
 // Windows took with it, or, where it gave none, the message's time.
-static uint64_t TimeOf(const POINTER_INFO* info)
+static uint64_t TimeOf(mwinWin32Window* window, const POINTER_INFO* info)
 {
-    return info->PerformanceCount != 0 ? mwinWin32CounterNs(info->PerformanceCount)
-                                       : mwinWin32MessageTime();
+    return mwinWin32InputTime(window->platform, info->PerformanceCount != 0
+                                                    ? mwinWin32CounterNs(info->PerformanceCount)
+                                                    : mwinWin32MessageTime());
 }
 
 // A place on the screen in the window's logical units.
@@ -82,7 +83,7 @@ static void OnTouch(mwinWin32Window* window, UINT message, UINT32 id)
     float pressure =
         (info.touchMask & TOUCH_MASK_PRESSURE) != 0 ? (float)info.pressure / PRESSURE_RANGE : -1.0f;
     PostTouch(window, type, id, PositionOf(window, info.pointerInfo.ptPixelLocation), pressure,
-              TimeOf(&info.pointerInfo));
+              TimeOf(window, &info.pointerInfo));
 }
 
 static mwinPenFlags PenFlagsOf(const POINTER_PEN_INFO* info)
@@ -112,7 +113,7 @@ static void OnPen(mwinWin32Window* window, UINT message, UINT32 id)
     {
         return;
     }
-    uint64_t timeNs = TimeOf(&info.pointerInfo);
+    uint64_t timeNs = TimeOf(window, &info.pointerInfo);
     mwinPenFlags flags = PenFlagsOf(&info);
     bool contact = (flags & mwin_penContact) != 0;
     mwinPenEvent pen = {0};
@@ -161,7 +162,7 @@ bool mwinWin32HandlePointer(mwinWin32Window* window, UINT message, WPARAM wParam
             // A message Windows may send rather than post: the time it
             // is handled.
             PostTouch(window, mwin_eventTouchCancelled, id, (mwinPosition){0.0f, 0.0f}, -1.0f,
-                      mwinWin32Now());
+                      mwinWin32InputTime(window->platform, mwinWin32Now()));
         }
         return true;
     }

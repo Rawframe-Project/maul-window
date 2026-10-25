@@ -5,12 +5,18 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
-## [0.3.0](https://github.com/Rawframe-Project/maul-window/compare/v0.2.0...v0.3.0) (2026-10-25)
-
+## [0.3.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.3.0) (2026-10-25)
 
 ### Added
 
-* **android:** report a stopped activity's window as occluded ([#109](https://github.com/Rawframe-Project/maul-window/issues/109)) ([8f2bc41](https://github.com/Rawframe-Project/maul-window/commit/8f2bc411fd7fc3b1eb2736673aa7b1238a711c9a)), closes [#99](https://github.com/Rawframe-Project/maul-window/issues/99)
+- On Android, a window is reported occluded (`mwin_eventOccluded`)
+  while its activity is stopped, and revealed (`mwin_eventRevealed`)
+  when the activity starts again; `mwinGetWindowState` says the same.
+  The program hears of it in the frame that tells of the suspending,
+  after the suspending record, and of the revealing after the resumed
+  record. A pause alone, as under a translucent activity, in split
+  screen or in picture-in-picture, leaves the window revealed
+  ([#109](https://github.com/Rawframe-Project/maul-window/pull/109)).
 
 ## [0.2.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.2.0) (2026-10-25)
 

@@ -453,7 +453,7 @@ jobs:
       - name: Test
         if: github.event_name != 'pull_request'
         run: |
-          for i in $(seq 10); do
+          for i in $(seq 25); do
             echo "=== probe run $i"
             ctest --preset ios-simulator -R '^ios$' --output-on-failure || true
             grep -E '^running: |^probe|^phase [34] |timed out|Settings launched' out/ios-simulator/Testing/Temporary/LastTest.log || true
@@ -475,7 +475,7 @@ jobs:
           xcrun simctl launch "$udid" com.apple.Preferences
           xcrun simctl terminate "$udid" com.apple.Preferences
           # The window test, and the one that needs several scenes.
-          for i in $(seq 10); do
+          for i in $(seq 25); do
             echo "=== probe iPad run $i"
             MWIN_IOS_DEVICE=$udid ctest --preset ios-simulator -R '^ios$' --output-on-failure || true
             grep -E '^running: |^probe|^phase [34] |timed out|Settings launched' out/ios-simulator/Testing/Temporary/LastTest.log || true

@@ -17,8 +17,9 @@ static const GUID s_displayStatus = {
 // WTSSessionInfoEx's class and its level 1 record up to the flags, which
 // mingw's headers lack, laid out as the Windows SDK lays them out: the
 // record follows the level at the alignment its 64-bit times give it.
-#define SESSION_INFO_EX    25
-#define SESSION_STATE_LOCK 0
+#define SESSION_INFO_EX      25
+#define SESSION_STATE_LOCK   0
+#define SESSION_STATE_UNLOCK 1
 
 typedef struct SessionInfo
 {
@@ -37,16 +38,17 @@ typedef struct SessionInfo
 
 // Whether the session is locked, as Windows says now: a session locked
 // before the context started, or while it had no window, sent no
-// WM_WTSSESSION_CHANGE it heard. Where Windows does not say, the session
-// is taken as unlocked.
-static bool SessionLocked(void)
+// WM_WTSSESSION_CHANGE it heard. Where Windows does not say, what was
+// known stays (unlocked before anything was heard), so a failed query
+// never undoes a lock the message told.
+static bool SessionLocked(bool known)
 {
     WCHAR* buffer = nullptr;
     DWORD bytes = 0;
     if (!WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION,
                                      (WTS_INFO_CLASS)SESSION_INFO_EX, &buffer, &bytes))
     {
-        return false;
+        return known;
     }
     SessionInfo info = {0};
     if (buffer != nullptr && bytes >= sizeof(info))
@@ -54,7 +56,10 @@ static bool SessionLocked(void)
         memcpy(&info, buffer, sizeof(info));
     }
     WTSFreeMemory(buffer);
-    return info.level == 1 && info.data.one.flags == SESSION_STATE_LOCK;
+    // A level or a state other than locked or unlocked does not say.
+    bool told = info.level == 1 && (info.data.one.flags == SESSION_STATE_LOCK ||
+                                    info.data.one.flags == SESSION_STATE_UNLOCK);
+    return told ? info.data.one.flags == SESSION_STATE_LOCK : known;
 }
 
 static void Update(mwinWin32Window* window)
@@ -147,7 +152,7 @@ void mwinWin32WatchOcclusion(mwinWin32Window* window)
         WTSRegisterSessionNotification(window->hwnd, NOTIFY_FOR_THIS_SESSION) != FALSE;
     // The session's state now, then each change WM_WTSSESSION_CHANGE
     // tells; every window takes it, as with the message.
-    window->platform->locked = SessionLocked();
+    window->platform->locked = SessionLocked(window->platform->locked);
     UpdateAll(window->platform);
     // Windows tells the display's state at once, then each change.
     window->displayWatch = RegisterPowerSettingNotification(window->hwnd, &s_displayStatus,

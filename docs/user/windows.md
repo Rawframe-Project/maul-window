@@ -29,7 +29,8 @@ Places and sizes are logical units, measured down and to the right from the top 
 | X11 | the X server reports the window wholly covered by other windows; never under a compositing window manager, which draws windows off screen, so the X server reports none covered |
 | Web | the page is hidden |
 | Android | the activity is stopped (another activity in front of it, the home screen, the screen off); a pause alone, as under a translucent activity or in split screen, leaves it revealed |
-| Windows, iOS | never: these platforms do not report occlusion yet, and a window's state stays not occluded |
+| iOS | the window's scene is in the background; an inactive scene, under Control Center or the app switcher, stays revealed |
+| Windows | never: Windows does not report occlusion yet, and a window's state stays not occluded |
 
 ## Requests
 

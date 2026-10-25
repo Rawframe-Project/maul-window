@@ -65,6 +65,8 @@ typedef struct mwinIOSWindow
     uint32_t ask;
     uint64_t askDeadlineNs;
     bool gone;
+    // Whether the window was told its scene is in the background.
+    bool occluded;
 } mwinIOSWindow;
 
 // Where a touch is in its life, as UIKit's touch methods tell.
@@ -248,6 +250,11 @@ void mwinIOSSceneCame(mwinIOSPlatform* platform, UIWindowScene* scene);
 // The system let a scene go: one waiting is forgotten, and a window
 // showing it is asked to close and never shows again.
 void mwinIOSSceneWent(mwinIOSPlatform* platform, UIScene* scene);
+// A scene went to the background or comes to the foreground: its window,
+// if it has one, is occluded while the scene is in the background and
+// revealed in the foreground, where it shows at least in part (inactive
+// too, under Control Center or the app switcher).
+void mwinIOSSceneSeen(mwinIOSPlatform* platform, UIScene* scene, bool seen);
 
 // Fails the creation of a window whose scene did not come in time.
 void mwinIOSPumpScenes(mwinIOSPlatform* platform);

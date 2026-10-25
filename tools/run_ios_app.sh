@@ -4,9 +4,12 @@
 # output in a file, and waits, a minute at most, for the closing line its
 # quit prints, "result: N failures". simctl launch returns once the
 # application runs, not when it ends, and the library never ends the
-# process, so the runner ends it. Passes when the line says 0 failures;
-# otherwise shows the application's errors, and where it is stuck or
-# why it ended.
+# process, so the runner ends it. A line "simctl: <verb> <arguments>"
+# the test writes is run once, as "xcrun simctl <verb> <device>
+# <arguments>", so that the test drives what only the system can do
+# (another application in front of it, and its own brought back). Passes
+# when the line says 0 failures; otherwise shows the application's
+# errors, and where it is stuck or why it ended.
 set -eu
 app=$1
 device=${MWIN_IOS_DEVICE:-booted}
@@ -24,7 +27,20 @@ pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-
     --stderr="$err" "$device" "$id" | sed 's/.*: //')
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
+ran=0
 while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
+    commands=$(grep '^simctl: ' "$out" || true)
+    count=$(printf '%s' "$commands" | grep -c '' || true)
+    while [ "$ran" -lt "$count" ]; do
+        ran=$((ran + 1))
+        line=$(printf '%s\n' "$commands" | sed -n "${ran}p")
+        echo "running: $line"
+        # shellcheck disable=SC2086 # the verb and its arguments, as written
+        set -- ${line#simctl: }
+        verb=$1
+        shift
+        xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+    done
     sleep 0.2
 done
 echo "waited until $(($(date +%s) - start)) s"

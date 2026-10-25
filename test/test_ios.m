@@ -6,10 +6,14 @@
 // scale, safe area and mode as UIKit lays it out, the screen as the
 // primary monitor; the title as the scene's, a size request
 // unsupported, hiding and showing; the application going to the
-// background and back, as UIKit tells the scene's delegate, suspending
-// told in a frame of its own and no frames while suspended; a destroyed window's
-// scene taken by the next window. mwinRun never returns on iOS: quit
-// prints the closing line the runner waits for.
+// background and back, suspending told in a frame of its own and no
+// frames while suspended, the window occluded in that frame and revealed
+// once it resumed: first as the test calls the scene's delegate itself,
+// as UIKit would (a stand-in for the system), then for real, the runner
+// opening the Settings application in front of it and bringing it back
+// (simctl launch); a destroyed window's scene taken by the next window.
+// mwinRun never returns on iOS: quit prints the closing line the runner
+// waits for.
 
 #include "test_harness.h"
 
@@ -40,6 +44,12 @@ typedef struct Program
     mwinEventType lifecycleTypes[4];
     int lifecycleFrames[4];
     uint64_t lifecycleNs[4];
+    // The occlusion records in order, with the frame each came in, and
+    // whether the window's state said occluded as the first was taken.
+    int occlusion;
+    mwinEventType occlusionTypes[4];
+    int occlusionFrames[4];
+    bool occludedState;
     UIWindowScene* scene;
 } Program;
 
@@ -76,6 +86,26 @@ static void Collect(Program* program, mwinContext* context)
             program->lifecycleFrames[program->lifecycle] = program->frames;
             program->lifecycleNs[program->lifecycle] = NowNs();
             program->lifecycle += 1;
+        }
+        if ((event.type == mwin_eventOccluded || event.type == mwin_eventRevealed) &&
+            program->occlusion < 4)
+        {
+            mwinWindowState state = {0};
+            if (program->occlusion == 0)
+            {
+                program->occludedState =
+                    mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                    state.occluded;
+            }
+            program->occlusionTypes[program->occlusion] = event.type;
+            program->occlusionFrames[program->occlusion] = program->frames;
+            program->occlusion += 1;
+        }
+        // The runner brings the application back, asked in the frame that
+        // tells of the suspending, the last before it is suspended.
+        if (event.type == mwin_eventSuspending && program->phase == 4)
+        {
+            printf("simctl: launch %s\n", NSBundle.mainBundle.bundleIdentifier.UTF8String);
         }
     }
 }
@@ -170,6 +200,20 @@ static void CheckLifecycle(const Program* program)
           "no frames while suspended");
 }
 
+// The window occluded in the frame that tells of the suspending, its
+// state saying so, and revealed once the application resumed.
+static void CheckOcclusion(const Program* program, mwinContext* context, const char* how)
+{
+    mwinWindowState state = {0};
+    bool told = program->occlusion == 2 && program->occlusionTypes[0] == mwin_eventOccluded &&
+                program->occlusionTypes[1] == mwin_eventRevealed;
+    CHECK(told && program->occlusionFrames[0] == program->lifecycleFrames[0] &&
+              program->occludedState &&
+              mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              !state.occluded,
+          how);
+}
+
 static bool Ready(Program* program, mwinContext* context)
 {
     switch (program->phase)
@@ -181,8 +225,9 @@ static bool Ready(Program* program, mwinContext* context)
     case 2:
         return program->shown && LaidOut(context, program->window);
     case 3:
-        return program->lifecycle >= 3;
     case 4:
+        return program->lifecycle >= 3 && program->occlusion >= 2;
+    case 5:
         return program->completions >= 1;
     default:
         return program->shown && LaidOut(context, program->window);
@@ -216,8 +261,19 @@ static void Advance(Program* program, mwinContext* context)
         Background(program->scene);
         break;
     case 3:
+        CheckLifecycle(program);
+        CheckOcclusion(
+            program, context,
+            "occluded as it suspends, revealed once it resumed, as the delegate is told");
+        program->lifecycle = 0;
+        program->occlusion = 0;
+        printf("simctl: launch com.apple.Preferences\n");
+        break;
+    case 4:
     {
         CheckLifecycle(program);
+        CheckOcclusion(program, context,
+                       "occluded as it suspends, revealed once it resumed, behind another app");
         CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroyed");
         mwinWindowDef def = mwinDefaultWindowDef();
         CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success,
@@ -225,7 +281,7 @@ static void Advance(Program* program, mwinContext* context)
         program->shown = false;
         break;
     }
-    case 4:
+    case 5:
         CHECK(program->outcomes[0] == mwin_outcomeDone, "made");
         break;
     default:
@@ -264,11 +320,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (NowNs() - program->startNs > DEADLINE_NS)
     {
-        printf("timed out in phase %d, %d lifecycle records\n", program->phase, program->lifecycle);
+        printf("timed out in phase %d, %d lifecycle records, %d occlusion records\n",
+               program->phase, program->lifecycle, program->occlusion);
         s_failures += 1;
         return mwin_frameStop;
     }
-    return program->phase == 6 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 7 ? mwin_frameStop : mwin_frameContinue;
 }
 
 static void Quit(mwinContext* context, mwinResult status, void* user)
@@ -276,7 +333,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     CHECK(status == mwin_success, "init succeeded");
     Program* program = user;
-    CHECK(program->phase == 6, "every phase ran");
+    CHECK(program->phase == 7, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

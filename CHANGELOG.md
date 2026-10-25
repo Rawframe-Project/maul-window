@@ -5,12 +5,18 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
-## [0.2.0](https://github.com/Rawframe-Project/maul-window/compare/v0.1.1...v0.2.0) (2026-10-25)
-
+## [0.2.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.2.0) (2026-10-25)
 
 ### Added
 
-* **x11:** report a window wholly covered by others as occluded ([#107](https://github.com/Rawframe-Project/maul-window/issues/107)) ([eb5bd48](https://github.com/Rawframe-Project/maul-window/commit/eb5bd4868cb1a64af1713d2a58ad8543cd274d61)), closes [#99](https://github.com/Rawframe-Project/maul-window/issues/99)
+- On X11, a window wholly covered by other windows is reported
+  occluded (`mwin_eventOccluded`), and revealed (`mwin_eventRevealed`)
+  once any part of it can be seen again, as the X server computes it;
+  `mwinGetWindowState` says the same. Under a compositing window
+  manager the X server reports no window covered, so there a window is
+  never occluded. The windows guide now lists when each platform
+  reports occlusion
+  ([#107](https://github.com/Rawframe-Project/maul-window/pull/107)).
 
 ## [0.1.1](https://github.com/Rawframe-Project/maul-window/compare/v0.1.0...v0.1.1) (2026-10-25)
 

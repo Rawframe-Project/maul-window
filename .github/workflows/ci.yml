@@ -420,7 +420,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 170
     permissions:
       contents: read
     steps:
@@ -482,6 +482,26 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           xcrun simctl shutdown "$MWIN_IOS_DEVICE"
+          base=$(tools/ci_simulator.sh iPad)
+          read -r type runtime <<<"$(xcrun simctl list devices -j | python3 -c '
+          import json, sys
+          for runtime, devices in json.load(sys.stdin)["devices"].items():
+              for d in devices:
+                  if d["udid"] == sys.argv[1]:
+                      print(d["deviceTypeIdentifier"], runtime)' "$base")"
+          for i in $(seq 15); do
+            echo "=== cold iPad $i"
+            new=$(xcrun simctl create "cold-$i" "$type" "$runtime")
+            t0=$(date +%s)
+            xcrun simctl boot "$new"
+            xcrun simctl bootstatus "$new" -b >/dev/null
+            echo "cold boot took $(($(date +%s) - t0)) s"
+            MWIN_IOS_DEVICE=$new ctest --preset ios-simulator -R '^ios$' --output-on-failure | grep -E 'Test +#' || true
+            grep -E '^installed |^launched as |^running: |^phase [34] |timed out|^waited until ' \
+              out/ios-simulator/Testing/Temporary/LastTest.log || true
+            xcrun simctl shutdown "$new" || true
+            xcrun simctl delete "$new" || true
+          done
           udid=$(tools/ci_simulator.sh iPad)
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b

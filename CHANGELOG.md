@@ -5,6 +5,18 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.1.1](https://github.com/Rawframe-Project/maul-window/compare/v0.1.0...v0.1.1) (2026-10-25)
+
+### Fixed
+
+- On Windows, input records (keys, typed text, the mouse, the wheel,
+  raw input, touch and pen) carry the time their message happened, as
+  `timeNs` promises, instead of the time the library handled it: input
+  that waited behind a long frame or a modal loop is no longer stamped
+  late by that wait. Touch and pen take the time Windows recorded with
+  the sample. Input times never go backwards, across all kinds of input
+  ([#102](https://github.com/Rawframe-Project/maul-window/pull/102)).
+
 ## [0.1.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.1.0) (2026-10-24)
 
 ### Changed

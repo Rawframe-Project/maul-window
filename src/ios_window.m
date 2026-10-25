@@ -224,6 +224,9 @@ static void Attach(mwinIOSPlatform* platform, uint32_t slot, UIWindowScene* scen
         {
             Show(platform, slot, true);
         }
+        // A scene already in the background shows nothing of the window.
+        mwinIOSSceneSeen(platform, scene,
+                         scene.activationState != UISceneActivationStateBackground);
     }
     Created(context, slot, mwin_outcomeDone);
 }

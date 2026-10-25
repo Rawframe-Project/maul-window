@@ -11,9 +11,11 @@
 // once it resumed: first as the test calls the scene's delegate itself,
 // as UIKit would (a stand-in for the system), then for real, the runner
 // opening the Settings application in front of it and bringing it back
-// (simctl launch); a destroyed window's scene taken by the next window.
-// mwinRun never returns on iOS: quit prints the closing line the runner
-// waits for.
+// (simctl launch). There, in the frame that tells of the suspending, the
+// window is destroyed and another made, which takes the scene it left,
+// now in the background: occluded from the start, revealed once the
+// application resumed. mwinRun never returns on iOS: quit prints the
+// closing line the runner waits for.
 
 #include "test_harness.h"
 
@@ -27,6 +29,14 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
+// Another application launched in front of this one and this one
+// launched back take simctl from 13 to over 20 s on a CI runner; the
+// runner waits a minute from the launch.
+#define DRIVE_DEADLINE_NS 45000000000ull
+// Now and then the Settings application never comes to the front: it is
+// launched again when nothing suspended the test for this long, at most
+// twice more.
+#define SETTINGS_AGAIN_NS 10000000000ull
 
 typedef struct Program
 {
@@ -44,12 +54,14 @@ typedef struct Program
     mwinEventType lifecycleTypes[4];
     int lifecycleFrames[4];
     uint64_t lifecycleNs[4];
-    // The occlusion records in order, with the frame each came in, and
-    // whether the window's state said occluded as the first was taken.
+    // The window's occlusion records in order, with the frame each came
+    // in, and whether its state said occluded as the first was taken.
     int occlusion;
     mwinEventType occlusionTypes[4];
     int occlusionFrames[4];
     bool occludedState;
+    // How many times the Settings application was launched in front.
+    int settingsLaunches;
     UIWindowScene* scene;
 } Program;
 
@@ -66,6 +78,23 @@ static uint64_t s_launchNs;
 static double Since(void)
 {
     return (double)(NowNs() - s_launchNs) / 1e9;
+}
+
+static bool SameWindow(mwinWindowId a, mwinWindowId b)
+{
+    return a.index1 == b.index1 && a.generation == b.generation;
+}
+
+// In the frame that tells of the suspending behind another application:
+// the window gives up its scene, now in the background, to another, and
+// the runner is asked to bring the application back.
+static void Replace(Program* program, mwinContext* context)
+{
+    CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "destroyed");
+    program->shown = false;
+    mwinWindowDef def = mwinDefaultWindowDef();
+    CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success, "another");
+    printf("simctl: launch %s\n", NSBundle.mainBundle.bundleIdentifier.UTF8String);
 }
 
 static void Collect(Program* program, mwinContext* context)
@@ -88,7 +117,7 @@ static void Collect(Program* program, mwinContext* context)
             program->lifecycle += 1;
         }
         if ((event.type == mwin_eventOccluded || event.type == mwin_eventRevealed) &&
-            program->occlusion < 4)
+            SameWindow(event.window, program->window) && program->occlusion < 4)
         {
             mwinWindowState state = {0};
             if (program->occlusion == 0)
@@ -101,11 +130,10 @@ static void Collect(Program* program, mwinContext* context)
             program->occlusionFrames[program->occlusion] = program->frames;
             program->occlusion += 1;
         }
-        // The runner brings the application back, asked in the frame that
-        // tells of the suspending, the last before it is suspended.
+        // The last frame before the application is suspended.
         if (event.type == mwin_eventSuspending && program->phase == 4)
         {
-            printf("simctl: launch %s\n", NSBundle.mainBundle.bundleIdentifier.UTF8String);
+            Replace(program, context);
         }
     }
 }
@@ -225,10 +253,9 @@ static bool Ready(Program* program, mwinContext* context)
     case 2:
         return program->shown && LaidOut(context, program->window);
     case 3:
-    case 4:
         return program->lifecycle >= 3 && program->occlusion >= 2;
-    case 5:
-        return program->completions >= 1;
+    case 4:
+        return program->lifecycle >= 3 && program->occlusion >= 2 && program->completions >= 1;
     default:
         return program->shown && LaidOut(context, program->window);
     }
@@ -268,20 +295,14 @@ static void Advance(Program* program, mwinContext* context)
         program->lifecycle = 0;
         program->occlusion = 0;
         printf("simctl: launch com.apple.Preferences\n");
+        program->settingsLaunches = 1;
         break;
     case 4:
-    {
+        printf("Settings launched %d times\n", program->settingsLaunches);
         CheckLifecycle(program);
         CheckOcclusion(program, context,
-                       "occluded as it suspends, revealed once it resumed, behind another app");
-        CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroyed");
-        mwinWindowDef def = mwinDefaultWindowDef();
-        CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success,
-              "another");
-        program->shown = false;
-        break;
-    }
-    case 5:
+                       "made on its scene in the background, occluded from the start, revealed "
+                       "once it resumed");
         CHECK(program->outcomes[0] == mwin_outcomeDone, "made");
         break;
     default:
@@ -318,14 +339,25 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context);
         }
     }
-    else if (NowNs() - program->startNs > DEADLINE_NS)
+    else if (program->phase == 4 && program->lifecycle == 0 && program->settingsLaunches < 3 &&
+             NowNs() - program->startNs > SETTINGS_AGAIN_NS * (uint64_t)program->settingsLaunches)
     {
-        printf("timed out in phase %d, %d lifecycle records, %d occlusion records\n",
-               program->phase, program->lifecycle, program->occlusion);
+        // hygiene: retry: the simulator sometimes ignores simctl launch; the
+        // library's response is still asserted once.
+        printf("simctl: launch com.apple.Preferences\n");
+        program->settingsLaunches += 1;
+    }
+    else if (NowNs() - program->startNs > (program->phase == 4 ? DRIVE_DEADLINE_NS : DEADLINE_NS))
+    {
+        printf("timed out in phase %d at %.2f s, %d lifecycle records, %d occlusion records, "
+               "%d launches of Settings, application state %d, scene state %d\n",
+               program->phase, Since(), program->lifecycle, program->occlusion,
+               program->settingsLaunches, (int)UIApplication.sharedApplication.applicationState,
+               (int)program->scene.activationState);
         s_failures += 1;
         return mwin_frameStop;
     }
-    return program->phase == 7 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 6 ? mwin_frameStop : mwin_frameContinue;
 }
 
 static void Quit(mwinContext* context, mwinResult status, void* user)
@@ -333,7 +365,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     CHECK(status == mwin_success, "init succeeded");
     Program* program = user;
-    CHECK(program->phase == 7, "every phase ran");
+    CHECK(program->phase == 6, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

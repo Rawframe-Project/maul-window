@@ -30,13 +30,10 @@
 
 #define DEADLINE_NS 20000000000ull
 // Another application launched in front of this one and this one
-// launched back take simctl from 13 to over 20 s on a CI runner; the
-// runner waits a minute from the launch.
+// launched back take simctl from 4 to 22 s on a CI runner, the first
+// time after the simulator boots the longest; the runner waits a minute
+// from the launch.
 #define DRIVE_DEADLINE_NS 45000000000ull
-// Now and then the Settings application never comes to the front: it is
-// launched again when nothing suspended the test for this long, at most
-// twice more.
-#define SETTINGS_AGAIN_NS 10000000000ull
 
 typedef struct Program
 {
@@ -60,8 +57,6 @@ typedef struct Program
     mwinEventType occlusionTypes[4];
     int occlusionFrames[4];
     bool occludedState;
-    // How many times the Settings application was launched in front.
-    int settingsLaunches;
     UIWindowScene* scene;
 } Program;
 
@@ -295,10 +290,8 @@ static void Advance(Program* program, mwinContext* context)
         program->lifecycle = 0;
         program->occlusion = 0;
         printf("simctl: launch com.apple.Preferences\n");
-        program->settingsLaunches = 1;
         break;
     case 4:
-        printf("Settings launched %d times\n", program->settingsLaunches);
         CheckLifecycle(program);
         CheckOcclusion(program, context,
                        "made on its scene in the background, occluded from the start, revealed "
@@ -339,20 +332,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context);
         }
     }
-    else if (program->phase == 4 && program->lifecycle == 0 && program->settingsLaunches < 3 &&
-             NowNs() - program->startNs > SETTINGS_AGAIN_NS * (uint64_t)program->settingsLaunches)
-    {
-        // hygiene: retry: the simulator sometimes ignores simctl launch; the
-        // library's response is still asserted once.
-        printf("simctl: launch com.apple.Preferences\n");
-        program->settingsLaunches += 1;
-    }
     else if (NowNs() - program->startNs > (program->phase == 4 ? DRIVE_DEADLINE_NS : DEADLINE_NS))
     {
         printf("timed out in phase %d at %.2f s, %d lifecycle records, %d occlusion records, "
-               "%d launches of Settings, application state %d, scene state %d\n",
+               "application state %d, scene state %d\n",
                program->phase, Since(), program->lifecycle, program->occlusion,
-               program->settingsLaunches, (int)UIApplication.sharedApplication.applicationState,
+               (int)UIApplication.sharedApplication.applicationState,
                (int)program->scene.activationState);
         s_failures += 1;
         return mwin_frameStop;

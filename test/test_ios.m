@@ -57,6 +57,7 @@ typedef struct Program
     mwinEventType occlusionTypes[4];
     int occlusionFrames[4];
     bool occludedState;
+    int probes;
     UIWindowScene* scene;
 } Program;
 
@@ -331,6 +332,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             printf("phase %d at %.2f s\n", program->phase, Since());
             Advance(program, context);
         }
+    }
+    else if (program->phase == 4 &&
+             NowNs() - program->startNs > 1000000000ull * (uint64_t)program->probes)
+    {
+        printf("probe at %.2f s: %d lifecycle records, application state %d, scene state %d\n",
+               Since(), program->lifecycle,
+               (int)UIApplication.sharedApplication.applicationState,
+               (int)program->scene.activationState);
+        program->probes += 1;
     }
     else if (NowNs() - program->startNs > (program->phase == 4 ? DRIVE_DEADLINE_NS : DEADLINE_NS))
     {

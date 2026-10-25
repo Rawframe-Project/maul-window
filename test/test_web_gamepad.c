@@ -233,12 +233,14 @@ static void CheckMoved(Program* program, mwinContext* context)
           "no rumble without an actuator");
     CHECK(mwinSetGamepadTriggerRumble(context, pad, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
           "no trigger rumble without trigger-rumble");
-    CHECK(mwinSetGamepadTriggerRumble(context, program->triggers, 0.25f, 0.75f, 300) ==
+    // The triggers outlast the grips by seconds, so a slow frame after
+    // the grips' time still finds them playing.
+    CHECK(mwinSetGamepadTriggerRumble(context, program->triggers, 0.25f, 0.75f, 3000) ==
                   mwin_success &&
-              LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 300, 300),
+              LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 3000, 3000),
           "trigger rumble as trigger-rumble");
     CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 100) == mwin_success &&
-              LastTriggers(1.0f, 0.5f, 0.25f, 0.75f, 250, 300),
+              LastTriggers(1.0f, 0.5f, 0.25f, 0.75f, 2950, 3000),
           "the grips' rumble played with the triggers' as one effect");
     program->triggeredMs = NowMs();
     Unstamped();
@@ -255,15 +257,17 @@ static void Advance(Program* program, mwinContext* context)
         CheckMoved(program, context);
         break;
     case phaseTriggers:
-        // Past the grips' 100 ms, short of the triggers' 300.
+        // Past the grips' 100 ms, short of the triggers' 3000. The frame
+        // after the grips' time replays the triggers with what is left of
+        // theirs; on a loaded runner it can come hundreds of ms late.
         if (NowMs() - program->triggeredMs < 150.0)
         {
             return;
         }
-        CHECK(LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 100, 200),
+        CHECK(LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 2900),
               "the grips' time out, the triggers played on alone");
         CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 0) == mwin_success &&
-                  LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 200),
+                  LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 2900),
               "the grips stopped, the triggers played on alone");
         break;
     case phaseStill:

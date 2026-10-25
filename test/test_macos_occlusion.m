@@ -7,9 +7,10 @@
 // and revealed once it is windowed again. Each time the record, the
 // window's state and AppKit's occlusionState agree.
 //
-// On a CI runner AppKit says no window is visible until user activity
-// is declared, as when the display sleeps: the test first declares it,
-// and brings its window to the front.
+// On the macOS CI runner AppKit reported the uncovered window as not
+// visible (occlusionState 8192) until the test declared user activity,
+// activated the application and ordered the window front; the test does
+// all three once, before any check.
 
 #include "test_harness.h"
 
@@ -45,8 +46,10 @@ typedef struct Program
     // The occlusion notification the phase saw last, or 0.
     mwinEventType occlusion;
     bool timedOut;
-    // Whether the display was woken and the window brought forward.
+    // Whether user activity was declared, the application activated and
+    // the window ordered front, and the assertion the declaration made.
     bool woken;
+    IOPMAssertionID assertion;
 } Program;
 
 static uint64_t NowNs(void)
@@ -193,9 +196,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     if (program->host != nil && !program->woken)
     {
-        IOPMAssertionID assertion = 0;
         (void)IOPMAssertionDeclareUserActivity(CFSTR("test_macos_occlusion"), kIOPMUserActiveLocal,
-                                               &assertion);
+                                               &program->assertion);
         [NSApp activateIgnoringOtherApps:YES];
         [program->host makeKeyAndOrderFront:nil];
         program->woken = true;
@@ -228,5 +230,9 @@ int main(void)
     CHECK(!program.timedOut, "every phase comes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
     [program.cover release];
+    if (program.assertion != kIOPMNullAssertionID)
+    {
+        (void)IOPMAssertionRelease(program.assertion);
+    }
     return s_failures == 0 ? 0 : 1;
 }

@@ -19,7 +19,9 @@
 // record carries the logical size as the one suggested, the backend has
 // taken Windows' suggested rectangle by the time the program sees the
 // record, and a size the program requests on the record, before the next
-// pump, is the one the window keeps.
+// pump, is the one the window keeps. What this leaves untested is the
+// backend framing a request at the new DPI (a decorated window's answer,
+// OnMinMax after a change): only a monitor of that DPI frames a window so.
 
 #include "test_harness.h"
 
@@ -36,8 +38,9 @@
 
 // Generous: under wine on a loaded machine a phase has taken over 10 s.
 #define DEADLINE_MS 30000u
-// How long the program's answer to a DPI change must stand: long enough
-// for a rectangle the backend applied a pump or a timer later to land.
+// How long the program's answer to a DPI change must stand once its
+// records arrive: the horizon for a rectangle the backend applied a pump
+// or a timer later.
 #define SETTLE_MS 250u
 // The size the program asks for on the scale record, larger than the
 // window's in both directions.
@@ -176,6 +179,12 @@ typedef struct Program
     bool timedOut;
     // The DPI change would make the window larger than Windows allows.
     bool skipped;
+    // The answer's pixels, whether its size and pixel records came, and
+    // when both had.
+    mwinPixelSize answerPixels;
+    bool sizeAnswered;
+    bool pixelsAnswered;
+    ULONGLONG answeredMs;
 } Program;
 
 // The program whose window the DPI timer sends WM_DPICHANGED to.
@@ -198,6 +207,18 @@ static void Collect(Program* program, mwinContext* context)
             program->completion = event.data.completion;
             program->completed = true;
         }
+        program->sizeAnswered = program->sizeAnswered || (event.type == mwin_eventResized &&
+                                                          event.data.size.width == ANSWER_WIDTH &&
+                                                          event.data.size.height == ANSWER_HEIGHT);
+        program->pixelsAnswered = program->pixelsAnswered ||
+                                  (event.type == mwin_eventPixelSizeChanged &&
+                                   event.data.pixelSize.width == program->answerPixels.width &&
+                                   event.data.pixelSize.height == program->answerPixels.height);
+    }
+    if (program->phase == phaseAnswer && program->answeredMs == 0 && program->sizeAnswered &&
+        program->pixelsAnswered)
+    {
+        program->answeredMs = GetTickCount64();
     }
 }
 
@@ -227,7 +248,7 @@ static bool Ready(const Program* program)
     case phaseDpi:
         return Seen(program, mwin_eventScaleChanged);
     case phaseAnswer:
-        return GetTickCount64() - program->startMs >= SETTLE_MS;
+        return program->answeredMs != 0 && GetTickCount64() - program->answeredMs >= SETTLE_MS;
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
@@ -388,8 +409,8 @@ static void CheckDpi(const Program* program, mwinContext* context)
 static void CheckAnswer(const Program* program, mwinContext* context)
 {
     float scale = (float)program->dpi / 96.0f;
-    LONG width = (LONG)(ANSWER_WIDTH * scale + 0.5f);
-    LONG height = (LONG)(ANSWER_HEIGHT * scale + 0.5f);
+    LONG width = (LONG)program->answerPixels.width;
+    LONG height = (LONG)program->answerPixels.height;
     RECT client;
     CHECK(GetClientRect(WindowOf(context, program->window), &client) && client.right == width &&
               client.bottom == height && program->pixels.width == (uint32_t)width &&
@@ -453,6 +474,9 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseDpi:
         CheckDpi(program, context);
+        program->answerPixels =
+            (mwinPixelSize){(uint32_t)(ANSWER_WIDTH * (float)program->dpi / 96.0f + 0.5f),
+                            (uint32_t)(ANSWER_HEIGHT * (float)program->dpi / 96.0f + 0.5f)};
         CHECK(mwinRequestSize(context, window, (mwinSize){ANSWER_WIDTH, ANSWER_HEIGHT}, nullptr) ==
                   mwin_success,
               "another size, on the scale record");

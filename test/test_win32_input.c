@@ -6,7 +6,9 @@
 // text, the keyboard layout's tag, Shift, a repeat, Alt and Caps Lock, a
 // key sent without its scan code (Right Control, extended), Print
 // Screen's release alone, text outside the BMP to its last character,
-// the pointer entering and moving, a double click, buttons held
+// a key and buttons handled late stamped with the time they were sent,
+// a key whose own time is older than the one before it stamped no
+// earlier, the pointer entering and moving, a double click, buttons held
 // together and the mouse let go after them, the wheel, cursor shapes, a
 // cursor made from images and its end, a hidden and confined cursor (its
 // clip following the window and the focus), and a captured one with raw
@@ -24,6 +26,9 @@
 #include <windows.h>
 
 #define DEADLINE_MS 10000u
+// How long input waits before the backend handles it: the gap between
+// sending and handling that the stamps are measured against.
+#define LATE_MS     250u
 #define MAX_RECORDS 256
 
 // The keys by virtual key and scan code, as a keyboard sends them.
@@ -41,6 +46,7 @@ typedef enum Phase
     phaseRepeat,
     phaseModifiers,
     phaseText,
+    phaseLate,
     phasePointer,
     phaseClicks,
     phaseButtons,
@@ -61,6 +67,8 @@ typedef struct Program
 {
     Phase phase;
     ULONGLONG startMs;
+    // When the late key was sent.
+    uint64_t sentNs;
     mwinWindowId window;
     HWND hwnd;
     mwinEvent records[MAX_RECORDS];
@@ -72,18 +80,38 @@ typedef struct Program
     mwinCursorId cursor;
 } Program;
 
+// Nanoseconds on the performance counter, the library's clock.
+static uint64_t NowNs(void)
+{
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    QueryPerformanceCounter(&counter);
+    QueryPerformanceFrequency(&frequency);
+    uint64_t seconds = (uint64_t)counter.QuadPart / (uint64_t)frequency.QuadPart;
+    uint64_t rest = (uint64_t)counter.QuadPart % (uint64_t)frequency.QuadPart;
+    return seconds * 1000000000u + rest * 1000000000u / (uint64_t)frequency.QuadPart;
+}
+
 static void Send(INPUT input)
 {
     CHECK(SendInput(1, &input, sizeof(input)) == 1, "SendInput takes the input");
 }
 
-static void Key(WORD key, WORD scan, bool down)
+// A key with its own time in milliseconds on GetTickCount's clock, or
+// 0 for the time it is sent.
+static void KeyAt(WORD key, WORD scan, bool down, DWORD time)
 {
     INPUT input = {.type = INPUT_KEYBOARD};
     input.ki.wVk = key;
     input.ki.wScan = scan;
     input.ki.dwFlags = down ? 0 : KEYEVENTF_KEYUP;
+    input.ki.time = time;
     Send(input);
+}
+
+static void Key(WORD key, WORD scan, bool down)
+{
+    KeyAt(key, scan, down, 0);
 }
 
 static void Unit(WORD unit)
@@ -192,6 +220,8 @@ static bool Ready(const Program* program)
         return KeyOf(program, mwin_eventKeyUp, mwin_codePrintScreen) != nullptr;
     case phaseText:
         return program->textLength >= 8;
+    case phaseLate:
+        return Find(program, mwin_eventKeyUp, 1) != nullptr;
     case phasePointer:
         return Find(program, mwin_eventCursorMoved, 0) != nullptr;
     case phaseClicks:
@@ -205,6 +235,19 @@ static bool Ready(const Program* program)
     default:
         return Find(program, mwin_eventRequestCompleted, 0) != nullptr;
     }
+}
+
+// Whether the records' times never decrease.
+static bool InOrder(const Program* program)
+{
+    for (int i = 1; i < program->count; i++)
+    {
+        if (program->records[i].timeNs < program->records[i - 1].timeNs)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool TextIs(const Program* program, const char* text)
@@ -269,10 +312,13 @@ static void AdvancePointer(Program* program)
                   Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2,
               "a quick second click is a double click");
         CHECK(GetCapture() == nullptr, "the mouse let go once the button is up");
+        // Buttons that wait in the queue, as the late key.
+        program->sentNs = NowNs();
         Mouse(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0);
         Mouse(MOUSEEVENTF_XDOWN, 0, 0, XBUTTON2);
         Mouse(MOUSEEVENTF_XUP, 0, 0, XBUTTON2);
         Mouse(MOUSEEVENTF_RIGHTUP, 0, 0, 0);
+        Sleep(LATE_MS);
         break;
     }
     case phaseButtons:
@@ -282,6 +328,10 @@ static void AdvancePointer(Program* program)
                                             {mwin_eventButtonUp, mwin_buttonForward, 0x02},
                                             {mwin_eventButtonUp, mwin_buttonRight, 0x00}};
         CHECK(Buttons(program, held, 4), "buttons held together, each with the ones held");
+        const mwinEvent* right = Find(program, mwin_eventButtonDown, 0);
+        CHECK(right != nullptr && right->timeNs + 50000000u >= program->sentNs &&
+                  right->timeNs < program->sentNs + (uint64_t)LATE_MS * 1000000u / 2u,
+              "a button handled late carries the time it was sent");
         CHECK(GetCapture() == nullptr, "the mouse let go once both are up");
         Mouse(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA);
         break;
@@ -533,12 +583,32 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         break;
     }
     case phaseText:
-    {
-        RECT client = ClientOnScreen(program->hwnd);
-        float scale = (float)GetDpiForWindow(program->hwnd) / (float)USER_DEFAULT_SCREEN_DPI;
         CHECK(TextIs(program, "\xF0\x9F\x98\x80\xF4\x8F\xBF\xBF") &&
                   Find(program, mwin_eventKeyDown, 0) == nullptr,
               "text outside the BMP to its last character, and no key for it");
+        // A key that waits in the queue, as behind a long frame, then
+        // one whose own time is older than the first's.
+        program->sentNs = NowNs();
+        Key(KEY_A, true);
+        Key(KEY_A, false);
+        KeyAt(KEY_A, true, GetTickCount() - 100u);
+        KeyAt(KEY_A, false, GetTickCount() - 100u);
+        Sleep(LATE_MS);
+        break;
+    case phaseLate:
+    {
+        // The message's time is on GetTickCount's clock, in steps of 10
+        // to 16 ms, so it may read a step before it was sent.
+        CHECK(down != nullptr && down->timeNs + 50000000u >= program->sentNs &&
+                  down->timeNs < program->sentNs + (uint64_t)LATE_MS * 1000000u / 2u,
+              "a key handled late carries the time it was sent, not the time it was handled");
+        const mwinEvent* up = Find(program, mwin_eventKeyUp, 0);
+        const mwinEvent* older = Find(program, mwin_eventKeyDown, 1);
+        CHECK(up != nullptr && older != nullptr && older->timeNs == up->timeNs,
+              "a key whose own time is older is stamped no earlier than the one before");
+        CHECK(InOrder(program), "every record's time no earlier than the one before");
+        RECT client = ClientOnScreen(program->hwnd);
+        float scale = (float)GetDpiForWindow(program->hwnd) / (float)USER_DEFAULT_SCREEN_DPI;
         SetCursorPos(client.left + (int)(100.0f * scale), client.top + (int)(120.0f * scale));
         break;
     }
@@ -575,7 +645,7 @@ static void Advance(Program* program, mwinContext* context)
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
     }
-    if (program->phase <= phaseText)
+    if (program->phase <= phaseLate)
     {
         AdvanceKeys(program, context);
     }

@@ -16,8 +16,8 @@ may change the API, the ABI and the behavior.
   `base.h`. X11 tells it from `vrr_capable`, macOS 12 and later from
   whether the screen's refresh interval can vary, iOS by a refresh
   above 60 Hz, and Android 16 from `hasArrSupport`. Win32, Wayland, the
-  web and older macOS and Android report unknown, where they used to
-  report no
+  web, older macOS and Android, and an X11 output without
+  `vrr_capable` report unknown, where they used to report no
   ([#116](https://github.com/Rawframe-Project/maul-window/pull/116)).
 
 ### Added
@@ -34,7 +34,9 @@ may change the API, the ABI and the behavior.
 
 - On iOS and Android, a window made where it cannot be seen starts out
   occluded: on iOS one that takes a scene already in the background, on
-  Android one made while the activity is stopped. It used to say it
+  Android one made while the activity is stopped and its surface is
+  still there (a path the Android emulator does not reach). It used to
+  say it
   could be seen until the platform next changed its state
   ([#115](https://github.com/Rawframe-Project/maul-window/pull/115)).
 

@@ -8,10 +8,11 @@
 // native window's and its scale the density's; the display its one
 // monitor; a second window unsupported, showing done, a size request
 // unsupported. Then what only the system does, asked of the runner: the
-// home key, the application suspending in a frame of its own and its
-// surface lost in another, no frames while suspended (the suspended
-// record giving way to the resuming one); brought back, resuming with a
-// new surface; turned, the activity made anew, which joins the running
+// home key, the application suspending and the window occluded in a
+// frame of their own and its surface lost in another, no frames while
+// suspended (the suspended record giving way to the resuming one);
+// brought back, resuming with a new surface, and the window revealed
+// after; turned, the activity made anew, which joins the running
 // program: the window goes on with a new surface, not asked to close, and
 // the program is not asked for again; finished, the activity asks the
 // window to close, which the program hears once a new activity joins.
@@ -67,6 +68,10 @@ typedef struct Program
     int resumingFrame;
     // Whether the window was taller than wide before it was turned.
     bool wasPortrait;
+    // The frame that first told the window occluded, and whether its
+    // state said so then.
+    int occludedFrame;
+    bool occludedState;
 } Program;
 
 static int s_mains;
@@ -86,7 +91,8 @@ static bool SameWindow(mwinWindowId a, mwinWindowId b)
 static bool IsRecord(mwinEventType type)
 {
     return (type >= mwin_eventSuspending && type <= mwin_eventSurfaceRestored) ||
-           type == mwin_eventWindowCreated;
+           type == mwin_eventWindowCreated || type == mwin_eventOccluded ||
+           type == mwin_eventRevealed;
 }
 
 static void Complete(Program* program, const mwinEvent* event)
@@ -123,6 +129,7 @@ static void Collect(Program* program, mwinContext* context)
         int* first = event.type == mwin_eventSurfaceLost  ? &program->lostFrame
                      : event.type == mwin_eventSuspending ? &program->suspendingFrame
                      : event.type == mwin_eventResuming   ? &program->resumingFrame
+                     : event.type == mwin_eventOccluded   ? &program->occludedFrame
                                                           : nullptr;
         if (first != nullptr && *first == 0)
         {
@@ -139,6 +146,14 @@ static void Collect(Program* program, mwinContext* context)
         case mwin_eventCloseRequested:
             program->closeRequests += 1;
             break;
+        case mwin_eventOccluded:
+        {
+            mwinWindowState state = {0};
+            program->occludedState =
+                mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                state.occluded;
+            break;
+        }
         case mwin_eventSuspending:
             // The program asks the runner to bring it back, in the frame
             // that tells it, the last before it is suspended.
@@ -262,9 +277,13 @@ static void CheckWindow(const Program* program, mwinContext* context)
 static bool Ready(const Program* program, mwinContext* context)
 {
     // A suspended record still waiting when the application resumes
-    // gives way to the resuming one (no frames run between them).
-    static const mwinEventType order[] = {mwin_eventSuspending, mwin_eventResuming,
-                                          mwin_eventResumed};
+    // gives way to the resuming one (no frames run between them). The
+    // window is occluded as the activity stops, after the suspending
+    // record (lifecycle records come first), and revealed once it
+    // started again.
+    static const mwinEventType order[] = {mwin_eventSuspending, mwin_eventOccluded,
+                                          mwin_eventResuming, mwin_eventResumed,
+                                          mwin_eventRevealed};
     switch (program->phase)
     {
     case 0:
@@ -278,7 +297,7 @@ static bool Ready(const Program* program, mwinContext* context)
     {
         // Away and back, the surface lost and restored; turned, at last.
         mwinWindowState state = StateOf(program, context);
-        return SawInOrder(program, order, 3) && Saw(program, mwin_eventSurfaceLost) &&
+        return SawInOrder(program, order, 5) && Saw(program, mwin_eventSurfaceLost) &&
                Saw(program, mwin_eventSurfaceRestored) && !state.surfaceLost &&
                (program->phase == 2 ||
                 (state.pixelSize.width > state.pixelSize.height) == program->wasPortrait);
@@ -315,6 +334,9 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 2:
         CHECK(!program->framedSuspended, "no frames while suspended");
+        CHECK(program->occludedFrame == program->suspendingFrame && program->occludedState &&
+                  !state.occluded,
+              "occluded in the frame that tells of the suspending, revealed once it runs again");
         // Android waits for the surface to go: the program hears of it in
         // a frame of its own, whichever comes first, it or the stop.
         CHECK(program->lostFrame != program->suspendingFrame &&
@@ -354,6 +376,7 @@ static void Advance(Program* program, mwinContext* context)
     program->lostFrame = 0;
     program->suspendingFrame = 0;
     program->resumingFrame = 0;
+    program->occludedFrame = 0;
     program->startNs = NowNs();
 }
 

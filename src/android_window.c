@@ -69,6 +69,18 @@ void mwinAndroidPostFocus(mwinAndroidPlatform* platform)
     PostType(platform, window->focused ? mwin_eventFocusGained : mwin_eventFocusLost);
 }
 
+void mwinAndroidPostOcclusion(mwinAndroidPlatform* platform)
+{
+    mwinAndroidWindow* window = &platform->window;
+    bool occluded = !platform->started;
+    if (platform->slot < 0 || !window->created || window->occluded == occluded)
+    {
+        return;
+    }
+    window->occluded = occluded;
+    PostType(platform, occluded ? mwin_eventOccluded : mwin_eventRevealed);
+}
+
 void mwinAndroidSurfaceCame(mwinAndroidPlatform* platform)
 {
     mwinAndroidWindow* window = &platform->window;

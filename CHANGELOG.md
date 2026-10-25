@@ -7,10 +7,15 @@ may change the API, the ABI and the behavior.
 
 ## [0.1.1](https://github.com/Rawframe-Project/maul-window/compare/v0.1.0...v0.1.1) (2026-10-25)
 
-
 ### Fixed
 
-* **win32:** stamp input with the time its message happened ([#102](https://github.com/Rawframe-Project/maul-window/issues/102)) ([922445a](https://github.com/Rawframe-Project/maul-window/commit/922445ad0240c89ea51f6b40f485b61e196d40bf)), closes [#97](https://github.com/Rawframe-Project/maul-window/issues/97)
+- On Windows, input records (keys, typed text, the mouse, the wheel,
+  raw input, touch and pen) carry the time their message happened, as
+  `timeNs` promises, instead of the time the library handled it: input
+  that waited behind a long frame or a modal loop is no longer stamped
+  late by that wait. Touch and pen take the time Windows recorded with
+  the sample. Input times never go backwards, across all kinds of input
+  ([#102](https://github.com/Rawframe-Project/maul-window/pull/102)).
 
 ## [0.1.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.1.0) (2026-10-24)
 

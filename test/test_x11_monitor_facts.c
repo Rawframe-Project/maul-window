@@ -4,10 +4,11 @@
 // The facts an X11 monitor's output gives, set on the X server's own
 // output by the test's connection as a driver would: an EDID with HDR
 // static metadata gives the luminances, HDR staying off as X11 never
-// shows it; `vrr_capable` gives variable refresh, and turned off it is
-// told as a change; a mode with timings, set on the output's CRTC, gives
-// the refresh rate. The properties are deleted and the mode put back
-// after. Skipped (exit status 77) without DISPLAY or RandR 1.5.
+// shows it; `vrr_capable` gives variable refresh, turned off it is told
+// as a change, and deleted, as a driver without it, it is unknown; a mode
+// with timings, set on the output's CRTC, gives the refresh rate. The
+// properties are deleted and the mode put back after. Skipped (exit status 77) without DISPLAY or
+// RandR 1.5.
 
 #include "test_harness.h"
 #include "x11_display.h"
@@ -36,6 +37,7 @@ typedef enum Phase
 {
     phaseStart,
     phaseOff,
+    phaseGone,
     phaseDone,
 } Phase;
 
@@ -127,7 +129,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         float peak = 50.0f * exp2f((float)PEAK_CODE / 32.0f);
         CHECK(info.hdr.known && !info.hdr.active && fabsf(info.hdr.peakNits - peak) < 1.0f &&
                   info.hdr.fullFrameNits > 0.0f && info.hdr.headroom == 1.0f &&
-                  info.variableRefresh,
+                  info.variableRefresh == mwin_yes,
               "the EDID's luminances with HDR off, and variable refresh");
         CHECK(info.refreshMilliHz == REFRESH, "the refresh rate of the CRTC's mode");
         SetVrr(program, 0);
@@ -135,7 +137,16 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->startNs = NowNs();
     }
     else if (program->phase == phaseOff && program->changed && First(context, &info) &&
-             !info.variableRefresh)
+             info.variableRefresh == mwin_no)
+    {
+        xcb_randr_delete_output_property(program->connection, program->output, program->vrr);
+        xcb_flush(program->connection);
+        program->changed = false;
+        program->phase = phaseGone;
+        program->startNs = NowNs();
+    }
+    else if (program->phase == phaseGone && program->changed && First(context, &info) &&
+             info.variableRefresh == mwin_unknown)
     {
         program->phase = phaseDone;
     }
@@ -301,14 +312,16 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on the X server");
     CHECK(!program.timedOut, "every phase completes in time");
-    CHECK(program.phase == phaseDone, "variable refresh turned off, told as a change");
+    CHECK(program.phase == phaseDone,
+          "variable refresh turned off and the property deleted, each told as a change");
     // Properties and a mode a run left behind would trouble the next: the
     // fixture's X server keeps them, as it never resets.
     CHECK(Done(connection, xcb_randr_delete_output_property_checked(connection, output, edidAtom)),
           "the EDID deleted");
-    CHECK(
-        Done(connection, xcb_randr_delete_output_property_checked(connection, output, program.vrr)),
-        "vrr_capable deleted");
+    // The last phase deleted vrr_capable; a run stopped before it did not.
+    CHECK(program.phase >= phaseGone || Done(connection, xcb_randr_delete_output_property_checked(
+                                                             connection, output, program.vrr)),
+          "vrr_capable deleted");
     if (mode.made != XCB_NONE)
     {
         CHECK(SetCrtc(connection, screen->root, &mode, output, mode.old), "the mode put back");

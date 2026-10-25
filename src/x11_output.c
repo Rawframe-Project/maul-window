@@ -140,12 +140,14 @@ static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t 
     mwinReleaseSystemMemory(edid);
     xcb_randr_get_output_property_reply_t* vrr =
         PropertyOf(platform, output, platform->atoms[mwin_atomVrrCapable], 1);
-    uint32_t capable = 0;
+    // A driver without the property does not tell.
+    info->variableRefresh = mwin_unknown;
     if (vrr != nullptr && vrr->format == 32 && api->randrOutputPropertyDataLength(vrr) >= 4)
     {
+        uint32_t capable = 0;
         memcpy(&capable, api->randrOutputPropertyData(vrr), sizeof(capable));
+        info->variableRefresh = capable != 0 ? mwin_yes : mwin_no;
     }
-    info->variableRefresh = capable != 0;
     mwinReleaseSystemMemory(vrr);
 }
 

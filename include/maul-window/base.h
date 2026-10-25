@@ -107,6 +107,16 @@ extern "C"
         mwin_errorVersion = -7,
     };
 
+    // A yes or no the platform may not know.
+    typedef uint8_t mwinTristate;
+
+    enum
+    {
+        mwin_unknown = 0,
+        mwin_no = 1,
+        mwin_yes = 2,
+    };
+
     // The allocator an owner object takes in its def and keeps for its
     // lifetime. Alignment is a power of two. A zeroed allocator means the C
     // library's allocation functions.

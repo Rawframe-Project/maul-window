@@ -155,7 +155,9 @@ void mwinAndroidReadScreen(mwinAndroidPlatform* platform)
         .heightMm = MillimetersOf(facts[factHeight], facts[factYDpi]),
         .scale = mwinAndroidScale(platform),
         .refreshMilliHz = (uint32_t)lroundf(facts[factRefresh] * 1000.0f),
-        .variableRefresh = facts[factAdaptive] != 0.0f,
+        .variableRefresh = facts[factAdaptive] == 2.0f   ? mwin_yes
+                           : facts[factAdaptive] == 1.0f ? mwin_no
+                                                         : mwin_unknown,
         .primary = true,
         .hdr = HdrOf(facts),
     };

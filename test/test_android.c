@@ -223,8 +223,8 @@ static void CheckMonitor(const mwinWindowState* state, mwinContext* context)
               info.heightMm > 0 && info.refreshMilliHz > 0,
           "the display's facts, turned as the window");
     CHECK(info.hdr.known && !info.hdr.active && info.hdr.headroom == 1.0f &&
-              info.hdr.sdrWhiteNits == 0.0f && !info.variableRefresh,
-          "no HDR on the emulator's display");
+              info.hdr.sdrWhiteNits == 0.0f && info.variableRefresh == mwin_unknown,
+          "no HDR on the emulator's display, variable refresh unknown before Android 16");
 }
 
 // Android's own scale for the activity: its display metrics' density.

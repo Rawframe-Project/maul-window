@@ -107,8 +107,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         CHECK(First(context, &info) && hdr->known && hdr->active && hdr->peakNits == 1000.0f &&
                   hdr->fullFrameNits == 400.0f && hdr->sdrWhiteNits == 203.0f &&
-                  fabsf(hdr->headroom - 1000.0f / 203.0f) < 0.001f && !info.variableRefresh,
-              "an output in HDR has its facts from the first frame");
+                  fabsf(hdr->headroom - 1000.0f / 203.0f) < 0.001f &&
+                  info.variableRefresh == mwin_unknown,
+              "an output in HDR has its facts from the first frame, variable refresh unknown");
         ColorChange(&program->color, s_sdr);
         Next(program, phaseSdr);
     }

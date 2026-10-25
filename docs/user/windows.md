@@ -62,7 +62,7 @@ The web has no frame to drag and answers unsupported.
 
 ## Monitors
 
-`mwinGetMonitors` and `mwinGetMonitorInfo` describe the connected monitors: name, bounds and work area in pixels, physical size, scale, refresh rate, whether each is the primary one, variable refresh, and HDR facts. Hotplug and changes arrive as `mwin_eventMonitorAdded`, `mwin_eventMonitorRemoved` and `mwin_eventMonitorChanged`; a monitor connected again gets a new id.
+`mwinGetMonitors` and `mwinGetMonitorInfo` describe the connected monitors: name, bounds and work area in pixels, physical size, scale, refresh rate, whether each is the primary one, whether it can vary its refresh rate, and HDR facts. Variable refresh is a tristate: known on X11 where the driver gives `vrr_capable`, on macOS 12 and later, on iOS and on Android 16 and later; `mwin_unknown` on Windows, Wayland and the web, which do not tell. Hotplug and changes arrive as `mwin_eventMonitorAdded`, `mwin_eventMonitorRemoved` and `mwin_eventMonitorChanged`; a monitor connected again gets a new id.
 
 The HDR facts are what the platform tells, never invented: whether HDR output is on, the SDR white level and the display's luminances in nits (Windows, Android, Wayland with the color manager, X11 from the monitor's EDID), and `headroom`, the peak over SDR white, wherever it can be known (macOS and iOS give only this). Wayland names no primary monitor and reports no work area.
 

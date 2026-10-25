@@ -5,6 +5,20 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.4.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.4.0) (2026-10-25)
+
+### Added
+
+- On iOS, a window is reported occluded (`mwin_eventOccluded`) when
+  its scene goes to the background, and revealed
+  (`mwin_eventRevealed`) when the scene comes back to the foreground;
+  `mwinGetWindowState` says the same. The program hears of it in the
+  frame that tells of the suspending, after the suspending record, and
+  of the revealing after the resumed record. An inactive scene, under
+  Control Center, the app switcher or a system alert, is still seen and
+  stays revealed
+  ([#110](https://github.com/Rawframe-Project/maul-window/pull/110)).
+
 ## [0.3.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.3.0) (2026-10-25)
 
 ### Added

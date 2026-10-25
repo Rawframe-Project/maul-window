@@ -337,6 +337,17 @@ void mwinIOSSceneWent(mwinIOSPlatform* platform, UIScene* scene)
     }
 }
 
+void mwinIOSSceneSeen(mwinIOSPlatform* platform, UIScene* scene, bool seen)
+{
+    int32_t slot = mwinIOSSlotOfScene(platform, scene);
+    if (slot < 0 || platform->windows[slot].gone || platform->windows[slot].occluded != seen)
+    {
+        return;
+    }
+    platform->windows[slot].occluded = !seen;
+    PostType(platform, (uint32_t)slot, seen ? mwin_eventRevealed : mwin_eventOccluded);
+}
+
 void mwinIOSPumpScenes(mwinIOSPlatform* platform)
 {
     uint64_t now = mwinIOSNow();

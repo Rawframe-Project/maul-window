@@ -217,7 +217,6 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
 
 - (void)sceneWillEnterForeground:(UIScene*)scene
 {
-    (void)scene;
     mwinIOSPlatform* platform = CurrentPlatform();
     if (platform != nullptr && platform->suspended)
     {
@@ -226,6 +225,13 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
     else if (platform != nullptr)
     {
         platform->link.paused = NO;
+    }
+    // After the resumed record, where the application resumed; a program
+    // that stopped as it resumed is gone.
+    platform = CurrentPlatform();
+    if (platform != nullptr)
+    {
+        mwinIOSSceneSeen(platform, scene, true);
     }
 }
 
@@ -236,6 +242,8 @@ static void Lifecycle(mwinIOSPlatform* platform, bool running)
     {
         return;
     }
+    // Told in the frame that tells of the suspending, where it suspends.
+    mwinIOSSceneSeen(platform, scene, false);
     // Another scene still in the foreground keeps the program running.
     for (UIScene* other in UIApplication.sharedApplication.connectedScenes)
     {

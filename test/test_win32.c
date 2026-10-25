@@ -5,8 +5,17 @@
 // the window a creation makes, the monitors as Windows' own calls
 // describe them (bounds, work area, primary, scale, name, refresh), the
 // native handles, size and place as Windows reports them, maximizing,
-// borderless full screen and back, the close button's message, and the
-// process made per-monitor DPI aware.
+// borderless full screen and back, a change of DPI, the close button's
+// message, and the process made per-monitor DPI aware.
+//
+// The runner has one monitor, so the window cannot move to one of
+// another DPI: the test sends WM_DPICHANGED as Windows would, with
+// twice the window's DPI and the rectangle that keeps its logical size,
+// on a window made small first so that twice its pixels fit the screen.
+// "A DPI change answered within the pump cycle" reads here as: the scale
+// record carries the logical size as the one suggested, the backend
+// takes Windows' suggested rectangle while it handles the message, and a
+// program that wants another size requests it after the record.
 
 #include "test_harness.h"
 
@@ -125,6 +134,8 @@ typedef enum Phase
     phaseMaximize,
     phaseFullscreen,
     phaseWindowed,
+    phaseShrink,
+    phaseDpi,
     phaseClose,
     phaseDone,
 } Phase;
@@ -138,6 +149,13 @@ typedef struct Program
     mwinSize size;
     mwinPosition position;
     mwinWindowMode mode;
+    mwinScaleChange scale;
+    mwinPixelSize pixels;
+    // The rectangle sent with WM_DPICHANGED.
+    RECT suggested;
+    UINT dpi;
+    // The client area's pixels before it.
+    RECT client;
     mwinCompletion completion;
     bool completed;
     // Maximize requests made again after the platform undid one.
@@ -154,6 +172,9 @@ static void Collect(Program* program, mwinContext* context)
         program->size = event.type == mwin_eventResized ? event.data.size : program->size;
         program->position = event.type == mwin_eventMoved ? event.data.position : program->position;
         program->mode = event.type == mwin_eventModeChanged ? event.data.mode : program->mode;
+        program->scale = event.type == mwin_eventScaleChanged ? event.data.scale : program->scale;
+        program->pixels =
+            event.type == mwin_eventPixelSizeChanged ? event.data.pixelSize : program->pixels;
         if (event.type == mwin_eventRequestCompleted)
         {
             program->completion = event.data.completion;
@@ -183,6 +204,10 @@ static bool Ready(const Program* program)
         return program->completed && program->mode == mwin_modeBorderlessFullscreen;
     case phaseWindowed:
         return program->completed && program->mode == mwin_modeWindowed;
+    case phaseShrink:
+        return program->size.width == 400.0f && program->size.height == 300.0f;
+    case phaseDpi:
+        return Seen(program, mwin_eventScaleChanged) && Seen(program, mwin_eventPixelSizeChanged);
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
@@ -251,6 +276,49 @@ static void CheckCreated(const Program* program, mwinContext* context)
     CHECK((info.widthMm == 0) == (info.heightMm == 0), "a physical size whole or none");
 }
 
+// Sends the window WM_DPICHANGED for twice its DPI, with the rectangle
+// Windows would suggest: the same place, the client area twice as many
+// pixels, framed as Windows frames the window.
+static void ChangeDpi(Program* program, HWND hwnd)
+{
+    UINT dpi = GetDpiForWindow(hwnd);
+    RECT window;
+    CHECK(GetWindowRect(hwnd, &window) && GetClientRect(hwnd, &program->client),
+          "the window's rectangles");
+    program->dpi = dpi * 2;
+    RECT suggested = {0, 0, program->client.right * 2, program->client.bottom * 2};
+    CHECK(AdjustWindowRectExForDpi(&suggested, (DWORD)GetWindowLongPtrW(hwnd, GWL_STYLE), FALSE,
+                                   (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE), dpi),
+          "the frame around the suggested client area");
+    OffsetRect(&suggested, window.left - suggested.left, window.top - suggested.top);
+    program->suggested = suggested;
+    (void)SendMessageW(hwnd, WM_DPICHANGED, MAKEWPARAM(program->dpi, program->dpi),
+                       (LPARAM)&program->suggested);
+}
+
+static void CheckDpi(const Program* program, mwinContext* context)
+{
+    HWND hwnd = WindowOf(context, program->window);
+    float scale = (float)program->dpi / 96.0f;
+    LONG width = program->client.right * 2;
+    LONG height = program->client.bottom * 2;
+    CHECK(program->scale.scale == scale && program->scale.suggestedSize.width == 400.0f &&
+              program->scale.suggestedSize.height == 300.0f,
+          "the scale record: the new scale, the logical size suggested");
+    RECT window;
+    RECT client;
+    CHECK(GetWindowRect(hwnd, &window) && EqualRect(&window, &program->suggested),
+          "the window takes the rectangle Windows suggested");
+    CHECK(GetClientRect(hwnd, &client) && client.right == width && client.bottom == height &&
+              program->pixels.width == (uint32_t)width &&
+              program->pixels.height == (uint32_t)height,
+          "the client area twice as many pixels, as Windows and the record say");
+    mwinWindowState state;
+    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              state.scale == scale && state.size.width == 400.0f && state.size.height == 300.0f,
+          "the logical size kept at the new scale");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->window;
@@ -283,6 +351,14 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseWindowed:
         CHECK(program->size.width == 800.0f || program->size.width == 0.0f, "the size from before");
+        CHECK(mwinRequestSize(context, window, (mwinSize){400.0f, 300.0f}, nullptr) == mwin_success,
+              "a smaller size");
+        break;
+    case phaseShrink:
+        ChangeDpi(program, WindowOf(context, window));
+        break;
+    case phaseDpi:
+        CheckDpi(program, context);
         PostMessageW(WindowOf(context, window), WM_CLOSE, 0, 0);
         break;
     default:

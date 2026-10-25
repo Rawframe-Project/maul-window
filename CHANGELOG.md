@@ -5,6 +5,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.2.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.2.0) (2026-10-25)
+
+### Added
+
+- On X11, a window wholly covered by other windows is reported
+  occluded (`mwin_eventOccluded`), and revealed (`mwin_eventRevealed`)
+  once any part of it can be seen again, as the X server computes it;
+  `mwinGetWindowState` says the same. Under a compositing window
+  manager the X server reports no window covered, so there a window is
+  never occluded. The windows guide now lists when each platform
+  reports occlusion
+  ([#107](https://github.com/Rawframe-Project/maul-window/pull/107)).
+
 ## [0.1.1](https://github.com/Rawframe-Project/maul-window/compare/v0.1.0...v0.1.1) (2026-10-25)
 
 ### Fixed

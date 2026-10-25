@@ -277,6 +277,7 @@ static void OnStart(ANativeActivity* activity)
     {
         return;
     }
+    mwinAndroidPostOcclusion(platform);
     PostFrame(platform);
 }
 
@@ -288,6 +289,8 @@ static void OnStop(ANativeActivity* activity)
         return;
     }
     platform->started = false;
+    // Told in the frame that tells of the stop.
+    mwinAndroidPostOcclusion(platform);
     (void)Lifecycle(platform, false);
 }
 

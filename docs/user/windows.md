@@ -28,7 +28,8 @@ Places and sizes are logical units, measured down and to the right from the top 
 | Wayland | the compositor marks the toplevel suspended (xdg-shell 6), as it chooses: for example, another window covers it or the screen is locked |
 | X11 | the X server reports the window wholly covered by other windows; never under a compositing window manager, which draws windows off screen, so the X server reports none covered |
 | Web | the page is hidden |
-| Windows, iOS, Android | never: these platforms do not report occlusion yet, and a window's state stays not occluded |
+| Android | the activity is stopped (another activity in front of it, the home screen, the screen off); a pause alone, as under a translucent activity or in split screen, leaves it revealed |
+| Windows, iOS | never: these platforms do not report occlusion yet, and a window's state stays not occluded |
 
 ## Requests
 

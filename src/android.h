@@ -50,6 +50,8 @@ typedef struct mwinAndroidWindow
     mwinCursorId cursorImage;
     // Whether the window was told its monitor.
     bool displayTold;
+    // Whether the window was told it cannot be seen.
+    bool occluded;
 } mwinAndroidWindow;
 
 // The window's insets as the activity last told them, in pixels: the
@@ -261,6 +263,11 @@ void mwinAndroidSurfaceCame(mwinAndroidPlatform* platform);
 void mwinAndroidSurfaceWent(mwinAndroidPlatform* platform);
 void mwinAndroidReadSize(mwinAndroidPlatform* platform);
 void mwinAndroidPostFocus(mwinAndroidPlatform* platform);
+// The activity stopped or started: the window, once made, is occluded
+// while it is stopped (nothing of it can be seen) and revealed when it
+// starts again. A pause alone leaves it revealed: the activity may still
+// show in part, under a translucent one or beside another.
+void mwinAndroidPostOcclusion(mwinAndroidPlatform* platform);
 
 // A key's press or release, as an event of the input queue or an input
 // method gives it: Android's action, key code, scan code (0 for none),

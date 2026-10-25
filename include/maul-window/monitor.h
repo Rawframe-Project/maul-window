@@ -71,7 +71,9 @@ extern "C"
         // Refresh rate in millihertz (59,940 for 59.94 Hz), 0 where
         // unknown.
         uint32_t refreshMilliHz;
-        bool variableRefresh;
+        // Whether the monitor can vary its refresh rate (adaptive sync),
+        // mwin_unknown where the platform does not tell.
+        mwinTristate variableRefresh;
         bool primary;
         mwinHdrFacts hdr;
     } mwinMonitorInfo;

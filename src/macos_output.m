@@ -42,7 +42,8 @@ static void RefreshOf(NSScreen* screen, mwinMonitorInfo* info)
     if (@available(macOS 12.0, *))
     {
         info->refreshMilliHz = (uint32_t)lround(screen.maximumFramesPerSecond * 1000.0);
-        info->variableRefresh = screen.minimumRefreshInterval != screen.maximumRefreshInterval;
+        info->variableRefresh =
+            screen.minimumRefreshInterval != screen.maximumRefreshInterval ? mwin_yes : mwin_no;
         return;
     }
     CGDisplayModeRef mode = CGDisplayCopyDisplayMode(DisplayOf(screen));

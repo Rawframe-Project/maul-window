@@ -17,6 +17,9 @@
 # runs start and is killed with SIGKILL; start's processes must keep
 # none of that parent's descriptors.
 #
+# A server that is not installed makes start exit skipped (77) and start
+# nothing; without Xvfb this test itself skips.
+#
 #   test/test_display_fixture.sh FIXTURE RUNTIME DISPLAY
 set -euo pipefail
 
@@ -25,6 +28,8 @@ runtime=$2
 number=$3
 pids=$runtime/display.pids
 failures=0
+
+command -v Xvfb >/dev/null || exit 77
 
 Fail() {
     echo "FAIL: $1"
@@ -87,6 +92,19 @@ stale=$!
 sleep 600 &
 other=$!
 trap 'kill "$stale" "$other" 2>/dev/null || true; "$fixture" stop "$runtime" || true' EXIT
+
+# Servers not installed: a PATH with no Xvfb, then one with Xvfb but no
+# weston, asked for both.
+mkdir -p "$runtime/none" "$runtime/xvfb-only"
+ln -s "$(command -v Xvfb)" "$runtime/xvfb-only/Xvfb"
+for case in "none:" "xvfb-only:wayland"; do
+    status=0
+    # shellcheck disable=SC2086 # no argument, or wayland
+    PATH=$runtime/${case%%:*} "$real" "$fixture" start "$runtime/missing" "$number" ${case#*:} \
+        >/dev/null || status=$?
+    [ "$status" = 77 ] || Fail "start without a server (${case%%:*}) exited $status, not 77"
+    [ -e "$runtime/missing" ] && Fail "start without a server (${case%%:*}) made its runtime folder"
+done
 
 Plant
 PATH=$runtime/slow:$PATH "$fixture" start "$runtime" "$number" || Fail "start with a planted record"

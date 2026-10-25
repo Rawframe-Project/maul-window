@@ -206,6 +206,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
     # (tools/test_display.sh). The display number comes from the build
     # directory, so two build trees never share one; the stand-in
     # compositors put their sockets in the same runtime directory.
+    #
+    # A server that is not installed is a platform missing: the tests get
+    # an empty DISPLAY or WAYLAND_DISPLAY in its place, and skip.
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         set(MWIN_TEST_RUNTIME ${PROJECT_BINARY_DIR}/rt)
         file(MAKE_DIRECTORY ${MWIN_TEST_RUNTIME})
@@ -213,15 +216,24 @@ if(MAUL_WINDOW_BUILD_TESTS)
         string(SHA1 hash ${PROJECT_BINARY_DIR})
         string(SUBSTRING ${hash} 0 3 hash)
         math(EXPR MWIN_TEST_DISPLAY "200 + 0x${hash} % 400")
+        find_program(MWIN_XVFB Xvfb)
+        find_program(MWIN_WESTON weston)
+        set(MWIN_TEST_X11 "")
+        set(MWIN_TEST_WAYLAND "")
         set(compositor "")
-        if(MAUL_WINDOW_WAYLAND)
-            set(compositor wayland)
+        if(MWIN_XVFB)
+            set(MWIN_TEST_X11 :${MWIN_TEST_DISPLAY})
+            if(MAUL_WINDOW_WAYLAND AND MWIN_WESTON)
+                set(MWIN_TEST_WAYLAND wayland-mwin)
+                set(compositor wayland)
+            endif()
         endif()
         add_test(NAME display_start COMMAND ${PROJECT_SOURCE_DIR}/tools/test_display.sh start
                  ${MWIN_TEST_RUNTIME} ${MWIN_TEST_DISPLAY} ${compositor})
         add_test(NAME display_stop COMMAND ${PROJECT_SOURCE_DIR}/tools/test_display.sh stop
                  ${MWIN_TEST_RUNTIME})
-        set_tests_properties(display_start PROPERTIES FIXTURES_SETUP display LABELS integration)
+        set_tests_properties(display_start PROPERTIES FIXTURES_SETUP display SKIP_RETURN_CODE 77
+                                                      LABELS integration)
         set_tests_properties(display_stop PROPERTIES FIXTURES_CLEANUP display LABELS integration)
         # The fixture signals only what it started, on a display of its own,
         # outside the range the build trees' displays come from.
@@ -230,15 +242,15 @@ if(MAUL_WINDOW_BUILD_TESTS)
                  COMMAND ${PROJECT_SOURCE_DIR}/test/test_display_fixture.sh
                          ${PROJECT_SOURCE_DIR}/tools/test_display.sh
                          ${PROJECT_BINARY_DIR}/rt-fixture ${display})
-        set_tests_properties(display_fixture PROPERTIES LABELS integration)
+        set_tests_properties(display_fixture PROPERTIES SKIP_RETURN_CODE 77 LABELS integration)
     endif()
     # mwin_display_tests(<tests>): tests that need the display fixture. Both
     # buses are named where none listens, so no test reaches the machine's
     # own; the tests that need a bus start one of their own.
     function(mwin_display_tests)
         set_property(TEST ${ARGN} APPEND PROPERTY FIXTURES_REQUIRED display)
-        set_property(TEST ${ARGN} APPEND PROPERTY ENVIRONMENT DISPLAY=:${MWIN_TEST_DISPLAY}
-                     XDG_RUNTIME_DIR=${MWIN_TEST_RUNTIME} WAYLAND_DISPLAY=wayland-mwin
+        set_property(TEST ${ARGN} APPEND PROPERTY ENVIRONMENT DISPLAY=${MWIN_TEST_X11}
+                     XDG_RUNTIME_DIR=${MWIN_TEST_RUNTIME} WAYLAND_DISPLAY=${MWIN_TEST_WAYLAND}
                      DBUS_SESSION_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus
                      DBUS_SYSTEM_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus)
         set_property(TEST ${ARGN} APPEND PROPERTY LABELS integration)

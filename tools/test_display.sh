@@ -22,6 +22,9 @@
 # watchdog and the servers close every descriptor they inherit, so none
 # holds ctest's pipes or a lock of whoever runs it.
 #
+# Start exits 77 where a server it is asked for is not installed, and 1
+# where one does not start.
+#
 # Start records each process it starts as its PID, its start time
 # (field 22 of /proc/PID/stat) and the start of its command line. A
 # recorded PID is the fixture's only while all three still match: the
@@ -132,6 +135,14 @@ Stop() {
 case "$action" in
 start)
     number=$3
+    # A server that is not installed is a platform missing: the tests
+    # skip (exit 77). One installed that does not start fails below.
+    for server in Xvfb ${4:+weston}; do
+        if ! command -v "$server" >/dev/null; then
+            echo "$server is not installed: the tests that need it skip"
+            exit 77
+        fi
+    done
     mkdir -p "$runtime"
     chmod 700 "$runtime"
     if Running "${4:-}"; then

@@ -188,7 +188,8 @@ static void Run(FakeBus* fake, int desktop, int phases, const char* what)
 int main(void)
 {
     static FakeBus fake;
-    if (getenv("DISPLAY") == nullptr)
+    const char* display = getenv("DISPLAY");
+    if (display == nullptr || display[0] == '\0')
     {
         return 77;
     }

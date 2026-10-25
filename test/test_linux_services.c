@@ -276,7 +276,7 @@ static void RunWithBus(const char* wayland)
 int main(void)
 {
     const char* display = getenv("DISPLAY");
-    if (display == nullptr)
+    if (display == nullptr || display[0] == '\0')
     {
         return 77;
     }

@@ -5,22 +5,38 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
-## [0.5.0](https://github.com/Rawframe-Project/maul-window/compare/v0.4.0...v0.5.0) (2026-10-25)
+## [0.5.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.5.0) (2026-10-25)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **monitor:** `mwinMonitorInfo.variableRefresh` is an `mwinTristate` (`mwin_yes`, `mwin_no`, `mwin_unknown`) instead of a `bool`; a program testing it as a truth value must compare it with `mwin_yes`. `mwinTristate` is declared in `base.h`.
+- **Breaking:** `mwinMonitorInfo.variableRefresh` is an `mwinTristate`
+  (`mwin_yes`, `mwin_no`, or `mwin_unknown` where the platform does not
+  tell) instead of a `bool`. A program testing it as a truth value must
+  compare it with `mwin_yes`. `mwinTristate` is now declared in
+  `base.h`. X11 tells it from `vrr_capable`, macOS 12 and later from
+  whether the screen's refresh interval can vary, iOS by a refresh
+  above 60 Hz, and Android 16 from `hasArrSupport`. Win32, Wayland, the
+  web and older macOS and Android report unknown, where they used to
+  report no
+  ([#116](https://github.com/Rawframe-Project/maul-window/pull/116)).
 
 ### Added
 
-* **monitor:** make variable refresh a tristate with unknown ([#116](https://github.com/Rawframe-Project/maul-window/issues/116)) ([a268e03](https://github.com/Rawframe-Project/maul-window/commit/a268e0327b875567f1e28964fd09fc969d3c9a2f)), closes [#100](https://github.com/Rawframe-Project/maul-window/issues/100)
-* **win32:** report minimized, cloaked and locked windows as occluded ([#117](https://github.com/Rawframe-Project/maul-window/issues/117)) ([afbe5e2](https://github.com/Rawframe-Project/maul-window/commit/afbe5e254d71b4f5f6c1e0f929943fedcf77d3c8)), closes [#99](https://github.com/Rawframe-Project/maul-window/issues/99)
-
+- On Windows, a window is reported occluded (`mwin_eventOccluded`)
+  while it is minimized, cloaked by DWM (as on another virtual
+  desktop), while the session is locked or while the display is off,
+  and revealed when none of these holds; a dimmed display counts as on.
+  `mwinGetWindowState` says the same. Coverage by other windows is not
+  reported, since Windows tells it nowhere
+  ([#117](https://github.com/Rawframe-Project/maul-window/pull/117)).
 
 ### Fixed
 
-* start a window made where it cannot be seen as occluded ([#115](https://github.com/Rawframe-Project/maul-window/issues/115)) ([10dd228](https://github.com/Rawframe-Project/maul-window/commit/10dd228754c7f7381e3a76feb24ae959dfa9be41)), closes [#113](https://github.com/Rawframe-Project/maul-window/issues/113)
+- On iOS and Android, a window made where it cannot be seen starts out
+  occluded: on iOS one that takes a scene already in the background, on
+  Android one made while the activity is stopped. It used to say it
+  could be seen until the platform next changed its state
+  ([#115](https://github.com/Rawframe-Project/maul-window/pull/115)).
 
 ## [0.4.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.4.0) (2026-10-25)
 

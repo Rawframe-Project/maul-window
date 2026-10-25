@@ -5,6 +5,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.4.0](https://github.com/Rawframe-Project/maul-window/compare/v0.3.0...v0.4.0) (2026-10-25)
+
+
+### Added
+
+* **ios:** report a window whose scene is in the background as occluded ([#110](https://github.com/Rawframe-Project/maul-window/issues/110)) ([b38a6e6](https://github.com/Rawframe-Project/maul-window/commit/b38a6e68852c04245336d26c95beef5c1419c561)), closes [#99](https://github.com/Rawframe-Project/maul-window/issues/99)
+
 ## [0.3.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.3.0) (2026-10-25)
 
 ### Added

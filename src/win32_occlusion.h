@@ -19,8 +19,9 @@ void mwinWin32StartOcclusion(mwinWin32Platform* platform);
 void mwinWin32StopOcclusion(mwinWin32Platform* platform);
 
 // Asks Windows to tell a new window of the session's locking and the
-// display's state, reads whether it is minimized or cloaked, and posts
-// occluded where it is; lets go of what it asked as the window goes.
+// display's state, reads whether it is minimized or cloaked and whether
+// the session is locked now, and posts occluded where it is; lets go of
+// what it asked as the window goes.
 void mwinWin32WatchOcclusion(mwinWin32Window* window);
 void mwinWin32UnwatchOcclusion(mwinWin32Window* window);
 

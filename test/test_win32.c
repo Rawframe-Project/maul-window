@@ -28,7 +28,10 @@
 // locked and unlocked and the display turned off and dimmed cannot be
 // brought about on the runner: the test sends the window the messages
 // Windows sends for them (WM_WTSSESSION_CHANGE, and WM_POWERBROADCAST
-// with GUID_SESSION_DISPLAY_STATUS), a stand-in for the system. Wine has
+// with GUID_SESSION_DISPLAY_STATUS), a stand-in for the system. A
+// session already locked as a window is made is read from
+// WTSQuerySessionInformation, for which no message stands in, and the
+// runner's session is never locked: that path is not exercised. Wine has
 // no cloaking, so there the cloaking phase times out.
 
 #include "test_harness.h"

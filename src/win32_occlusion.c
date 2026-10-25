@@ -14,6 +14,49 @@
 static const GUID s_displayStatus = {
     0x2B84C20E, 0xAD23, 0x4DDF, {0x93, 0xDB, 0x05, 0xFF, 0xBD, 0x7E, 0xFC, 0xA5}};
 
+// WTSSessionInfoEx's class and its level 1 record up to the flags, which
+// mingw's headers lack, laid out as the Windows SDK lays them out: the
+// record follows the level at the alignment its 64-bit times give it.
+#define SESSION_INFO_EX    25
+#define SESSION_STATE_LOCK 0
+
+typedef struct SessionInfo
+{
+    DWORD level;
+    union
+    {
+        struct
+        {
+            ULONG id;
+            int state;
+            LONG flags;
+        } one;
+        LARGE_INTEGER align;
+    } data;
+} SessionInfo;
+
+// Whether the session is locked, as Windows says now: a session locked
+// before the context started, or while it had no window, sent no
+// WM_WTSSESSION_CHANGE it heard. Where Windows does not say, the session
+// is taken as unlocked.
+static bool SessionLocked(void)
+{
+    WCHAR* buffer = nullptr;
+    DWORD bytes = 0;
+    if (!WTSQuerySessionInformationW(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION,
+                                     (WTS_INFO_CLASS)SESSION_INFO_EX, &buffer, &bytes))
+    {
+        return false;
+    }
+    SessionInfo info = {0};
+    if (buffer != nullptr && bytes >= sizeof(info))
+    {
+        memcpy(&info, buffer, sizeof(info));
+    }
+    WTSFreeMemory(buffer);
+    return info.level == 1 && info.data.one.flags == SESSION_STATE_LOCK;
+}
+
 static void Update(mwinWin32Window* window)
 {
     const mwinWin32Platform* platform = window->platform;
@@ -102,10 +145,13 @@ void mwinWin32WatchOcclusion(mwinWin32Window* window)
     window->cloaked = Cloaked(window->hwnd);
     window->sessionWatched =
         WTSRegisterSessionNotification(window->hwnd, NOTIFY_FOR_THIS_SESSION) != FALSE;
+    // The session's state now, then each change WM_WTSSESSION_CHANGE
+    // tells; every window takes it, as with the message.
+    window->platform->locked = SessionLocked();
+    UpdateAll(window->platform);
     // Windows tells the display's state at once, then each change.
     window->displayWatch = RegisterPowerSettingNotification(window->hwnd, &s_displayStatus,
                                                             DEVICE_NOTIFY_WINDOW_HANDLE);
-    Update(window);
 }
 
 void mwinWin32UnwatchOcclusion(mwinWin32Window* window)

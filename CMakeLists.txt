@@ -388,6 +388,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_hints POSIX)
         target_compile_definitions(test_x11_hints PRIVATE _POSIX_C_SOURCE=200809L)
         target_link_libraries(test_x11_hints PRIVATE PkgConfig::MWIN_TEST_XCB)
+        # Occlusion by a window of the test's own connection.
+        maul_add_test(x11_visibility POSIX)
+        target_compile_definitions(test_x11_visibility PRIVATE _POSIX_C_SOURCE=200809L)
+        target_link_libraries(test_x11_visibility PRIVATE PkgConfig::MWIN_TEST_XCB)
         # Owned windows and popups read back by the test's own connection.
         maul_add_test(x11_owned POSIX)
         target_compile_definitions(test_x11_owned PRIVATE _POSIX_C_SOURCE=200809L)
@@ -414,16 +418,17 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_touch WHITEBOX)
         # The scale of Xft.dpi.
         maul_add_test(x11_resources WHITEBOX)
-        # The tests that move the X server's focus or pointer, or own its
-        # selections, take turns.
+        # The tests that move the X server's focus or pointer, own its
+        # selections or cover others' windows take turns.
         set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data
                              x11_clipboard_limits x11_clipboard_readers x11_hints x11_icon
-                             x11_drop x11_owned x11_chrome x11_monitor x11_monitor_facts PROPERTIES
+                             x11_drop x11_owned x11_chrome x11_monitor x11_monitor_facts
+                             x11_visibility PROPERTIES
                              SKIP_RETURN_CODE 77
                              RESOURCE_LOCK x11-focus)
         mwin_display_tests(x11 x11_input x11_message_box x11_clipboard x11_clipboard_data
                            x11_clipboard_limits x11_clipboard_readers x11_hints x11_icon x11_drop
-                           x11_owned x11_chrome x11_monitor x11_monitor_facts)
+                           x11_owned x11_chrome x11_monitor x11_monitor_facts x11_visibility)
     endif()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         # Stand-ins for zenity and kdialog on PATH.

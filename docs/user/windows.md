@@ -20,6 +20,16 @@ A window has three sizes, each with its own notification:
 
 Places and sizes are logical units, measured down and to the right from the top left. Notifications that report state coalesce: a newer size replaces one still waiting, so a program may skip intermediate values. `mwinGetWindowState` always gives the latest state the stream has delivered: sizes, place, mode, focus, occlusion, visibility, the safe area, the part the on-screen keyboard covers, the style, the opacity and the surface generation.
 
+`mwin_eventOccluded` says that nothing of the window can be seen, and `mwin_eventRevealed` that some of it can again: a hint to draw less, which only some platforms give.
+
+| Platform | Occluded when |
+|---|---|
+| macOS | the window's occlusion state says no part of it is visible |
+| Wayland | the compositor marks the toplevel suspended (xdg-shell 6), as it chooses: for example, another window covers it or the screen is locked |
+| X11 | the X server reports the window wholly covered by other windows; never under a compositing window manager, which draws windows off screen, so the X server reports none covered |
+| Web | the page is hidden |
+| Windows, iOS, Android | never: these platforms do not report occlusion yet, and a window's state stays not occluded |
+
 ## Requests
 
 `mwinRequestTitle`, `Size`, `Position`, `Mode`, `Visible`, `Focus`, `SizeLimits`, `AspectRatio`, `Style`, `Opacity` and `Icon` change a window. A later request of the same kind on the same window supersedes one in flight. What a platform cannot do it answers `mwin_outcomeUnsupported`:

@@ -138,6 +138,7 @@ static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
         (void)printf("  touch not taken: error %lu\n", GetLastError());
     }
     // A frame apart, as a digitizer reports.
+    // hygiene: injected contacts a frame apart, as a digitizer reports
     Sleep(16);
 }
 
@@ -156,6 +157,7 @@ static void Pen(const Program* program, LONG x, LONG y, POINTER_FLAGS flags, PEN
     {
         (void)printf("  pen not taken: error %lu\n", GetLastError());
     }
+    // hygiene: injected contacts a frame apart, as a digitizer reports
     Sleep(16);
 }
 
@@ -291,6 +293,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else
     {
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         Sleep(1);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -315,11 +318,13 @@ int main(void)
     if (create == nullptr || destroy == nullptr || program.inject == nullptr ||
         !InitializeTouchInjection(1, TOUCH_FEEDBACK_NONE))
     {
+        // hygiene: no pointer injection on this Windows is a skip; CI has it
         return 77;
     }
     program.pen = create(PT_PEN, 1, POINTER_FEEDBACK_NONE);
     if (program.pen == nullptr)
     {
+        // hygiene: no synthetic pen on this Windows is a skip; CI has it
         return 77;
     }
     HHOOK hook = SetWindowsHookExW(WH_GETMESSAGE, OnMessage, nullptr, GetCurrentThreadId());

@@ -244,6 +244,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         Next(context, program);
     }
     struct timespec pause = {0, 500000};
+    // hygiene: yields between frames; the wait ends on a report, within the deadline
     (void)nanosleep(&pause, nullptr);
     bool late = NowNs() - program->startNs > DEADLINE_NS;
     return program->done || late ? mwin_frameStop : mwin_frameContinue;
@@ -254,6 +255,7 @@ int main(void)
     const char* runtime = getenv("XDG_RUNTIME_DIR");
     if (runtime == nullptr || runtime[0] == '\0')
     {
+        // hygiene: no Wayland display here is a skip, and CI requires one
         return 77;
     }
     if (!ServerStart(&s_server, "us", ""))

@@ -349,6 +349,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         Step(context, program);
     }
     struct timespec pause = {0, 1000000};
+    // hygiene: yields between frames; the wait ends on a report, within the deadline
     (void)nanosleep(&pause, nullptr);
     bool late = NowNs() - program->startNs > DEADLINE_NS;
     return program->done || late ? mwin_frameStop : mwin_frameContinue;
@@ -370,6 +371,7 @@ int main(void)
     const char* display = getenv("DISPLAY");
     if (display == nullptr || display[0] == '\0')
     {
+        // hygiene: no X server here is a skip, and CI requires one
         return 77;
     }
     if (mkdtemp(s_directory) == nullptr)

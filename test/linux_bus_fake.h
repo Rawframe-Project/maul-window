@@ -256,6 +256,7 @@ static inline FakeStarted FakeStart(FakeBus* fake, const char* directory)
     for (int i = 0; i < 500 && stat(path, &status) != 0; i++)
     {
         struct timespec pause = {0, 10000000};
+        // hygiene: polls for the socket the daemon makes in its own time
         (void)nanosleep(&pause, nullptr);
     }
     if (stat(path, &status) != 0)
@@ -297,6 +298,7 @@ static inline int FakeNotRunning(const FakeBus* fake, FakeStarted started)
     if (started == fakeAbsent)
     {
         (void)printf("no dbus-daemon or libdbus-1: skipped\n");
+        // hygiene: no dbus-daemon or libdbus-1 is a skip, and CI requires both
         return 77;
     }
     (void)printf("FAIL: the stand-in bus did not start: %s\n", fake->failure);

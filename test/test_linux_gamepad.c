@@ -525,6 +525,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -536,6 +537,7 @@ int main(void)
     const char* wayland = getenv("WAYLAND_DISPLAY");
     if ((display == nullptr || display[0] == '\0') && (wayland == nullptr || wayland[0] == '\0'))
     {
+        // hygiene: no display here is a skip, and CI requires one
         return 77;
     }
     static Program program;
@@ -546,6 +548,7 @@ int main(void)
     int uinput = open("/dev/uinput", O_RDWR);
     if (uinput < 0)
     {
+        // hygiene: no writable /dev/uinput is a skip, and CI requires one
         return 77;
     }
     close(uinput);

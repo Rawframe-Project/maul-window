@@ -162,6 +162,7 @@ static bool CanGrabSoon(Program* program)
             return true;
         }
         struct timespec pause = {0, 5000000};
+        // hygiene: polls the X server, which another client's ungrab reaches later
         (void)nanosleep(&pause, nullptr);
     }
     return false;
@@ -192,6 +193,7 @@ static bool ShowsOtherSoon(const Program* program)
             return true;
         }
         struct timespec pause = {0, 5000000};
+        // hygiene: polls the X server until the cursor's glyph changes
         (void)nanosleep(&pause, nullptr);
     }
     return false;
@@ -211,6 +213,7 @@ static bool PointerAtSoon(const Program* program, int16_t x, int16_t y)
             return true;
         }
         struct timespec pause = {0, 5000000};
+        // hygiene: polls the X server until the pointer is where XTEST put it
         (void)nanosleep(&pause, nullptr);
     }
     return false;
@@ -238,6 +241,7 @@ static bool ShowsRedSoon(Program* program, bool red)
             return true;
         }
         struct timespec pause = {0, 5000000};
+        // hygiene: polls the X server until the window's pixels change
         (void)nanosleep(&pause, nullptr);
     }
     return false;
@@ -496,6 +500,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;

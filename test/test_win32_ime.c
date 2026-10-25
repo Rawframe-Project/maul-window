@@ -202,6 +202,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else
     {
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         Sleep(1);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -217,5 +218,6 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on Windows");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
+    // hygiene: no input method to compose with is a skip; CI has one
     return s_failures == 0 && program.skipped ? 77 : (s_failures == 0 ? 0 : 1);
 }

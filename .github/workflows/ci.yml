@@ -33,29 +33,36 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@e6b9db735576653736d19d9c50d47e1b428af77a # v0.0.22
     permissions:
       pull-requests: read
 
-  # The organization's documentation check. protocols/, tools/gamepaddb/ and
-  # tools/androidkeys/ hold third-party files kept as published.
+  # The organization's documentation check, run from the pinned commit of
+  # .github. protocols/, tools/gamepaddb/ and tools/androidkeys/ hold
+  # third-party files kept as published.
   docs:
-    uses: Rawframe-Project/.github/.github/workflows/docs-check.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
-    with:
-      exclude: protocols tools/gamepaddb tools/androidkeys
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@e6b9db735576653736d19d9c50d47e1b428af77a # v0.0.22
+        with:
+          exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@e6b9db735576653736d19d9c50d47e1b428af77a # v0.0.22
     permissions:
       contents: read
 
   # The rules no compiler checks: formatting, the family's source, module,
-  # length, API documentation and snippet checks, the documentation site,
-  # the generated tables, and clang-tidy over the Linux build's sources. It
-  # runs on documentation changes too, since the snippet check and the site
-  # read docs/.
+  # length, API documentation and snippet checks, test hygiene and labels,
+  # the documentation site, the generated tables, and clang-tidy over the
+  # Linux build's sources. It runs on documentation changes too, since the
+  # snippet check and the site read docs/.
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -81,6 +88,17 @@ jobs:
           python3 tools/check_docs.py
           python3 tools/check_lengths.py
           python3 tools/check_guide.py
+      # Every test registration, in the configurations this image can
+      # configure: the Linux backends, the shared build's exports test, the
+      # build without a backend and the web backend's wasm32-wasi tests.
+      - name: Test hygiene
+        run: |
+          python3 tools/check_test_hygiene.py --self-test
+          python3 tools/check_test_hygiene.py
+          for preset in linux-clang-20-asan linux-shared linux-minimal web-wasi; do
+            cmake --preset "$preset" >/dev/null
+            python3 tools/check_test_hygiene.py --ctest "out/$preset"
+          done
       - name: The documentation site builds
         run: python3 tools/build_docs.py
       - name: Generated tables match their generators
@@ -134,7 +152,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@c84f41e11c17d61e2876d65faf9aed1bea5130f7 # v0.0.19
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@e6b9db735576653736d19d9c50d47e1b428af77a # v0.0.22
     permissions:
       contents: read
     with:

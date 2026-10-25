@@ -159,6 +159,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else
     {
         struct timespec pause = {0, 1000000};
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         (void)nanosleep(&pause, nullptr);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -293,6 +294,7 @@ int main(void)
     if (output == XCB_NONE)
     {
         xcb_disconnect(connection);
+        // hygiene: an X server without RandR 1.5 is a skip; CI's has it
         return 77;
     }
     static Program program;

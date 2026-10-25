@@ -866,6 +866,7 @@ static inline void* ServerRun(void* data)
             return nullptr;
         }
         struct timespec pause = {0, 200000};
+        // hygiene: the compositor's thread lets go of its lock between polls
         (void)nanosleep(&pause, nullptr);
     }
 }

@@ -195,7 +195,7 @@ typedef struct Program
     RECT client;
     mwinCompletion completion;
     bool completed;
-    // Maximize requests made again after the platform undid one.
+    // hygiene: maximize requests made again; whether one is ever needed is unverified
     int retries;
     bool timedOut;
     // The DPI change would make the window larger than Windows allows.
@@ -637,8 +637,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
+    // hygiene: retried for a maximize race no run has shown, which an open issue probes
     else if (MaximizeUndone(program) && program->retries < 3)
     {
+        // hygiene: the mode the next answer brings is still checked
         program->retries += 1;
         (void)printf("the platform undid the maximize; asking again\n");
         program->seen = 0;
@@ -666,6 +668,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else
     {
+        // hygiene: yields between frames; the wait ends on a report, within the deadline
         Sleep(1);
     }
     return program->phase == phaseDone ? mwin_frameStop : mwin_frameContinue;
@@ -681,5 +684,6 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on Windows");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
+    // hygiene: a screen too small for the DPI phase is a skip; CI's is large enough
     return s_failures != 0 ? 1 : program.skipped ? 77 : 0;
 }

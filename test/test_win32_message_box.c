@@ -108,6 +108,7 @@ static DWORD WINAPI Answer(void* data)
     HWND box = nullptr;
     while (box == nullptr && GetTickCount64() - startMs < DEADLINE_MS)
     {
+        // hygiene: polls for the box, which the program's thread shows
         Sleep(20);
         EnumThreadWindows(asked->thread, FindBox, (LPARAM)&box);
     }
@@ -120,6 +121,7 @@ static DWORD WINAPI Answer(void* data)
     // there.
     while (!IsAsked(box, asked) && GetTickCount64() - startMs < DEADLINE_MS)
     {
+        // hygiene: polls until the box's controls are all there
         Sleep(20);
     }
     asked->shown = IsAsked(box, asked);
@@ -139,6 +141,7 @@ static DWORD WINAPI Answer(void* data)
     startMs = GetTickCount64();
     while (IsWindow(box) && GetTickCount64() - startMs < DEADLINE_MS)
     {
+        // hygiene: polls until the closed box's window is gone
         Sleep(20);
     }
     if (IsWindow(box))

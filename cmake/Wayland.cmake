@@ -179,6 +179,7 @@ function(mwin_add_wayland_server_test name)
     # Its compositor's socket goes into the build's runtime directory. The
     # compositor runs on a thread of the test's own, over a real socket, so
     # these are integration tests.
+    # hygiene: exit 77 is a missing platform, and CI fails any skipped test
     set_tests_properties(${name} PROPERTIES SKIP_RETURN_CODE 77
                          ENVIRONMENT "XDG_RUNTIME_DIR=${MWIN_TEST_RUNTIME};DBUS_SESSION_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus;DBUS_SYSTEM_BUS_ADDRESS=unix:path=${MWIN_TEST_RUNTIME}/no-bus")
     set_property(TEST ${name} APPEND PROPERTY LABELS integration)

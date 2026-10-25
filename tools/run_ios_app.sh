@@ -39,7 +39,11 @@ while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
         set -- ${line#simctl: }
         verb=$1
         shift
-        xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+        echo "probe before $(date +%s.%N | cut -c1-14): $(xcrun simctl spawn "$device" launchctl list 2>/dev/null | grep -i -E 'preferences|maul' | tr '\n' ';')"
+        result=$(xcrun simctl "$verb" "$device" "$@" 2>&1) || echo "simctl $verb failed"
+        echo "probe $verb said: $result"
+        sleep 1
+        echo "probe after $(date +%s.%N | cut -c1-14): $(xcrun simctl spawn "$device" launchctl list 2>/dev/null | grep -i -E 'preferences|maul' | tr '\n' ';')"
     done
     sleep 0.2
 done

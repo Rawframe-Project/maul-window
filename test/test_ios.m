@@ -339,8 +339,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context);
         }
     }
-    else if (program->phase == 4 && program->lifecycle == 0 && program->settingsLaunches < 3 &&
-             NowNs() - program->startNs > SETTINGS_AGAIN_NS * (uint64_t)program->settingsLaunches)
+    else if (program->phase == 4 && program->lifecycle == 0 &&
+             NowNs() - program->startNs > 1000000000ull * (uint64_t)program->settingsLaunches)
+    {
+        printf("probe at %.2f s: application state %d, scene state %d\n", Since(),
+               (int)UIApplication.sharedApplication.applicationState,
+               (int)program->scene.activationState);
+        program->settingsLaunches += 1;
+    }
+    else if (false)
     {
         // hygiene: retry: the simulator sometimes ignores simctl launch; the
         // library's response is still asserted once.

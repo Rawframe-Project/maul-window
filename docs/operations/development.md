@@ -108,4 +108,4 @@ The servers' logs stay in `out/<preset>/rt/` (`xvfb.log`, `weston.log`), and the
 2. Run the test against it, with `ANDROID_SERIAL=emulator-5640`.
 3. Stop the emulator by the PID you started.
 
-A test that stays intermittent is quarantined until its issue is fixed ([Checks](checks.md#tests-and-labels)).
+A test that stays intermittent is quarantined until its issue's fix lands and it passes 14 nights in a row ([Checks](checks.md#tests-and-labels)).

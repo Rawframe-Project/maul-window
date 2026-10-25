@@ -30,8 +30,11 @@ trap 'rm -rf "$work"' EXIT
 sed -e "s/@PACKAGE@/$package/" -e "s/@LIBRARY@/$name/" \
     "$root/test/android/AndroidManifest.xml" > "$work/AndroidManifest.xml"
 mkdir -p "$work/classes" "$work/dex" "$work/lib/$abi"
-javac -nowarn --release 11 -classpath "$jar" -d "$work/classes" \
-    $(find "$root/java" "$root/test/android/java" -name '*.java')
+# The sources through an argument file and the classes as one jar, so
+# that no list of paths is split by the shell.
+find "$root/java" "$root/test/android/java" -name '*.java' > "$work/sources"
+javac -nowarn --release 11 -classpath "$jar" -d "$work/classes" "@$work/sources"
+(cd "$work/classes" && zip -qr ../classes.jar .)
 "$tools/aapt2" compile --dir "$root/test/android/res" -o "$work/res.zip"
 "$tools/aapt2" link -o "$work/linked.apk" -I "$jar" --manifest "$work/AndroidManifest.xml" \
     "$work/res.zip" --proguard "$work/manifest.pro" \
@@ -39,7 +42,7 @@ javac -nowarn --release 11 -classpath "$jar" -d "$work/classes" \
 java -cp "$tools/lib/d8.jar" com.android.tools.r8.R8 --release --min-api 30 --lib "$jar" \
     --output "$work/dex" --pg-conf "$work/manifest.pro" \
     --pg-conf "$root/java/proguard-rules.pro" --pg-conf "$root/test/android/proguard-rules.pro" \
-    $(find "$work/classes" -name '*.class')
+    "$work/classes.jar"
 cp "$library" "$work/lib/$abi/"
 cp "$work/dex/classes.dex" "$work/"
 (cd "$work" && zip -q linked.apk classes.dex "lib/$abi/$(basename "$library")")

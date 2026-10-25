@@ -120,6 +120,8 @@ typedef struct mwinX11Window
     // coordinates (mwinRequestTextInput).
     bool textInput;
     mwinRect caret;
+    // Whether the X server last reported it wholly covered.
+    bool obscured;
 } mwinX11Window;
 
 // The core keyboard through XKB: the device, XKB's event code, the

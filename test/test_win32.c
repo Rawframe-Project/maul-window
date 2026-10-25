@@ -11,11 +11,15 @@
 // The runner has one monitor, so the window cannot move to one of
 // another DPI: the test sends WM_DPICHANGED as Windows would, with
 // twice the window's DPI and the rectangle that keeps its logical size,
-// on a window made small first so that twice its pixels fit the screen.
+// from a timer the pump dispatches, as Windows sends it while the pump
+// runs. The window is made small and undecorated first: twice its pixels
+// fit the screen, and with no frame the window's real DPI, which the
+// message does not change, frames nothing differently from the new one.
 // "A DPI change answered within the pump cycle" reads here as: the scale
-// record carries the logical size as the one suggested, the backend
-// takes Windows' suggested rectangle while it handles the message, and a
-// program that wants another size requests it after the record.
+// record carries the logical size as the one suggested, the backend has
+// taken Windows' suggested rectangle by the time the program sees the
+// record, and a size the program requests on the record, before the next
+// pump, is the one the window keeps.
 
 #include "test_harness.h"
 
@@ -32,6 +36,13 @@
 
 // Generous: under wine on a loaded machine a phase has taken over 10 s.
 #define DEADLINE_MS 30000u
+// How long the program's answer to a DPI change must stand: long enough
+// for a rectangle the backend applied a pump or a timer later to land.
+#define SETTLE_MS 250u
+// The size the program asks for on the scale record, larger than the
+// window's in both directions.
+#define ANSWER_WIDTH  450.0f
+#define ANSWER_HEIGHT 320.0f
 
 // Windows' monitors, as its own calls list them.
 typedef struct Listed
@@ -136,6 +147,7 @@ typedef enum Phase
     phaseWindowed,
     phaseShrink,
     phaseDpi,
+    phaseAnswer,
     phaseClose,
     phaseDone,
 } Phase;
@@ -151,8 +163,9 @@ typedef struct Program
     mwinWindowMode mode;
     mwinScaleChange scale;
     mwinPixelSize pixels;
-    // The rectangle sent with WM_DPICHANGED.
+    // The rectangle sent with WM_DPICHANGED, and the window sent it.
     RECT suggested;
+    HWND hwnd;
     UINT dpi;
     // The client area's pixels before it.
     RECT client;
@@ -161,7 +174,12 @@ typedef struct Program
     // Maximize requests made again after the platform undid one.
     int retries;
     bool timedOut;
+    // The DPI change would make the window larger than Windows allows.
+    bool skipped;
 } Program;
+
+// The program whose window the DPI timer sends WM_DPICHANGED to.
+static Program* s_program;
 
 static void Collect(Program* program, mwinContext* context)
 {
@@ -207,7 +225,9 @@ static bool Ready(const Program* program)
     case phaseShrink:
         return program->size.width == 400.0f && program->size.height == 300.0f;
     case phaseDpi:
-        return Seen(program, mwin_eventScaleChanged) && Seen(program, mwin_eventPixelSizeChanged);
+        return Seen(program, mwin_eventScaleChanged);
+    case phaseAnswer:
+        return GetTickCount64() - program->startMs >= SETTLE_MS;
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
@@ -276,9 +296,51 @@ static void CheckCreated(const Program* program, mwinContext* context)
     CHECK((info.widthMm == 0) == (info.heightMm == 0), "a physical size whole or none");
 }
 
-// Sends the window WM_DPICHANGED for twice its DPI, with the rectangle
-// Windows would suggest: the same place, the client area twice as many
-// pixels, framed as Windows frames the window.
+// The window's size around a client area of a size, at a DPI.
+static RECT Framed(HWND hwnd, LONG width, LONG height, UINT dpi)
+{
+    RECT rect = {0, 0, width, height};
+    CHECK(AdjustWindowRectExForDpi(&rect, (DWORD)GetWindowLongPtrW(hwnd, GWL_STYLE), FALSE,
+                                   (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE), dpi),
+          "the frame around a client area");
+    return rect;
+}
+
+// Whether Windows lets the window be as large as the DPI change makes it:
+// the program's answer at twice the DPI, larger than the suggested size.
+// At the runner's 96 DPI it is; from about 120 it is not.
+static bool Fits(HWND hwnd)
+{
+    UINT dpi = GetDpiForWindow(hwnd);
+    float scale = (float)dpi * 2.0f / 96.0f;
+    RECT rect = Framed(hwnd, (LONG)(ANSWER_WIDTH * scale + 0.5f),
+                       (LONG)(ANSWER_HEIGHT * scale + 0.5f), dpi);
+    int width = GetSystemMetricsForDpi(SM_CXMAXTRACK, dpi);
+    int height = GetSystemMetricsForDpi(SM_CYMAXTRACK, dpi);
+    if (rect.right - rect.left > width || rect.bottom - rect.top > height)
+    {
+        (void)printf("skipped: at %u DPI the window would be %ld x %ld, more than the %d x %d "
+                     "Windows allows\n",
+                     dpi, rect.right - rect.left, rect.bottom - rect.top, width, height);
+        return false;
+    }
+    return true;
+}
+
+static void CALLBACK SendDpi(HWND unused, UINT message, UINT_PTR timer, DWORD time)
+{
+    (void)unused;
+    (void)message;
+    (void)time;
+    KillTimer(nullptr, timer);
+    Program* program = s_program;
+    (void)SendMessageW(program->hwnd, WM_DPICHANGED, MAKEWPARAM(program->dpi, program->dpi),
+                       (LPARAM)&program->suggested);
+}
+
+// Has the pump send the window WM_DPICHANGED for twice its DPI, with the
+// rectangle Windows would suggest: the same place, the client area twice
+// as many pixels, framed as Windows frames the window.
 static void ChangeDpi(Program* program, HWND hwnd)
 {
     UINT dpi = GetDpiForWindow(hwnd);
@@ -286,16 +348,17 @@ static void ChangeDpi(Program* program, HWND hwnd)
     CHECK(GetWindowRect(hwnd, &window) && GetClientRect(hwnd, &program->client),
           "the window's rectangles");
     program->dpi = dpi * 2;
-    RECT suggested = {0, 0, program->client.right * 2, program->client.bottom * 2};
-    CHECK(AdjustWindowRectExForDpi(&suggested, (DWORD)GetWindowLongPtrW(hwnd, GWL_STYLE), FALSE,
-                                   (DWORD)GetWindowLongPtrW(hwnd, GWL_EXSTYLE), dpi),
-          "the frame around the suggested client area");
+    // Windows frames it at the new DPI; at the current one here, the
+    // window's real DPI, which this message leaves as it is.
+    RECT suggested = Framed(hwnd, program->client.right * 2, program->client.bottom * 2, dpi);
     OffsetRect(&suggested, window.left - suggested.left, window.top - suggested.top);
     program->suggested = suggested;
-    (void)SendMessageW(hwnd, WM_DPICHANGED, MAKEWPARAM(program->dpi, program->dpi),
-                       (LPARAM)&program->suggested);
+    program->hwnd = hwnd;
+    s_program = program;
+    CHECK(SetTimer(nullptr, 0, USER_TIMER_MINIMUM, SendDpi) != 0, "a timer for the DPI change");
 }
 
+// What the program reads on the scale record, before the next pump.
 static void CheckDpi(const Program* program, mwinContext* context)
 {
     HWND hwnd = WindowOf(context, program->window);
@@ -305,6 +368,7 @@ static void CheckDpi(const Program* program, mwinContext* context)
     CHECK(program->scale.scale == scale && program->scale.suggestedSize.width == 400.0f &&
               program->scale.suggestedSize.height == 300.0f,
           "the scale record: the new scale, the logical size suggested");
+    CHECK(Seen(program, mwin_eventPixelSizeChanged), "the pixel size record with the scale record");
     RECT window;
     RECT client;
     CHECK(GetWindowRect(hwnd, &window) && EqualRect(&window, &program->suggested),
@@ -319,9 +383,30 @@ static void CheckDpi(const Program* program, mwinContext* context)
           "the logical size kept at the new scale");
 }
 
+// The size the program asked for on the scale record is the one the
+// window keeps, as Windows and the records say.
+static void CheckAnswer(const Program* program, mwinContext* context)
+{
+    float scale = (float)program->dpi / 96.0f;
+    LONG width = (LONG)(ANSWER_WIDTH * scale + 0.5f);
+    LONG height = (LONG)(ANSWER_HEIGHT * scale + 0.5f);
+    RECT client;
+    CHECK(GetClientRect(WindowOf(context, program->window), &client) && client.right == width &&
+              client.bottom == height && program->pixels.width == (uint32_t)width &&
+              program->pixels.height == (uint32_t)height,
+          "the client area the answer's pixels, as Windows and the record say");
+    mwinWindowState state;
+    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              state.scale == scale && state.size.width == ANSWER_WIDTH &&
+              state.size.height == ANSWER_HEIGHT && program->size.width == ANSWER_WIDTH &&
+              program->size.height == ANSWER_HEIGHT,
+          "the answer's logical size, as the state and the record say");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->window;
+    Phase next = program->phase + 1;
     switch (program->phase)
     {
     case phaseCreate:
@@ -351,21 +436,36 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseWindowed:
         CHECK(program->size.width == 800.0f || program->size.width == 0.0f, "the size from before");
-        CHECK(mwinRequestSize(context, window, (mwinSize){400.0f, 300.0f}, nullptr) == mwin_success,
-              "a smaller size");
+        CHECK(mwinRequestStyle(context, window, 0, nullptr) == mwin_success &&
+                  mwinRequestSize(context, window, (mwinSize){400.0f, 300.0f}, nullptr) ==
+                      mwin_success,
+              "undecorated, and a smaller size");
         break;
     case phaseShrink:
-        ChangeDpi(program, WindowOf(context, window));
+        if (Fits(WindowOf(context, window)))
+        {
+            ChangeDpi(program, WindowOf(context, window));
+            break;
+        }
+        program->skipped = true;
+        PostMessageW(WindowOf(context, window), WM_CLOSE, 0, 0);
+        next = phaseClose;
         break;
     case phaseDpi:
         CheckDpi(program, context);
+        CHECK(mwinRequestSize(context, window, (mwinSize){ANSWER_WIDTH, ANSWER_HEIGHT}, nullptr) ==
+                  mwin_success,
+              "another size, on the scale record");
+        break;
+    case phaseAnswer:
+        CheckAnswer(program, context);
         PostMessageW(WindowOf(context, window), WM_CLOSE, 0, 0);
         break;
     default:
         CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
         break;
     }
-    program->phase += 1;
+    program->phase = next;
     program->seen = 0;
     program->completed = false;
     program->startMs = GetTickCount64();
@@ -431,5 +531,5 @@ int main(void)
     CHECK(mwinRun(&def) == mwin_success, "the program runs on Windows");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
-    return s_failures == 0 ? 0 : 1;
+    return s_failures != 0 ? 1 : program.skipped ? 77 : 0;
 }

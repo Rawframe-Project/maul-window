@@ -648,8 +648,14 @@ if(MAUL_WINDOW_BUILD_TESTS)
             add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
                      $<TARGET_BUNDLE_DIR:test_${name}>)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
-                                 LABELS "${name};integration")
+                                 FIXTURES_REQUIRED ios_simulator LABELS "${name};integration")
         endforeach()
+        # A device's first install and launch of a test application, paid
+        # before the tests so that their time is their own.
+        add_test(NAME ios_warm_up COMMAND ${PROJECT_SOURCE_DIR}/tools/warm_ios_simulator.sh
+                 $<TARGET_BUNDLE_DIR:test_ios>)
+        set_tests_properties(ios_warm_up PROPERTIES TIMEOUT 300 RESOURCE_LOCK simulator
+                             FIXTURES_SETUP ios_simulator LABELS "ios;integration")
         if(MAUL_WINDOW_GAMEPAD)
             target_link_libraries(test_ios_gamepad PRIVATE "-framework GameController")
         endif()

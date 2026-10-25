@@ -1,15 +1,22 @@
 #!/bin/sh
 # Runs a test application in the iOS simulator: installs the
 # bundle on the booted device (or MWIN_IOS_DEVICE), launches it with its
-# output in a file, and waits, a minute at most, for the closing line its
-# quit prints, "result: N failures". simctl launch returns once the
-# application runs, not when it ends, and the library never ends the
+# output in a file, and waits, three minutes at most, for the closing
+# line its quit prints, "result: N failures". simctl launch returns once
+# the application runs, not when it ends, and the library never ends the
 # process, so the runner ends it. A line "simctl: <verb> <arguments>"
 # the test writes is run once, as "xcrun simctl <verb> <device>
 # <arguments>", so that the test drives what only the system can do
 # (another application in front of it, and its own brought back). Passes
 # when the line says 0 failures; otherwise shows the application's
 # errors, and where it is stuck or why it ended.
+#
+# Bringing the application back is the simulator's to do, and on a cold
+# runner it sometimes leaves the application in the background although
+# the launch returned. The test writes "active at T s" each time UIKit
+# makes it active, so the runner sends the launch back again when none
+# came 20 s after the last returned, twice at most, and fails the run if
+# the application is still in the background 20 s after the second.
 set -eu
 app=$1
 device=${MWIN_IOS_DEVICE:-booted}
@@ -28,7 +35,34 @@ pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
 ran=0
-while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
+# The runs that bring the application back still waiting for it to be
+# active: when the last returned, how many came, and the active lines
+# written before it.
+back=
+again=0
+actives=0
+limit=180
+ended=
+while ! grep -q '^result: ' "$out"; do
+    now=$(date +%s)
+    if [ $((now - launched)) -ge "$limit" ]; then
+        ended="ended by the runner's $limit s limit, before the test's closing line"
+        break
+    fi
+    if [ -n "$back" ]; then
+        if [ "$(grep -c '^active at ' "$out" || true)" -gt "$actives" ]; then
+            back=
+        elif [ $((now - back)) -ge 20 ]; then
+            if [ "$again" -eq 2 ]; then
+                ended="still in the background 20 s after the launch back was sent again twice"
+                break
+            fi
+            again=$((again + 1))
+            echo "launch back sent again at $((now - start)) s, none active 20 s after the last"
+            xcrun simctl launch "$device" "$id" >/dev/null || echo "simctl launch failed"
+            back=$(date +%s)
+        fi
+    fi
     commands=$(grep '^simctl: ' "$out" || true)
     count=$(printf '%s' "$commands" | grep -c '' || true)
     while [ "$ran" -lt "$count" ]; do
@@ -39,11 +73,18 @@ while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
         set -- ${line#simctl: }
         verb=$1
         shift
+        if [ "$verb $*" = "launch $id" ]; then
+            actives=$(grep -c '^active at ' "$out" || true)
+        fi
         xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+        if [ "$verb $*" = "launch $id" ]; then
+            back=$(date +%s)
+        fi
     done
     sleep 0.2
 done
-echo "waited until $(($(date +%s) - start)) s"
+echo "waited until $(($(date +%s) - start)) s, the launch back sent again: $again"
+[ -n "$ended" ] && echo "$ended"
 cat "$out"
 status=1
 if grep -qx 'result: 0 failures' "$out"; then

@@ -649,7 +649,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                      $<TARGET_BUNDLE_DIR:test_${name}>)
             # Installing and launching on a new device take up to two
             # minutes, and the runner waits two more.
-            set_tests_properties(${name} PROPERTIES TIMEOUT 360 RESOURCE_LOCK simulator
+            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
                                  LABELS "${name};integration")
         endforeach()
         if(MAUL_WINDOW_GAMEPAD)

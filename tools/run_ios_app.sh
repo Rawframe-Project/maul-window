@@ -34,12 +34,22 @@ while [ $(($(date +%s) - launched)) -lt 120 ] && ! grep -q '^result: ' "$out"; d
     while [ "$ran" -lt "$count" ]; do
         ran=$((ran + 1))
         line=$(printf '%s\n' "$commands" | sed -n "${ran}p")
+        seen=$(python3 -c 'import time; print(f"{time.time():.2f}")')
+        # Arm B: the launch back waits MWIN_PROBE_DELAY seconds after the
+        # line, written in the frame where the application went to the
+        # background.
+        case "$line" in
+        *"$id") [ -n "${MWIN_PROBE_DELAY:-}" ] && sleep "$MWIN_PROBE_DELAY" ;;
+        esac
+        sent=$(python3 -c 'import time; print(f"{time.time():.2f}")')
         echo "running: $line"
+        echo "probe seen at $seen, sent at $sent"
         # shellcheck disable=SC2086 # the verb and its arguments, as written
         set -- ${line#simctl: }
         verb=$1
         shift
         xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+        echo "probe $verb returned at $(python3 -c 'import time; print(f"{time.time():.2f}")')"
     done
     sleep 0.2
 done

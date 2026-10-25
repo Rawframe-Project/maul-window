@@ -157,7 +157,7 @@
       "name": "ios-simulator",
       "inherits": "base",
       "configurePreset": "ios-simulator",
-      "execution": { "jobs": 1, "timeout": 360 },
+      "execution": { "jobs": 1, "timeout": 240 },
       "filter": { "include": { "label": "^(integration|base)$" } }
     },
     {

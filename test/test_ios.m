@@ -91,6 +91,9 @@ static void Replace(Program* program, mwinContext* context)
     program->shown = false;
     mwinWindowDef def = mwinDefaultWindowDef();
     CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success, "another");
+    printf("probe suspending frame: application state %d, scene state %d\n",
+           (int)UIApplication.sharedApplication.applicationState,
+           (int)program->scene.activationState);
     printf("simctl: launch %s\n", NSBundle.mainBundle.bundleIdentifier.UTF8String);
 }
 

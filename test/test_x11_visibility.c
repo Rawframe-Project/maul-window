@@ -4,8 +4,10 @@
 // The X11 backend's occlusion, as the X server computes it: another
 // client's window covers the program's whole window (occluded), then
 // only part of it (revealed: some of it can be seen), then all of it
-// again (occluded), and goes away (revealed); the window's state says
-// the same each time. The fixture's Xvfb runs no compositing manager,
+// again (occluded); the program's window is hidden, still occluded, the
+// cover goes while it is hidden, and shown again it is revealed, as the
+// X server tells a window anew when it is mapped; the window's state
+// says the same each time. The fixture's Xvfb runs no compositing manager,
 // under which the X server would report no window covered. Skipped
 // (exit status 77) without an X server.
 
@@ -30,6 +32,7 @@ typedef enum Phase
     phaseCovered,
     phasePartly,
     phaseCoveredAgain,
+    phaseHidden,
     phaseUncovered,
     phaseDone,
 } Phase;
@@ -48,6 +51,7 @@ typedef struct Program
     Phase phase;
     bool created;
     bool shown;
+    bool hidden;
     // The occlusion notification the phase saw last, or 0.
     mwinEventType occlusion;
     uint64_t startNs;
@@ -73,6 +77,7 @@ static void Collect(Program* program, mwinContext* context)
                                  completion->request.generation == program->request.generation &&
                                  completion->outcome == mwin_outcomeDone);
         program->shown = program->shown || event.type == mwin_eventShown;
+        program->hidden = program->hidden || event.type == mwin_eventHidden;
         if (event.type == mwin_eventOccluded || event.type == mwin_eventRevealed)
         {
             program->occlusion = event.type;
@@ -96,9 +101,12 @@ static bool Ready(const Program* program)
     case phaseCovered:
     case phaseCoveredAgain:
         return program->occlusion == mwin_eventOccluded;
+    case phaseHidden:
+        return program->hidden;
     case phasePartly:
-    case phaseUncovered:
         return program->occlusion == mwin_eventRevealed;
+    case phaseUncovered:
+        return program->occlusion == mwin_eventRevealed && program->shown;
     default:
         return false;
     }
@@ -178,11 +186,22 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseCoveredAgain:
         CHECK(Occluded(program, context), "a window covered wholly again is occluded");
+        CHECK(mwinRequestVisible(context, program->window, false, nullptr) == mwin_success,
+              "hidden");
+        break;
+    case phaseHidden:
+        CHECK(Occluded(program, context) && program->occlusion == 0,
+              "a covered window hidden stays occluded");
+        // The cover goes while the window is unmapped, which the X server
+        // has carried out once its answer comes; then the window is shown.
         xcb_unmap_window(program->connection, program->cover);
-        xcb_flush(program->connection);
+        free(xcb_get_input_focus_reply(program->connection,
+                                       xcb_get_input_focus(program->connection), nullptr));
+        program->shown = false;
+        CHECK(mwinRequestVisible(context, program->window, true, nullptr) == mwin_success, "shown");
         break;
     case phaseUncovered:
-        CHECK(!Occluded(program, context), "a window uncovered is revealed");
+        CHECK(!Occluded(program, context), "a window shown again with nothing over it is revealed");
         break;
     default:
         break;

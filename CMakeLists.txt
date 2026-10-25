@@ -641,7 +641,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
     endif()
     if(MAUL_WINDOW_WIN32)
         maul_add_test(win32)
-        target_link_libraries(test_win32 PRIVATE user32 shcore)
+        target_link_libraries(test_win32 PRIVATE user32 shcore dwmapi)
         set_tests_properties(win32 PROPERTIES SKIP_RETURN_CODE 77)
         # Drives the desktop through SendInput.
         maul_add_test(win32_input)

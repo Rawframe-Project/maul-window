@@ -30,7 +30,7 @@ Places and sizes are logical units, measured down and to the right from the top 
 | Web | the page is hidden |
 | Android | the activity is stopped (another activity in front of it, the home screen, the screen off); a pause alone, as under a translucent activity or in split screen, leaves it revealed |
 | iOS | the window's scene is in the background; an inactive scene, under Control Center or the app switcher, stays revealed |
-| Windows | never: Windows does not report occlusion yet, and a window's state stays not occluded |
+| Windows | the window is minimized, cloaked (on another virtual desktop), the session is locked or the display is off; a window covered by other windows is never reported, since Windows tells it nowhere |
 
 ## Requests
 

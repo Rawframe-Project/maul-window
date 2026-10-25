@@ -4,7 +4,7 @@ Windows' windows belong to the thread that made them, its sizes are in pixels of
 
 ## Linking and loading
 
-The backend links `user32`, `shcore`, `imm32`, `advapi32` and `dwmapi`, which every supported Windows has. What only newer systems or optional components have is loaded at its first need: Windows.Gaming.Input through `combase.dll`, XInput's newest DLL, `hid.dll`, msctf and the input pane, `uiautomationcore.dll`. `uiautomationcore.dll` is never unloaded, since UI Automation's objects may outlive the context.
+The backend links `user32`, `shcore`, `imm32`, `advapi32`, `dwmapi` and `wtsapi32`, which every supported Windows has. What only newer systems or optional components have is loaded at its first need: Windows.Gaming.Input through `combase.dll`, XInput's newest DLL, `hid.dll`, msctf and the input pane, `uiautomationcore.dll`. `uiautomationcore.dll` is never unloaded, since UI Automation's objects may outlive the context.
 
 ## DPI
 
@@ -19,6 +19,8 @@ While the user moves or sizes a window, and while a common item dialog shows, Wi
 One window class, `MaulWindow`, registered at the context's start; it carries the program's own icon (its first icon group), so a window given none shows what Explorer shows for the program's file. Borderless full screen is a popup window covering its monitor; leaving it restores the style and placement. Mode requests are answered at once, their records following from the messages. A focus request is denied when Windows keeps the foreground from the process.
 
 Custom chrome keeps `WS_CAPTION` and the frame styles, so Windows keeps its shadow, snapping and animations: `WM_NCCALCSIZE` gives the client area the whole window (leaving out, when maximized, the frame Windows puts past the monitor), one line of DWM frame keeps the shadow, and `WM_NCHITTEST` answers from the hit regions. A maximize region answers `HTMAXBUTTON`, which is what makes Windows 11 show its snap layouts. The frame's mouse messages over the client area are translated back into the program's own pointer records.
+
+Occlusion ([win32_occlusion.c](../../src/win32_occlusion.c)) is what Windows tells of a window hidden wholly: minimized (`WM_SIZE`), cloaked by DWM, as on another virtual desktop (`EVENT_OBJECT_CLOAKED` and `EVENT_OBJECT_UNCLOAKED` from a WinEvent hook out of context, which the thread's own message loop delivers, with `DWMWA_CLOAKED` read at the window's creation), the session locked (`WTSRegisterSessionNotification`) and the display off (`RegisterPowerSettingNotification` for `GUID_SESSION_DISPLAY_STATUS`, which also tells the state at once; dimmed counts as on). A window is occluded while any holds. Windows tells no window that others cover it: Chromium computes that by walking every window's region on a thread of its own, at each change WinEvents tell, and the library starts no thread, so it is left out.
 
 Owned windows have their owner as the Win32 owner and no `WS_EX_APPWINDOW`, so they stay off the taskbar. Popups are `WS_POPUP` tool windows placed in their owner's client coordinates; a tooltip is also `WS_EX_NOACTIVATE` and topmost.
 

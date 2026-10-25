@@ -5,8 +5,8 @@
 // the window a creation makes, the monitors as Windows' own calls
 // describe them (bounds, work area, primary, scale, name, refresh), the
 // native handles, size and place as Windows reports them, maximizing,
-// borderless full screen and back, a change of DPI, the close button's
-// message, and the process made per-monitor DPI aware.
+// borderless full screen and back, a change of DPI, occlusion, the
+// close button's message, and the process made per-monitor DPI aware.
 //
 // The runner has one monitor, so the window cannot move to one of
 // another DPI: the test sends WM_DPICHANGED as Windows would, with
@@ -22,6 +22,14 @@
 // pump, is the one the window keeps. What this leaves untested is the
 // backend framing a request at the new DPI (a decorated window's answer,
 // OnMinMax after a change): only a monitor of that DPI frames a window so.
+//
+// Occlusion: minimized and restored as the program asks, cloaked and
+// uncloaked through DWM, each told as Windows tells it. The session
+// locked and unlocked and the display turned off and dimmed cannot be
+// brought about on the runner: the test sends the window the messages
+// Windows sends for them (WM_WTSSESSION_CHANGE, and WM_POWERBROADCAST
+// with GUID_SESSION_DISPLAY_STATUS), a stand-in for the system. Wine has
+// no cloaking, so there the cloaking phase times out.
 
 #include "test_harness.h"
 
@@ -30,10 +38,12 @@
 #include "maul-window/native.h"
 
 #define WIN32_LEAN_AND_MEAN
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
-// After windows.h, whose types it takes.
+// After windows.h, whose types they take.
+#include <dwmapi.h>
 #include <shellscalingapi.h>
 
 // Generous: under wine on a loaded machine a phase has taken over 10 s.
@@ -151,6 +161,14 @@ typedef enum Phase
     phaseShrink,
     phaseDpi,
     phaseAnswer,
+    phaseMinimized,
+    phaseRestored,
+    phaseLocked,
+    phaseUnlocked,
+    phaseDark,
+    phaseLit,
+    phaseCloaked,
+    phaseUncloaked,
     phaseClose,
     phaseDone,
 } Phase;
@@ -249,6 +267,16 @@ static bool Ready(const Program* program)
         return Seen(program, mwin_eventScaleChanged);
     case phaseAnswer:
         return program->answeredMs != 0 && GetTickCount64() - program->answeredMs >= SETTLE_MS;
+    case phaseMinimized:
+    case phaseLocked:
+    case phaseDark:
+    case phaseCloaked:
+        return Seen(program, mwin_eventOccluded);
+    case phaseRestored:
+    case phaseUnlocked:
+    case phaseLit:
+    case phaseUncloaked:
+        return Seen(program, mwin_eventRevealed);
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
@@ -424,6 +452,87 @@ static void CheckAnswer(const Program* program, mwinContext* context)
           "the answer's logical size, as the state and the record say");
 }
 
+// Sends the window what Windows sends as the session locks or unlocks.
+static void Session(HWND hwnd, bool locked)
+{
+    (void)SendMessageW(hwnd, WM_WTSSESSION_CHANGE, locked ? WTS_SESSION_LOCK : WTS_SESSION_UNLOCK,
+                       (LPARAM)WTSGetActiveConsoleSessionId());
+}
+
+// Sends the window what Windows sends as the display's state changes: 0
+// for off, 1 for on, 2 for dimmed.
+static void Display(HWND hwnd, DWORD status)
+{
+    static const GUID displayStatus = {
+        0x2B84C20E, 0xAD23, 0x4DDF, {0x93, 0xDB, 0x05, 0xFF, 0xBD, 0x7E, 0xFC, 0xA5}};
+    union
+    {
+        POWERBROADCAST_SETTING setting;
+        unsigned char bytes[sizeof(POWERBROADCAST_SETTING) + sizeof(DWORD)];
+    } message = {0};
+    message.setting.PowerSetting = displayStatus;
+    message.setting.DataLength = sizeof(status);
+    memcpy(message.bytes + offsetof(POWERBROADCAST_SETTING, Data), &status, sizeof(status));
+    (void)SendMessageW(hwnd, WM_POWERBROADCAST, PBT_POWERSETTINGCHANGE, (LPARAM)&message.setting);
+}
+
+static void Cloak(HWND hwnd, BOOL cloak)
+{
+    CHECK(SUCCEEDED(DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, &cloak, sizeof(cloak))),
+          "cloaking asked of DWM");
+}
+
+// The occlusion phases: the window's state says what the last record
+// told, and the next change is brought about.
+static Phase AdvanceOcclusion(Program* program, mwinContext* context)
+{
+    static const char* const said[] = {
+        "minimized: occluded",
+        "restored: revealed",
+        "the session locked: occluded",
+        "the session unlocked: revealed",
+        "the display off: occluded",
+        "the display dimmed: revealed",
+        "cloaked: occluded",
+        "uncloaked: revealed",
+    };
+    Phase phase = program->phase;
+    HWND hwnd = WindowOf(context, program->window);
+    mwinWindowState state;
+    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              state.occluded == ((phase - phaseMinimized) % 2 == 0),
+          said[phase - phaseMinimized]);
+    switch (phase)
+    {
+    case phaseMinimized:
+        CHECK(mwinRequestMode(context, program->window, mwin_modeWindowed, nullptr) == mwin_success,
+              "restored");
+        break;
+    case phaseRestored:
+        Session(hwnd, true);
+        break;
+    case phaseLocked:
+        Session(hwnd, false);
+        break;
+    case phaseUnlocked:
+        Display(hwnd, 0);
+        break;
+    case phaseDark:
+        Display(hwnd, 2);
+        break;
+    case phaseLit:
+        Cloak(hwnd, TRUE);
+        break;
+    case phaseCloaked:
+        Cloak(hwnd, FALSE);
+        break;
+    default:
+        PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        break;
+    }
+    return phase + 1;
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->window;
@@ -483,7 +592,18 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseAnswer:
         CheckAnswer(program, context);
-        PostMessageW(WindowOf(context, window), WM_CLOSE, 0, 0);
+        CHECK(mwinRequestMode(context, window, mwin_modeMinimized, nullptr) == mwin_success,
+              "minimized");
+        break;
+    case phaseMinimized:
+    case phaseRestored:
+    case phaseLocked:
+    case phaseUnlocked:
+    case phaseDark:
+    case phaseLit:
+    case phaseCloaked:
+    case phaseUncloaked:
+        next = AdvanceOcclusion(program, context);
         break;
     default:
         CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
@@ -527,14 +647,17 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {
         (void)printf("timed out in phase %d: mode %d, %s (kind %d, outcome %d), %gx%g at %g,%g, "
-                     "zoomed %d, mode changes seen %d\n",
+                     "zoomed %d, mode changes seen %d, answer's size record %d and pixel size "
+                     "record %d, occluded seen %d, revealed seen %d\n",
                      (int)program->phase, (int)program->mode,
                      program->completed ? "a request completed" : "no request completed",
                      (int)program->completion.kind, (int)program->completion.outcome,
                      (double)program->size.width, (double)program->size.height,
                      (double)program->position.x, (double)program->position.y,
                      (int)IsZoomed(WindowOf(context, program->window)),
-                     (int)Seen(program, mwin_eventModeChanged));
+                     (int)Seen(program, mwin_eventModeChanged), (int)program->sizeAnswered,
+                     (int)program->pixelsAnswered, (int)Seen(program, mwin_eventOccluded),
+                     (int)Seen(program, mwin_eventRevealed));
         program->timedOut = true;
         return mwin_frameStop;
     }

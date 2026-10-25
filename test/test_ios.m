@@ -33,8 +33,8 @@
 // launched back take simctl from 4 to 22 s on a CI runner, the first
 // time after the simulator boots the longest. On a device where Settings
 // never ran, its launch alone has blocked up to 52 s, and the test runs
-// on until Settings comes forward; the runner waits two minutes from the
-// launch.
+// on until Settings comes forward. The runner waits two minutes from the
+// launch, clear of this and the seconds before the drive starts.
 #define DRIVE_DEADLINE_NS 90000000000ull
 
 typedef struct Program

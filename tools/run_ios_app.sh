@@ -27,8 +27,12 @@ pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-
     --stderr="$err" "$device" "$id" | sed 's/.*: //')
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
+# Clear of the longest wait a test keeps (test_ios's drive: 90 s, starting
+# a few seconds after the launch), so that a test times out on its own and
+# says where; a test suspended past it cannot, and this says so instead.
+limit=120
 ran=0
-while [ $(($(date +%s) - launched)) -lt 120 ] && ! grep -q '^result: ' "$out"; do
+while [ $(($(date +%s) - launched)) -lt $limit ] && ! grep -q '^result: ' "$out"; do
     commands=$(grep '^simctl: ' "$out" || true)
     count=$(printf '%s' "$commands" | grep -c '' || true)
     while [ "$ran" -lt "$count" ]; do
@@ -44,6 +48,7 @@ while [ $(($(date +%s) - launched)) -lt 120 ] && ! grep -q '^result: ' "$out"; d
     sleep 0.2
 done
 echo "waited until $(($(date +%s) - start)) s"
+grep -q '^result: ' "$out" || echo "ended by the runner's $limit s limit, before the test's closing line"
 cat "$out"
 status=1
 if grep -qx 'result: 0 failures' "$out"; then

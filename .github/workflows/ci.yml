@@ -476,7 +476,7 @@ jobs:
             echo "::error::a test did not run"; exit 1
           fi
           # Where each application's time went, passing ones included.
-          grep -E 'Testing: |^installed |^launched as |^waited until |^phase ' \
+          grep -E 'Testing: |^installed |^launched as |^waited until |^ended by |^phase ' \
             out/ios-simulator/Testing/Temporary/LastTest.log || true
       - name: Test on an iPad
         if: github.event_name != 'pull_request'
@@ -493,7 +493,7 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest-ipad.log"; then
             echo "::error::a test did not run"; exit 1
           fi
-          grep -E 'Testing: |^installed |^launched as |^waited until |^phase ' \
+          grep -E 'Testing: |^installed |^launched as |^waited until |^ended by |^phase ' \
             out/ios-simulator/Testing/Temporary/LastTest.log || true
       - name: Test logs
         if: failure()

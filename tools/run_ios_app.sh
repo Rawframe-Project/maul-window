@@ -43,6 +43,17 @@ again=0
 actives=0
 limit=180
 ended=
+# Probe: the first MWIN_PROBE_WITHHOLD launches back are not sent, as if
+# the simulator dropped them.
+withheld=0
+send_back() {
+    if [ "$withheld" -lt "${MWIN_PROBE_WITHHOLD:-0}" ]; then
+        withheld=$((withheld + 1))
+        echo "probe: launch back withheld"
+    else
+        xcrun simctl launch "$device" "$id" >/dev/null || echo "simctl launch failed"
+    fi
+}
 while ! grep -q '^result: ' "$out"; do
     now=$(date +%s)
     if [ $((now - launched)) -ge "$limit" ]; then
@@ -59,7 +70,7 @@ while ! grep -q '^result: ' "$out"; do
             fi
             again=$((again + 1))
             echo "launch back sent again at $((now - start)) s, none active 20 s after the last"
-            xcrun simctl launch "$device" "$id" >/dev/null || echo "simctl launch failed"
+            send_back
             back=$(date +%s)
         fi
     fi
@@ -76,7 +87,11 @@ while ! grep -q '^result: ' "$out"; do
         if [ "$verb $*" = "launch $id" ]; then
             actives=$(grep -c '^active at ' "$out" || true)
         fi
-        xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+        if [ "$verb $*" = "launch $id" ]; then
+            send_back
+        else
+            xcrun simctl "$verb" "$device" "$@" >/dev/null || echo "simctl $verb failed"
+        fi
         if [ "$verb $*" = "launch $id" ]; then
             back=$(date +%s)
         fi

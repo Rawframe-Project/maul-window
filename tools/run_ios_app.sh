@@ -1,8 +1,8 @@
 #!/bin/sh
 # Runs a test application in the iOS simulator: installs the
 # bundle on the booted device (or MWIN_IOS_DEVICE), launches it with its
-# output in a file, and waits, a minute at most, for the closing line its
-# quit prints, "result: N failures". simctl launch returns once the
+# output in a file, and waits, two minutes at most, for the closing line
+# its quit prints, "result: N failures". simctl launch returns once the
 # application runs, not when it ends, and the library never ends the
 # process, so the runner ends it. A line "simctl: <verb> <arguments>"
 # the test writes is run once, as "xcrun simctl <verb> <device>
@@ -28,7 +28,7 @@ pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
 ran=0
-while [ $(($(date +%s) - launched)) -lt 60 ] && ! grep -q '^result: ' "$out"; do
+while [ $(($(date +%s) - launched)) -lt 120 ] && ! grep -q '^result: ' "$out"; do
     commands=$(grep '^simctl: ' "$out" || true)
     count=$(printf '%s' "$commands" | grep -c '' || true)
     while [ "$ran" -lt "$count" ]; do

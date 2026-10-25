@@ -647,7 +647,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             target_compile_options(test_${name} PRIVATE -fno-objc-arc)
             add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_ios_app.sh
                      $<TARGET_BUNDLE_DIR:test_${name}>)
-            set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
+            # Installing and launching on a new device take up to two
+            # minutes, and the runner waits two more.
+            set_tests_properties(${name} PROPERTIES TIMEOUT 360 RESOURCE_LOCK simulator
                                  LABELS "${name};integration")
         endforeach()
         if(MAUL_WINDOW_GAMEPAD)

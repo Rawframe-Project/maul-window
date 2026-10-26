@@ -30,9 +30,9 @@ trap 'rm -rf "$work"' EXIT
 sed -e "s/@PACKAGE@/$package/" -e "s/@LIBRARY@/$name/" \
     "$root/test/android/AndroidManifest.xml" > "$work/AndroidManifest.xml"
 mkdir -p "$work/classes" "$work/dex" "$work/lib/$abi"
-# The sources through an argument file and the classes as one jar, so
-# that no list of paths is split by the shell.
-find "$root/java" "$root/test/android/java" -name '*.java' > "$work/sources"
+# The sources through an argument file, each quoted, and the classes as
+# one jar, so that neither the shell nor javac splits a path.
+find "$root/java" "$root/test/android/java" -name '*.java' | sed 's/.*/"&"/' > "$work/sources"
 javac -nowarn --release 11 -classpath "$jar" -d "$work/classes" "@$work/sources"
 (cd "$work/classes" && zip -qr ../classes.jar .)
 "$tools/aapt2" compile --dir "$root/test/android/res" -o "$work/res.zip"

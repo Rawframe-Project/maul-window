@@ -14,8 +14,10 @@
 // (simctl launch). There, in the frame that tells of the suspending, the
 // window is destroyed and another made, which takes the scene it left,
 // now in the background: occluded from the start, revealed once the
-// application resumed. mwinRun never returns on iOS: quit prints the
-// closing line the runner waits for.
+// application resumed. Each time UIKit makes the application active it
+// writes "active at T s", which the runner waits for after bringing it
+// back. mwinRun never returns on iOS: quit prints the closing line the
+// runner waits for.
 
 #include "test_harness.h"
 
@@ -29,10 +31,11 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
-// Another application launched in front of this one and this one
-// launched back take simctl from 4 to 22 s on a CI runner, the first
-// time after the simulator boots the longest; the runner waits a minute
-// from the launch.
+// Another application launched in front of this one takes simctl up to
+// 13 s on a CI runner once the simulator has launched it before (the
+// tests' setup does). The deadline counts from the phase's start until
+// the application is in the background, where bringing it back is the
+// runner's to bound, and again from UIKit making it active.
 #define DRIVE_DEADLINE_NS 45000000000ull
 
 typedef struct Program
@@ -57,6 +60,9 @@ typedef struct Program
     mwinEventType occlusionTypes[4];
     int occlusionFrames[4];
     bool occludedState;
+    // From the frame that tells of the suspending behind another
+    // application until UIKit makes this one active again.
+    bool away;
     UIWindowScene* scene;
 } Program;
 
@@ -89,6 +95,7 @@ static void Replace(Program* program, mwinContext* context)
     program->shown = false;
     mwinWindowDef def = mwinDefaultWindowDef();
     CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success, "another");
+    program->away = true;
     printf("simctl: launch %s\n", NSBundle.mainBundle.bundleIdentifier.UTF8String);
 }
 
@@ -332,7 +339,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context);
         }
     }
-    else if (NowNs() - program->startNs > (program->phase == 4 ? DRIVE_DEADLINE_NS : DEADLINE_NS))
+    else if (!program->away &&
+             NowNs() - program->startNs > (program->phase == 4 ? DRIVE_DEADLINE_NS : DEADLINE_NS))
     {
         printf("timed out in phase %d at %.2f s, %d lifecycle records, %d occlusion records, "
                "application state %d, scene state %d\n",
@@ -366,6 +374,24 @@ int main(void)
     setvbuf(stdout, nullptr, _IONBF, 0);
     s_launchNs = NowNs();
     printf("main\n");
+    // UIKit's own reading of the application in front, for the runner and
+    // the deadline; the library's records are what the phases check.
+    @autoreleasepool
+    {
+        [NSNotificationCenter.defaultCenter
+            addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification* note) {
+                      (void)note;
+                      printf("active at %.2f s\n", Since());
+                      if (program.away)
+                      {
+                          program.away = false;
+                          program.startNs = NowNs();
+                      }
+                    }];
+    }
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;

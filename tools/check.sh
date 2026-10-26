@@ -114,6 +114,12 @@ source_checks() {
     fi
 }
 
+# The iOS runner against stand-ins of the simulator, in seconds.
+ios_runner_checks() {
+    step "the iOS runner against a stand-in simulator"
+    tools/test_run_ios_app.sh
+}
+
 # Every C file of the project but those kept as published.
 all_c_files() {
     git ls-files 'include/*.h' 'src/*.[chm]' 'test/*.[chm]' 'tools/*.[ch]' 'bench/*.[ch]' \
@@ -131,6 +137,10 @@ if [ "$tier" = changed ]; then
         exit 0
     fi
     source_checks
+    ios_scripts='^tools/(run_ios_app|warm_ios_simulator|test_run_ios_app)\.sh$'
+    if printf '%s\n' "${changed[@]}" | grep -q -E "$ios_scripts"; then
+        ios_runner_checks
+    fi
     mapfile -t c_files < <(printf '%s\n' "${changed[@]}" | grep -E '\.[chm]$' |
         grep -v -E '^(src/generated|tools/gamepaddb|tools/androidkeys)/' || true)
     present=()
@@ -180,6 +190,8 @@ python3 tools/gen_android_keys.py "$out/regenerated/android_keys.c"
 for f in pad_linux.c pad_windows.c android_keys.c; do
     diff -u "src/generated/$f" "$out/regenerated/$f"
 done
+
+ios_runner_checks
 
 step "the documentation site builds"
 python3 tools/build_docs.py >"$out/site.log"

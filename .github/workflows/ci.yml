@@ -466,8 +466,8 @@ jobs:
           udid=$(tools/ci_simulator.sh iPhone)
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-          # A new device's first launch of Settings takes minutes (273 s
-          # once): paid here, not within a test's or the warm-up's timeout.
+          # A new device's first launch of Settings can take over four
+          # minutes: paid here, not within a test's or the warm-up's timeout.
           xcrun simctl launch "$udid" com.apple.Preferences
           xcrun simctl terminate "$udid" com.apple.Preferences
           echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"

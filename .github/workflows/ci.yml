@@ -33,7 +33,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       pull-requests: read
 
@@ -49,12 +49,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
         with:
           exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       contents: read
 
@@ -154,7 +154,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@23883e3610442d449485b0a5ec5192709efbc33c # v0.0.23
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
     permissions:
       contents: read
     with:
@@ -214,43 +214,28 @@ jobs:
           cmake --build out/fuzz
           ccache --show-stats
       - name: Save ccache
-        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/ccache
           key: ccache-fuzz-${{ github.sha }}
       - name: Run
         # As many targets at a time as the runner has cores; each keeps its
-        # full time. A target's output goes to its log, printed when it
-        # finds something.
+        # full time. tools/fuzz_target.sh reports a finding without its
+        # input, and keeps the input and the log on the runner; the reports
+        # are printed once every target has finished.
         run: |
-          mkdir -p out/fuzz-logs out/findings
-          fuzz_one() {
+          rm -rf out/fuzz-reports
+          status=0
+          printf '%s\n' out/fuzz/fuzz_* | xargs -P "$(nproc)" -I {} bash -c '
             name=$(basename "$1")
             mkdir -p "out/corpus/$name"
             seeds=()
             [ -d "test/seeds/$name" ] && seeds=("test/seeds/$name")
-            if "$1" -max_total_time="$FUZZ_SECONDS" -max_len=256 -artifact_prefix="out/findings/$name-" \
-              "out/corpus/$name" "${seeds[@]}" >"out/fuzz-logs/$name.log" 2>&1; then
-              echo "$name: no finding"
-            else
-              tail -n 60 "out/fuzz-logs/$name.log"
-              echo "::error::$name found something"
-              return 1
-            fi
-          }
-          export -f fuzz_one
-          printf '%s\n' out/fuzz/fuzz_* | xargs -P "$(nproc)" -I {} bash -c 'fuzz_one "$1"' _ {}
-      - name: Fuzz logs and findings
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: fuzz
-          path: |
-            out/fuzz-logs/
-            out/findings/
-          if-no-files-found: ignore
-          retention-days: 7
+            tools/fuzz_target.sh "$1" -max_total_time="$FUZZ_SECONDS" -max_len=256 \
+              "out/corpus/$name" "${seeds[@]}"' _ {} || status=$?
+          cat out/fuzz-reports/*.txt 2>/dev/null || true
+          exit "$status"
 
   # The fuzz targets, one per test/fuzz_*.c, for fuzz-nightly's matrix.
   fuzz-targets:
@@ -276,9 +261,10 @@ jobs:
   # changed restores its latest corpus of an earlier build: a corpus is only
   # inputs, which stay valid against a new binary. After the run the
   # fuzzer's merge minimizes the seeds and the corpus together against this
-  # binary, and the result is saved for the next night. The summary compares
-  # the seeds' coverage with the corpus's, and the corpus is uploaded, to
-  # pick inputs worth committing as seeds.
+  # binary, and the result is saved for the next night, only by a run that
+  # found nothing. The summary compares the seeds' coverage with the
+  # corpus's. Nothing is uploaded: a finding, a log and a corpus hold
+  # inputs, and the Actions cache and artifacts are not secret.
   fuzz-nightly:
     needs: fuzz-targets
     strategy:
@@ -310,6 +296,7 @@ jobs:
           echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
       - name: Restore the corpus
         id: restore
+        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
@@ -320,12 +307,18 @@ jobs:
             ${{ env.CORPUS_KEY }}-
             corpus-${{ matrix.target }}-
       - name: Fuzz
+        # tools/fuzz_target.sh reports a finding without its input, and
+        # keeps the input and the log on the runner.
         run: |
-          mkdir -p "out/corpus/$TARGET" out/findings
+          mkdir -p "out/corpus/$TARGET"
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
-          "out/fuzz/$TARGET" -max_total_time=600 -max_len=256 -artifact_prefix=out/findings/ \
-            "out/corpus/$TARGET" "${seeds[@]}"
+          rm -rf out/fuzz-reports
+          status=0
+          tools/fuzz_target.sh "out/fuzz/$TARGET" -max_total_time=600 -max_len=256 \
+            "out/corpus/$TARGET" "${seeds[@]}" || status=$?
+          cat out/fuzz-reports/*.txt 2>/dev/null || true
+          exit "$status"
       - name: Minimize the corpus
         env:
           MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
@@ -333,9 +326,17 @@ jobs:
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
           # Minimized together: the files of the seeds and the corpus that
-          # keep every feature either reaches, seeds among them.
+          # keep every feature either reaches, seeds among them. The merge
+          # runs every input again, so its output, which would hold the
+          # input of a crash, is discarded.
           mkdir -p out/merged
-          "out/fuzz/$TARGET" -merge=1 out/merged "${seeds[@]}" "out/corpus/$TARGET"
+          status=0
+          "out/fuzz/$TARGET" -merge=1 out/merged "${seeds[@]}" "out/corpus/$TARGET" >/dev/null 2>&1 ||
+            status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::error::$TARGET: the merge exited $status"
+            exit 1
+          fi
           rm -rf "out/corpus/$TARGET"
           mv out/merged "out/corpus/$TARGET"
           coverage() { "out/fuzz/$TARGET" -runs=0 "$@" 2>&1 | sed -n 's/.*INITED cov: \([0-9]*\).*/\1/p'; }
@@ -356,20 +357,6 @@ jobs:
         with:
           path: out/corpus/${{ matrix.target }}
           key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
-      - name: Upload the corpus
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: corpus-${{ matrix.target }}
-          path: out/corpus/${{ matrix.target }}/
-          retention-days: 7
-      - name: Upload the findings
-        if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: findings-${{ matrix.target }}
-          path: out/findings/
-          if-no-files-found: ignore
-          retention-days: 7
 
   # The Linux gamepads, through virtual pads the test makes with /dev/uinput,
   # every night. A container job gets no input devices, so this one runs the

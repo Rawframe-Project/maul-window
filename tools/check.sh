@@ -180,7 +180,8 @@ fi
 source_checks
 
 step "clang-format on every file"
-clang-format --dry-run -Werror $(all_c_files)
+mapfile -t all_c < <(all_c_files)
+clang-format --dry-run -Werror "${all_c[@]}"
 
 step "generated tables match their generators"
 mkdir -p "$out/regenerated"

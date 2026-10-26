@@ -57,8 +57,9 @@ The fuzz targets (`test/fuzz_<area>.c`, built with `-DMAUL_WINDOW_FUZZ=ON` and C
 Each target starts from its committed seeds (`test/seeds/<target>/`), inputs that reach what random bytes rarely would. The nightly run also carries a corpus per target from night to night in an Actions cache:
 
 - The cache key names the target and hashes the fuzz build's inputs (`src/`, `include/`, `protocols/`, `cmake/`, `CMakeLists.txt`, the target's source) and the compiler's version, so an unchanged build restores its own corpus exactly. A target whose build changed restores its latest corpus of an earlier build: a corpus is only inputs, which stay valid against a new binary.
-- After its 600 seconds, the fuzzer's merge step minimizes the seeds and the corpus together, keeping the files that still reach every feature either reaches (some of them seeds), and that is saved for the next night.
-- The run's summary says which corpus was restored (this build's, an earlier build's, or none) and gives the seeds' coverage beside the corpus's, and the corpus is uploaded as `corpus-<target>` for seven days. Where the corpus reaches more, the inputs worth keeping are committed as seeds ([Development](development.md#a-fuzz-finding)).
+- After its 600 seconds, the fuzzer's merge step minimizes the seeds and the corpus together, keeping the files that still reach every feature either reaches (some of them seeds), and that is saved for the next night. The merge prints nothing but, if it fails, the target and its exit status. A run that found something saves nothing.
+- The run's summary says which corpus was restored (this build's, an earlier build's, or none) and gives the seeds' coverage beside the corpus's. Where the corpus reaches more, the inputs worth keeping are found locally and committed as seeds ([Development](development.md#a-fuzz-finding)).
+- Every run, on a pull request, on main and at night, goes through `tools/fuzz_target.sh`. A finding is reported by its kind and its sanitizer report, never by its input, its seed or its file name, and the finding and the target's log stay on the runner. No job uploads a finding, a fuzz log or a corpus, and a pull request's run starts from the committed seeds alone.
 
 ## Budgets
 

@@ -69,13 +69,13 @@ MWIN_FUZZ_TRACE=1 ./out/fuzz/fuzz_linux_bus crash-<hash>   # and the D-Bus messa
 
 Always pass `-max_total_time`. A target's seeds, inputs that reach what random bytes rarely would, are committed in `test/seeds/<target>/`; the runs read them and write what they find to the first folder.
 
-The nightly run keeps each target's corpus from night to night ([Checks](checks.md#fuzzing)). When its summary shows the corpus reaching more than the seeds, download the `corpus-<target>` artifact of that run, copy the target's seeds into an empty folder `kept`, and let `./out/fuzz/<target> -merge=1 kept <artifact folder>` add the inputs that reach what the seeds miss; commit those worth keeping, under a name that says what each reaches.
+The nightly run keeps each target's corpus from night to night ([Checks](checks.md#fuzzing)). That corpus is never uploaded. When its summary shows the corpus reaching more than the seeds, fuzz the target locally from its seeds for at least as long, copy the seeds into an empty folder `kept`, and let `./out/fuzz/<target> -merge=1 kept out/corpus/<target>` add the inputs that reach what the seeds miss; commit those worth keeping, under a name that says what each reaches.
 
-A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.
+A CI fuzz run reports a finding by its kind and sanitizer report only, so reproduce it by fuzzing the target locally until it finds the same report. A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.
 
 ## Debugging a failure
 
-Start from what the failed run left. A failed CI job uploads its CTest logs, kept for a week, as `logs-<preset>` (`logs-android-emulator`, `logs-ios-simulator`, and so on); the fuzz job uploads its logs and findings as `fuzz`. Fetch them with `gh run download <run> -n logs-<preset>`: `LastTest.log` holds every test's output, the passing ones' too. A job's log can be read as soon as that job has finished, while the rest of its run is still going, with `gh api repos/Rawframe-Project/maul-window/actions/jobs/<job>/logs`; a job still running has no log there yet. Locally, `ctest --preset <preset> -R '^<name>$' --output-on-failure` runs one test, and the same log is in `out/<preset>/Testing/Temporary/`.
+Start from what the failed run left. A failed CI job uploads its CTest logs, kept for a week, as `logs-<preset>` (`logs-android-emulator`, `logs-ios-simulator`, and so on); the fuzz jobs upload nothing ([Checks](checks.md#fuzzing)). Fetch them with `gh run download <run> -n logs-<preset>`: `LastTest.log` holds every test's output, the passing ones' too. A job's log can be read as soon as that job has finished, while the rest of its run is still going, with `gh api repos/Rawframe-Project/maul-window/actions/jobs/<job>/logs`; a job still running has no log there yet. Locally, `ctest --preset <preset> -R '^<name>$' --output-on-failure` runs one test, and the same log is in `out/<preset>/Testing/Temporary/`.
 
 **A test that hangs.** The CI image has no debugger. Run the test by hand from an AddressSanitizer build and end it with `SIGABRT`: ASan then prints the main thread's stack, where it waits. `ctest -N -V` prints a test's command and environment:
 

@@ -195,8 +195,6 @@ typedef struct Program
     RECT client;
     mwinCompletion completion;
     bool completed;
-    // hygiene: maximize requests made again; whether one is ever needed is unverified
-    int retries;
     bool timedOut;
     // The DPI change would make the window larger than Windows allows.
     bool skipped;
@@ -283,18 +281,6 @@ static bool Ready(const Program* program)
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
-}
-
-// Whether the platform maximized the window and restored it before the
-// program looked: the request done, a mode change seen, and the window
-// windowed again (the queue keeps only the latest mode). Under wine a
-// late answer from the X server to the move before does this now and
-// then; Windows itself does not.
-static bool MaximizeUndone(const Program* program)
-{
-    return program->phase == phaseMaximize && program->completed &&
-           program->completion.kind == mwin_requestMode && Seen(program, mwin_eventModeChanged) &&
-           program->mode == mwin_modeWindowed;
 }
 
 static HWND WindowOf(mwinContext* context, mwinWindowId window)
@@ -636,18 +622,6 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     if (Ready(program))
     {
         Advance(program, context);
-    }
-    // hygiene: retried for a maximize race no run has shown, which an open issue probes
-    else if (MaximizeUndone(program) && program->retries < 3)
-    {
-        // hygiene: the mode the next answer brings is still checked
-        program->retries += 1;
-        (void)printf("the platform undid the maximize; asking again\n");
-        program->seen = 0;
-        program->completed = false;
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, nullptr) ==
-                  mwin_success,
-              "maximize again");
     }
     else if (GetTickCount64() - program->startMs > DEADLINE_MS)
     {

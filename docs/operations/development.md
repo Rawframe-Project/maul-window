@@ -69,7 +69,7 @@ MWIN_FUZZ_TRACE=1 ./out/fuzz/fuzz_linux_bus crash-<hash>   # and the D-Bus messa
 
 Always pass `-max_total_time`. A target's seeds, inputs that reach what random bytes rarely would, are committed in `test/seeds/<target>/`; the runs read them and write what they find to the first folder.
 
-The nightly run keeps each target's corpus from night to night ([Checks](checks.md#fuzzing)). That corpus is never uploaded. When its summary shows the corpus reaching more than the seeds, fuzz the target locally from its seeds for at least as long, copy the seeds into an empty folder `kept`, and let `./out/fuzz/<target> -merge=1 kept out/corpus/<target>` add the inputs that reach what the seeds miss; commit those worth keeping, under a name that says what each reaches.
+The nightly run keeps each target's corpus from night to night ([Checks](checks.md#fuzzing)). That corpus is never uploaded. When its summary shows the corpus reaching more than the seeds, fuzz the target locally from its seeds for at least as long, copy the seeds into an empty folder `kept`, and let `tools/fuzz_target.sh --merge out/fuzz/<target> kept out/corpus/<target>` add the inputs that reach what the seeds miss; commit those worth keeping, under a name that says what each reaches.
 
 A CI fuzz run reports a finding by its kind and sanitizer report only, so reproduce it by fuzzing the target locally until it finds the same report. A crash becomes a test in its module's suite with the minimized input (`-minimize_crash=1`), then the fix.
 

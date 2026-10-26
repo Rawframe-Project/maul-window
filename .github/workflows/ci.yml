@@ -359,6 +359,50 @@ jobs:
           path: out/corpus/${{ matrix.target }}
           key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
 
+  # The quarantined tests (docs/operations/checks.md#quarantine), which the
+  # test presets leave out, of the desktop cells: Linux under AddressSanitizer
+  # and UBSan, macOS and Windows, at night and on a manual run. The gamepads,
+  # iOS, Android and web jobs run their own. A known flake's failure is a
+  # warning; a test that did not run, a sanitizer report or a crash fails it.
+  quarantine:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { preset: linux-clang-20-asan, runner: ubuntu-24.04 }
+          - { preset: macos-clang, runner: macos-15 }
+          - { preset: windows-clang-cl, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    # The CI image on Linux, as cpp.yml runs it; zizmor reads the null of the
+    # macOS and Windows cells as an unpinned image.
+    container: ${{ startsWith(matrix.runner, 'ubuntu') && fromJSON('{"image":"ghcr.io/rawframe-project/ci-cpp:2026.10.7@sha256:08c846597243dc000c83d6c008d078a8c3fabf8633d83963d46c0e6d02c2577e","options":"--init"}') || null }} # zizmor: ignore[unpinned-images]
+    permissions:
+      contents: read
+    env:
+      PRESET: ${{ matrix.preset }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          cmake --preset "$PRESET"
+          cmake --build --preset "$PRESET"
+      - name: Quarantined tests
+        # The test presets' limit, which a run outside a preset does not
+        # take, so a hung flake is a warning, not a cancelled job. The
+        # virtual pads are the gamepads job's; Windows' build tree holds its
+        # configurations side by side.
+        run: |
+          args=(--timeout 300)
+          case "$PRESET" in
+          linux-*) args+=(-LE '^uinput$') ;;
+          windows-*) args+=(-C Release) ;;
+          esac
+          tools/run_quarantine.sh "out/$PRESET" "${args[@]}"
+
   # The Linux gamepads, through virtual pads the test makes with /dev/uinput,
   # every night. A container job gets no input devices, so this one runs the
   # CI image itself with the runner's uinput and input nodes passed in.
@@ -383,12 +427,24 @@ jobs:
               set -o pipefail
               cmake --preset linux-clang-20-asan >/dev/null
               cmake --build --preset linux-clang-20-asan -j 4 >/dev/null
-              ctest --test-dir out/linux-clang-20-asan -L "^uinput$" --output-on-failure --no-tests=error |
-                tee out/gamepads-ctest.log'
+              ctest --test-dir out/linux-clang-20-asan -L "^uinput$" -LE "^quarantine$" \
+                --output-on-failure --no-tests=error | tee out/gamepads-ctest.log'
           # A test that exits 77 (no device) passes ctest; here it must fail.
           if grep -E '\*\*\*(Skipped|Not Run)' out/gamepads-ctest.log; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Quarantined gamepad tests
+        # ctest takes one -L, so the virtual pad tests are named with -R.
+        env:
+          IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.7@sha256:08c846597243dc000c83d6c008d078a8c3fabf8633d83963d46c0e6d02c2577e
+        run: |
+          docker run --rm --device /dev/uinput -v /dev/input:/dev/input \
+            --device-cgroup-rule='c 13:* rmw' -v "$PWD:/w" -w /w \
+            -e GITHUB_STEP_SUMMARY=/w/out/quarantine-summary.md "$IMAGE" bash -c '
+              names=$(ctest --test-dir out/linux-clang-20-asan -N -L "^uinput$" |
+                sed -n "s/^ *Test *#[0-9]*: //p" | paste -sd "|" -)
+              tools/run_quarantine.sh out/linux-clang-20-asan --timeout 300 -R "^($names)$"'
+          cat out/quarantine-summary.md >>"$GITHUB_STEP_SUMMARY"
       - name: Test logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -469,6 +525,14 @@ jobs:
           # Where each application's time went, passing ones included.
           grep -E 'Testing: |^warm-up: |^installed |^launched as |^active at |^launch back |^waited until |^still in |^ended by |^phase ' \
             out/ios-simulator/Testing/Temporary/LastTest.log || true
+      - name: Quarantined tests
+        # On the iPhone, among the tests the preset runs but ios_scenes:
+        # ctest takes one -L, so they are named with -R.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          names=$(ctest --test-dir out/ios-simulator -N -L '^(integration|base)$' |
+            sed -n -e '/: ios_scenes$/d' -e 's/^ *Test *#[0-9]*: //p' | paste -sd '|' -)
+          tools/run_quarantine.sh out/ios-simulator --timeout 240 -R "^($names)$"
       - name: Test on an iPad
         if: github.event_name != 'pull_request'
         run: |
@@ -672,6 +736,11 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Quarantined tests
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" \
+            tools/run_quarantine.sh out/web-wasi --timeout 300
       - name: Test logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -713,6 +782,11 @@ jobs:
           if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/ctest.log"; then
             echo "::error::a test did not run"; exit 1
           fi
+      - name: Quarantined tests
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" \
+            tools/run_quarantine.sh out/web-emscripten --timeout 300
       - name: Test logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -739,7 +813,7 @@ jobs:
   # renaming a job never touches the ruleset.
   required:
     if: always()
-    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz, ios-simulator, android-emulator, web-wasi, web-emscripten]
+    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz, quarantine, ios-simulator, android-emulator, web-wasi, web-emscripten]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

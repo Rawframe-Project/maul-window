@@ -129,13 +129,14 @@
       "name": "base",
       "hidden": true,
       "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "^quarantine$" } },
       "execution": { "noTestsAction": "error", "timeout": 300, "jobs": 4 }
     },
     {
       "name": "linux",
       "hidden": true,
       "inherits": "base",
-      "filter": { "exclude": { "label": "^uinput$" } }
+      "filter": { "exclude": { "label": "^(quarantine|uinput)$" } }
     },
     { "name": "linux-gcc-14", "inherits": "linux", "configurePreset": "linux-gcc-14" },
     { "name": "linux-clang-20", "inherits": "linux", "configurePreset": "linux-clang-20" },
@@ -149,8 +150,7 @@
       "name": "android-emulator",
       "inherits": "base",
       "configurePreset": "android-emulator",
-      "execution": { "jobs": 1, "timeout": 240 },
-      "filter": { "exclude": { "label": "^quarantine$" } }
+      "execution": { "jobs": 1, "timeout": 240 }
     },
     { "name": "macos-clang", "inherits": "base", "configurePreset": "macos-clang" },
     {

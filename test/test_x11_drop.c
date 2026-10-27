@@ -9,7 +9,11 @@
 // UTF8_STRING, delivers the paths (a URI of another scheme left out)
 // and the text repaired, and finishes; types past three come from the
 // source's XdndTypeList; a drag of neither is refused and not
-// reported. Under a drop limit that is no whole number of 32-bit words,
+// reported. A window that goes under a drag takes the drag with it: the
+// source's later messages to the window that takes its slot are not a
+// drag of that window's, and a drop under way when its window goes is
+// refused to the source and delivered to no window. Under a drop limit
+// that is no whole number of 32-bit words,
 // a text of exactly the limit is delivered whole. Skipped (exit status
 // 77) without DISPLAY.
 
@@ -86,6 +90,11 @@ typedef struct Source
     int askedCount;
     // The text served as UTF8_STRING.
     const char* text;
+    // While holding, the next conversion is kept unanswered until
+    // released.
+    bool hold;
+    bool held;
+    xcb_selection_request_event_t request;
 } Source;
 
 typedef enum Phase
@@ -96,6 +105,14 @@ typedef enum Phase
     phaseTypeList,
     phaseTypeLeft,
     phaseNeither,
+    phaseDropEnter,
+    phaseHeldDrop,
+    phaseDropDestroyed,
+    phaseDropGone,
+    phaseGoneEnter,
+    phaseGoneDestroyed,
+    phaseGoneCreated,
+    phaseGoneStale,
     phaseDone,
 } Phase;
 
@@ -239,6 +256,11 @@ static void SourcePump(Source* source)
             source->finished = true;
             memcpy(source->finish, message->data.data32, sizeof(source->finish));
         }
+        else if (type == XCB_SELECTION_REQUEST && source->hold && !source->held)
+        {
+            source->request = *(const xcb_selection_request_event_t*)event;
+            source->held = true;
+        }
         else if (type == XCB_SELECTION_REQUEST)
         {
             Serve(source, (const xcb_selection_request_event_t*)event);
@@ -351,9 +373,39 @@ static bool Ready(Program* program)
         return Find(program, mwin_eventDragEntered, 0) != nullptr;
     case phaseTypeLeft:
         return Find(program, mwin_eventDragLeft, 0) != nullptr;
+    case phaseDropEnter:
+    case phaseGoneEnter:
+        return Find(program, mwin_eventDragEntered, 0) != nullptr;
+    case phaseHeldDrop:
+        return source->held;
+    case phaseDropDestroyed:
+    case phaseGoneDestroyed:
+        // Reading the record frees the window's slot.
+        return Find(program, mwin_eventWindowDestroyed, 0) != nullptr;
+    case phaseDropGone:
+        return source->finished && Find(program, mwin_eventWindowCreated, 0) != nullptr &&
+               NowNs() - program->startNs >= SETTLE_NS;
+    case phaseGoneCreated:
+        return source->target != 0 && Aware(source);
+    case phaseGoneStale:
+        // A fresh drag entered, or the drop over the window that went
+        // finished.
+        return Find(program, mwin_eventDragEntered, 0) != nullptr || source->finished;
     default:
         return source->statuses >= 1 && NowNs() - program->startNs >= SETTLE_NS;
     }
+}
+
+// A new window, in the slot of the one that went, which the source then
+// looks for.
+static void Recreate(Program* program, mwinContext* context)
+{
+    mwinWindowDef def = mwinDefaultWindowDef();
+    uint32_t slot = program->window.index1;
+    CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success &&
+              program->window.index1 == slot,
+          "a new window takes the slot of the one that went");
+    program->source->target = 0;
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -386,7 +438,7 @@ static void Advance(Program* program, mwinContext* context)
         if (program->limited)
         {
             CheckLimited(program, context);
-            program->phase = phaseNeither;
+            program->phase = phaseDone - 1;
             break;
         }
         CheckDrop(program, context);
@@ -404,10 +456,69 @@ static void Advance(Program* program, mwinContext* context)
         Position(source, 5, 5);
         break;
     }
-    default:
+    case phaseNeither:
+    {
         CHECK((source->status[1] & 1u) == 0 && DragRecords(program) == 0,
               "a drag of neither refused and not reported");
         Send(source, atomLeave, 0, 0, 0, 0);
+        static const int types[] = {atomUriList, atomUtf8};
+        Enter(source, types, 2);
+        Position(source, 10, 20);
+        break;
+    }
+    case phaseDropEnter:
+        source->hold = true;
+        Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
+        break;
+    case phaseHeldDrop:
+        // The window goes while the drop waits for the source's answer.
+        source->finished = false;
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "the window goes");
+        break;
+    case phaseDropDestroyed:
+        // Another window takes its slot, and the source's answer goes to
+        // the window that went.
+        Recreate(program, context);
+        source->hold = false;
+        Serve(source, &source->request);
+        xcb_flush(source->connection);
+        break;
+    case phaseDropGone:
+    {
+        CHECK((source->finish[1] & 1u) == 0 && Find(program, mwin_eventDropped, 0) == nullptr,
+              "a drop under way when its window goes refused, and given to no window");
+        static const int types[] = {atomUriList, atomUtf8};
+        Enter(source, types, 2);
+        Position(source, 10, 20);
+        break;
+    }
+    case phaseGoneEnter:
+        // The window goes under the drag.
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "the window goes");
+        break;
+    case phaseGoneDestroyed:
+        Recreate(program, context);
+        break;
+    case phaseGoneCreated:
+    {
+        // The same source goes on over the new window without entering
+        // it, then a drag enters it afresh; the messages arrive in order.
+        source->finished = false;
+        Position(source, 30, 40);
+        Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
+        static const int types[] = {atomUriList, atomUtf8};
+        Enter(source, types, 2);
+        Position(source, 5, 5);
+        break;
+    }
+    case phaseGoneStale:
+        CHECK(DragRecords(program) == 1 &&
+                  DragAt(Find(program, mwin_eventDragEntered, 0), 5.0f, 5.0f,
+                         mwin_dragFiles | mwin_dragText) &&
+                  !source->finished,
+              "a drag over a window that went reaches no window after it");
+        break;
+    default:
         break;
     }
     program->phase += 1;

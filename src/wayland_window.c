@@ -8,6 +8,7 @@
 #include "wayland_activation.h"
 #include "wayland_clipboard.h"
 #include "wayland_cursor.h"
+#include "wayland_drop.h"
 #include "wayland_frame.h"
 #include "wayland_icon.h"
 #include "wayland_keyboard.h"
@@ -500,6 +501,7 @@ void mwinWaylandDestroyWindow(mwinContext* context, uint32_t slot)
     mwinWaylandForgetToolFocus(platform, slot);
     mwinWaylandDropCursor(platform, slot);
     mwinWaylandForgetTextFocus(platform, slot);
+    mwinWaylandForgetDrag(platform, slot);
     mwinWaylandDestroyFrame(platform, slot);
     mwinWaylandDropActivation(window);
     if (window->viewport != nullptr)

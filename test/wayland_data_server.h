@@ -62,6 +62,11 @@ struct DataServer
     char* dragFiles;
     char* dragText;
     DataDrag drag;
+    // While holding, the drop's reads get no bytes and stay open, their
+    // pipes kept here until released.
+    bool holdDrop;
+    int held[2];
+    int heldCount;
 };
 
 // A copy of text and the pipe to write it into.
@@ -242,6 +247,11 @@ static inline void DataDragReceive(struct wl_client* client, struct wl_resource*
 {
     (void)client;
     DataServer* data = wl_resource_get_user_data(resource);
+    if (data->holdDrop && data->heldCount < 2)
+    {
+        data->held[data->heldCount++] = fd;
+        return;
+    }
     const char* text = strcmp(type, "text/uri-list") == 0 ? data->dragFiles : data->dragText;
     text = text != nullptr ? text : "";
     DataWrite* job = malloc(sizeof(DataWrite));
@@ -342,6 +352,34 @@ static inline void DataDragEnd(DataServer* data, bool drop)
     }
     wl_display_flush_clients(data->server->display);
     pthread_mutex_unlock(&data->server->lock);
+}
+
+// Holds the next drop's reads open, or ends the ones held with nothing
+// more; returns how many were held.
+static inline int DataHoldDrop(DataServer* data, bool hold)
+{
+    pthread_mutex_lock(&data->server->lock);
+    data->holdDrop = hold;
+    int count = data->heldCount;
+    if (!hold)
+    {
+        for (int i = 0; i < data->heldCount; i++)
+        {
+            close(data->held[i]);
+        }
+        data->heldCount = 0;
+    }
+    pthread_mutex_unlock(&data->server->lock);
+    return count;
+}
+
+// How many of the drop's reads are held open.
+static inline int DataHeldReads(DataServer* data)
+{
+    pthread_mutex_lock(&data->server->lock);
+    int count = data->heldCount;
+    pthread_mutex_unlock(&data->server->lock);
+    return count;
 }
 
 static inline DataDrag DataDragState(DataServer* data)

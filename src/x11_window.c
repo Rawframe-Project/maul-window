@@ -9,6 +9,7 @@
 #include "x11_chrome.h"
 #include "x11_clipboard.h"
 #include "x11_cursor.h"
+#include "x11_drop.h"
 #include "x11_icon.h"
 #include "x11_input.h"
 #include "x11_output.h"
@@ -325,6 +326,7 @@ void mwinX11DestroyWindow(mwinContext* context, uint32_t slot)
     mwinX11Window* window = &platform->windows[slot];
     mwinX11CursorFocus(platform, slot, false);
     mwinX11ForgetPointer(platform, slot);
+    mwinX11ForgetDrag(platform, slot);
     if (window->window != 0)
     {
         platform->api.destroyWindow(platform->connection, window->window);

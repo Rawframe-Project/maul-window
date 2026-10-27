@@ -9,7 +9,10 @@
 // scheme left out and the drop marked truncated), its text repaired,
 // and the drop finished; a drag of neither refused and not reported; a
 // drag of text that leaves, reported left after it entered; a drop of
-// a file and text read whole, not marked truncated. Skipped (exit
+// a file and text read whole, not marked truncated; a drag over a window
+// that goes, its motion and leave reaching no window after it, and a
+// drop for a window that goes while its reads are open, let go
+// unfinished and given to no window that takes the slot. Skipped (exit
 // status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -32,6 +35,12 @@ typedef enum Phase
     phaseNeither,
     phaseLeave,
     phaseClean,
+    phaseGoneEnter,
+    phaseGoneDestroyed,
+    phaseGoneDrag,
+    phaseHeldDrop,
+    phaseDropDestroyed,
+    phaseDropGone,
     phaseDone,
 } Phase;
 
@@ -142,10 +151,34 @@ static bool Ready(Program* program)
     case phaseNeither:
         // The client's refusal has reached the compositor.
         return NowNs() - program->startNs >= SETTLE_NS && DataDragState(program->data).accepts >= 1;
+    case phaseGoneEnter:
+        return Find(program, mwin_eventDragEntered) != nullptr;
+    case phaseGoneDestroyed:
+    case phaseDropDestroyed:
+        // Reading the record frees the window's slot.
+        return Find(program, mwin_eventWindowDestroyed) != nullptr;
+    case phaseGoneDrag:
+    case phaseDropGone:
+        // The new window is up, and what the compositor sent after has
+        // had time to arrive.
+        return Find(program, mwin_eventWindowCreated) != nullptr &&
+               NowNs() - program->startNs >= SETTLE_NS;
+    case phaseHeldDrop:
+        return DataHeldReads(program->data) == 2;
     default:
         // The client's accept reaches the compositor at its next pump.
         return LeftAfterEntering(program) && DataDragState(program->data).accepts >= 1;
     }
+}
+
+// A new window, in the slot of the one that went.
+static void Recreate(Program* program, mwinContext* context)
+{
+    mwinWindowDef def = mwinDefaultWindowDef();
+    uint32_t slot = program->window.index1;
+    CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success &&
+              program->window.index1 == slot,
+          "a new window takes the slot of the one that went");
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -183,8 +216,42 @@ static void Advance(Program* program, mwinContext* context)
         const mwinDropEvent* drop = &Find(program, mwin_eventDropped)->data.drop;
         CHECK(drop->fileCount == 1 && !drop->truncated,
               "a drop of a file and text read whole, not truncated");
+        DataDragEnter(data, 5.0, 5.0, "file:///tmp/x\r\n", "y");
         break;
     }
+    case phaseGoneEnter:
+        // The window goes under the drag.
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "the window goes");
+        break;
+    case phaseGoneDestroyed:
+        // Another takes its slot before the compositor's motion and leave
+        // arrive.
+        Recreate(program, context);
+        DataDragMotion(data, 7.0, 7.0);
+        DataDragEnd(data, false);
+        break;
+    case phaseGoneDrag:
+        CHECK(DragRecords(program) == 0,
+              "a drag over a window that went reaches no window after it");
+        (void)DataHoldDrop(data, true);
+        DataDragEnter(data, 5.0, 5.0, "file:///tmp/x\r\n", "y");
+        DataDragEnd(data, true);
+        break;
+    case phaseHeldDrop:
+        CHECK(Find(program, mwin_eventDragEntered) != nullptr,
+              "the drag over the new window enters");
+        // The window goes while the drop's reads are open.
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "the window goes");
+        break;
+    case phaseDropDestroyed:
+        // The reads end after another window takes its slot.
+        Recreate(program, context);
+        (void)DataHoldDrop(data, false);
+        break;
+    case phaseDropGone:
+        CHECK(Find(program, mwin_eventDropped) == nullptr && !DataDragState(data).finished,
+              "a drop for a window that went is let go unfinished, and no window gets it");
+        break;
     default:
         break;
     }

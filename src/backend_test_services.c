@@ -223,7 +223,7 @@ mwinResult mwinTestSetClipboardData(mwinContext* context, const char* mime, size
     {
         return mwinMisuse(context);
     }
-    if (mimeLength > MWIN_CLIPBOARD_MIME)
+    if (mimeLength > MWIN_MAX_CLIPBOARD_MIME)
     {
         return mwinRefuse(context, mwin_errorLimit);
     }

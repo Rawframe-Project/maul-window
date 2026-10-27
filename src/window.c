@@ -236,7 +236,7 @@ static mwinResult CheckDef(const mwinContext* context, const mwinWindowDef* def)
                                       mwin_errorCapacity, true);
     return status != mwin_success
                ? status
-               : mwinCheckText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES,
+               : mwinCheckText(def->canvas, def->canvasLength, MWIN_MAX_CANVAS_SELECTOR_BYTES,
                                mwin_errorLimit, true);
 }
 

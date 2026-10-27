@@ -66,10 +66,10 @@ mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window, const mwin
     {
         return mwinMisuse(context);
     }
-    mwinResult status = count > MWIN_ICON_IMAGES ? mwin_errorLimit : mwin_success;
+    mwinResult status = count > MWIN_MAX_ICON_IMAGES ? mwin_errorLimit : mwin_success;
     for (uint32_t i = 0; status == mwin_success && i < count; i++)
     {
-        status = mwinCheckIconImage(&images[i], MWIN_ICON_SIZE);
+        status = mwinCheckIconImage(&images[i], MWIN_MAX_ICON_SIZE);
     }
     if (status != mwin_success)
     {

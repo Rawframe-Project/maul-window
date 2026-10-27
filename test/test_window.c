@@ -603,7 +603,7 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     def.canvasLength = 1;
     CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorInvalid,
           "a canvas selector with no text");
-    static char longSelector[MWIN_CANVAS_SELECTOR_BYTES + 1];
+    static char longSelector[MWIN_MAX_CANVAS_SELECTOR_BYTES + 1];
     memset(longSelector, 'a', sizeof(longSelector));
     def.canvas = longSelector;
     def.canvasLength = sizeof(longSelector);

@@ -33,14 +33,14 @@ bool mwinIsPlainText(const char* mime, size_t length)
 
 // A MIME type as the clipboard takes it: printable ASCII, a type and a
 // subtype on either side of a slash before any parameter; past
-// MWIN_CLIPBOARD_MIME bytes, mwin_errorLimit.
+// MWIN_MAX_CLIPBOARD_MIME bytes, mwin_errorLimit.
 static mwinResult CheckMime(const char* mime, size_t length)
 {
     if (mime == nullptr || length == 0)
     {
         return mwin_errorInvalid;
     }
-    if (length > MWIN_CLIPBOARD_MIME)
+    if (length > MWIN_MAX_CLIPBOARD_MIME)
     {
         return mwin_errorLimit;
     }
@@ -138,7 +138,7 @@ static mwinResult CheckItems(const mwinClipboardItem* items, uint32_t count, siz
     {
         return mwin_errorInvalid;
     }
-    if (count > MWIN_CLIPBOARD_ITEMS)
+    if (count > MWIN_MAX_CLIPBOARD_ITEMS)
     {
         return mwin_errorLimit;
     }

@@ -23,13 +23,13 @@ static mwinResult CheckDef(const mwinCursorDef* def)
     {
         return mwin_errorInvalid;
     }
-    if (def->imageCount > MWIN_CURSOR_IMAGES)
+    if (def->imageCount > MWIN_MAX_CURSOR_IMAGES)
     {
         return mwin_errorLimit;
     }
     for (uint32_t i = 0; i < def->imageCount; i++)
     {
-        mwinResult status = mwinCheckIconImage(&def->images[i], MWIN_CURSOR_SIZE);
+        mwinResult status = mwinCheckIconImage(&def->images[i], MWIN_MAX_CURSOR_SIZE);
         if (status != mwin_success)
         {
             return status;

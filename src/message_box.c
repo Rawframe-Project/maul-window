@@ -31,11 +31,11 @@ mwinResult mwinShowMessageBox(const mwinMessageBoxDef* def, bool* acceptedOut)
     {
         return mwin_errorInvalid;
     }
-    mwinResult checked = mwinCheckText(def->title, def->titleLength, MWIN_MESSAGE_TITLE_BYTES,
+    mwinResult checked = mwinCheckText(def->title, def->titleLength, MWIN_MAX_MESSAGE_TITLE_BYTES,
                                        mwin_errorLimit, false);
     if (checked == mwin_success)
     {
-        checked = mwinCheckText(def->message, def->messageLength, MWIN_MESSAGE_BYTES,
+        checked = mwinCheckText(def->message, def->messageLength, MWIN_MAX_MESSAGE_BYTES,
                                 mwin_errorLimit, false);
     }
     if (checked != mwin_success)

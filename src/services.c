@@ -13,7 +13,7 @@
 
 static mwinResult CheckText(const char* text, size_t length)
 {
-    return mwinCheckText(text, length, MWIN_ADDRESS_BYTES, mwin_errorLimit, false);
+    return mwinCheckText(text, length, MWIN_MAX_ADDRESS_BYTES, mwin_errorLimit, false);
 }
 
 // Whether text begins with a prefix, in any case.

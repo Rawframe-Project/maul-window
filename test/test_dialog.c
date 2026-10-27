@@ -89,7 +89,7 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     folder.folder = "tmp";
     folder.folderLength = 3;
     mwinFileDialogDef many = Def(mwin_dialogOpen);
-    many.filterCount = MWIN_DIALOG_FILTERS + 1;
+    many.filterCount = MWIN_MAX_DIALOG_FILTERS + 1;
     mwinFileDialogDef none = Def(mwin_dialogOpen);
     none.filters = nullptr;
     mwinFileFilter nameless = {"", 0, "png", 3};
@@ -103,17 +103,17 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               mwinRequestFileDialog(nullptr, window, &cookie, nullptr) == mwin_errorInvalid,
           "defs refused at the call");
     // Past each named bound by one byte, or one filter.
-    static char s_long[MWIN_ADDRESS_BYTES + 1];
+    static char s_long[MWIN_MAX_ADDRESS_BYTES + 1];
     memset(s_long, 'a', sizeof(s_long));
     s_long[0] = '/';
     mwinFileDialogDef longTitle = Def(mwin_dialogOpen);
     longTitle.title = s_long;
-    longTitle.titleLength = MWIN_DIALOG_TITLE_BYTES + 1;
+    longTitle.titleLength = MWIN_MAX_DIALOG_TITLE_BYTES + 1;
     mwinFileDialogDef longFolder = Def(mwin_dialogOpen);
     longFolder.folder = s_long;
-    longFolder.folderLength = MWIN_ADDRESS_BYTES + 1;
-    mwinFileFilter longName = {s_long, MWIN_DIALOG_FILTER_BYTES + 1, "png", 3};
-    mwinFileFilter longExtensions = {"Images", 6, s_long + 1, MWIN_DIALOG_FILTER_BYTES + 1};
+    longFolder.folderLength = MWIN_MAX_ADDRESS_BYTES + 1;
+    mwinFileFilter longName = {s_long, MWIN_MAX_DIALOG_FILTER_BYTES + 1, "png", 3};
+    mwinFileFilter longExtensions = {"Images", 6, s_long + 1, MWIN_MAX_DIALOG_FILTER_BYTES + 1};
     mwinFileDialogDef named = Def(mwin_dialogOpen);
     named.filters = &longName;
     named.filterCount = 1;
@@ -135,14 +135,14 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
           "extensions with a dot, a wildcard, a space or an empty one refused");
     // The most filters, with a share's folder where Windows names one;
     // the dialog asked for next supersedes this one.
-    mwinFileFilter filters[MWIN_DIALOG_FILTERS];
-    for (int i = 0; i < MWIN_DIALOG_FILTERS; i++)
+    mwinFileFilter filters[MWIN_MAX_DIALOG_FILTERS];
+    for (int i = 0; i < MWIN_MAX_DIALOG_FILTERS; i++)
     {
         filters[i] = s_filters[1];
     }
     mwinFileDialogDef most = Def(mwin_dialogOpenMany);
     most.filters = filters;
-    most.filterCount = MWIN_DIALOG_FILTERS;
+    most.filterCount = MWIN_MAX_DIALOG_FILTERS;
     mwinFileDialogDef share = Def(mwin_dialogOpenMany);
     share.folder = "\\\\server\\share";
     share.folderLength = 14;

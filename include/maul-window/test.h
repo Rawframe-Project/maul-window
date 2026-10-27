@@ -388,13 +388,13 @@ extern "C"
     /// once, as another program would: its text goes.
     ///
     /// @param context     A context of the test backend.
-    /// @param mime        The type, 1 to MWIN_CLIPBOARD_MIME bytes, taken
+    /// @param mime        The type, 1 to MWIN_MAX_CLIPBOARD_MIME bytes, taken
     ///                    as it is.
     /// @param mimeLength  Its bytes.
     /// @param bytes       The data. May be NULL when length is 0.
     /// @param length      Its bytes.
     /// @return As mwinTestSetClipboard, with `mwin_errorLimit` for a type
-    ///         longer than MWIN_CLIPBOARD_MIME.
+    ///         longer than MWIN_MAX_CLIPBOARD_MIME.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinTestSetClipboardData(mwinContext* context,

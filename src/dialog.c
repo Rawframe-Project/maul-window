@@ -29,7 +29,7 @@ static mwinResult CheckText(const char* text, size_t length, size_t limit)
 // Extensions without dots or wildcards, separated by ';', none empty.
 static mwinResult CheckExtensions(const char* text, size_t length)
 {
-    mwinResult status = CheckText(text, length, MWIN_DIALOG_FILTER_BYTES);
+    mwinResult status = CheckText(text, length, MWIN_MAX_DIALOG_FILTER_BYTES);
     if (status != mwin_success)
     {
         return status;
@@ -69,14 +69,14 @@ static mwinResult CheckDef(const mwinFileDialogDef* def)
     {
         return mwin_errorInvalid;
     }
-    if (def->filterCount > MWIN_DIALOG_FILTERS)
+    if (def->filterCount > MWIN_MAX_DIALOG_FILTERS)
     {
         return mwin_errorLimit;
     }
-    mwinResult status = CheckText(def->title, def->titleLength, MWIN_DIALOG_TITLE_BYTES);
+    mwinResult status = CheckText(def->title, def->titleLength, MWIN_MAX_DIALOG_TITLE_BYTES);
     if (status == mwin_success)
     {
-        status = CheckText(def->folder, def->folderLength, MWIN_ADDRESS_BYTES);
+        status = CheckText(def->folder, def->folderLength, MWIN_MAX_ADDRESS_BYTES);
     }
     if (status == mwin_success && def->folderLength != 0 &&
         !IsAbsolute(def->folder, def->folderLength))
@@ -85,14 +85,14 @@ static mwinResult CheckDef(const mwinFileDialogDef* def)
     }
     if (status == mwin_success)
     {
-        status = CheckText(def->name, def->nameLength, MWIN_ADDRESS_BYTES);
+        status = CheckText(def->name, def->nameLength, MWIN_MAX_ADDRESS_BYTES);
     }
     for (uint32_t i = 0; status == mwin_success && i < def->filterCount; i++)
     {
         const mwinFileFilter* filter = &def->filters[i];
         status = filter->nameLength == 0
                      ? mwin_errorInvalid
-                     : CheckText(filter->name, filter->nameLength, MWIN_DIALOG_FILTER_BYTES);
+                     : CheckText(filter->name, filter->nameLength, MWIN_MAX_DIALOG_FILTER_BYTES);
         if (status == mwin_success)
         {
             status = CheckExtensions(filter->extensions, filter->extensionsLength);

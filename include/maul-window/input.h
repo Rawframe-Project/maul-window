@@ -249,8 +249,8 @@ extern "C"
     };
 
 // The images one cursor holds, and the most pixels of a side.
-#define MWIN_CURSOR_IMAGES 4
-#define MWIN_CURSOR_SIZE   128
+#define MWIN_MAX_CURSOR_IMAGES 4
+#define MWIN_MAX_CURSOR_SIZE   128
 
     // A cursor made from images: an id of the context's,
     // checked by generation.
@@ -266,7 +266,7 @@ extern "C"
         uint32_t cookie;
         // The cursor at scale 1 first, then the same cursor at higher
         // scales, larger; each in the icon's form, at most
-        // MWIN_CURSOR_SIZE a side. Only read during the call.
+        // MWIN_MAX_CURSOR_SIZE a side. Only read during the call.
         const mwinIconImage* images;
         uint32_t imageCount;
         // The hotspot, in the first image's pixels from its top left.
@@ -369,7 +369,7 @@ extern "C"
     /// @param def        The images and hotspot.
     /// @param cursorOut  Receives the cursor's id.
     /// @return `mwin_success`; `mwin_errorLimit` for more images than
-    ///         MWIN_CURSOR_IMAGES or an image larger than MWIN_CURSOR_SIZE
+    ///         MWIN_MAX_CURSOR_IMAGES or an image larger than MWIN_MAX_CURSOR_SIZE
     ///         a side; `mwin_errorInvalid` for a NULL argument, a def
     ///         without its cookie, no images, an image without pixels,
     ///         with no width or height, or a stride below its width times

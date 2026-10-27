@@ -64,22 +64,23 @@ static void CheckRefusals(mwinContext* context)
     mwinCursorDef large = Def(&big, 1);
     CHECK(mwinCreateCursor(context, &many, &cursor) == mwin_errorLimit &&
               mwinCreateCursor(context, &large, &cursor) == mwin_errorLimit,
-          "more images than MWIN_CURSOR_IMAGES, or a side past MWIN_CURSOR_SIZE");
+          "more images than MWIN_MAX_CURSOR_IMAGES, or a side past MWIN_MAX_CURSOR_SIZE");
     CHECK(mwinGetContextMisuse(context) == misuse + 8, "each counted, past the bounds too");
     // The most images, each wider than the one before.
     static uint8_t pixels[48 * 48 * 4];
-    const mwinIconImage four[MWIN_CURSOR_IMAGES] = {
+    const mwinIconImage four[MWIN_MAX_CURSOR_IMAGES] = {
         {16, 16, 16 * 4, pixels},
         {24, 24, 24 * 4, pixels},
         {32, 32, 32 * 4, pixels},
         {48, 48, 48 * 4, pixels},
     };
-    mwinCursorDef most = Def(four, MWIN_CURSOR_IMAGES);
+    mwinCursorDef most = Def(four, MWIN_MAX_CURSOR_IMAGES);
     CHECK(mwinCreateCursor(context, &most, &cursor) == mwin_success &&
               mwinDestroyCursor(context, cursor) == mwin_success,
           "a cursor of the most images");
-    static uint8_t largest[MWIN_CURSOR_SIZE * MWIN_CURSOR_SIZE * 4];
-    const mwinIconImage side = {MWIN_CURSOR_SIZE, MWIN_CURSOR_SIZE, MWIN_CURSOR_SIZE * 4, largest};
+    static uint8_t largest[MWIN_MAX_CURSOR_SIZE * MWIN_MAX_CURSOR_SIZE * 4];
+    const mwinIconImage side = {MWIN_MAX_CURSOR_SIZE, MWIN_MAX_CURSOR_SIZE,
+                                MWIN_MAX_CURSOR_SIZE * 4, largest};
     mwinCursorDef widest = Def(&side, 1);
     CHECK(mwinCreateCursor(context, &widest, &cursor) == mwin_success &&
               mwinDestroyCursor(context, cursor) == mwin_success,

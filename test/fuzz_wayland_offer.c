@@ -420,7 +420,7 @@ static void NextType(char* type, size_t size)
 }
 
 // The types a clipboard offer keeps, for a data read to ask for: in the
-// order announced, each of at most MWIN_CLIPBOARD_MIME bytes that still
+// order announced, each of at most MWIN_MAX_CLIPBOARD_MIME bytes that still
 // fits whole, with its NUL, in what the store has left. None is cut and
 // nothing past the store is kept.
 static void CheckKept(const mwinWaylandTypes* kept, char (*announced)[128], uint8_t count)
@@ -430,7 +430,7 @@ static void CheckKept(const mwinWaylandTypes* kept, char (*announced)[128], uint
     for (uint8_t i = 0; i < count; i++)
     {
         size_t length = strlen(announced[i]);
-        if (length <= MWIN_CLIPBOARD_MIME && length + 1 <= sizeof(expected) - used)
+        if (length <= MWIN_MAX_CLIPBOARD_MIME && length + 1 <= sizeof(expected) - used)
         {
             memcpy(expected + used, announced[i], length + 1);
             used += length + 1;

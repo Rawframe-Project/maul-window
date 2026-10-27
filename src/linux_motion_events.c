@@ -89,9 +89,17 @@ static void Sample(const mwinLinuxMotionEvents* events, uint64_t timeNs,
     }
 }
 
-bool mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type, uint16_t code,
-                          int32_t value, uint64_t timeNs, mwinLinuxMotionSample* sample)
+mwinLinuxMotionStep mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type,
+                                         uint16_t code, int32_t value, uint64_t timeNs,
+                                         mwinLinuxMotionSample* sample)
 {
+    mwinEvdevStep step = mwinEvdevDropStep(&events->dropping, type, code);
+    if (step != mwin_evdevTake)
+    {
+        // A stamp in the cut report is not this report's.
+        events->stamping = false;
+        return step == mwin_evdevResync ? mwin_motionResync : mwin_motionNothing;
+    }
     if (type == EV_ABS && code <= ABS_Z)
     {
         events->raw[code - ABS_X] = value;
@@ -114,7 +122,7 @@ bool mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type, uint16_t
             timeNs = events->timeNs;
         }
         Sample(events, timeNs, sample);
-        return true;
+        return mwin_motionSample;
     }
-    return false;
+    return mwin_motionNothing;
 }

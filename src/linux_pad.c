@@ -6,6 +6,7 @@
 #include "linux_pad.h"
 
 #include "allocator.h"
+#include "linux_evdev_drop.h"
 #include "monotonic.h"
 
 #include <dirent.h>
@@ -363,17 +364,23 @@ static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
             const struct input_event* event = &events[i];
             uint64_t timeNs = (uint64_t)event->input_event_sec * 1000000000u +
                               (uint64_t)event->input_event_usec * 1000u;
-            if (event->type == EV_KEY)
+            mwinEvdevStep step = mwinEvdevDropStep(&pad->dropping, event->type, event->code);
+            if (step == mwin_evdevResync)
+            {
+                Resync(pad);
+                mwinPostPadControls(pads->context, pad->slot, &pad->controls, timeNs);
+            }
+            else if (step == mwin_evdevSkip)
+            {
+                continue;
+            }
+            else if (event->type == EV_KEY)
             {
                 OnKey(pad, event->code, event->value);
             }
             else if (event->type == EV_ABS)
             {
                 OnAxis(pad, event->code, event->value);
-            }
-            else if (event->type == EV_SYN && event->code == SYN_DROPPED)
-            {
-                Resync(pad);
             }
             else if (event->type == EV_SYN && event->code == SYN_REPORT)
             {

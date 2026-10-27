@@ -15,8 +15,13 @@
 //   first one's event time, spaced as their stamps say, across a wrap;
 //   a stamped time straying over 100 ms from the event time started
 //   again from it; a report without a stamp among stamped ones at its
-//   own event time, the stamps after it still counted from the last.
+//   own event time, the stamps after it still counted from the last;
+// - after the kernel drops events, every event skipped up to and
+//   including the next report, which asks for a resync and gives no
+//   sample; the next report from the values read again, its stamp
+//   counted from the last report's, a cut report's stamps left out.
 
+#include "linux_evdev_drop.h"
 #include "linux_motion_events.h"
 #include "test_harness.h"
 
@@ -57,6 +62,12 @@ static mwinLinuxMotionEvents Start(uint16_t vendor)
     return events;
 }
 
+// Ends a report at a time: whether it gave a sample.
+static bool End(mwinLinuxMotionEvents* events, uint64_t timeNs, mwinLinuxMotionSample* sample)
+{
+    return mwinLinuxMotionEvent(events, EV_SYN, SYN_REPORT, 0, timeNs, sample) == mwin_motionSample;
+}
+
 // Ends a report at a time, with a stamp unless it is negative: the
 // sample's time, or 0 when no sample came.
 static uint64_t Report(mwinLinuxMotionEvents* events, int64_t stamp, uint64_t timeNs)
@@ -67,7 +78,7 @@ static uint64_t Report(mwinLinuxMotionEvents* events, int64_t stamp, uint64_t ti
         (void)mwinLinuxMotionEvent(events, EV_MSC, MSC_TIMESTAMP, (int32_t)(uint32_t)stamp, timeNs,
                                    &sample);
     }
-    return mwinLinuxMotionEvent(events, EV_SYN, SYN_REPORT, 0, timeNs, &sample) ? sample.timeNs : 0;
+    return End(events, timeNs, &sample) ? sample.timeNs : 0;
 }
 
 static void TestController(void)
@@ -113,9 +124,8 @@ static void TestAxes(void)
               mwinLinuxMotionAxis(&events, 4, 0, 1024) && mwinLinuxMotionAxis(&events, 5, 0, 1024),
           "every axis with a resolution");
     mwinLinuxMotionSample sample = {0};
-    CHECK(mwinLinuxMotionEvent(&events, EV_SYN, SYN_REPORT, 0, 5 * MS, &sample) &&
-              Near(sample.acceleration[0], 9.80665f) && Near(sample.acceleration[1], -4.903325f) &&
-              Near(sample.rate[0], 0.017453292f),
+    CHECK(End(&events, 5 * MS, &sample) && Near(sample.acceleration[0], 9.80665f) &&
+              Near(sample.acceleration[1], -4.903325f) && Near(sample.rate[0], 0.017453292f),
           "a resolution's units as one g and one degree per second, the axes' current values");
 }
 
@@ -130,26 +140,25 @@ static void TestReports(void)
         uint16_t code;
         int32_t value;
     } stream[] = {
-        {EV_ABS, ABS_X, 1},    {EV_ABS, ABS_Y, 2},       {EV_ABS, ABS_Z, 3},
-        {EV_ABS, ABS_RX, 4},   {EV_ABS, ABS_RY, 5},      {EV_ABS, ABS_RZ, 6},
-        {EV_KEY, BTN_A, 1},    {EV_ABS, ABS_HAT0X, 9},   {EV_ABS, ABS_MAX, 9},
-        {EV_MSC, MSC_SCAN, 9}, {EV_SYN, SYN_DROPPED, 0}, {EV_REL, REL_X, 9},
+        {EV_ABS, ABS_X, 1},    {EV_ABS, ABS_Y, 2},      {EV_ABS, ABS_Z, 3},
+        {EV_ABS, ABS_RX, 4},   {EV_ABS, ABS_RY, 5},     {EV_ABS, ABS_RZ, 6},
+        {EV_KEY, BTN_A, 1},    {EV_ABS, ABS_HAT0X, 9},  {EV_ABS, ABS_MAX, 9},
+        {EV_MSC, MSC_SCAN, 9}, {EV_SYN, SYN_CONFIG, 0}, {EV_REL, REL_X, 9},
     };
     for (size_t i = 0; i < sizeof(stream) / sizeof(stream[0]); i++)
     {
         early |= mwinLinuxMotionEvent(&events, stream[i].type, stream[i].code, stream[i].value, MS,
-                                      &sample);
+                                      &sample) != mwin_motionNothing;
     }
     CHECK(!early, "no sample before a report");
-    CHECK(mwinLinuxMotionEvent(&events, EV_SYN, SYN_REPORT, 0, MS, &sample) &&
-              Near(sample.acceleration[0], 1 * G) && Near(sample.acceleration[1], 2 * G) &&
-              Near(sample.acceleration[2], 3 * G) && Near(sample.rate[0], 4 * D) &&
-              Near(sample.rate[1], 5 * D) && Near(sample.rate[2], 6 * D),
+    CHECK(End(&events, MS, &sample) && Near(sample.acceleration[0], 1 * G) &&
+              Near(sample.acceleration[1], 2 * G) && Near(sample.acceleration[2], 3 * G) &&
+              Near(sample.rate[0], 4 * D) && Near(sample.rate[1], 5 * D) &&
+              Near(sample.rate[2], 6 * D),
           "a report's sample in the device's order, other events left out");
     (void)mwinLinuxMotionEvent(&events, EV_ABS, ABS_Y, -7, 2 * MS, &sample);
-    CHECK(mwinLinuxMotionEvent(&events, EV_SYN, SYN_REPORT, 0, 2 * MS, &sample) &&
-              Near(sample.acceleration[0], 1 * G) && Near(sample.acceleration[1], -7 * G) &&
-              Near(sample.rate[2], 6 * D),
+    CHECK(End(&events, 2 * MS, &sample) && Near(sample.acceleration[0], 1 * G) &&
+              Near(sample.acceleration[1], -7 * G) && Near(sample.rate[2], 6 * D),
           "a report holding the axes it left out");
 
     mwinLinuxMotionEvents nintendo = Start(0x057E);
@@ -158,17 +167,17 @@ static void TestReports(void)
         (void)mwinLinuxMotionEvent(&nintendo, EV_ABS, code, code + 1, MS, &sample);
         (void)mwinLinuxMotionEvent(&nintendo, EV_ABS, ABS_RX + code, code + 4, MS, &sample);
     }
-    CHECK(mwinLinuxMotionEvent(&nintendo, EV_SYN, SYN_REPORT, 0, MS, &sample) &&
-              Near(sample.acceleration[0], -2 * G) && Near(sample.acceleration[1], 3 * G) &&
-              Near(sample.acceleration[2], -1 * G) && Near(sample.rate[0], -5 * D) &&
-              Near(sample.rate[1], 6 * D) && Near(sample.rate[2], -4 * D),
+    CHECK(End(&nintendo, MS, &sample) && Near(sample.acceleration[0], -2 * G) &&
+              Near(sample.acceleration[1], 3 * G) && Near(sample.acceleration[2], -1 * G) &&
+              Near(sample.rate[0], -5 * D) && Near(sample.rate[1], 6 * D) &&
+              Near(sample.rate[2], -4 * D),
           "Nintendo's axes reordered into the contract's frame");
 
     mwinLinuxMotionEvents extreme = Start(0x054C);
     (void)mwinLinuxMotionAxis(&extreme, 0, INT32_MIN, 1);
     (void)mwinLinuxMotionAxis(&extreme, 3, INT32_MAX, 1);
-    CHECK(mwinLinuxMotionEvent(&extreme, EV_SYN, SYN_REPORT, 0, MS, &sample) &&
-              isfinite(sample.acceleration[0]) && isfinite(sample.rate[0]),
+    CHECK(End(&extreme, MS, &sample) && isfinite(sample.acceleration[0]) &&
+              isfinite(sample.rate[0]),
           "the widest values finite");
 }
 
@@ -200,11 +209,66 @@ static void TestTimes(void)
           "a stamp going back started again from the event time");
 }
 
+static void TestDropGate(void)
+{
+    bool dropping = false;
+    CHECK(mwinEvdevDropStep(&dropping, EV_ABS, ABS_X) == mwin_evdevTake &&
+              mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevTake,
+          "events before a drop read as usual");
+    CHECK(mwinEvdevDropStep(&dropping, EV_SYN, SYN_DROPPED) == mwin_evdevSkip &&
+              mwinEvdevDropStep(&dropping, EV_KEY, BTN_SOUTH) == mwin_evdevSkip &&
+              mwinEvdevDropStep(&dropping, EV_ABS, ABS_X) == mwin_evdevSkip &&
+              mwinEvdevDropStep(&dropping, EV_MSC, MSC_TIMESTAMP) == mwin_evdevSkip &&
+              mwinEvdevDropStep(&dropping, EV_SYN, SYN_DROPPED) == mwin_evdevSkip,
+          "every event after a drop skipped, another drop among them");
+    CHECK(mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevResync,
+          "the next report ending the skip, with a resync");
+    CHECK(mwinEvdevDropStep(&dropping, EV_KEY, BTN_SOUTH) == mwin_evdevTake &&
+              mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevTake,
+          "the reports after it read as usual");
+}
+
+static void TestDrop(void)
+{
+    mwinLinuxMotionEvents events = Start(0x054C);
+    mwinLinuxMotionSample sample = {0};
+    (void)mwinLinuxMotionEvent(&events, EV_ABS, ABS_X, 1, MS, &sample);
+    (void)mwinLinuxMotionEvent(&events, EV_ABS, ABS_Y, 2, MS, &sample);
+    CHECK(Report(&events, 1000, 9 * MS) == 9 * MS, "a stamped report before the drop");
+
+    // A stamp the drop cuts off from its report, then what is left of
+    // the report: stale values and another stamp.
+    bool sampled = false;
+    sampled |= mwinLinuxMotionEvent(&events, EV_MSC, MSC_TIMESTAMP, 3000, 10 * MS, &sample) !=
+               mwin_motionNothing;
+    sampled |= mwinLinuxMotionEvent(&events, EV_SYN, SYN_DROPPED, 0, 10 * MS, &sample) !=
+               mwin_motionNothing;
+    sampled |=
+        mwinLinuxMotionEvent(&events, EV_ABS, ABS_X, 50, 10 * MS, &sample) != mwin_motionNothing;
+    sampled |= mwinLinuxMotionEvent(&events, EV_MSC, MSC_TIMESTAMP, 900000, 10 * MS, &sample) !=
+               mwin_motionNothing;
+    CHECK(!sampled, "nothing from the events after a drop");
+    CHECK(mwinLinuxMotionEvent(&events, EV_SYN, SYN_REPORT, 0, 10 * MS, &sample) ==
+              mwin_motionResync,
+          "the cut report ending with a resync and no sample");
+
+    // The device's current values, as the reader reads them again.
+    (void)mwinLinuxMotionAxis(&events, 0, 3, 1);
+    (void)mwinLinuxMotionAxis(&events, 1, 4, 1);
+    CHECK(End(&events, 12 * MS, &sample) && Near(sample.acceleration[0], 3 * G) &&
+              Near(sample.acceleration[1], 4 * G) && sample.timeNs == 12 * MS,
+          "the next report from the values read again, at its event time, the cut stamp left out");
+    CHECK(Report(&events, 5000, 14 * MS) == 13 * MS,
+          "stamps after it still counted from the last report's");
+}
+
 int main(void)
 {
     TestController();
     TestAxes();
     TestReports();
     TestTimes();
+    TestDropGate();
+    TestDrop();
     return s_failures == 0 ? 0 : 1;
 }

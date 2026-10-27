@@ -48,6 +48,8 @@ typedef struct mwinLinuxPad
     int32_t maximum[MWIN_LINUX_PAD_AXES];
     // The rumble effect uploaded, or -1.
     int16_t effect;
+    // Skipping what is left of a report the kernel's drop cut.
+    bool dropping;
     // Who it is, its motion device (fd -1 for none) and its battery.
     mwinLinuxPadIdentity identity;
     mwinLinuxMotion motion;

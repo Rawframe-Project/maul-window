@@ -33,7 +33,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       pull-requests: read
 
@@ -49,12 +49,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
         with:
           exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       contents: read
 
@@ -154,7 +154,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@56543e92d01e59abdb4299c4824a0c1facdc08ce # v0.0.25
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@bf59dbcd696369b51a9831145fb3b60f3bc71280 # v0.0.26
     permissions:
       contents: read
     with:
@@ -327,15 +327,16 @@ jobs:
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
           # Minimized together: the files of the seeds and the corpus that
           # keep every feature either reaches, seeds among them. The merge
-          # runs every input again, so its output, which would hold the
-          # input of a crash, is discarded.
-          mkdir -p out/merged
+          # runs every input again, so tools/fuzz_target.sh keeps its log
+          # on the runner and fails on a finding, which libFuzzer's merge
+          # exits 0 on; that corpus is not saved.
+          rm -rf out/fuzz-reports
           status=0
-          "out/fuzz/$TARGET" -merge=1 out/merged "${seeds[@]}" "out/corpus/$TARGET" >/dev/null 2>&1 ||
-            status=$?
+          tools/fuzz_target.sh --merge "out/fuzz/$TARGET" out/merged \
+            "${seeds[@]}" "out/corpus/$TARGET" || status=$?
           if [ "$status" -ne 0 ]; then
-            echo "::error::$TARGET: the merge exited $status"
-            exit 1
+            cat out/fuzz-reports/*.txt 2>/dev/null || true
+            exit "$status"
           fi
           rm -rf "out/corpus/$TARGET"
           mv out/merged "out/corpus/$TARGET"
@@ -609,16 +610,10 @@ jobs:
       - name: Quarantined tests
         # Tests that failed intermittently run here every night, outside the
         # required check, until their issue is fixed (the quarantine label).
+        # A failure is a known flake, reported as a warning; a skip, a test
+        # not run, a sanitizer report or a crash fails the step.
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        run: |
-          if ! ctest --test-dir out/android-emulator -N -L '^quarantine$' | grep -q 'Total Tests: [1-9]'; then
-            echo "no test is quarantined"; exit 0
-          fi
-          ctest --test-dir out/android-emulator -L '^quarantine$' --output-on-failure --timeout 240 \
-            --no-tests=error | tee "$RUNNER_TEMP/quarantine.log"
-          if grep -E '\*\*\*(Skipped|Not Run)' "$RUNNER_TEMP/quarantine.log"; then
-            echo "::error::a test did not run"; exit 1
-          fi
+        run: tools/run_quarantine.sh out/android-emulator --timeout 240
       - name: Test logs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

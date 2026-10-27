@@ -5,6 +5,26 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.5.1](https://github.com/Rawframe-Project/maul-window/compare/v0.5.0...v0.5.1) (2026-10-27)
+
+### Fixed
+
+- On X11 and Wayland, a drag over a window the program destroys ends
+  with the window: none of its records reach the window that takes its
+  place, and a drop still being gathered for it is refused to its
+  source instead of being delivered to that window
+  ([#154](https://github.com/Rawframe-Project/maul-window/pull/154)).
+- On X11 and Wayland, a drag still reported when another enters is
+  reported left first, so a window no longer hears two
+  `mwin_eventDragEntered` without a leave between them, as when an X11
+  source ended without a leave or another program started a drag
+  ([#156](https://github.com/Rawframe-Project/maul-window/pull/156)).
+- A gamepad's logical ranges are computed in 64 bits: an axis whose
+  device range spans all 32 bits normalizes correctly on Linux, Android
+  and Windows, and a Windows HID hat with such a range reads its step
+  instead of centred
+  ([#159](https://github.com/Rawframe-Project/maul-window/pull/159)).
+
 ## [0.5.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.5.0) (2026-10-25)
 
 ### Changed

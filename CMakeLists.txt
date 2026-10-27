@@ -510,6 +510,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_hid_controls)
             target_sources(test_hid_controls PRIVATE ${PROJECT_SOURCE_DIR}/src/hid_controls.c)
         endif()
+        # A motion device's identity, factors, reports and times, as plain
+        # values.
+        maul_add_test(linux_motion_events WHITEBOX)
         # Makes virtual gamepads through /dev/uinput, labeled uinput: a
         # container without the device leaves them out.
         maul_add_test(linux_gamepad POSIX)

@@ -22,6 +22,9 @@
 #define STANDARD_GRAVITY   9.80665f
 #define RADIANS_PER_DEGREE 0.017453292f
 #define VENDOR_NINTENDO    0x057E
+// How far a stamped time may stray from the event time before it starts
+// again from it.
+#define STRAY_NS 100000000u
 
 static bool Has(const unsigned long* bits, unsigned bit)
 {
@@ -117,7 +120,31 @@ bool mwinLinuxFindMotion(mwinLinuxMotion* motion, const mwinLinuxPadIdentity* pa
     return found;
 }
 
-// Posts the axes as one sample, in the contract's frame.
+// A report's time from its stamp: the first stamped report's event time,
+// then each stamp's microseconds since the last, which wrap, so only
+// their difference counts. Stamps that stray from the event time by more
+// than STRAY_NS, as a device's clock drifts or its stamps jump, start
+// again from the event time.
+static void Stamp(mwinLinuxMotion* motion, uint64_t eventNs)
+{
+    if (!motion->stamping)
+    {
+        return;
+    }
+    uint64_t timeNs = eventNs;
+    if (motion->stamped)
+    {
+        timeNs = motion->timeNs + (uint64_t)(uint32_t)(motion->next - motion->stamp) * 1000u;
+        uint64_t stray = timeNs > eventNs ? timeNs - eventNs : eventNs - timeNs;
+        timeNs = stray > STRAY_NS ? eventNs : timeNs;
+    }
+    motion->timeNs = timeNs;
+    motion->stamp = motion->next;
+    motion->stamped = true;
+    motion->stamping = false;
+}
+
+// Posts the axes as one sample, in the contract's frame, at a time.
 static void Post(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
     float values[6];
@@ -136,8 +163,7 @@ static void Post(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot, u
         rate[1] = values[5];
         rate[2] = -values[3];
     }
-    mwinPostGamepadMotion(context, slot, acceleration, rate,
-                          motion->stamped ? motion->timeNs : timeNs);
+    mwinPostGamepadMotion(context, slot, acceleration, rate, timeNs);
 }
 
 bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot)
@@ -163,19 +189,17 @@ bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t
             }
             else if (event->type == EV_MSC && event->code == MSC_TIMESTAMP)
             {
-                // Microseconds that wrap: the difference counts, the first
-                // stamp a start that is not 0, which would mean none.
-                uint32_t stamp = (uint32_t)event->value;
-                motion->timeNs +=
-                    motion->stamped ? (uint64_t)(stamp - motion->stamp) * 1000u : 1000u;
-                motion->stamp = stamp;
-                motion->stamped = true;
+                motion->next = (uint32_t)event->value;
+                motion->stamping = true;
             }
             else if (event->type == EV_SYN && event->code == SYN_REPORT)
             {
-                Post(motion, context, slot,
-                     (uint64_t)event->input_event_sec * 1000000000u +
-                         (uint64_t)event->input_event_usec * 1000u);
+                uint64_t timeNs = (uint64_t)event->input_event_sec * 1000000000u +
+                                  (uint64_t)event->input_event_usec * 1000u;
+                // A report without a stamp is timed by its event.
+                bool stamped = motion->stamping;
+                Stamp(motion, timeNs);
+                Post(motion, context, slot, stamped ? motion->timeNs : timeNs);
             }
         }
     }

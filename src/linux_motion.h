@@ -8,8 +8,11 @@
 // ABS_RZ in units per degree per second, as their resolutions say. It
 // belongs to the pad with its unique id (the controller's address)
 // where both have one, else with its physical path. Samples are timed
-// by MSC_TIMESTAMP where the device sends it, and turned into the
-// contract's frame as SDL turns them: Nintendo's axes reordered.
+// on the records' clock: by their report's event time, or, where the
+// device sends MSC_TIMESTAMP, by its stamps counted from the event time
+// of the first report that had one, which spaces them as the device took
+// them. They are turned into the contract's frame as SDL turns them:
+// Nintendo's axes reordered.
 
 #ifndef MAUL_WINDOW_SRC_LINUX_MOTION_H
 #define MAUL_WINDOW_SRC_LINUX_MOTION_H
@@ -34,8 +37,10 @@ typedef struct mwinLinuxMotion
     int32_t raw[6];
     float scale[6];
     bool nintendo;
-    // The device's microseconds, counted from its first stamp (stamped
-    // once it sent one), as the samples' time.
+    // A stamp in the report under way, and the last report's stamp (once
+    // a report had one) with the time it gave the report.
+    bool stamping;
+    uint32_t next;
     bool stamped;
     uint32_t stamp;
     uint64_t timeNs;

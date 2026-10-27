@@ -468,9 +468,10 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         // stamps after it.
         CHECK(motion.timeNs >= program->sentNs + 8000000u && motion.timeNs <= NowNs() + 8000000u,
               "stamped samples on the records' clock");
-        // A report without a stamp after the stamped ones.
+        // A report without a stamp after the stamped ones, of a value that
+        // changed: the kernel drops one that did not, and an empty report.
         program->sentNs = NowNs();
-        Emit(&program->motion, EV_ABS, ABS_Y, 8192);
+        Emit(&program->motion, EV_ABS, ABS_X, 1);
         Report(&program->motion);
         break;
     }

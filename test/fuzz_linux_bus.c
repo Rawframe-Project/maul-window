@@ -8,8 +8,10 @@
 // and UPower's Get and PropertiesChanged (linux_power.c), AccountsService's
 // user, its GetAll, PropertiesChanged and Changed, and its name's owner
 // changing (linux_languages.c),
-// and Fcitx 5's and IBus's input contexts, key answers, committed text
-// and compositions (linux_ime.c). Each input runs on a context of the test
+// Fcitx 5's and IBus's input contexts, key answers, committed text
+// and compositions (linux_ime.c), and the screensaver's and the
+// portal's answers to Inhibit (linux_inhibit.c), with the wish to keep
+// the display awake turned on and off. Each input runs on a context of the test
 // backend, its dialog requests going to the portal code, with the
 // modules on stand-in connections: the real libdbus builds and reads the
 // messages, and only the functions that would reach a bus are replaced.
@@ -29,7 +31,10 @@
 // every request completes exactly once, and a dialog's paths are
 // absolute UTF-8 within the limits; committed text and compositions are
 // UTF-8, a composition's caret, selection and segments within its text
-// on character boundaries; the facts the program reads are in range,
+// on character boundaries; at most one inhibition is held, a portal's
+// handle only where it fits, and each is let go exactly once, by its
+// cookie or its handle, and nothing else is; the facts the program
+// reads are in range,
 // the text scale finite and above zero; the preferred locales are never
 // empty, and hold tags of letters, digits and hyphens between single
 // commas; and the program reads each
@@ -38,6 +43,7 @@
 
 #include "linux_dialog.h"
 #include "linux_ime.h"
+#include "linux_inhibit.h"
 #include "linux_languages.h"
 #include "linux_power.h"
 #include "linux_settings.h"
@@ -132,6 +138,7 @@ typedef enum CallKind
     callKey,
     callFindUser,
     callGetAll,
+    callInhibit,
 } CallKind;
 
 typedef struct Call
@@ -164,6 +171,21 @@ static mwinLinuxBus s_system;
 static mwinLinuxLanguages s_languages;
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
+static mwinLinuxInhibit s_inhibit;
+// The wish to keep the display awake; whether inhibit's code runs, so
+// what it sends is told from the dialogs' Close; and the inhibition it
+// holds, as it said when it took it, until it lets it go.
+static bool s_awake;
+static bool s_inInhibit;
+// Inhibit ran with an Inhibit call on its way, so it may take a hold
+// and let it go before the target sees it.
+static bool s_mayTake;
+static struct
+{
+    mwinInhibitBy by;
+    uint32_t cookie;
+    char handle[MWIN_INHIBIT_HANDLE_BYTES];
+} s_hold;
 
 static mwinBackendOps s_ops;
 static const mwinBackendOps* s_test;
@@ -214,6 +236,7 @@ static mwinDBusBool SendWithReply(DBusConnection* connection, DBusMessage* messa
                  : strcmp(member, "ProcessKeyEvent") == 0    ? callKey
                  : strcmp(member, "FindUserById") == 0       ? callFindUser
                  : strcmp(member, "GetAll") == 0             ? callGetAll
+                 : strcmp(member, "Inhibit") == 0            ? callInhibit
                                                              : callOther;
     *pending = (DBusPendingCall*)call;
     return 1;
@@ -221,9 +244,39 @@ static mwinDBusBool SendWithReply(DBusConnection* connection, DBusMessage* messa
 
 static mwinDBusBool Send(DBusConnection* connection, DBusMessage* message, uint32_t* serial)
 {
-    (void)message;
     (void)serial;
     Expect(connection == SESSION || connection == SYSTEM);
+    if (!s_inInhibit)
+    {
+        return 1;
+    }
+    // Inhibit lets go of what it holds, by the cookie or the handle the
+    // answer gave, once.
+    const mwinDBusApi* api = &s_session.api;
+    const char* member = s_dbus.member(message);
+    if (s_hold.by == mwin_inhibitNone)
+    {
+        // Taken from the answer this run read, and let go at once.
+        Expect(s_mayTake);
+        s_mayTake = false;
+        s_hold.by = strcmp(member, "Close") == 0 ? mwin_inhibitPortal : mwin_inhibitScreenSaver;
+        s_hold.cookie = s_inhibit.cookie;
+        memcpy(s_hold.handle, s_inhibit.handle, sizeof(s_hold.handle));
+    }
+    if (strcmp(member, "UnInhibit") == 0)
+    {
+        mwinDBusIter iter;
+        uint32_t cookie = 0;
+        Expect(api->iterInit(message, &iter) && api->argType(&iter) == mwin_dbusTypeUint32);
+        api->getBasic(&iter, &cookie);
+        Expect(s_hold.by == mwin_inhibitScreenSaver && cookie == s_hold.cookie);
+    }
+    else
+    {
+        Expect(strcmp(member, "Close") == 0 && s_hold.by == mwin_inhibitPortal &&
+               strcmp(api->path(message), s_hold.handle) == 0);
+    }
+    s_hold.by = mwin_inhibitNone;
     return 1;
 }
 
@@ -800,6 +853,9 @@ static DBusMessage* Reply(const Call* call)
         return Fill(reply, "o", nullptr, 0);
     case callGetAll:
         return Fill(reply, "a{sv}", CONTENTS(s_languageTypes));
+    case callInhibit:
+        // The screensaver's cookie, or the portal's request handle.
+        return Fill(reply, (shape & 8) != 0 ? "o" : "u", nullptr, 0);
     default:
         return Fill(reply, "", nullptr, 0);
     }
@@ -1016,6 +1072,48 @@ static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
     }
 }
 
+// What inhibit holds after it ran: a hold is new only where an
+// Inhibit call was answered, is kept as it was taken, with a handle
+// that fits, and one gone was let go by Send.
+static void CheckHold(void)
+{
+    bool mayTake = s_mayTake;
+    s_mayTake = false;
+    if (s_inhibit.held == mwin_inhibitNone)
+    {
+        Expect(s_hold.by == mwin_inhibitNone);
+        return;
+    }
+    if (s_hold.by == mwin_inhibitNone)
+    {
+        // Only an answer to an Inhibit call gives a hold.
+        Expect(mayTake);
+        s_hold.by = s_inhibit.held;
+        s_hold.cookie = s_inhibit.cookie;
+        memcpy(s_hold.handle, s_inhibit.handle, sizeof(s_hold.handle));
+    }
+    Expect(s_hold.by == s_inhibit.held);
+    if (s_hold.by == mwin_inhibitPortal)
+    {
+        size_t length = strnlen(s_inhibit.handle, sizeof(s_inhibit.handle));
+        Expect(length > 0 && length < sizeof(s_inhibit.handle) &&
+               strcmp(s_hold.handle, s_inhibit.handle) == 0);
+    }
+    else
+    {
+        Expect(s_hold.cookie == s_inhibit.cookie);
+    }
+}
+
+static void PumpInhibit(uint64_t nowNs)
+{
+    s_mayTake = s_inhibit.asking != mwin_inhibitNone;
+    s_inInhibit = true;
+    mwinInhibitPump(&s_session, &s_inhibit, s_awake, nowNs);
+    s_inInhibit = false;
+    CheckHold();
+}
+
 static void Pump(uint64_t nowNs)
 {
     mwinBusPump(&s_session, 0);
@@ -1028,6 +1126,7 @@ static void Pump(uint64_t nowNs)
     mwinLanguagesPump(&s_languages, nowNs);
     mwinDialogsPump(&s_dialogs, nowNs);
     mwinImePump(&s_ime, nowNs);
+    PumpInhibit(nowNs);
 }
 
 static bool IsUtf8(const char* text, size_t length)
@@ -1192,6 +1291,9 @@ static void Start(mwinContext* context)
     s_made = 0;
     s_keyCount = 0;
     s_keyRead = 0;
+    s_inhibit = (mwinLinuxInhibit){0};
+    s_awake = false;
+    s_hold.by = mwin_inhibitNone;
     s_session = (mwinLinuxBus){0};
     s_system = (mwinLinuxBus){.system = true};
     Join(&s_session, SESSION);
@@ -1209,8 +1311,33 @@ static void Start(mwinContext* context)
     s_ops.now = Now;
 }
 
+// Lets inhibit go, a call it waits on answered with an error first, as
+// its stop would otherwise wait for it on the clock.
+static void StopInhibit(void)
+{
+    if (s_inhibit.asking != mwin_inhibitNone)
+    {
+        Call* call = CallOf(s_inhibit.call.pending);
+        if (!call->answered)
+        {
+            DBusMessage* error = s_dbus.make(mwin_dbusMessageError);
+            Expect(error != nullptr);
+            (void)s_dbus.setErrorName(error, "org.freedesktop.DBus.Error.Failed");
+            (void)s_dbus.setReplySerial(error, 1);
+            call->reply = error;
+            call->answered = true;
+        }
+    }
+    s_mayTake = s_inhibit.asking != mwin_inhibitNone;
+    s_inInhibit = true;
+    mwinInhibitStop(&s_session, &s_inhibit);
+    s_inInhibit = false;
+    Expect(s_hold.by == mwin_inhibitNone);
+}
+
 static void Stop(mwinContext* context)
 {
+    StopInhibit();
     mwinImeStop(&s_ime);
     mwinDialogsStop(&s_dialogs);
     mwinPowerStop(&s_power);
@@ -1266,7 +1393,10 @@ static mwinResult Init(mwinContext* context, void* user)
             }
             break;
         case 3:
-            Answer((op & 48) == 16 ? callFindUser : (op & 48) == 32 ? callGetAll : callGet);
+            Answer((op & 48) == 16   ? callFindUser
+                   : (op & 48) == 32 ? callGetAll
+                   : (op & 48) == 48 ? callInhibit
+                                     : callGet);
             break;
         case 4:
             Dialog(context, windows[i], op);
@@ -1297,6 +1427,9 @@ static mwinResult Init(mwinContext* context, void* user)
             ImeSignal(op);
             break;
         case 12:
+            // The wish to keep the display awake, as the windows that
+            // show would have it.
+            s_awake = (op & 64) != 0;
             Pump(mwinMonotonicNow());
             break;
         case 13:

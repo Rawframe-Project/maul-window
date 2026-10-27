@@ -144,7 +144,7 @@ static void Stamp(mwinLinuxMotion* motion, uint64_t eventNs)
     motion->stamping = false;
 }
 
-// Posts the axes as one sample, in the contract's frame.
+// Posts the axes as one sample, in the contract's frame, at a time.
 static void Post(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
     float values[6];
@@ -163,8 +163,7 @@ static void Post(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot, u
         rate[1] = values[5];
         rate[2] = -values[3];
     }
-    mwinPostGamepadMotion(context, slot, acceleration, rate,
-                          motion->stamped ? motion->timeNs : timeNs);
+    mwinPostGamepadMotion(context, slot, acceleration, rate, timeNs);
 }
 
 bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot)

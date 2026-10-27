@@ -9,7 +9,8 @@
 // sensors device, which grants it motion: a first report without a
 // stamp at its event time, then samples in units per g and per degree per
 // second, timed by their stamps from the event time of the first stamped
-// report, all on the records' clock; a joystick of
+// report, and a report without a stamp after them at its own event time,
+// all on the records' clock; a joystick of
 // no known layout, raw, its hat as two axes; a disconnect; and the pad
 // again, its sensors device there before it, which grants it motion from
 // the start. Without a display or /dev/uinput the test is skipped (exit
@@ -41,6 +42,7 @@ typedef enum Phase
     phaseMotionFound,
     phaseUnstamped,
     phaseMotion,
+    phaseUnstampedAfter,
     phaseRaw,
     phaseRawPress,
     phaseRumble,
@@ -341,6 +343,7 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventGamepadChanged, 0) != nullptr;
     case phaseUnstamped:
     case phaseMotion:
+    case phaseUnstampedAfter:
     case phaseSensorsAlone:
         // Frames have read the samples, or seen the device come.
         return NowNs() - program->startNs > 50000000u;
@@ -465,6 +468,18 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         // stamps after it.
         CHECK(motion.timeNs >= program->sentNs + 8000000u && motion.timeNs <= NowNs() + 8000000u,
               "stamped samples on the records' clock");
+        // A report without a stamp after the stamped ones.
+        program->sentNs = NowNs();
+        Emit(&program->motion, EV_ABS, ABS_Y, 8192);
+        Report(&program->motion);
+        break;
+    }
+    case phaseUnstampedAfter:
+    {
+        mwinGamepadMotion motion;
+        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+                  motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
+              "a report without a stamp after stamped ones at its own event time");
         Destroy(&program->motion);
         CHECK(Make(&program->raw, "Stick", 0x1234, 0x0002, 1, s_rawButtons, 2, false),
               "a joystick");

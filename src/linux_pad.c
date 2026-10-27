@@ -367,7 +367,6 @@ static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
             mwinEvdevStep step = mwinEvdevDropStep(&pad->dropping, event->type, event->code);
             if (step == mwin_evdevResync)
             {
-                Resync(pad);
                 mwinPostPadControls(pads->context, pad->slot, &pad->controls, timeNs);
             }
             else if (step == mwin_evdevSkip)

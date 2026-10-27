@@ -93,7 +93,7 @@ mwinLinuxMotionStep mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t
                                          uint16_t code, int32_t value, uint64_t timeNs,
                                          mwinLinuxMotionSample* sample)
 {
-    mwinEvdevStep step = mwinEvdevDropStep(&events->dropping, type, code);
+    mwinEvdevStep step = mwin_evdevTake;
     if (step != mwin_evdevTake)
     {
         // A stamp in the cut report is not this report's.

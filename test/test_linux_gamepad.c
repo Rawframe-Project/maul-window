@@ -6,8 +6,10 @@
 // program starts, mapped by SDL_GameControllerDB, its buttons, sticks,
 // triggers and d-pad hat, and its rumble; a pad of the kernel's layout
 // the database lacks, connected while the program runs, then its motion
-// sensors device, which grants it motion: samples in units per g and
-// per degree per second, timed by their stamps; a joystick of
+// sensors device, which grants it motion: a first report without a
+// stamp at its event time, then samples in units per g and per degree per
+// second, timed by their stamps from the event time of the first stamped
+// report, all on the records' clock; a joystick of
 // no known layout, raw, its hat as two axes; a disconnect; and the pad
 // again, its sensors device there before it, which grants it motion from
 // the start. Without a display or /dev/uinput the test is skipped (exit
@@ -37,6 +39,7 @@ typedef enum Phase
     phaseKernel,
     phaseKernelPress,
     phaseMotionFound,
+    phaseUnstamped,
     phaseMotion,
     phaseRaw,
     phaseRawPress,
@@ -69,6 +72,8 @@ typedef struct Program
     Device motion;
     Device raw;
     mwinGamepadId pads[3];
+    // When the motion samples under test were sent.
+    uint64_t sentNs;
     mwinEvent records[MAX_RECORDS];
     int count;
     bool timedOut;
@@ -334,6 +339,7 @@ static bool Ready(const Program* program)
         return Pressed(program, mwin_padFaceNorth, false);
     case phaseMotionFound:
         return Find(program, mwin_eventGamepadChanged, 0) != nullptr;
+    case phaseUnstamped:
     case phaseMotion:
     case phaseSensorsAlone:
         // Frames have read the samples, or seen the device come.
@@ -423,7 +429,24 @@ static void AdvanceOthers(Program* program, mwinContext* context)
               "the sensors device of the same path grants motion");
         CHECK(mwinSetGamepadMotion(context, program->pads[1], true) == mwin_success,
               "motion turned on");
+        // The device's first report has no stamp.
+        program->sentNs = NowNs();
+        Emit(&program->motion, EV_ABS, ABS_Y, 8192);
+        Report(&program->motion);
+        break;
+    }
+    case phaseUnstamped:
+    {
+        mwinGamepadMotion motion;
+        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+                  motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
+              "a report without a stamp at its event time");
+        // Turned off and on, its motion starts anew.
+        CHECK(mwinSetGamepadMotion(context, program->pads[1], false) == mwin_success &&
+                  mwinSetGamepadMotion(context, program->pads[1], true) == mwin_success,
+              "motion turned off and on");
         // Three samples 4 ms apart, the stamps wrapping between them.
+        program->sentNs = NowNs();
         Sample(&program->motion, -6000);
         Sample(&program->motion, -2000);
         Sample(&program->motion, 2000);
@@ -438,6 +461,10 @@ static void AdvanceOthers(Program* program, mwinContext* context)
                   fabsf(motion.rotationRate[0] - 1.5707964f) < 1e-4f &&
                   fabsf(motion.rotation[0] - 1.5707964f * 0.008f) < 1e-5f,
               "gravity in m/s^2, the rate in rad/s, the angle over the stamps' 8 ms");
+        // The first stamped report at its event time, the last 8 ms of
+        // stamps after it.
+        CHECK(motion.timeNs >= program->sentNs + 8000000u && motion.timeNs <= NowNs() + 8000000u,
+              "stamped samples on the records' clock");
         Destroy(&program->motion);
         CHECK(Make(&program->raw, "Stick", 0x1234, 0x0002, 1, s_rawButtons, 2, false),
               "a joystick");

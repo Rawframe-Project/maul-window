@@ -207,9 +207,11 @@ extern "C"
     /// @param requestOut Receives the id of the creation request. May be
     ///                   NULL.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
-    ///         its limit of windows; `mwin_errorStale` for an owner that no
-    ///         longer exists; `mwin_errorInvalid` for a NULL argument or an
-    ///         invalid def.
+    ///         its limit of windows or the title passes the titleBytes
+    ///         limit; `mwin_errorLimit` for a canvas selector past
+    ///         MWIN_CANVAS_SELECTOR_BYTES; `mwin_errorStale` for an owner
+    ///         that no longer exists; `mwin_errorInvalid` for a NULL
+    ///         argument or an otherwise invalid def.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinCreateWindow(mwinContext* context,
@@ -449,9 +451,10 @@ extern "C"
     /// @param regions     The regions. May be NULL when count is 0.
     /// @param count       How many, at most MWIN_HIT_REGIONS; 0 for none.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for more
-    ///         regions than MWIN_HIT_REGIONS, a region not finite, of a
-    ///         negative size or of an unknown kind.
+    /// @return As mwinRequestTitle, with `mwin_errorLimit` for more
+    ///         regions than MWIN_HIT_REGIONS, and `mwin_errorInvalid` for
+    ///         a region not finite, of a negative size or of an unknown
+    ///         kind.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequestHitRegions(mwinContext* context,
@@ -474,10 +477,11 @@ extern "C"
     ///                    platform's own icon.
     /// @param requestOut  Receives the request's id. May be NULL.
     /// @return As mwinRequestTitle, with `mwin_errorCapacity` when the
-    ///         context cannot hold the copy, and `mwin_errorInvalid` for
-    ///         more images than MWIN_ICON_IMAGES, an image without pixels,
-    ///         with no width or height or more than MWIN_ICON_SIZE, or a
-    ///         stride shorter than its row.
+    ///         context cannot hold the copy, `mwin_errorLimit` for more
+    ///         images than MWIN_ICON_IMAGES or an image larger than
+    ///         MWIN_ICON_SIZE a side, and `mwin_errorInvalid` for an image
+    ///         without pixels, with no width or height, or a stride
+    ///         shorter than its row.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window,

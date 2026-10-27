@@ -58,10 +58,14 @@ static void CheckRefusals(mwinContext* context)
               mwinCreateCursor(context, &def, nullptr) == mwin_errorInvalid &&
               mwinCreateCursor(nullptr, &def, &cursor) == mwin_errorInvalid &&
               Refused(context, cookie) && Refused(context, Def(s_images, 0)) &&
-              Refused(context, Def(five, 5)) && Refused(context, Def(&big, 1)) &&
               Refused(context, Def(narrower, 2)) && Refused(context, outside),
           "defs refused at the call");
-    CHECK(mwinGetContextMisuse(context) == misuse + 8, "each counted");
+    mwinCursorDef many = Def(five, 5);
+    mwinCursorDef large = Def(&big, 1);
+    CHECK(mwinCreateCursor(context, &many, &cursor) == mwin_errorLimit &&
+              mwinCreateCursor(context, &large, &cursor) == mwin_errorLimit,
+          "more images than MWIN_CURSOR_IMAGES, or a side past MWIN_CURSOR_SIZE");
+    CHECK(mwinGetContextMisuse(context) == misuse + 8, "each counted, past the bounds too");
     // The most images, each wider than the one before.
     static uint8_t pixels[48 * 48 * 4];
     const mwinIconImage four[MWIN_CURSOR_IMAGES] = {

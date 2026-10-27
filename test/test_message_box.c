@@ -6,7 +6,8 @@
 // text as arguments, never through a shell; OK, Yes and No; an error
 // of zenity's own; kdialog where zenity is missing, the longest title
 // whole; none where both are and no X server answers (the library's own
-// box, test_x11_message_box.c); and defs refused before anything runs.
+// box, test_x11_message_box.c); and defs refused before anything runs,
+// with text past its named bound as mwin_errorLimit.
 
 #include "test_harness.h"
 
@@ -134,6 +135,17 @@ static void CheckRefused(void)
               mwinShowMessageBox(&text, nullptr) == mwin_errorInvalid &&
               mwinShowMessageBox(&nul, nullptr) == mwin_errorInvalid && !Ran(""),
           "defs refused before anything runs");
+    static char s_long[MWIN_MESSAGE_BYTES + 1];
+    memset(s_long, 'a', sizeof(s_long));
+    mwinMessageBoxDef title = def;
+    title.title = s_long;
+    title.titleLength = MWIN_MESSAGE_TITLE_BYTES + 1;
+    mwinMessageBoxDef message = def;
+    message.message = s_long;
+    message.messageLength = MWIN_MESSAGE_BYTES + 1;
+    CHECK(mwinShowMessageBox(&title, nullptr) == mwin_errorLimit &&
+              mwinShowMessageBox(&message, nullptr) == mwin_errorLimit && !Ran(""),
+          "a title or message past its named bound refused before anything runs");
 }
 
 int main(void)

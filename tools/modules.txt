@@ -44,7 +44,7 @@ clipboard_data: allocator core utf8
 context: allocator backend core cursor
 core: backend file_list
 dbus_api:
-dialog: allocator core file_list
+dialog: allocator core file_list utf8
 drop: allocator core utf8
 edid:
 evdev:
@@ -99,7 +99,7 @@ macos_system: apple_locale core macos
 macos_text: apple_text core macos
 macos_view: accessibility core macos
 macos_window: core macos
-message_box:
+message_box: utf8
 monitor: core
 monotonic:
 native: core
@@ -111,7 +111,7 @@ posix_message_box: message_box x11_message_box
 preedit_fit:
 queue: core preedit_fit text
 selection_reads: clipboard_data core
-services: allocator core
+services: allocator core utf8
 system: core
 text: core
 uri_list: core
@@ -167,7 +167,7 @@ win32_services: core win32
 win32_system: core win32
 win32_touch_keyboard: core win32
 win32_window: chrome core win32 win32_accessibility win32_clipboard win32_dialog win32_drop win32_icon win32_ime win32_input win32_occlusion win32_output win32_pointer win32_services win32_system win32_touch_keyboard
-window: core
+window: core utf8
 x11: clicks core linux_ime linux_pad linux_services monotonic selection_reads x11_api x11_pen x11_scroll x11_touch xkb_api xkb_keyboard
 x11_api:
 x11_pen:

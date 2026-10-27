@@ -445,6 +445,18 @@ static inline mwinResult mwinMisuse(const mwinContext* context)
     return mwin_errorInvalid;
 }
 
+// Answers a refusal's status, counting one misuse on a live context
+// for mwin_errorInvalid and mwin_errorLimit, as mwinMisuse does; a
+// limit of mwinLimits that is full is not misuse.
+static inline mwinResult mwinRefuse(const mwinContext* context, mwinResult status)
+{
+    if (context != nullptr && (status == mwin_errorInvalid || status == mwin_errorLimit))
+    {
+        ++*context->misuse;
+    }
+    return status;
+}
+
 // The id of the request in a window slot's request slot.
 mwinRequestId mwinRequestIdOf(const mwinContext* context, uint32_t slot, uint32_t request);
 

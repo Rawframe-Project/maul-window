@@ -9,8 +9,7 @@
 #include "maul-window/window.h"
 
 #include "core.h"
-
-#include "maul-unicode/encoding.h"
+#include "utf8.h"
 
 #include <math.h>
 #include <string.h>
@@ -45,12 +44,6 @@ mwinWindow* mwinFindWindow(const mwinContext* context, mwinWindowId window)
     mwinWindow* found = &context->windows[window.index1 - 1];
     return found->status == mwin_slotLive && found->generation == window.generation ? found
                                                                                     : nullptr;
-}
-
-static bool IsText(const char* text, size_t length, uint16_t limit)
-{
-    return (text != nullptr || length == 0) && length <= limit &&
-           muniValidateUtf8(text, length).status == muni_success;
 }
 
 static bool IsPositive(mwinSize size)
@@ -224,24 +217,40 @@ void mwinSubmitRequest(mwinContext* context, uint32_t slot, int32_t request,
     context->backend->submit(context, slot, (uint32_t)request);
 }
 
-static bool IsDefValid(const mwinContext* context, const mwinWindowDef* def)
+// A def's status: mwin_errorCapacity for a title past the titleBytes
+// limit, mwin_errorLimit for a canvas selector past its named bound,
+// mwin_errorInvalid for anything else wrong.
+static mwinResult CheckDef(const mwinContext* context, const mwinWindowDef* def)
 {
     bool popup = def->kind != mwin_windowNormal;
-    return def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
-           def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
-           IsText(def->title, def->titleLength, context->limits.titleBytes) &&
-           IsText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES) &&
-           def->kind <= mwin_windowTooltip &&
-           (!popup || (def->owner.index1 != 0 && def->mode == mwin_modeWindowed &&
-                       isfinite(def->position.x) && isfinite(def->position.y)));
+    bool valid = def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
+                 def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
+                 def->kind <= mwin_windowTooltip &&
+                 (!popup || (def->owner.index1 != 0 && def->mode == mwin_modeWindowed &&
+                             isfinite(def->position.x) && isfinite(def->position.y)));
+    if (!valid)
+    {
+        return mwin_errorInvalid;
+    }
+    mwinResult status = mwinCheckText(def->title, def->titleLength, context->limits.titleBytes,
+                                      mwin_errorCapacity, true);
+    return status != mwin_success
+               ? status
+               : mwinCheckText(def->canvas, def->canvasLength, MWIN_CANVAS_SELECTOR_BYTES,
+                               mwin_errorLimit, true);
 }
 
 mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwinWindowId* windowOut,
                             mwinRequestId* requestOut)
 {
-    if (context == nullptr || def == nullptr || windowOut == nullptr || !IsDefValid(context, def))
+    if (context == nullptr || def == nullptr || windowOut == nullptr)
     {
         return mwinMisuse(context);
+    }
+    mwinResult checked = CheckDef(context, def);
+    if (checked != mwin_success)
+    {
+        return mwinRefuse(context, checked);
     }
     if (def->owner.index1 != 0 && mwinFindWindow(context, def->owner) == nullptr)
     {
@@ -354,9 +363,13 @@ mwinResult mwinBeginRequest(mwinContext* context, mwinWindowId window, mwinReque
 mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window, const char* title,
                             size_t length, mwinRequestId* requestOut)
 {
-    if (context != nullptr && !IsText(title, length, context->limits.titleBytes))
+    mwinResult checked =
+        context != nullptr
+            ? mwinCheckText(title, length, context->limits.titleBytes, mwin_errorCapacity, true)
+            : mwin_success;
+    if (checked != mwin_success)
     {
-        return length > context->limits.titleBytes ? mwin_errorCapacity : mwinMisuse(context);
+        return mwinRefuse(context, checked);
     }
     uint32_t slot = 0;
     int32_t request = 0;

@@ -15,7 +15,9 @@
 // - the stick is raw: its buttons in usage order, a signed axis, and a
 //   centred hat as two axes after the others;
 // - the wheel's axes: X and Rz, then a slider and a dial after them,
-//   the dial's single value read as centred;
+//   the dial's single value read as centred, and a hat whose logical
+//   range spans all 32 bits, read in the right step;
+// - reports of no size read nothing, however many there are;
 // - a removed device is gone, and its reports read nothing; the pad's
 //   file is closed once named; started for real, Windows' parser loads.
 
@@ -77,6 +79,8 @@ static int s_opened;
 static int s_closed;
 static Report s_report;
 static HANDLE s_sender;
+// The size of each report sent.
+static DWORD s_reportSize = sizeof(Report);
 
 static const Device* DeviceOf(HANDLE handle)
 {
@@ -171,8 +175,9 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
 
 // The pad's controls in its descriptor's order: X, Y, Z and Rz, the hat,
 // then Rx and Ry, and one of a vendor's page; the stick's buttons 3,
-// then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider and a
-// dial of one value, no buttons; none for the empty one.
+// then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider, a
+// dial of one value and a hat of the widest range, no buttons; none for
+// the empty one.
 static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 {
     if (owner == EMPTY)
@@ -189,7 +194,9 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
                         8, 0, 255);
         caps[3] =
             Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_DIAL, HID_USAGE_GENERIC_DIAL, 8, 5, 5);
-        return 4;
+        caps[4] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_HATSWITCH,
+                        HID_USAGE_GENERIC_HATSWITCH, 32, INT32_MIN, INT32_MAX);
+        return 5;
     }
     if (owner == PAD)
     {
@@ -258,7 +265,7 @@ static NTSTATUS NTAPI Usages(HIDP_REPORT_TYPE type, USAGE page, USHORT link, PUS
     (void)type;
     (void)link;
     (void)data;
-    Report read;
+    Report read = {0};
     memcpy(&read, report, reportLength < sizeof(read) ? reportLength : sizeof(read));
     ULONG count = 0;
     for (USAGE usage = 1; page == HID_USAGE_PAGE_BUTTON && usage <= 64; usage++)
@@ -279,7 +286,7 @@ static NTSTATUS NTAPI UsageValue(HIDP_REPORT_TYPE type, USAGE page, USHORT link,
     (void)type;
     (void)link;
     (void)data;
-    Report read;
+    Report read = {0};
     memcpy(&read, report, reportLength < sizeof(read) ? reportLength : sizeof(read));
     if (page != HID_USAGE_PAGE_GENERIC || usage < HID_USAGE_GENERIC_X ||
         usage >= HID_USAGE_GENERIC_X + 10)
@@ -331,8 +338,8 @@ static UINT WINAPI InputData(HRAWINPUT input, UINT command, LPVOID data, PUINT s
     (void)header;
     RAWINPUT* raw = data;
     raw->header = (RAWINPUTHEADER){RIM_TYPEHID, 0, s_sender, 0};
-    raw->data.hid.dwSizeHid = sizeof(Report);
-    raw->data.hid.dwCount = 1;
+    raw->data.hid.dwSizeHid = s_reportSize;
+    raw->data.hid.dwCount = s_reportSize > 0 ? 1 : 3;
     memcpy(raw->data.hid.bRawData, &s_report, sizeof(Report));
     *size = (UINT)(offsetof(RAWINPUT, data.hid.bRawData) + sizeof(Report));
     return *size;
@@ -373,8 +380,8 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
               mwinGetGamepadInfo(context, ids[1], &stick) == mwin_success &&
               mwinGetGamepadInfo(context, ids[2], &wheel) == mwin_success,
           "of the devices, the pad, the stick and the wheel gamepads, once");
-    CHECK(!wheel.mapped && wheel.rawButtons == 0 && wheel.rawAxes == 4,
-          "the wheel raw: four axes, no buttons");
+    CHECK(!wheel.mapped && wheel.rawButtons == 0 && wheel.rawAxes == 6,
+          "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");
     CHECK(pad.mapped && pad.vendor == 0x054C && pad.product == 0x05C4 && pad.nameLength == 22 &&
               memcmp(pad.name, "Wireless Controller \xC3\xA9", 22) == 0 && pad.battery == -1 &&
@@ -417,6 +424,10 @@ static void CheckWheel(const mwinContext* context, mwinGamepadId id)
     CHECK(mwinGetGamepadState(context, id, &state) == mwin_success && Near(state.axes[0], 1.0f) &&
               Near(state.axes[1], -1.0f) && Near(state.axes[2], 1.0f) && Near(state.axes[3], 0.0f),
           "the wheel's X and Rz, then its slider and its dial of one value, centred");
+    // 0 is the middle of the hat's range: the fifth of its eight steps,
+    // down.
+    CHECK(Near(state.axes[4], 0.0f) && Near(state.axes[5], 1.0f),
+          "a hat whose range spans 32 bits read in the right step");
 }
 
 static void Step(Program* program, mwinContext* context, int step)
@@ -457,13 +468,18 @@ static void Step(Program* program, mwinContext* context, int step)
         mwinWin32HidRemove(&s_hid, STICK, 3);
         mwinWin32HidRemove(&s_hid, KEYBOARD, 3);
         Send(STICK, 0, (const ULONG[10]){0});
+        // Reports of no size, which would change the pad were they read.
+        s_reportSize = 0;
+        Send(PAD, 0, (const ULONG[10]){0});
+        s_reportSize = sizeof(Report);
         break;
     default:
     {
         mwinGamepadState state;
         CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadRemoved &&
                   mwinGetGamepadState(context, ids[1], &state) == mwin_errorStale,
-              "a removed device gone, its reports reading nothing");
+              "a removed device gone, its reports reading nothing, and reports of no size "
+              "reading nothing");
         mwinWin32HidStop(&s_hid);
         // Started for real: Windows' parser loaded from hid.dll.
         static mwinWin32Hid real;

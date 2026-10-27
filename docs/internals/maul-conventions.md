@@ -42,6 +42,19 @@ The libraries are one product family: a program may link several of them, and a 
 ## Errors and assertions
 
 - A function that can fail returns a status from the library's closed result enum, success being zero, and `PP_NODISCARD` comes first in its declaration because C++ accepts a standard attribute only there. What it produces goes through out-parameters. Where the position of a failure matters (validation, decoding, parsing) it returns a small struct with the status and the byte offset. `PResultName` names any status.
+- A status means the same in every library, so a program that links several and logs a raw value reads it one way. An error the family shares has one name, one meaning and one value everywhere:
+  - `P_errorInvalid` -1: an argument a correct program never passes, or input that fails a check no other status below names.
+  - `P_errorCapacity` -2: storage is too small for the result, whether a pool sized at creation, a caller's buffer or the allocator. More room would succeed.
+  - `P_errorStale` -3: an id names an object that no longer exists.
+  - `P_errorUnsupported` -4: this build, CPU, backend or device cannot do what is asked.
+  - `P_errorPlatform` -5: the operating system or a driver failed or refused the call.
+  - `P_errorState` -6: the call is not allowed in the object's current state (before a setup step, after a stream started, inside a callback).
+  - `P_errorVersion` -7: headers, a def, a file or a record come from another version of the library or its format.
+  - `P_errorFormat` -8: stored or received bytes are malformed (a file, a snapshot, a tape, a catalog, a packet).
+  - `P_errorLimit` -9: a value passes a fixed bound the library documents (a nesting depth, a run length, a magnitude). More room would not help.
+  - `P_errorBusy` -10: the object is in use by work the library is running, and the same call succeeds once that work ends.
+
+  A library defines only the shared errors it returns, at these values, and numbers its own errors from -32 down. A library error whose name matches a shared one but whose meaning differs takes another name and an own value. Positive outcomes (`P_empty`, `P_done`) are each library's own.
 - No library keeps a failure reason in thread-local or global state. A reason kept apart from the call can be stale, read on the wrong thread, or overwritten by another thread's failure.
 - An argument a correct program never passes, given to a live owner object (a world, a device, a context), counts one misuse on that object, readable at any time, so a host can catch bugs in release builds. Bad untrusted data (a file, a snapshot, a tape, a packet) is refused with its status and counts no misuse: the counter shows bugs in the calling code, and whoever controls the data must not be able to move it. A validity query on a stale id is not misuse.
 - A call whose only refusal is misuse (an argument a correct program never passes: a setter, an impulse, an edit) may return `void`: it changes nothing and counts the misuse. Anything a correct program can meet (a full pool, the wrong state, bad untrusted input, a legitimate refusal) returns a status.

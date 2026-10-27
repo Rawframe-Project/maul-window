@@ -60,6 +60,12 @@ void mwinWaylandDragEnter(mwinWaylandPlatform* platform, uint32_t serial,
                           struct wl_data_offer* offer, bool files, const char* textType)
 {
     mwinWaylandDrag* drag = &platform->drag;
+    // A compositor sends a leave before another enter; a drag still
+    // reported leaves first all the same.
+    if (drag->slot >= 0 && drag->contents != 0)
+    {
+        Post(platform, mwin_eventDragLeft);
+    }
     DestroyOffer(&platform->api, drag->offer);
     drag->offer = offer;
     drag->serial = serial;

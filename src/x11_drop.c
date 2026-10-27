@@ -70,6 +70,14 @@ static void ReadTypeList(mwinX11Platform* platform)
     mwinReleaseSystemMemory(reply);
 }
 
+static void Post(mwinX11Platform* platform, mwinEventType type)
+{
+    const mwinX11Drag* drag = &platform->drag;
+    mwinEvent event = {.type = type, .timeNs = mwinMonotonicNow()};
+    event.data.drag = (mwinDragEvent){drag->position, drag->contents};
+    mwinPost(platform->context, (uint32_t)drag->slot, &event);
+}
+
 static void OnEnter(mwinX11Platform* platform, const xcb_client_message_event_t* event)
 {
     mwinX11Drag* drag = &platform->drag;
@@ -78,6 +86,12 @@ static void OnEnter(mwinX11Platform* platform, const xcb_client_message_event_t*
     if (drag->dropping)
     {
         return;
+    }
+    // A drag that never left, from a source that ended without a leave
+    // or from another one, leaves before the new one enters.
+    if (drag->entered)
+    {
+        Post(platform, mwin_eventDragLeft);
     }
     *drag = (mwinX11Drag){.source = data[0],
                           .version = data[1] >> 24,
@@ -90,14 +104,6 @@ static void OnEnter(mwinX11Platform* platform, const xcb_client_message_event_t*
     {
         Offer(platform, data[i]);
     }
-}
-
-static void Post(mwinX11Platform* platform, mwinEventType type)
-{
-    const mwinX11Drag* drag = &platform->drag;
-    mwinEvent event = {.type = type, .timeNs = mwinMonotonicNow()};
-    event.data.drag = (mwinDragEvent){drag->position, drag->contents};
-    mwinPost(platform->context, (uint32_t)drag->slot, &event);
 }
 
 // A position on the screen in the window, in logical units.

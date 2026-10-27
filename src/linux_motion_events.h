@@ -5,7 +5,7 @@
 // belongs to, its axes' factors from their resolutions, and its evdev
 // events turned into timed samples in the contract's frame. A device
 // hands these over and the reading must hold up against them, so it
-// takes no handle and is tested on Linux without a device;
+// takes no handle, and is tested on Linux without a device and fuzzed;
 // linux_motion.c opens and reads the device and hands them on.
 //
 // The device belongs to the pad with its unique id (the controller's

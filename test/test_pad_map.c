@@ -189,6 +189,11 @@ static void Step(Program* program, mwinContext* context, int step)
         CHECK(Near(mwinPadNormalize(20, 0, 10), 1.0f) && Near(mwinPadNormalize(-5, 0, 10), -1.0f),
               "held to -1 and 1");
         CHECK(Near(mwinPadNormalize(3, 3, 3), 0.0f), "an empty range 0");
+        CHECK(Near(mwinPadNormalize(INT32_MIN, INT32_MIN, INT32_MAX), -1.0f) &&
+                  Near(mwinPadNormalize(INT32_MAX, INT32_MIN, INT32_MAX), 1.0f) &&
+                  Near(mwinPadNormalize(0, INT32_MIN, INT32_MAX), 0.0f) &&
+                  Near(mwinPadNormalize(INT32_MAX, -1, INT32_MAX), 1.0f),
+              "a range as wide as 32 bits");
         program->done = true;
         break;
     }

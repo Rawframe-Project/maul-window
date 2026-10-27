@@ -12,7 +12,9 @@
 // a file and text read whole, not marked truncated; a drag over a window
 // that goes, its motion and leave reaching no window after it, and a
 // drop for a window that goes while its reads are open, let go
-// unfinished and given to no window that takes the slot. Skipped (exit
+// unfinished and given to no window that takes the slot; a second enter
+// without a leave, which a compositor should not send, leaving the first
+// drag before it enters. Skipped (exit
 // status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -41,6 +43,8 @@ typedef enum Phase
     phaseHeldDrop,
     phaseDropDestroyed,
     phaseDropGone,
+    phaseTwiceEnter,
+    phaseTwice,
     phaseDone,
 } Phase;
 
@@ -88,6 +92,26 @@ static int DragRecords(const Program* program)
         count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
     }
     return count;
+}
+
+// Whether the drag records begin with a leave, then an enter.
+static bool LeftThenEntered(const Program* program)
+{
+    int seen = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        mwinEventType type = program->records[i].type;
+        if (type >= mwin_eventDragEntered && type <= mwin_eventDropped)
+        {
+            mwinEventType expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
+            if (seen < 2 && type != expected)
+            {
+                return false;
+            }
+            seen += 1;
+        }
+    }
+    return seen >= 2;
 }
 
 static bool DragAt(const mwinEvent* event, float x, float y, mwinDragContents contents)
@@ -165,6 +189,9 @@ static bool Ready(Program* program)
                NowNs() - program->startNs >= SETTLE_NS;
     case phaseHeldDrop:
         return DataHeldReads(program->data) == 2;
+    case phaseTwiceEnter:
+    case phaseTwice:
+        return Find(program, mwin_eventDragEntered) != nullptr;
     default:
         // The client's accept reaches the compositor at its next pump.
         return LeftAfterEntering(program) && DataDragState(program->data).accepts >= 1;
@@ -251,6 +278,17 @@ static void Advance(Program* program, mwinContext* context)
     case phaseDropGone:
         CHECK(Find(program, mwin_eventDropped) == nullptr && !DataDragState(data).finished,
               "a drop for a window that went is let go unfinished, and no window gets it");
+        DataDragEnter(data, 5.0, 5.0, "file:///tmp/x\r\n", "y");
+        break;
+    case phaseTwiceEnter:
+        // Another enter, without a leave.
+        DataDragEnter(data, 6.0, 6.0, "file:///tmp/x\r\n", "y");
+        break;
+    case phaseTwice:
+        CHECK(LeftThenEntered(program) && DragAt(Find(program, mwin_eventDragEntered), 6.0f, 6.0f,
+                                                 mwin_dragFiles | mwin_dragText),
+              "a second enter without a leave leaves the first drag before it enters");
+        DataDragEnd(data, false);
         break;
     default:
         break;

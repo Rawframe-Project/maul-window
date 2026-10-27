@@ -12,7 +12,8 @@
 // reported. A window that goes under a drag takes the drag with it: the
 // source's later messages to the window that takes its slot are not a
 // drag of that window's, and a drop under way when its window goes is
-// refused to the source and delivered to no window. Under a drop limit
+// refused to the source and delivered to no window. A second enter
+// without a leave leaves the first drag before it enters. Under a drop limit
 // that is no whole number of 32-bit words,
 // a text of exactly the limit is delivered whole. Skipped (exit status
 // 77) without DISPLAY.
@@ -113,6 +114,7 @@ typedef enum Phase
     phaseGoneDestroyed,
     phaseGoneCreated,
     phaseGoneStale,
+    phaseTwice,
     phaseDone,
 } Phase;
 
@@ -301,6 +303,26 @@ static bool DragAt(const mwinEvent* event, float x, float y, mwinDragContents co
            event->data.drag.position.y == y && event->data.drag.contents == contents;
 }
 
+// Whether the drag records begin with a leave, then an enter.
+static bool LeftThenEntered(const Program* program)
+{
+    int seen = 0;
+    for (int i = 0; i < program->count; i++)
+    {
+        mwinEventType type = program->records[i].type;
+        if (type >= mwin_eventDragEntered && type <= mwin_eventDropped)
+        {
+            mwinEventType expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
+            if (seen < 2 && type != expected)
+            {
+                return false;
+            }
+            seen += 1;
+        }
+    }
+    return seen >= 2;
+}
+
 static bool Aware(const Source* source)
 {
     xcb_get_property_reply_t* reply =
@@ -387,6 +409,8 @@ static bool Ready(Program* program)
                NowNs() - program->startNs >= SETTLE_NS;
     case phaseGoneCreated:
         return source->target != 0 && Aware(source);
+    case phaseTwice:
+        return Find(program, mwin_eventDragEntered, 0) != nullptr;
     case phaseGoneStale:
         // A fresh drag entered, or the drop over the window that went
         // finished.
@@ -517,6 +541,18 @@ static void Advance(Program* program, mwinContext* context)
                          mwin_dragFiles | mwin_dragText) &&
                   !source->finished,
               "a drag over a window that went reaches no window after it");
+        {
+            // The source enters again without leaving.
+            static const int types[] = {atomUriList, atomUtf8};
+            Enter(source, types, 2);
+            Position(source, 6, 6);
+            break;
+        }
+    case phaseTwice:
+        CHECK(LeftThenEntered(program) && DragAt(Find(program, mwin_eventDragEntered, 0), 6.0f,
+                                                 6.0f, mwin_dragFiles | mwin_dragText),
+              "a second enter without a leave leaves the first drag before it enters");
+        Send(source, atomLeave, 0, 0, 0, 0);
         break;
     default:
         break;

@@ -72,8 +72,9 @@ linux_battery:
 linux_bus: dbus_api
 linux_ime: core linux_bus monotonic utf8
 linux_motion: core linux_motion_events
-linux_motion_events:
-linux_pad: allocator core linux_battery linux_motion monotonic pad_db pad_map
+linux_evdev_drop:
+linux_motion_events: linux_evdev_drop
+linux_pad: allocator core linux_battery linux_evdev_drop linux_motion monotonic pad_db pad_map
 linux_dialog: answer core dialog linux_bus linux_zenity monotonic uri_list
 linux_inhibit: linux_bus monotonic
 linux_languages: core linux_bus linux_locale monotonic

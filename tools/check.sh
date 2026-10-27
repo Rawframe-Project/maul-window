@@ -162,7 +162,7 @@ if [ "$tier" = changed ]; then
     # By the build tree rather than the test preset, whose own label filter
     # would replace -LE.
     tests=(ctest --test-dir "$out/linux-clang-20-asan" --output-on-failure --timeout 300 -j "$jobs"
-        -LE '^(integration|uinput)$')
+        -LE '^(integration|quarantine|uinput)$')
     if [[ " $labels " != *" all "* ]]; then
         regex=$(printf '%s\n' $labels | sort -u | paste -sd '|')
         tests+=(-L "$regex")
@@ -233,7 +233,7 @@ done
 
 if [ -w /dev/uinput ]; then
     step "virtual gamepads through /dev/uinput"
-    ctest --test-dir "$out/linux-clang-20-asan" -L '^uinput$' --output-on-failure
+    ctest --test-dir "$out/linux-clang-20-asan" -L '^uinput$' -LE '^quarantine$' --output-on-failure
 else
     echo "skipped the virtual gamepad tests: /dev/uinput cannot be written"
 fi

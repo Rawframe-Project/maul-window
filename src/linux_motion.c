@@ -197,8 +197,10 @@ bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t
             {
                 uint64_t timeNs = (uint64_t)event->input_event_sec * 1000000000u +
                                   (uint64_t)event->input_event_usec * 1000u;
+                // A report without a stamp is timed by its event.
+                bool stamped = motion->stamping;
                 Stamp(motion, timeNs);
-                Post(motion, context, slot, motion->stamped ? motion->timeNs : timeNs);
+                Post(motion, context, slot, stamped ? motion->timeNs : timeNs);
             }
         }
     }

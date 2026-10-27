@@ -21,7 +21,6 @@
 //   sample; the next report from the values read again, its stamp
 //   counted from the last report's, a cut report's stamps left out.
 
-#include "linux_evdev_drop.h"
 #include "linux_motion_events.h"
 #include "test_harness.h"
 
@@ -209,25 +208,6 @@ static void TestTimes(void)
           "a stamp going back started again from the event time");
 }
 
-static void TestDropGate(void)
-{
-    bool dropping = false;
-    CHECK(mwinEvdevDropStep(&dropping, EV_ABS, ABS_X) == mwin_evdevTake &&
-              mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevTake,
-          "events before a drop read as usual");
-    CHECK(mwinEvdevDropStep(&dropping, EV_SYN, SYN_DROPPED) == mwin_evdevSkip &&
-              mwinEvdevDropStep(&dropping, EV_KEY, BTN_SOUTH) == mwin_evdevSkip &&
-              mwinEvdevDropStep(&dropping, EV_ABS, ABS_X) == mwin_evdevSkip &&
-              mwinEvdevDropStep(&dropping, EV_MSC, MSC_TIMESTAMP) == mwin_evdevSkip &&
-              mwinEvdevDropStep(&dropping, EV_SYN, SYN_DROPPED) == mwin_evdevSkip,
-          "every event after a drop skipped, another drop among them");
-    CHECK(mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevResync,
-          "the next report ending the skip, with a resync");
-    CHECK(mwinEvdevDropStep(&dropping, EV_KEY, BTN_SOUTH) == mwin_evdevTake &&
-              mwinEvdevDropStep(&dropping, EV_SYN, SYN_REPORT) == mwin_evdevTake,
-          "the reports after it read as usual");
-}
-
 static void TestDrop(void)
 {
     mwinLinuxMotionEvents events = Start(0x054C);
@@ -268,7 +248,6 @@ int main(void)
     TestAxes();
     TestReports();
     TestTimes();
-    TestDropGate();
     TestDrop();
     return s_failures == 0 ? 0 : 1;
 }

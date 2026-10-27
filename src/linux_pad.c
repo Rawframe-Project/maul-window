@@ -205,14 +205,16 @@ static void OnKey(mwinLinuxPad* pad, unsigned code, int32_t value)
     }
 }
 
-// Reads the device's whole state, as after events were dropped.
-static void Resync(mwinLinuxPad* pad)
+// Reads the device's whole state, as after events were dropped: false,
+// changing nothing, when its buttons cannot be read.
+static bool Resync(mwinLinuxPad* pad)
 {
-    unsigned long keys[LONGS(KEY_CNT)] = {0};
-    (void)ioctl(pad->fd, EVIOCGKEY(sizeof(keys)), keys);
-    for (uint8_t i = 0; i < pad->controls.buttonCount; i++)
+    unsigned long keys[MWIN_EVDEV_KEY_LONGS] = {0};
+    bool read = ioctl(pad->fd, EVIOCGKEY(sizeof(keys)), keys) >= 0;
+    if (!mwinEvdevResyncButtons(keys, read, pad->buttonCodes, pad->controls.buttonCount,
+                                pad->controls.buttons))
     {
-        pad->controls.buttons[i] = Has(keys, pad->buttonCodes[i]);
+        return false;
     }
     for (unsigned code = 0; code <= ABS_HAT3Y; code++)
     {
@@ -224,6 +226,7 @@ static void Resync(mwinLinuxPad* pad)
             OnAxis(pad, code, info.value);
         }
     }
+    return true;
 }
 
 // The pad's facts in the core, with motion as it has it now.
@@ -328,7 +331,7 @@ static void Open(mwinLinuxPads* pads, int node)
         return;
     }
     pad->slot = (uint32_t)slot;
-    Resync(pad);
+    (void)Resync(pad);
     mwinPostPadControls(pads->context, pad->slot, &pad->controls, mwinMonotonicNow());
 }
 
@@ -367,8 +370,12 @@ static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
             mwinEvdevStep step = mwinEvdevDropStep(&pad->dropping, event->type, event->code);
             if (step == mwin_evdevResync)
             {
-                Resync(pad);
-                mwinPostPadControls(pads->context, pad->slot, &pad->controls, timeNs);
+                // A state that cannot be read posts nothing; the read
+                // error that follows closes the device.
+                if (Resync(pad))
+                {
+                    mwinPostPadControls(pads->context, pad->slot, &pad->controls, timeNs);
+                }
             }
             else if (step == mwin_evdevSkip)
             {

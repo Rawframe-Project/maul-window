@@ -5,6 +5,16 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.5.1](https://github.com/Rawframe-Project/maul-window/compare/v0.5.0...v0.5.1) (2026-10-27)
+
+
+### Fixed
+
+* **build:** quote each javac source path and reword Settings' wait ([#134](https://github.com/Rawframe-Project/maul-window/issues/134)) ([e122847](https://github.com/Rawframe-Project/maul-window/commit/e12284720a7941259f66b1ae50525b838019d7bc)), closes [#133](https://github.com/Rawframe-Project/maul-window/issues/133)
+* end a drag when its window goes ([#154](https://github.com/Rawframe-Project/maul-window/issues/154)) ([e647e5a](https://github.com/Rawframe-Project/maul-window/commit/e647e5ac4b0ab0f1588e1faef04f31d95478a57e)), closes [#153](https://github.com/Rawframe-Project/maul-window/issues/153)
+* **gamepad:** compute a device's logical ranges in 64 bits ([#159](https://github.com/Rawframe-Project/maul-window/issues/159)) ([62d1c6d](https://github.com/Rawframe-Project/maul-window/commit/62d1c6da5829aadd60026f02ac4866fff3b1402a)), closes [#158](https://github.com/Rawframe-Project/maul-window/issues/158)
+* **x11:** leave a drag before another enters ([#156](https://github.com/Rawframe-Project/maul-window/issues/156)) ([9a115c9](https://github.com/Rawframe-Project/maul-window/commit/9a115c9c28bda9a6bed5b6e49f005c5eefd1c680)), closes [#155](https://github.com/Rawframe-Project/maul-window/issues/155)
+
 ## [0.5.0](https://github.com/Rawframe-Project/maul-window/releases/tag/v0.5.0) (2026-10-25)
 
 ### Changed

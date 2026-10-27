@@ -505,6 +505,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if((MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11) AND MAUL_WINDOW_GAMEPAD)
         # Numbered controls through their mapping.
         maul_add_test(pad_map WHITEBOX)
+        # Windows' HID gamepads' numbering and reports, as plain values.
+        maul_add_test(hid_controls WHITEBOX)
+        if(TARGET test_hid_controls)
+            target_sources(test_hid_controls PRIVATE ${PROJECT_SOURCE_DIR}/src/hid_controls.c)
+        endif()
         # Makes virtual gamepads through /dev/uinput, labeled uinput: a
         # container without the device leaves them out.
         maul_add_test(linux_gamepad POSIX)
@@ -677,8 +682,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             # The XInput gamepads against a stand-in for XInput.
             maul_add_test(win32_gamepad WHITEBOX)
             # Generic gamepads against a stand-in for Raw Input and the HID
-            # parser.
+            # parser, and their numbering and reports as plain values.
             maul_add_test(win32_hid WHITEBOX)
+            maul_add_test(hid_controls WHITEBOX)
             # Windows.Gaming.Input itself, where the system has it.
             maul_add_test(win32_wgi WHITEBOX)
             target_link_libraries(test_win32_wgi PRIVATE ole32)

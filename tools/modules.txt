@@ -50,6 +50,7 @@ edid:
 evdev:
 file_list: allocator
 gamepad: core
+hid_controls: pad_map
 icon: allocator core
 cursor: allocator core icon
 input: core
@@ -157,7 +158,7 @@ win32_occlusion: core win32
 win32_output: core edid win32
 win32_pad: core pad_tracker win32_base win32_hid win32_wgi
 win32_wgi: core pad_tracker
-win32_hid: allocator core pad_db pad_map
+win32_hid: allocator core hid_controls pad_db pad_map
 win32_base:
 win32_pointer: core win32
 win32_services: core win32

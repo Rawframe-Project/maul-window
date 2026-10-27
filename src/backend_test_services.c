@@ -219,9 +219,13 @@ mwinResult mwinTestSetClipboardData(mwinContext* context, const char* mime, size
                                     const void* bytes, size_t length)
 {
     if (context == nullptr || mime == nullptr || mimeLength == 0 ||
-        mimeLength > MWIN_CLIPBOARD_MIME || (bytes == nullptr && length != 0))
+        (bytes == nullptr && length != 0))
     {
         return mwinMisuse(context);
+    }
+    if (mimeLength > MWIN_CLIPBOARD_MIME)
+    {
+        return mwinRefuse(context, mwin_errorLimit);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {

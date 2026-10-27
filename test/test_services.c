@@ -72,11 +72,16 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               Refused(context, window, "http://a b", 10) &&
               Refused(context, window, "http://a\x01", 9) &&
               Refused(context, window, "javascript:alert(1)", 19) &&
-              Refused(context, window, "http://\xC3", 8) &&
-              Refused(context, window, s_long, sizeof(s_long)) &&
-              Refused(context, window, nullptr, 8) &&
+              Refused(context, window, "http://\xC3", 8) && Refused(context, window, nullptr, 8) &&
               mwinRequestOpenUrl(nullptr, window, "http://a", 8, nullptr) == mwin_errorInvalid,
           "addresses this does not open refused at the call");
+    static char s_longPath[MWIN_ADDRESS_BYTES + 1];
+    memset(s_longPath, 'a', sizeof(s_longPath));
+    s_longPath[0] = '/';
+    CHECK(mwinRequestOpenUrl(context, window, s_long, sizeof(s_long), nullptr) == mwin_errorLimit &&
+              mwinRequestRevealFile(context, window, s_longPath, sizeof(s_longPath), nullptr) ==
+                  mwin_errorLimit,
+          "an address or a path past MWIN_ADDRESS_BYTES");
     CHECK(mwinRequestRevealFile(context, window, "a/b", 3, nullptr) == mwin_errorInvalid &&
               mwinRequestRevealFile(context, window, PATH("/tmp/a\0b"), nullptr) ==
                   mwin_errorInvalid &&

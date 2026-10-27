@@ -144,7 +144,8 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "segments without an array");
     static mwinPreeditSegment many[40];
     event = Preedit(window, "abc", 1, many, 40);
-    CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "too many segments");
+    CHECK(mwinTestPost(context, &event) == mwin_errorLimit,
+          "more segments than MWIN_MAX_PREEDIT_SEGMENTS");
     CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
                                nullptr) == mwin_errorInvalid,
           "a negative caret");

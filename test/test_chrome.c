@@ -50,11 +50,12 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     mwinHitRegion unknown = fine;
     unknown.kind = mwin_hitClose + 1;
     CHECK(mwinRequestHitRegions(context, window, many, MWIN_HIT_REGIONS + 1, nullptr) ==
-                  mwin_errorInvalid &&
-              mwinRequestHitRegions(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
+              mwin_errorLimit,
+          "more regions than MWIN_HIT_REGIONS");
+    CHECK(mwinRequestHitRegions(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
               Refused(context, window, notFinite) && Refused(context, window, nan) &&
               Refused(context, window, negative) && Refused(context, window, unknown),
-          "too many regions, none, not finite, of a negative size or an unknown kind refused");
+          "none, not finite, of a negative size or an unknown kind refused");
     CHECK(mwinRequestHitRegions(nullptr, window, &fine, 1, nullptr) == mwin_errorInvalid &&
               mwinRequestHitRegions(context, (mwinWindowId){window.index1, window.generation + 1},
                                     &fine, 1, nullptr) == mwin_errorStale,

@@ -368,12 +368,13 @@ extern "C"
     /// @param context    The context.
     /// @param def        The images and hotspot.
     /// @param cursorOut  Receives the cursor's id.
-    /// @return `mwin_success`; `mwin_errorInvalid` for a NULL argument, a
-    ///         def without its cookie, no images or more than
-    ///         MWIN_CURSOR_IMAGES, an image without pixels, with no width
-    ///         or height or more than MWIN_CURSOR_SIZE, or a stride below
-    ///         its width times 4, an image not wider than the one before,
-    ///         or a hotspot outside the first image;
+    /// @return `mwin_success`; `mwin_errorLimit` for more images than
+    ///         MWIN_CURSOR_IMAGES or an image larger than MWIN_CURSOR_SIZE
+    ///         a side; `mwin_errorInvalid` for a NULL argument, a def
+    ///         without its cookie, no images, an image without pixels,
+    ///         with no width or height, or a stride below its width times
+    ///         4, an image not wider than the one before, or a hotspot
+    ///         outside the first image;
     ///         `mwin_errorCapacity` past the limit's cursors or when the
     ///         allocator fails.
     /// @par Thread safety

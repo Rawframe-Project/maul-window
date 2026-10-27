@@ -43,8 +43,9 @@ extern "C"
     /// @return `mwin_success`; `mwin_errorCapacity` when the context
     ///         cannot hold the copy or the window has its limit of
     ///         requests in flight; `mwin_errorStale` for a window that no
-    ///         longer exists; `mwin_errorInvalid` for a NULL context or
-    ///         an address this does not open.
+    ///         longer exists; `mwin_errorLimit` for more than
+    ///         MWIN_ADDRESS_BYTES; `mwin_errorInvalid` for a NULL context
+    ///         or an address this does not open.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequestOpenUrl(mwinContext* context, mwinWindowId window,
@@ -167,8 +168,10 @@ extern "C"
     ///         has no message box (Android, Linux without zenity,
     ///         kdialog, or an X server, the test backend alone);
     ///         `mwin_errorPlatform` when it failed;
-    ///         `mwin_errorInvalid` for a NULL or invalid def, or text that
-    ///         is not UTF-8, holds a NUL or passes its limit.
+    ///         `mwin_errorLimit` for a title past
+    ///         MWIN_MESSAGE_TITLE_BYTES or a message past
+    ///         MWIN_MESSAGE_BYTES; `mwin_errorInvalid` for a NULL or
+    ///         invalid def, or text that is not UTF-8 or holds a NUL.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinShowMessageBox(const mwinMessageBoxDef* def,

@@ -552,19 +552,27 @@ static bool HasText(mwinEventType type)
     return type == mwin_eventTextInput || type == mwin_eventImePreedit;
 }
 
-// Whether a report's text and segments are well formed.
-static bool IsTextValid(const mwinEvent* event)
+// A report's text and segments: mwin_errorLimit for more segments than
+// MWIN_MAX_PREEDIT_SEGMENTS, mwin_errorInvalid for others ill formed.
+static mwinResult CheckText(const mwinEvent* event)
 {
     if (!HasText(event->type))
     {
-        return true;
+        return mwin_success;
     }
     const mwinPreeditEvent* preedit = &event->data.preedit;
-    bool segmentsValid = event->type != mwin_eventImePreedit ||
-                         (preedit->segmentCount <= MWIN_MAX_PREEDIT_SEGMENTS &&
-                          (preedit->segments != nullptr || preedit->segmentCount == 0));
-    return segmentsValid && (preedit->text != nullptr || preedit->length == 0) &&
-           muniValidateUtf8(preedit->text, preedit->length).status == muni_success;
+    bool composition = event->type == mwin_eventImePreedit;
+    if (composition && preedit->segments == nullptr && preedit->segmentCount != 0)
+    {
+        return mwin_errorInvalid;
+    }
+    if (composition && preedit->segmentCount > MWIN_MAX_PREEDIT_SEGMENTS)
+    {
+        return mwin_errorLimit;
+    }
+    bool valid = (preedit->text != nullptr || preedit->length == 0) &&
+                 muniValidateUtf8(preedit->text, preedit->length).status == muni_success;
+    return valid ? mwin_success : mwin_errorInvalid;
 }
 
 // Copies a report, its text and its segments into the platform's queue.
@@ -603,9 +611,14 @@ mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* even
 
 mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 {
-    if (context == nullptr || event == nullptr || !IsReportable(event->type) || !IsTextValid(event))
+    if (context == nullptr || event == nullptr || !IsReportable(event->type))
     {
         return mwinMisuse(context);
+    }
+    mwinResult checked = CheckText(event);
+    if (checked != mwin_success)
+    {
+        return mwinRefuse(context, checked);
     }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (platform == nullptr)

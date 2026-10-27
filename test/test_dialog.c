@@ -16,6 +16,7 @@
 #include "test_program.h"
 
 #include "maul-window/dialog.h"
+#include "maul-window/services.h"
 #include "maul-window/test.h"
 
 #include <string.h>
@@ -97,10 +98,34 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     unnamed.filterCount = 1;
     CHECK(Refused(context, window, nullptr) && Refused(context, window, &cookie) &&
               Refused(context, window, &kind) && Refused(context, window, &title) &&
-              Refused(context, window, &folder) && Refused(context, window, &many) &&
-              Refused(context, window, &none) && Refused(context, window, &unnamed) &&
+              Refused(context, window, &folder) && Refused(context, window, &none) &&
+              Refused(context, window, &unnamed) &&
               mwinRequestFileDialog(nullptr, window, &cookie, nullptr) == mwin_errorInvalid,
           "defs refused at the call");
+    // Past each named bound by one byte, or one filter.
+    static char s_long[MWIN_ADDRESS_BYTES + 1];
+    memset(s_long, 'a', sizeof(s_long));
+    s_long[0] = '/';
+    mwinFileDialogDef longTitle = Def(mwin_dialogOpen);
+    longTitle.title = s_long;
+    longTitle.titleLength = MWIN_DIALOG_TITLE_BYTES + 1;
+    mwinFileDialogDef longFolder = Def(mwin_dialogOpen);
+    longFolder.folder = s_long;
+    longFolder.folderLength = MWIN_ADDRESS_BYTES + 1;
+    mwinFileFilter longName = {s_long, MWIN_DIALOG_FILTER_BYTES + 1, "png", 3};
+    mwinFileFilter longExtensions = {"Images", 6, s_long + 1, MWIN_DIALOG_FILTER_BYTES + 1};
+    mwinFileDialogDef named = Def(mwin_dialogOpen);
+    named.filters = &longName;
+    named.filterCount = 1;
+    mwinFileDialogDef extended = Def(mwin_dialogOpen);
+    extended.filters = &longExtensions;
+    extended.filterCount = 1;
+    CHECK(mwinRequestFileDialog(context, window, &longTitle, nullptr) == mwin_errorLimit &&
+              mwinRequestFileDialog(context, window, &longFolder, nullptr) == mwin_errorLimit &&
+              mwinRequestFileDialog(context, window, &named, nullptr) == mwin_errorLimit &&
+              mwinRequestFileDialog(context, window, &extended, nullptr) == mwin_errorLimit &&
+              mwinRequestFileDialog(context, window, &many, nullptr) == mwin_errorLimit,
+          "a title, folder, filter name or extensions past their named bounds, or more filters");
     CHECK(RefusesExtensions(context, window, "") && RefusesExtensions(context, window, ".png") &&
               RefusesExtensions(context, window, "*.png") &&
               RefusesExtensions(context, window, "png;") &&

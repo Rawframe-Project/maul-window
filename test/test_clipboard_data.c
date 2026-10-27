@@ -67,9 +67,16 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     CHECK(Refused(context, window, &noSlash, 1) && Refused(context, window, &empty, 1) &&
               Refused(context, window, &control, 1) && Refused(context, window, twice, 2) &&
               Refused(context, window, texts, 2) && Refused(context, window, &badText, 1) &&
-              Refused(context, window, five, 5) && Refused(context, window, five, 0) &&
-              Refused(context, window, nullptr, 1) && Refused(context, window, &tooLong, 1),
+              Refused(context, window, five, 0) && Refused(context, window, nullptr, 1),
           "items refused at the call");
+    CHECK(mwinRequestClipboardWriteData(context, window, five, 5, nullptr) == mwin_errorLimit &&
+              mwinRequestClipboardWriteData(context, window, &tooLong, 1, nullptr) ==
+                  mwin_errorLimit &&
+              mwinRequestClipboardReadData(context, window, longType, sizeof(longType) - 1,
+                                           nullptr) == mwin_errorLimit &&
+              mwinTestSetClipboardData(context, longType, sizeof(longType) - 1, "a", 1) ==
+                  mwin_errorLimit,
+          "more items or a longer type than their named bounds, the test platform's too");
     CHECK(mwinRequestClipboardWriteData(context, window, pastLimit, 2, nullptr) ==
               mwin_errorCapacity,
           "past the limit in all");

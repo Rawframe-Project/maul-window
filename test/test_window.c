@@ -607,11 +607,16 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     memset(longSelector, 'a', sizeof(longSelector));
     def.canvas = longSelector;
     def.canvasLength = sizeof(longSelector);
-    CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorInvalid,
-          "a canvas selector past its limit");
-    window = Create(context, nullptr);
+    CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorLimit,
+          "a canvas selector past its named bound");
     static char longTitle[1025];
     memset(longTitle, 'a', sizeof(longTitle));
+    def = mwinDefaultWindowDef();
+    def.title = longTitle;
+    def.titleLength = sizeof(longTitle);
+    CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorCapacity,
+          "a def's title past the titleBytes limit");
+    window = Create(context, nullptr);
     CHECK(mwinRequestTitle(context, window, longTitle, sizeof(longTitle), nullptr) ==
               mwin_errorCapacity,
           "a title past the limit");

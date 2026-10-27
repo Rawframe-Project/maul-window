@@ -61,15 +61,17 @@ static bool Refused(mwinContext* context, mwinWindowId window, mwinIconImage ima
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
 {
     mwinIconImage five[5] = {s_images[1], s_images[1], s_images[1], s_images[1], s_images[1]};
-    CHECK(mwinRequestIcon(context, window, five, 5, nullptr) == mwin_errorInvalid &&
-              mwinRequestIcon(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
+    CHECK(mwinRequestIcon(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
               mwinRequestIcon(nullptr, window, s_images, 1, nullptr) == mwin_errorInvalid &&
               Refused(context, window, (mwinIconImage){0, 16, 64, s_large}) &&
               Refused(context, window, (mwinIconImage){16, 0, 64, s_large}) &&
-              Refused(context, window, (mwinIconImage){257, 1, 257 * 4, s_large}) &&
               Refused(context, window, (mwinIconImage){16, 16, 16 * 4, nullptr}) &&
               Refused(context, window, (mwinIconImage){16, 16, 16 * 4 - 1, s_large}),
           "images refused at the call");
+    const mwinIconImage wide = {MWIN_ICON_SIZE + 1, 1, (MWIN_ICON_SIZE + 1) * 4, s_large};
+    CHECK(mwinRequestIcon(context, window, five, 5, nullptr) == mwin_errorLimit &&
+              mwinRequestIcon(context, window, &wide, 1, nullptr) == mwin_errorLimit,
+          "more images than MWIN_ICON_IMAGES, or a side past MWIN_ICON_SIZE");
 }
 
 static int Outcome(const Program* program, int request)

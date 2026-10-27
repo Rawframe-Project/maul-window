@@ -513,6 +513,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # A motion device's identity, factors, reports and times, as plain
         # values.
         maul_add_test(linux_motion_events WHITEBOX)
+        # An evdev reader's steps after the kernel drops events, as plain
+        # values.
+        maul_add_test(linux_evdev_drop WHITEBOX)
         # Makes virtual gamepads through /dev/uinput, labeled uinput: a
         # container without the device leaves them out.
         maul_add_test(linux_gamepad POSIX)

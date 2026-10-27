@@ -5,7 +5,7 @@
 
 #include "linux_evdev_drop.h"
 
-#include <linux/input.h>
+#define LONG_BITS (sizeof(unsigned long) * CHAR_BIT)
 
 mwinEvdevStep mwinEvdevDropStep(bool* dropping, uint16_t type, uint16_t code)
 {
@@ -24,4 +24,19 @@ mwinEvdevStep mwinEvdevDropStep(bool* dropping, uint16_t type, uint16_t code)
         return mwin_evdevResync;
     }
     return mwin_evdevSkip;
+}
+
+bool mwinEvdevResyncButtons(const unsigned long keys[MWIN_EVDEV_KEY_LONGS], bool read,
+                            const uint16_t* codes, uint8_t count, bool* buttons)
+{
+    if (!read)
+    {
+        return false;
+    }
+    for (uint8_t i = 0; i < count; i++)
+    {
+        unsigned code = codes[i];
+        buttons[i] = code < KEY_CNT && ((keys[code / LONG_BITS] >> (code % LONG_BITS)) & 1u) != 0;
+    }
+    return true;
 }

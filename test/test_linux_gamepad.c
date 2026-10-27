@@ -5,16 +5,17 @@
 // devices made through uinput: an Xbox 360 pad connected before the
 // program starts, mapped by SDL_GameControllerDB, its buttons, sticks,
 // triggers and d-pad hat, and its rumble; a pad of the kernel's layout
-// the database lacks, connected while the program runs, then its motion
-// sensors device, which grants it motion: a first report without a
-// stamp at its event time, then samples in units per g and per degree per
-// second, timed by their stamps from the event time of the first stamped
-// report, and a report without a stamp after them at its own event time,
-// all on the records' clock; a joystick of
-// no known layout, raw, its hat as two axes; a disconnect; and the pad
-// again, its sensors device there before it, which grants it motion from
-// the start. Without a display or /dev/uinput the test is skipped (exit
-// status 77).
+// the database lacks, connected while the program runs, and a press of it
+// the kernel drops when the program's queue overflows, read again from
+// the device; then its motion sensors device, which grants it motion: a
+// first report without a stamp at its event time, then samples in units
+// per g and per degree per second, timed by their stamps from the event
+// time of the first stamped report, and a report without a stamp after
+// them at its own event time, all on the records' clock, and an axis the
+// kernel drops, read again; a joystick of no known layout, raw, its hat
+// as two axes; a disconnect; and the pad again, its sensors device there
+// before it, which grants it motion from the start. Without a display or /dev/uinput the test is
+// skipped (exit status 77).
 
 #include "test_harness.h"
 
@@ -39,10 +40,12 @@ typedef enum Phase
     phaseXbox,
     phaseKernel,
     phaseKernelPress,
+    phaseKernelDrop,
     phaseMotionFound,
     phaseUnstamped,
     phaseMotion,
     phaseUnstampedAfter,
+    phaseMotionDrop,
     phaseRaw,
     phaseRawPress,
     phaseRumble,
@@ -252,6 +255,20 @@ static void Sample(const Device* device, int32_t stamp)
     Report(device);
 }
 
+// Reports enough to overflow the program's queue of a device's events
+// (the kernel keeps at least 64), so the kernel drops the earlier ones:
+// one axis moving, at last to a value that is not among the others.
+static void Flood(const Device* device, int32_t last)
+{
+    for (int i = 0; i < 2000; i++)
+    {
+        Emit(device, EV_ABS, ABS_X, i % 2 == 0 ? 100 : 200);
+        Report(device);
+    }
+    Emit(device, EV_ABS, ABS_X, last);
+    Report(device);
+}
+
 static void Destroy(Device* device)
 {
     if (device->fd < 0)
@@ -339,11 +356,14 @@ static bool Ready(const Program* program)
         return Pressed(program, mwin_padDpadUp, false);
     case phaseKernelPress:
         return Pressed(program, mwin_padFaceNorth, false);
+    case phaseKernelDrop:
+        return AxisValue(program, mwin_padStickLeftX, false) == 1.0f;
     case phaseMotionFound:
         return Find(program, mwin_eventGamepadChanged, 0) != nullptr;
     case phaseUnstamped:
     case phaseMotion:
     case phaseUnstampedAfter:
+    case phaseMotionDrop:
     case phaseSensorsAlone:
         // Frames have read the samples, or seen the device come.
         return NowNs() - program->startNs > 50000000u;
@@ -415,7 +435,15 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         Report(&program->kernel);
         break;
     case phaseKernelPress:
+        // A press the kernel drops, then the reports that overflow.
+        Emit(&program->kernel, EV_KEY, BTN_SOUTH, 1);
+        Report(&program->kernel);
+        Flood(&program->kernel, 32767);
+        break;
+    case phaseKernelDrop:
     {
+        CHECK(Pressed(program, mwin_padFaceSouth, false),
+              "a press the kernel dropped, read again from the device");
         mwinGamepadInfo info;
         CHECK(mwinGetGamepadInfo(context, program->pads[1], &info) == mwin_success &&
                   (info.capabilities & mwin_padMotion) == 0 &&
@@ -481,6 +509,19 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
                   motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
               "a report without a stamp after stamped ones at its own event time");
+        // A report the kernel drops, then the reports that overflow.
+        Emit(&program->motion, EV_ABS, ABS_Z, 8192);
+        Report(&program->motion);
+        Flood(&program->motion, 8192);
+        break;
+    }
+    case phaseMotionDrop:
+    {
+        mwinGamepadMotion motion;
+        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+                  fabsf(motion.acceleration[2] - 9.80665f) < 1e-4f &&
+                  fabsf(motion.acceleration[0] - 9.80665f) < 1e-4f,
+              "an axis the kernel dropped, read again from the device");
         Destroy(&program->motion);
         CHECK(Make(&program->raw, "Stick", 0x1234, 0x0002, 1, s_rawButtons, 2, false),
               "a joystick");

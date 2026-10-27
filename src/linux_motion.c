@@ -33,9 +33,9 @@ void mwinLinuxIdentityOf(int fd, mwinLinuxPadIdentity* identity)
     identity->vendor = id.vendor;
 }
 
-// The axes' factors from their resolutions: false where one is missing
-// or says nothing.
-static bool ReadScales(int fd, mwinLinuxMotionEvents* events)
+// The axes' current values, and their factors from their resolutions:
+// false where one is missing or says nothing.
+static bool ReadAxes(int fd, mwinLinuxMotionEvents* events)
 {
     for (unsigned i = 0; i < MWIN_LINUX_MOTION_AXES; i++)
     {
@@ -66,7 +66,7 @@ bool mwinLinuxOpenMotion(mwinLinuxMotion* motion, int node, const mwinLinuxPadId
     mwinLinuxMotion found = {.fd = fd, .node = node};
     mwinLinuxMotionStart(&found.events, pad);
     if (!Has(props, INPUT_PROP_ACCELEROMETER) || !mwinLinuxSameController(pad, &identity) ||
-        !ReadScales(fd, &found.events))
+        !ReadAxes(fd, &found.events))
     {
         close(fd);
         return false;
@@ -114,11 +114,18 @@ bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t
             uint64_t timeNs = (uint64_t)event->input_event_sec * 1000000000u +
                               (uint64_t)event->input_event_usec * 1000u;
             mwinLinuxMotionSample sample;
-            if (mwinLinuxMotionEvent(&motion->events, event->type, event->code, event->value,
-                                     timeNs, &sample))
+            switch (mwinLinuxMotionEvent(&motion->events, event->type, event->code, event->value,
+                                         timeNs, &sample))
             {
+            case mwin_motionSample:
                 mwinPostGamepadMotion(context, slot, sample.acceleration, sample.rate,
                                       sample.timeNs);
+                break;
+            case mwin_motionResync:
+                (void)ReadAxes(motion->fd, &motion->events);
+                break;
+            case mwin_motionNothing:
+                break;
             }
         }
     }

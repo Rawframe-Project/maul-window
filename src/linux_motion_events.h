@@ -19,6 +19,8 @@
 #ifndef MAUL_WINDOW_SRC_LINUX_MOTION_EVENTS_H
 #define MAUL_WINDOW_SRC_LINUX_MOTION_EVENTS_H
 
+#include "linux_evdev_drop.h"
+
 #include <stdint.h>
 
 // The motion device's axes: acceleration on ABS_X, ABS_Y and ABS_Z,
@@ -48,7 +50,20 @@ typedef struct mwinLinuxMotionEvents
     bool stamped;
     uint32_t stamp;
     uint64_t timeNs;
+    // Skipping what is left of a report the kernel's drop cut.
+    bool dropping;
 } mwinLinuxMotionEvents;
+
+// What an event leaves the reader to do.
+typedef enum mwinLinuxMotionStep
+{
+    mwin_motionNothing,
+    // A report ended: post its sample.
+    mwin_motionSample,
+    // A report the kernel's drop cut ended, and gave no sample: read the
+    // axes' current values again, through mwinLinuxMotionAxis.
+    mwin_motionResync,
+} mwinLinuxMotionStep;
 
 // A report's sample, in the contract's frame and units.
 typedef struct mwinLinuxMotionSample
@@ -72,9 +87,9 @@ void mwinLinuxMotionStart(mwinLinuxMotionEvents* events, const mwinLinuxPadIdent
 bool mwinLinuxMotionAxis(mwinLinuxMotionEvents* events, unsigned axis, int32_t value,
                          int32_t resolution);
 
-// Takes an event at its time: true when it ends a report, with the
-// report's sample.
-bool mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type, uint16_t code,
-                          int32_t value, uint64_t timeNs, mwinLinuxMotionSample* sample);
+// Takes an event at its time, with the report's sample where it ends one.
+mwinLinuxMotionStep mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type,
+                                         uint16_t code, int32_t value, uint64_t timeNs,
+                                         mwinLinuxMotionSample* sample);
 
 #endif // MAUL_WINDOW_SRC_LINUX_MOTION_EVENTS_H

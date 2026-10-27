@@ -300,6 +300,21 @@ bool mwinX11HandleDropEvent(mwinX11Platform* platform, const xcb_generic_event_t
     return true;
 }
 
+void mwinX11ForgetDrag(mwinX11Platform* platform, uint32_t slot)
+{
+    mwinX11Drag* drag = &platform->drag;
+    if (drag->slot != (int32_t)slot)
+    {
+        return;
+    }
+    if (drag->dropping)
+    {
+        uint32_t finished[5] = {platform->windows[slot].window, 0, XCB_ATOM_NONE, 0, 0};
+        Send(platform, platform->atoms[mwin_atomXdndFinished], finished);
+    }
+    *drag = (mwinX11Drag){.slot = -1};
+}
+
 void mwinX11CheckDrop(mwinX11Platform* platform, uint64_t nowNs)
 {
     if (platform->drag.dropping && nowNs >= platform->drag.deadlineNs)

@@ -16,7 +16,7 @@ Two reads on one window in one frame paste once: the first is superseded. A gett
 
 ## Drag and drop
 
-While something is dragged over a window, the program hears `mwin_eventDragEntered`, `mwin_eventDragMoved` and `mwin_eventDragLeft`, with the place and what the drag holds (files, text). A drop brings `mwin_eventDropped` instead of the leaving. Windows take every drag of files or text; a program that does not want one ignores it.
+While something is dragged over a window, the program hears `mwin_eventDragEntered`, `mwin_eventDragMoved` and `mwin_eventDragLeft`, with the place and what the drag holds (files, text). A drop brings `mwin_eventDropped` instead of the leaving. Windows take every drag of files or text; a program that does not want one ignores it. A drag over a window the program destroys ends with the window: none of its records reach another window, and a drop still being gathered is refused.
 
 The drop's payload waits under the drop's number from its record: `mwinGetDroppedFiles` copies out its paths, each UTF-8 and ended by a NUL, and `mwinGetDroppedText` its text, until the next drop makes that number stale. A path that is not UTF-8 names no file the program could open and is left out. Past `droppedFiles` (256) files or `dropBytes` (1 MiB) of paths or text, what does not fit is left out whole and the record's `truncated` says so.
 

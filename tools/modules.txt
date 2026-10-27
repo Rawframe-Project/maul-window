@@ -131,7 +131,7 @@ wayland_primary: core wayland wayland_api wayland_clipboard
 wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard wayland_pointer wayland_text
 wayland_tablet: core wayland wayland_api wayland_cursor
 wayland_text: core wayland wayland_api
-wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_tablet wayland_text
+wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_drop wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_tablet wayland_text
 web: clicks core web_pad
 web_clipboard: allocator clipboard_data core web web_js
 web_drop: allocator core web web_js
@@ -180,6 +180,6 @@ x11_icon: allocator core icon x11 x11_api
 x11_input: allocator core evdev linux_ime x11 x11_api x11_chrome x11_pen x11_scroll x11_touch xkb_api xkb_keyboard
 x11_message_box: allocator x11_api
 x11_output: allocator core edid x11 x11_api
-x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_icon x11_input x11_output
+x11_window: allocator core x11 x11_api x11_chrome x11_clipboard x11_cursor x11_drop x11_icon x11_input x11_output
 xkb_api:
 xkb_keyboard: evdev xkb_api

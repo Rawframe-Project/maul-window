@@ -5,7 +5,7 @@
 // numbered as DirectInput numbers them so that SDL's Windows mappings
 // apply, and its reports read into them. Everything here takes plain
 // values, which a device hands over and which the reading must hold up
-// against, so it is tested and fuzzed on every platform; win32_hid.c
+// against, so it is tested on Linux as well as Windows; win32_hid.c
 // reads the device through Windows' HID parser and hands them on.
 
 #ifndef MAUL_WINDOW_SRC_HID_CONTROLS_H

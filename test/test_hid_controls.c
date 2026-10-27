@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // A HID gamepad's controls and reports as plain values (hid_controls.h),
-// on every platform:
+// on Linux and Windows:
 // - the Button page's usages in order, each once, up to the numbering's
 //   limit, other pages left out;
 // - the axes from X in usage order whatever the descriptor's, then two

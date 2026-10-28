@@ -17,19 +17,13 @@
 // before it, which grants it motion from the start. Without a display or /dev/uinput the test is
 // skipped (exit status 77).
 
-#include "test_harness.h"
+#include "linux_uinput.h"
 
 #include "maul-window/event.h"
 
-#include <fcntl.h>
-#include <linux/uinput.h>
 #include <math.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <time.h>
-#include <unistd.h>
 
 #define DEADLINE_NS 5000000000ull
 #define MAX_RECORDS 128
@@ -55,19 +49,6 @@ typedef enum Phase
     phaseDone,
 } Phase;
 
-// A virtual device, and what its force feedback was asked.
-typedef struct Device
-{
-    int fd;
-    pthread_t thread;
-    bool feedback;
-    pthread_mutex_t lock;
-    uint16_t strong;
-    uint16_t weak;
-    uint16_t length;
-    int plays;
-} Device;
-
 typedef struct Program
 {
     Phase phase;
@@ -84,78 +65,9 @@ typedef struct Program
     bool timedOut;
 } Program;
 
-static uint64_t NowNs(void)
-{
-    struct timespec now;
-    (void)clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
-}
-
-static void Emit(const Device* device, uint16_t type, uint16_t code, int32_t value)
-{
-    struct input_event event = {.type = type, .code = code, .value = value};
-    CHECK(write(device->fd, &event, sizeof(event)) == (ssize_t)sizeof(event), "an event");
-}
-
-static void Report(const Device* device)
-{
-    Emit(device, EV_SYN, SYN_REPORT, 0);
-}
-
-static void AxisWith(int fd, uint16_t code, int32_t minimum, int32_t maximum, int32_t resolution)
-{
-    struct uinput_abs_setup setup = {.code = code};
-    setup.absinfo.minimum = minimum;
-    setup.absinfo.maximum = maximum;
-    setup.absinfo.resolution = resolution;
-    (void)ioctl(fd, UI_SET_ABSBIT, code);
-    (void)ioctl(fd, UI_ABS_SETUP, &setup);
-}
-
-static void Axis(int fd, uint16_t code, int32_t minimum, int32_t maximum)
-{
-    AxisWith(fd, code, minimum, maximum, 0);
-}
-
 // The physical path the kernel pad and its motion device share, as a
 // controller's parts do.
 #define KERNEL_PHYS "maul-test/kernel-pad"
-
-// Answers the force feedback uploads the driver makes, which block until
-// the device answers.
-static void* Feedback(void* data)
-{
-    Device* device = data;
-    struct input_event event;
-    while (read(device->fd, &event, sizeof(event)) == (ssize_t)sizeof(event))
-    {
-        if (event.type == EV_UINPUT && event.code == UI_FF_UPLOAD)
-        {
-            struct uinput_ff_upload upload = {.request_id = (uint32_t)event.value};
-            (void)ioctl(device->fd, UI_BEGIN_FF_UPLOAD, &upload);
-            pthread_mutex_lock(&device->lock);
-            device->strong = upload.effect.u.rumble.strong_magnitude;
-            device->weak = upload.effect.u.rumble.weak_magnitude;
-            device->length = upload.effect.replay.length;
-            pthread_mutex_unlock(&device->lock);
-            upload.retval = 0;
-            (void)ioctl(device->fd, UI_END_FF_UPLOAD, &upload);
-        }
-        else if (event.type == EV_UINPUT && event.code == UI_FF_ERASE)
-        {
-            struct uinput_ff_erase erase = {.request_id = (uint32_t)event.value};
-            (void)ioctl(device->fd, UI_BEGIN_FF_ERASE, &erase);
-            (void)ioctl(device->fd, UI_END_FF_ERASE, &erase);
-        }
-        else if (event.type == EV_FF && event.value > 0)
-        {
-            pthread_mutex_lock(&device->lock);
-            device->plays += 1;
-            pthread_mutex_unlock(&device->lock);
-        }
-    }
-    return nullptr;
-}
 
 // Makes a virtual device with buttons, axes, and force feedback or not.
 static bool Make(Device* device, const char* name, uint16_t vendor, uint16_t product,
@@ -267,22 +179,6 @@ static void Flood(const Device* device, int32_t last)
     }
     Emit(device, EV_ABS, ABS_X, last);
     Report(device);
-}
-
-static void Destroy(Device* device)
-{
-    if (device->fd < 0)
-    {
-        return;
-    }
-    (void)ioctl(device->fd, UI_DEV_DESTROY);
-    if (device->feedback)
-    {
-        (void)pthread_cancel(device->thread);
-        (void)pthread_join(device->thread, nullptr);
-    }
-    close(device->fd);
-    device->fd = -1;
 }
 
 static const uint16_t s_xboxButtons[] = {BTN_A,    BTN_B,      BTN_X,      BTN_Y,

@@ -522,7 +522,13 @@ if(MAUL_WINDOW_BUILD_TESTS)
         target_compile_definitions(test_linux_gamepad PRIVATE _GNU_SOURCE)
         # hygiene: exit 77 is a missing platform, and CI fails any skipped test
         set_tests_properties(linux_gamepad PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK uinput)
-        set(pads linux_gamepad)
+        # Which devices become gamepads, how they are read, rumble refused
+        # and the gamepad limit, through /dev/uinput too.
+        maul_add_test(linux_pad_devices POSIX)
+        target_compile_definitions(test_linux_pad_devices PRIVATE _GNU_SOURCE)
+        # hygiene: exit 77 is a missing platform, and CI fails any skipped test
+        set_tests_properties(linux_pad_devices PROPERTIES SKIP_RETURN_CODE 77 RESOURCE_LOCK uinput)
+        set(pads linux_gamepad linux_pad_devices)
         # Where both backends are built, the X11 one too, Wayland's
         # display hidden; the pads of one run would be the other's.
         if(MAUL_WINDOW_WAYLAND AND MAUL_WINDOW_X11)

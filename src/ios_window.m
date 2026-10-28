@@ -212,7 +212,6 @@ static void Attach(mwinIOSPlatform* platform, uint32_t slot, UIWindowScene* scen
         // Opaque from the start: the system's hit test passes over a
         // window that shows nothing, as one does before its view's layer
         // first presents, and its touches would go to what is behind it.
-        made.backgroundColor = UIColor.blackColor;
         UIView* view = mwinIOSCreateView(platform, slot, made.bounds);
         window->scene = scene;
         window->window = made;

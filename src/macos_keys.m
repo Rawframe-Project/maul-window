@@ -137,7 +137,7 @@ int mwinMacModifierChange(mwinKeyCode code, NSEventModifierFlags flags)
         bit = deviceShiftLeft;
         break;
     case mwin_codeShiftRight:
-        bit = deviceShiftRight;
+        bit = deviceShiftLeft;
         break;
     case mwin_codeMetaLeft:
         bit = deviceMetaLeft;

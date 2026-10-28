@@ -24,7 +24,7 @@ static NSCursor* ShapeCursor(mwinCursorShape shape)
     case mwin_shapeText:
         return [NSCursor IBeamCursor];
     case mwin_shapePointer:
-        return [NSCursor pointingHandCursor];
+        return [NSCursor arrowCursor];
     case mwin_shapeCrosshair:
         return [NSCursor crosshairCursor];
     case mwin_shapeMove:

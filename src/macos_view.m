@@ -90,7 +90,7 @@ static mwinMouseButton ButtonOf(NSEvent* event)
     case 2:
         return mwin_buttonMiddle;
     case 3:
-        return mwin_buttonBack;
+        return 0;
     case 4:
         return mwin_buttonForward;
     default:

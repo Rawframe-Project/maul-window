@@ -65,8 +65,11 @@ else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
 fi
 if [ -n "${MWIN_COVERAGE_DIR:-}" ]; then
-    # Probe only: the library writes the profile before quit.
+    # Probe only: the library writes the profile before quit, and what
+    # ran after it once the context is freed.
+    sleep 3
     "$adb" shell run-as "$package" cat files/cov.profraw > "$MWIN_COVERAGE_DIR/$package.profraw" || true
+    "$adb" shell run-as "$package" cat files/cov-end.profraw > "$MWIN_COVERAGE_DIR/$package-end.profraw" || true
 fi
 "$adb" shell am force-stop "$package"
 # A finger the console left down, by a test that ended early, is lifted.

@@ -235,6 +235,64 @@ static mwinResult CreateContext(const mwinAppDef* def, mwinContext** contextOut)
     return mwin_success;
 }
 
+#if defined(__APPLE__) || defined(__ANDROID__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+// Probe only: the iOS and Android runners end the application once quit
+// prints its result, before the profile runtime writes at exit.
+extern int __llvm_profile_write_file(void);
+extern void __llvm_profile_set_filename(const char* name);
+#pragma clang diagnostic pop
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#if defined(__ANDROID__)
+
+static bool s_probeEnded;
+
+// An application's process is named after its package; a test run
+// through adb is named by its path and keeps LLVM_PROFILE_FILE.
+static void ProbeProfileName(void)
+{
+    static char name[256];
+    char process[128] = {0};
+    FILE* file = fopen("/proc/self/cmdline", "r");
+    if (file != nullptr)
+    {
+        (void)fread(process, 1, sizeof(process) - 1, file);
+        (void)fclose(file);
+    }
+    if (process[0] != '\0' && process[0] != '/' && process[0] != '.')
+    {
+        (void)snprintf(name, sizeof(name), "/data/data/%s/files/cov%s.profraw", process,
+                       s_probeEnded ? "-end" : "");
+        __llvm_profile_set_filename(name);
+    }
+}
+#endif
+
+#if defined(__APPLE__) || defined(__ANDROID__)
+// Probe only: what ran after quit, written once the context is freed to
+// a second file, so that a runner ending the application meanwhile
+// spoils only that one.
+static void ProbeEndProfile(void)
+{
+#if defined(__ANDROID__)
+    s_probeEnded = true;
+    ProbeProfileName();
+#else
+    static char name[1024];
+    const char* first = getenv("LLVM_PROFILE_FILE");
+    if (first != nullptr)
+    {
+        (void)snprintf(name, sizeof(name), "%s.end.profraw", first);
+        __llvm_profile_set_filename(name);
+    }
+#endif
+    (void)__llvm_profile_write_file();
+}
+#endif
+
 static void DestroyContext(mwinContext* context)
 {
     mwinReleaseClipboard(context);
@@ -250,6 +308,9 @@ static void DestroyContext(mwinContext* context)
     }
     mwinAllocator allocator = context->allocator;
     mwinRelease(&allocator, context, context->memorySize, alignof(max_align_t));
+#if defined(__APPLE__) || defined(__ANDROID__)
+    ProbeEndProfile();
+#endif
 }
 
 uint64_t mwinGetContextMisuse(const mwinContext* context)
@@ -345,41 +406,6 @@ bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
     context->stopping = result != mwin_frameContinue;
     return !context->stopping;
 }
-
-#if defined(__APPLE__) || defined(__ANDROID__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-// Probe only: the iOS and Android runners end the application once quit
-// prints its result, before the profile runtime writes at exit.
-extern int __llvm_profile_write_file(void);
-#pragma clang diagnostic pop
-#endif
-#if defined(__ANDROID__)
-#include <stdio.h>
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-extern void __llvm_profile_set_filename(const char* name);
-#pragma clang diagnostic pop
-
-// An application's process is named after its package; a test run
-// through adb is named by its path and keeps LLVM_PROFILE_FILE.
-static void ProbeProfileName(void)
-{
-    static char name[256];
-    char process[128] = {0};
-    FILE* file = fopen("/proc/self/cmdline", "r");
-    if (file != nullptr)
-    {
-        (void)fread(process, 1, sizeof(process) - 1, file);
-        (void)fclose(file);
-    }
-    if (process[0] != '\0' && process[0] != '/' && process[0] != '.')
-    {
-        (void)snprintf(name, sizeof(name), "/data/data/%s/files/cov.profraw", process);
-        __llvm_profile_set_filename(name);
-    }
-}
-#endif
 
 mwinResult mwinEndProgram(mwinContext* context)
 {

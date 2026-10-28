@@ -35,12 +35,17 @@ jobs:
           grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
       - name: Report
         run: |
-          xcrun llvm-profdata merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          xcrun llvm-profdata merge -sparse --failure-mode=all "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
           objects=()
           while IFS= read -r binary; do
             [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
           done < <(find out/macos-clang -maxdepth 3 -type f -perm +111 -name 'test_*' -not -path '*/CMakeFiles/*')
           xcrun llvm-cov report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c src/*.m 2>/dev/null
+          for file in src/macos_*.m src/apple_*.m src/backend_macos.m; do
+            echo "== uncovered in $file"
+            xcrun llvm-cov show -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" "$file" 2>/dev/null |
+              grep -E '^ *[0-9]+\| *0\|' || true
+          done
 
   windows:
     runs-on: windows-2025
@@ -77,12 +82,17 @@ jobs:
           grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
       - name: Report
         run: |
-          "$LLVM_BIN/llvm-profdata.exe" merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          "$LLVM_BIN/llvm-profdata.exe" merge -sparse --failure-mode=all "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
           objects=()
           for binary in out/windows-clang-cl/Release/test_*.exe; do
             [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
           done
           "$LLVM_BIN/llvm-cov.exe" report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c 2>/dev/null
+          for file in src/win32_*.c src/backend_win32.c; do
+            echo "== uncovered in $file"
+            "$LLVM_BIN/llvm-cov.exe" show -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" "$file" 2>/dev/null |
+              grep -E '^ *[0-9]+\| *0\|' || true
+          done
 
   ios:
     runs-on: macos-15
@@ -114,12 +124,17 @@ jobs:
           export SIMCTL_CHILD_LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw"
           ctest --preset ios-simulator -E '^ios_scenes$' > "$RUNNER_TEMP/ctest.log" 2>&1 || true
           grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
-          ls "$RUNNER_TEMP/prof" | head
+          ls "$RUNNER_TEMP/prof" | wc -l
       - name: Report
         run: |
-          xcrun llvm-profdata merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          xcrun llvm-profdata merge -sparse --failure-mode=all "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
           objects=()
           while IFS= read -r binary; do
             [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
           done < <(find out/ios-simulator -path '*.app/test_*' -type f -perm +111)
           xcrun llvm-cov report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c src/*.m 2>/dev/null
+          for file in src/ios_*.m src/apple_*.m src/backend_ios.m; do
+            echo "== uncovered in $file"
+            xcrun llvm-cov show -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" "$file" 2>/dev/null |
+              grep -E '^ *[0-9]+\| *0\|' || true
+          done

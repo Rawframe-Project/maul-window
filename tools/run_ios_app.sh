@@ -103,6 +103,9 @@ else
         [ -n "$report" ] && head -c 6000 "$report"
     fi
 fi
+# Probe only: the application writes what ran after quit once its
+# context is freed.
+[ -n "${SIMCTL_CHILD_LLVM_PROFILE_FILE:-}" ] && sleep 3
 xcrun simctl terminate "$device" "$id" >/dev/null 2>&1 || true
 rm -f "$out" "$err"
 exit $status

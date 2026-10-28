@@ -9,7 +9,7 @@
 // database mapping that splits the left stick into a hat's halves; a pad
 // whose force feedback refuses the effect fails rumble, and a stop before
 // any rumble sends nothing; and with room for one gamepad, a second
-// device is not added. Without a display or /dev/uinput the test is
+// device is not added until the first leaves. Without a display or /dev/uinput the test is
 // skipped (exit status 77).
 
 #include "linux_uinput.h"
@@ -319,13 +319,17 @@ static mwinResult Init(mwinContext* context, void* user)
     return mwin_success;
 }
 
-// With room for one gamepad, a second device is not added.
+// With room for one gamepad, a second device is not added, until the
+// first leaves.
 typedef struct Full
 {
     int phase;
     uint64_t startNs;
+    Device* first;
     Device second;
     int added;
+    int removed;
+    mwinGamepadId pad;
     bool timedOut;
 } Full;
 
@@ -336,6 +340,8 @@ static mwinFrameResult FullFrame(mwinContext* context, void* user)
     while (mwinNextEvent(context, &event) == mwin_success)
     {
         full->added += event.type == mwin_eventGamepadAdded ? 1 : 0;
+        full->removed += event.type == mwin_eventGamepadRemoved ? 1 : 0;
+        full->pad = event.type == mwin_eventGamepadAdded ? event.data.gamepad : full->pad;
     }
     if (full->phase == 0 && full->added == 1)
     {
@@ -349,6 +355,16 @@ static mwinFrameResult FullFrame(mwinContext* context, void* user)
     else if (full->phase == 1 && NowNs() - full->startNs > SETTLE_NS)
     {
         CHECK(full->added == 1, "no room: the second is not added");
+        Destroy(full->first);
+        full->phase = 2;
+        full->startNs = NowNs();
+    }
+    else if (full->phase == 2 && full->added == 2)
+    {
+        mwinGamepadInfo info;
+        CHECK(full->removed == 1 && mwinGetGamepadInfo(context, full->pad, &info) == mwin_success &&
+                  info.product == 0x0006,
+              "the first gone, the second is added");
         return mwin_frameStop;
     }
     else if (NowNs() - full->startNs > DEADLINE_NS)
@@ -386,6 +402,7 @@ static void TestFull(void)
     def.init = FullInit;
     def.frame = FullFrame;
     def.user = &full;
+    full.first = &first;
     CHECK(mwinRun(&def) == mwin_success && !full.timedOut, "the program with room for one runs");
     Destroy(&first);
     Destroy(&full.second);

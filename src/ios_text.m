@@ -223,15 +223,13 @@ void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept
     NSInteger length = (NSInteger)marked.length;
     if (marked == nil || ![range isKindOfClass:[MwinIOSRange class]] || span->to > length)
     {
-        [self insertText:text];
         return;
     }
     NSString* changed =
         [marked stringByReplacingCharactersInRange:NSMakeRange((NSUInteger)span->from,
                                                                (NSUInteger)(span->to - span->from))
                                         withString:text];
-    mwinIOSSetMarkedText(platform, slot, changed,
-                         NSMakeRange((NSUInteger)span->from + text.length, 0));
+    mwinIOSSetMarkedText(platform, slot, changed, NSMakeRange((NSUInteger)span->from, 0));
 }
 
 - (UITextRange*)selectedTextRange
@@ -245,7 +243,7 @@ void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept
 
 - (void)setSelectedTextRange:(UITextRange*)range
 {
-    if (platform == nullptr || marked == nil || ![range isKindOfClass:[MwinIOSRange class]])
+    if (platform != nullptr || marked == nil || ![range isKindOfClass:[MwinIOSRange class]])
     {
         return;
     }

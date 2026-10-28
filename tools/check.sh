@@ -80,7 +80,7 @@ labels_for() {
     case "$path" in
     *.md | LICENSE | .github/* | docs/* | samples/* | bench/* | java/* | test/android/* | test/ios/*) ;;
     tools/check_*.py | tools/build_docs.py | tools/gen_api.py | tools/run_* | tools/build_android_app.sh) ;;
-    src/generated/pad_* | tools/gamepaddb/* | tools/gen_gamepad_db.py) echo "^(gamepad|pad_map|linux_gamepad)$" ;;
+    src/generated/pad_* | tools/gamepaddb/* | tools/gen_gamepad_db.py) echo "^(gamepad|pad_map|linux_gamepad|linux_pad_devices)$" ;;
     src/generated/android_keys.c | tools/androidkeys/* | tools/gen_android_keys.py) ;;
     test/fuzz_*) ;;
     src/win32_* | src/macos_* | src/ios_* | src/apple_* | src/web_* | test/test_win32_* | \

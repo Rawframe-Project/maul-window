@@ -16,11 +16,12 @@
 // a surface of shared memory sized by a viewport, the default shape
 // once it is destroyed, hiding, capture as a locked pointer with raw
 // relative motion, confinement as a confined pointer, and release. The
-// input method: enabling with the caret, a composition, its commit, and
-// disabling. The frame the backend draws, as the compositor offers no
-// server-side decorations: the window geometry with the caption, and
-// the caption moving the window, its close button, a resize edge and a
-// double click, none of which reaches the program as pointer input.
+// input method: enabling with the caret, a composition, its commit, a
+// composition and a commit that are not UTF-8 repaired, and disabling.
+// The frame the backend draws, as the compositor offers no server-side
+// decorations: the window geometry with the caption, and the caption
+// moving the window, its close button, a resize edge and a double
+// click, none of which reaches the program as pointer input.
 // Skipped (exit status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "cursor_images.h"
@@ -72,6 +73,8 @@ typedef enum Phase
     phaseTextEnable,
     phasePreedit,
     phaseTextCommit,
+    phaseBrokenPreedit,
+    phaseBrokenCommit,
     phaseTextDisable,
     phaseFrame,
     phaseMove,
@@ -300,7 +303,10 @@ static bool Ready(const Program* program)
     case phaseCloseButton:
         return First(program, mwin_eventCloseRequested) != nullptr;
     case phaseTextCommit:
+    case phaseBrokenCommit:
         return First(program, mwin_eventTextInput) != nullptr;
+    case phaseBrokenPreedit:
+        return First(program, mwin_eventImePreedit) != nullptr;
     default:
         return true;
     }
@@ -402,6 +408,18 @@ static void AdvanceText(Program* program, mwinContext* context)
                   preedit->data.preedit.length == 0 &&
                   First(program, mwin_eventTextInput) < preedit,
               "the commit, then the composition's end");
+        // "ka" and a byte that is not UTF-8, as an input method may send.
+        ServerCompose(program->server, "\xE3\x81\x8B\xFF", 4, 4, nullptr);
+        break;
+    case phaseBrokenPreedit:
+        CHECK(preedit->data.preedit.length == 6 &&
+                  memcmp(preedit->data.preedit.text, "\xE3\x81\x8B\xEF\xBF\xBD", 6) == 0,
+              "a composition that is not UTF-8, repaired");
+        ServerCompose(program->server, nullptr, 0, 0, "\xE6\xBC\xA2\xFF");
+        break;
+    case phaseBrokenCommit:
+        CHECK(TextIs(program, "\xE6\xBC\xA2\xEF\xBF\xBD"),
+              "committed text that is not UTF-8, repaired");
         CHECK(mwinRequestTextInput(context, program->window, false, (mwinRect){0}, nullptr) ==
                   mwin_success,
               "stop accepting text");

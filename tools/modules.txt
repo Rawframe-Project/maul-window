@@ -133,7 +133,7 @@ wayland_popup: core wayland wayland_api wayland_frame
 wayland_primary: core wayland wayland_api wayland_clipboard
 wayland_seat: core wayland wayland_api wayland_clipboard wayland_keyboard wayland_pointer wayland_text
 wayland_tablet: core wayland wayland_api wayland_cursor
-wayland_text: core wayland wayland_api
+wayland_text: core utf8 wayland wayland_api
 wayland_window: core wayland wayland_activation wayland_api wayland_clipboard wayland_cursor wayland_drop wayland_frame wayland_icon wayland_keyboard wayland_output wayland_pointer wayland_popup wayland_tablet wayland_text
 web: clicks core web_pad
 web_clipboard: allocator clipboard_data core web web_js

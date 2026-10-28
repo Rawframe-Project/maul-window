@@ -26,7 +26,7 @@ The backend makes one input context and gives it the focus while a focused windo
 
 ### Wayland: text-input-v3
 
-The compositor's strings wait for its `done` event, which applies them in the protocol's order: the commit, then the new composition as one underlined segment. The program's own text is not shared with the input method, so there is nothing to delete around the caret. The protocol has no request for the on-screen keyboard: a compositor shows its keyboard when text input is enabled, and the request is answered unsupported.
+The compositor's strings wait for its `done` event, which applies them in the protocol's order: the commit, then the new composition as one underlined segment. Each string is kept as its UTF-8 repair, since libwayland takes any bytes before the NUL and the input method is another program; a repair past `textBytesPerWindow` is lost, and `done` posts `mwin_eventInputStateReset` in its place. The program's own text is not shared with the input method, so there is nothing to delete around the caret. The protocol has no request for the on-screen keyboard: a compositor shows its keyboard when text input is enabled, and the request is answered unsupported.
 
 ### Win32: IMM32, not a TSF text store
 

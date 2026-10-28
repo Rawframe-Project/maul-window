@@ -29,19 +29,30 @@ import java.util.Map;
 final class Gamepads {
     // The motion listeners of the gamepads whose sensors are on, by id.
     private static final Map<Integer, Motion> MOTIONS = new HashMap<>();
+    // The devices the last list call saw.
+    private static int[] sListed = new int[0];
 
     private Gamepads() {
     }
 
     /**
      * The devices that are gamepads or joysticks, not virtual: a keyboard's
-     * or a remote's arrows alone do not make one.
+     * or a remote's arrows alone do not make one. A device is read only
+     * once a call before this one has seen it, or when it is the one given,
+     * whose gamepad events show it whole: Android merges a pad's kernel
+     * devices into one as each appears, and Android 11 keeps the copy an
+     * app first read, so one read between two of them stays the first part
+     * (a DualShock 4's touchpad) for good. The kernel makes them within
+     * milliseconds of each other.
      */
-    static int[] list() {
+    static int[] list(int sending) {
         int[] ids = InputDevice.getDeviceIds();
+        int[] listed = sListed;
+        sListed = ids.clone();
         int count = 0;
         for (int id : ids) {
-            if (isGamepad(InputDevice.getDevice(id))) {
+            if ((id == sending || contains(listed, listed.length, id))
+                    && isGamepad(InputDevice.getDevice(id))) {
                 ids[count++] = id;
             }
         }

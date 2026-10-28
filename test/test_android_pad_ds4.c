@@ -44,6 +44,10 @@
 // from before it installs it, so a timeout here comes first and names
 // its phase.
 #define DEADLINE_NS 45000000000ull
+// Since the program quit: Android freezes a process about ten seconds
+// after its activity has gone (the cached apps freezer), so the wait
+// for the stopped pad ends before that and the result line comes out.
+#define GONE_NS 5000000000ull
 #define FILES       "/data/data/" MWIN_TEST_PACKAGE "/files/"
 #define NAME        "Maul DS4"
 #define OUTPUT      "/data/local/tmp/mwin-ds4.out"
@@ -114,6 +118,7 @@ typedef struct Program
     uint64_t askedNs;
     // When the input service was seen listing the pad, 0 before.
     uint64_t listedNs;
+    uint64_t quitNs;
 } Program;
 
 static char s_read[65536];
@@ -503,10 +508,22 @@ static void CheckMotion(Program* program, mwinContext* context)
            (double)motion.rotationRate[1], (double)motion.rotationRate[2]);
 }
 
-// The check of what is wanted, on the copy read.
+// The check of what is wanted, on the copy read, and what the copy
+// showed when it fails.
 static void CheckCopy(const Want* want)
 {
-    CHECK(Shows(want, s_read), android_get_device_api_level() >= 31 ? want->check : want->check11);
+    bool shows = Shows(want, s_read);
+    CHECK(shows, android_get_device_api_level() >= 31 ? want->check : want->check11);
+    if (!shows)
+    {
+        unsigned light = 0;
+        unsigned heavy = 0;
+        bool found = LastMotors(s_read, &light, &heavy);
+        printf("  the copy: motors %s %u %u, sensors %s, vibrating %s\n",
+               found ? "set to" : "never set, at", light, heavy,
+               strstr(s_read, "enabled: 1") != nullptr ? "on" : "off",
+               strstr(s_read, "Vibrating: true") != nullptr ? "true" : "false");
+    }
 }
 
 static void Advance(Program* program, mwinContext* context)
@@ -642,7 +659,7 @@ static void* Gone(void* user)
     const Program* program = user;
     const Want* want = &s_wants[3];
     uint64_t askedNs = 0;
-    while (!Copied(want, &askedNs) && NowNs() - program->beganNs < DEADLINE_NS)
+    while (!Copied(want, &askedNs) && NowNs() - program->quitNs < GONE_NS)
     {
         // hygiene: waits for the runner's copy, ended by the deadline
         (void)nanosleep(&(struct timespec){.tv_nsec = 100000000}, nullptr);
@@ -660,6 +677,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     CHECK(program->phase > 7, "every phase ran");
     // The context stops the pads after this returns: a thread waits for
     // that, and the runner for the result it writes.
+    program->quitNs = NowNs();
     pthread_t thread;
     if (program->phase <= 7 || pthread_create(&thread, nullptr, Gone, program) != 0 ||
         pthread_detach(thread) != 0)

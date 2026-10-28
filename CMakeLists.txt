@@ -622,7 +622,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Applications in the emulator, built by tools/build_android_app.sh
         # without Gradle and run by tools/run_android_app.sh.
         set(MWIN_ANDROID_TESTS android android_input android_cursor android_ime android_pad
-            android_services android_dialog android_drop android_system android_access)
+            android_services android_dialog android_drop android_system android_access
+            android_pad_ds4)
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)
@@ -649,6 +650,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator
                                  LABELS "${name};integration")
         endforeach()
+        # Intermittent in the Android 15 emulator: battery saver not
+        # reported after a fresh boot, and an explored finger not heard.
+        maul_quarantine(android_system android_access)
+        # Intermittent in the Android 15 emulator: a swipe's moves and lift
+        # not delivered.
+        maul_quarantine(android_input)
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,

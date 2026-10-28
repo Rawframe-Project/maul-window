@@ -580,12 +580,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The Android backend in the emulator, Android 11 (the oldest the backend
-  # takes) on x86_64 with KVM: the headless tests through adb, the window
-  # ones as applications built without Gradle (tools/build_android_app.sh).
-  # The runner carries the SDK. The pinned NDK comes from an Actions cache
-  # keyed by its version, else from the SDK manager; the emulator and its
-  # system image come from the SDK manager.
+  # The Android backend in the emulator on x86_64 with KVM, in Android 11
+  # (the oldest the backend takes) and Android 15 (the level the test
+  # applications target, past every API level check of the backend): the
+  # headless tests through adb, the window ones as applications built
+  # without Gradle (tools/build_android_app.sh). The runner carries the
+  # SDK. The pinned NDK comes from an Actions cache keyed by its version,
+  # else from the SDK manager; the emulator and its system image come from
+  # the SDK manager. Both cells build the same preset, so only Android 11's
+  # saves the caches.
   android-emulator:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -593,7 +596,12 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [30, 35]
     env:
+      API: ${{ matrix.api }}
       ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
       ANDROID_SERIAL: emulator-5554
       ANDROID_AVD_HOME: /home/runner/.android/avd
@@ -624,7 +632,7 @@ jobs:
       - name: Save the NDK
         if: >-
           steps.ndk-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' &&
-          github.event_name != 'pull_request'
+          github.event_name != 'pull_request' && matrix.api == 30
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.ANDROID_NDK_HOME }}
@@ -639,9 +647,10 @@ jobs:
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           yes | "$tools/sdkmanager" --licenses >/dev/null 2>&1 || true
           mkdir -p "$ANDROID_AVD_HOME"
-          "$tools/sdkmanager" --install emulator "system-images;android-30;google_apis;x86_64" >/dev/null
-          echo no | "$tools/avdmanager" create avd -n maul30 -k "system-images;android-30;google_apis;x86_64" -d pixel_5 >/dev/null
-          nohup "$ANDROID_HOME/emulator/emulator" -avd maul30 -no-window -no-audio -no-boot-anim \
+          image="system-images;android-$API;google_apis;x86_64"
+          "$tools/sdkmanager" --install emulator "$image" >/dev/null
+          echo no | "$tools/avdmanager" create avd -n "maul$API" -k "$image" -d pixel_5 >/dev/null
+          nohup "$ANDROID_HOME/emulator/emulator" -avd "maul$API" -no-window -no-audio -no-boot-anim \
             -no-snapshot -gpu swiftshader_indirect -port 5554 > emulator.log 2>&1 &
           emulator=$!
           adb="$ANDROID_HOME/platform-tools/adb"
@@ -681,7 +690,9 @@ jobs:
           cmake --build --preset android-emulator -j 4
           ccache --show-stats
       - name: Save ccache
-        if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: >-
+          always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+          matrix.api == 30
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/ccache
@@ -703,7 +714,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: logs-android-emulator
+          name: logs-android-emulator-${{ matrix.api }}
           path: out/android-emulator/Testing/Temporary/
           if-no-files-found: ignore
           retention-days: 7

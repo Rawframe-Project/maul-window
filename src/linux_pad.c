@@ -287,6 +287,7 @@ static void Open(mwinLinuxPads* pads, int node)
     if (pad == nullptr || !IsGamepad(&bits))
     {
         close(fd);
+        pads->refused = pads->refused || IsGamepad(&bits);
         if (Has(bits.props, INPUT_PROP_ACCELEROMETER))
         {
             OpenMotion(pads, node);
@@ -325,9 +326,12 @@ static void Open(mwinLinuxPads* pads, int node)
     int32_t slot = mwinAddGamepad(pads->context, &info, mwinMonotonicNow());
     if (slot < 0)
     {
+        // The core's slot is still taken by a pad whose removal the
+        // program has not read.
         mwinLinuxCloseMotion(&pad->motion);
         close(fd);
         pad->fd = -1;
+        pads->refused = true;
         return;
     }
     pad->slot = (uint32_t)slot;
@@ -421,6 +425,39 @@ static void Watch(mwinLinuxPads* pads)
     }
 }
 
+// Opens every device in /dev/input that is not open yet.
+static void Scan(mwinLinuxPads* pads)
+{
+    DIR* directory = opendir("/dev/input");
+    for (struct dirent* entry = directory != nullptr ? readdir(directory) : nullptr;
+         entry != nullptr; entry = readdir(directory))
+    {
+        int node = NodeOf(entry->d_name);
+        if (node >= 0)
+        {
+            Open(pads, node);
+        }
+    }
+    if (directory != nullptr)
+    {
+        closedir(directory);
+    }
+}
+
+// Whether a gamepad that comes now can be added: a free pad and a free
+// slot of the core's.
+static bool HasRoom(const mwinLinuxPads* pads)
+{
+    bool pad = false;
+    bool slot = false;
+    for (uint32_t i = 0; i < pads->context->limits.gamepads; i++)
+    {
+        pad = pad || pads->pads[i].fd < 0;
+        slot = slot || pads->context->gamepads[i].status == mwin_slotFree;
+    }
+    return pad && slot;
+}
+
 bool mwinLinuxPadsStart(mwinLinuxPads* pads, mwinContext* context)
 {
     *pads = (mwinLinuxPads){.context = context, .watch = -1};
@@ -450,20 +487,7 @@ bool mwinLinuxPadsStart(mwinLinuxPads* pads, mwinContext* context)
         close(pads->watch);
         pads->watch = -1;
     }
-    DIR* directory = opendir("/dev/input");
-    for (struct dirent* entry = directory != nullptr ? readdir(directory) : nullptr;
-         entry != nullptr; entry = readdir(directory))
-    {
-        int node = NodeOf(entry->d_name);
-        if (node >= 0)
-        {
-            Open(pads, node);
-        }
-    }
-    if (directory != nullptr)
-    {
-        closedir(directory);
-    }
+    Scan(pads);
     return true;
 }
 
@@ -529,6 +553,12 @@ void mwinLinuxPadsPump(mwinLinuxPads* pads)
     if (pads->watch >= 0)
     {
         Watch(pads);
+    }
+    // A gamepad turned away is still there: it comes once there is room.
+    if (pads->refused && HasRoom(pads))
+    {
+        pads->refused = false;
+        Scan(pads);
     }
     // A device that is gone reads as such; its node's removal needs no
     // watching.

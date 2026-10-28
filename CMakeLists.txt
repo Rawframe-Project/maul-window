@@ -636,10 +636,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,
         # ios_keys and ios_ime hand the view touches, recognizers, presses, text
-        # and compositions as UIKit would.
-        # ios_scenes needs an iPad, where CI runs it.
+        # and compositions as UIKit would; ios_touch has idb touch the window
+        # through the system. ios_scenes needs an iPad, where CI runs it.
         set(MWIN_IOS_TESTS ios ios_input ios_keys ios_ime ios_services ios_drop ios_dialog
-            ios_system ios_scenes)
+            ios_system ios_touch ios_scenes)
         if(MAUL_WINDOW_GAMEPAD)
             list(APPEND MWIN_IOS_TESTS ios_gamepad)
         endif()

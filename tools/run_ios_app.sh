@@ -7,7 +7,9 @@
 # process, so the runner ends it. A line "simctl: <verb> <arguments>"
 # the test writes is run once, as "xcrun simctl <verb> <device>
 # <arguments>", so that the test drives what only the system can do
-# (another application in front of it, and its own brought back). Passes
+# (another application in front of it, and its own brought back). A line
+# "idb: <arguments>" is run once as "idb <arguments> --udid <device>", for
+# what only idb can do: a touch through the simulator's own input. Passes
 # when the line says 0 failures; otherwise shows the application's
 # errors, and where it is stuck or why it ended.
 #
@@ -20,6 +22,15 @@
 set -eu
 app=$1
 device=${MWIN_IOS_DEVICE:-booted}
+
+# The device's UDID, which idb needs where simctl takes "booted".
+udid() {
+    if [ "$device" = booted ]; then
+        xcrun simctl list devices booted | sed -n 's/.*(\([0-9A-F-]\{36\}\)) (Booted).*/\1/p' | head -1
+    else
+        echo "$device"
+    fi
+}
 name=$(basename "$app" .app)
 id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
 out=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-out.XXXXXX")
@@ -63,12 +74,17 @@ while ! grep -q '^result: ' "$out"; do
             back=$(date +%s)
         fi
     fi
-    commands=$(grep '^simctl: ' "$out" || true)
+    commands=$(grep -e '^simctl: ' -e '^idb: ' "$out" || true)
     count=$(printf '%s' "$commands" | grep -c '' || true)
     while [ "$ran" -lt "$count" ]; do
         ran=$((ran + 1))
         line=$(printf '%s\n' "$commands" | sed -n "${ran}p")
         echo "running: $line"
+        if [ "${line#idb: }" != "$line" ]; then
+            # shellcheck disable=SC2086 # its arguments, as written
+            idb ${line#idb: } --udid "$(udid)" >/dev/null || echo "idb failed"
+            continue
+        fi
         # shellcheck disable=SC2086 # the verb and its arguments, as written
         set -- ${line#simctl: }
         verb=$1

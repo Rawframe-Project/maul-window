@@ -129,7 +129,8 @@ static bool At(const Program* program, mwinPosition position, float x, float y)
            position.y * scale > y - 1.0f && position.y * scale < y + 1.0f;
 }
 
-static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
+// Whether Windows took the contact.
+static bool Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
 {
     POINTER_TOUCH_INFO contact = {0};
     contact.pointerInfo.pointerType = PT_TOUCH;
@@ -140,13 +141,15 @@ static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
     contact.rcContact = (RECT){at.x - 2, at.y - 2, at.x + 2, at.y + 2};
     contact.orientation = 90;
     contact.pressure = 512;
-    if (!InjectTouchInput(1, &contact))
+    bool taken = InjectTouchInput(1, &contact) != 0;
+    if (!taken)
     {
         (void)printf("  touch not taken: error %lu\n", GetLastError());
     }
     // A frame apart, as a digitizer reports.
     // hygiene: injected contacts a frame apart, as a digitizer reports
     Sleep(16);
+    return taken;
 }
 
 static void Pen(const Program* program, LONG x, LONG y, POINTER_FLAGS flags, PEN_FLAGS pen)
@@ -191,6 +194,7 @@ static void SendGesture(Program* program)
         // Windows takes the touch from the window, as it does for a
         // gesture of the system's: the message it sends then, while the
         // touch is still down. Its lifting no longer reaches the window.
+        Touch(program, 100, 80, POINTER_FLAG_UPDATE | contact);
         SendMessageW(program->hwnd, WM_POINTERCAPTURECHANGED,
                      MAKEWPARAM((WORD)program->cancelled, 0), 0);
         Touch(program, 100, 80, POINTER_FLAG_UP);
@@ -322,7 +326,20 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    else if (program->phase != phaseCreate && now - program->sentMs > RESEND_MS)
+    else if (program->phase == phaseCancelDown)
+    {
+        // An injected touch not updated for a while is cancelled by
+        // Windows itself, and a second down for it is refused: it is kept
+        // down until the backend has read it.
+        const POINTER_FLAGS contact = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT;
+        if (!Touch(program, 100, 80, POINTER_FLAG_UPDATE | contact))
+        {
+            // The down was lost: it is sent again.
+            (void)Touch(program, 100, 80, POINTER_FLAG_DOWN | contact);
+        }
+    }
+    else if (program->phase != phaseCreate && program->phase != phaseCancelled &&
+             now - program->sentMs > RESEND_MS)
     {
         Dump(program);
         (void)printf("  phase %d: sent again\n", (int)program->phase);

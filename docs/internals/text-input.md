@@ -16,7 +16,7 @@ Text arrives as its own record, from the platform's text path, so dead keys, com
 
 ## Compositions
 
-While a window accepts text, an input method's marked text arrives as `mwin_eventImePreedit`; a commit arrives as text. While a window composes, the key records of keys the method takes are dropped, both press and release, so no press arrives alone. A window that does not accept text gives the input method nothing to compose into on desktops (no input context on Win32 and macOS), so a game's keys are never taken. Compositions are fitted to their text by the core ([The event stream](events.md#compositions-are-fitted)).
+While a window accepts text, an input method's marked text arrives as `mwin_eventImePreedit`; a commit arrives as text. While a window composes, the key records of keys the method takes are dropped, both press and release, so no press arrives alone. A window that does not accept text gives the input method nothing to compose into on desktops (no input context on Win32 and macOS), so a game's keys are never taken. Compositions are fitted to their text by the core ([The event stream](events.md#compositions-are-fitted)). A window's reset ends its composition in the core too. The record lost may have been a composition, lost to the text limit or to full storage, and then the program has no current composition to draw. Were `composing` kept, the core would go on dropping the keys the input method no longer takes until its next preedit.
 
 ### X11: IBus and Fcitx 5 over D-Bus
 

@@ -166,7 +166,8 @@ extern "C"
         mwinRect virtualKeyboard;
         // The window accepts text (mwinRequestTextInput answered done).
         bool textInput;
-        // An input method composes (a preedit that is not empty).
+        // An input method composes: a preedit that is not empty came, and
+        // no empty one or mwin_eventInputStateReset since.
         bool composing;
         // The window keeps the display awake (mwinRequestKeepAwake answered
         // done).

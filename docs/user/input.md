@@ -6,7 +6,7 @@ Input belongs to a window and arrives in the event stream with the notifications
 
 Each window keeps input in four classes, each with room for `inputPerWindow` records: discrete records (keys, text, buttons, touches and pen contacts beginning or ending), motion (cursor, touch and pen), raw deltas, and the wheel.
 
-- **Discrete records are never merged.** When their storage is full, the record is lost and `mwin_eventInputStateReset` takes its place in the stream. The same record follows every loss of focus. After a reset no key or button counts as held, so a program never acts on a held state it cannot trust.
+- **Discrete records are never merged.** When their storage is full, the record is lost and `mwin_eventInputStateReset` takes its place in the stream. The same record follows every loss of focus. After a reset no key or button counts as held and no composition runs, so a program never acts on a held state it cannot trust: it drops any composition it shows, and the input method's next preedit starts one again.
 - **Motion, deltas and wheel turns merge** into the newest waiting record of their kind when their storage is full: positions take the newer value, deltas and turns add, and `samples` says how many platform records a record stands for.
 
 ## Keys

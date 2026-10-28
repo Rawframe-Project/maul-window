@@ -5,8 +5,9 @@
 // by request, compositions with their caret, selection and segments,
 // keys a composition consumes left out with their releases, commits as
 // text, a composition ended when text input stops, refused compositions,
-// offsets fitted to their text, and compositions that replace each
-// other without leaking storage.
+// offsets fitted to their text, compositions that replace each other
+// without leaking storage, and a composition lost to the text limit
+// ending the one before with its reset.
 
 #include "test_program.h"
 
@@ -231,10 +232,58 @@ static void TestStorage(void)
     CHECK(RunWith(&program, def) == mwin_success, "the program runs");
 }
 
+// A composition past the window's text storage is lost, and the reset
+// in its place ends the composition before it: the program can draw
+// none, and the keys go through again.
+static void LostStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    mwinWindowState state;
+    Drain(program, context);
+    switch (step)
+    {
+    case 0:
+        program->windows[0] = Create(context, nullptr);
+        return;
+    case 1:
+        CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0}, nullptr) == mwin_success,
+              "accept text");
+        Post(context, Preedit(window, "ab", 2, nullptr, 0));
+        return;
+    case 2:
+        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && state.composing,
+              "composing");
+        Post(context,
+             Preedit(window, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef!",
+                     65, nullptr, 0));
+        Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
+        Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
+        return;
+    default:
+    {
+        static const mwinEventType expected[] = {mwin_eventInputStateReset, mwin_eventKeyDown,
+                                                 mwin_eventKeyUp};
+        CHECK(Types(program, expected, 3), "the reset in the lost composition's place, then keys");
+        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && !state.composing,
+              "the reset ends the composition");
+        program->done = true;
+    }
+    }
+}
+
+static void TestLost(void)
+{
+    Program program = {.step = LostStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.textBytesPerWindow = 64;
+    CHECK(RunWith(&program, def) == mwin_success && program.done, "the program runs");
+}
+
 int main(void)
 {
     TestComposition();
     TestRefusals();
     TestStorage();
+    TestLost();
     return s_failures == 0 ? 0 : 1;
 }

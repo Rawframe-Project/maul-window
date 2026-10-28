@@ -27,7 +27,9 @@
 //   Android 12 lists them, played as one combined effect, since each
 //   motor's own effect would play on both; else its one at the
 //   stronger): Android times the effect, and the latest call replaces
-//   it.
+//   it. Java keeps the vibrator that started a rumble for its stop:
+//   Android cancels only what the same one started, and a device it has
+//   changed since (its motion sensors found) hands out a new one.
 // - Motion is the device's accelerometer and gyroscope (Android 12 and
 //   later), whose listener hands each sample to the library on the main
 //   thread, in m/s^2 and rad/s and in the frame the kernel's driver
@@ -228,12 +230,35 @@ static bool Sense(const mwinAndroidPlatform* platform, int32_t device, bool on)
     return done && !thrown;
 }
 
+// Runs a device's motors: false when it has none or Java failed.
+static bool Vibrate(const mwinAndroidPlatform* platform, int32_t device, float low, float high,
+                    uint32_t durationMs)
+{
+    JNIEnv* env = platform->java.env;
+    // As values: floats through the variadic call would become doubles.
+    jvalue arguments[4] = {{.i = device},
+                           {.f = low},
+                           {.f = high},
+                           {.i = durationMs > INT32_MAX ? INT32_MAX : (jint)durationMs}};
+    jboolean ran = (*env)->CallStaticBooleanMethodA(env, platform->pads.type, platform->pads.rumble,
+                                                    arguments);
+    bool thrown = (*env)->ExceptionCheck(env);
+    (*env)->ExceptionClear(env);
+    return ran && !thrown;
+}
+
 static void Remove(mwinAndroidPlatform* platform, uint32_t index, uint64_t nowNs)
 {
     mwinAndroidPads* pads = &platform->pads;
     if (platform->context->gamepads[pads->pads[index].slot].motionOn)
     {
         (void)Sense(platform, pads->pads[index].device, false);
+    }
+    // Java keeps what started a rumble until it is stopped.
+    if ((platform->context->gamepads[pads->pads[index].slot].info.capabilities & mwin_padRumble) !=
+        0)
+    {
+        (void)Vibrate(platform, pads->pads[index].device, 0.0f, 0.0f, 0);
     }
     mwinRemoveGamepad(platform->context, pads->pads[index].slot, nowNs);
     pads->count -= 1;
@@ -376,23 +401,6 @@ bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event
         return true;
     }
     return false;
-}
-
-// Runs a device's motors: false when it has none or Java failed.
-static bool Vibrate(const mwinAndroidPlatform* platform, int32_t device, float low, float high,
-                    uint32_t durationMs)
-{
-    JNIEnv* env = platform->java.env;
-    // As values: floats through the variadic call would become doubles.
-    jvalue arguments[4] = {{.i = device},
-                           {.f = low},
-                           {.f = high},
-                           {.i = durationMs > INT32_MAX ? INT32_MAX : (jint)durationMs}};
-    jboolean ran = (*env)->CallStaticBooleanMethodA(env, platform->pads.type, platform->pads.rumble,
-                                                    arguments);
-    bool thrown = (*env)->ExceptionCheck(env);
-    (*env)->ExceptionClear(env);
-    return ran && !thrown;
 }
 
 mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float low, float high,

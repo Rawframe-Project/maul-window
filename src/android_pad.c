@@ -8,12 +8,15 @@
 //   the gamepad or the joystick (a keyboard's or a remote's arrows alone
 //   are not one); they are looked for every half second, as the other
 //   backends' runtimes are, and at once when an event comes from one not
-//   followed. A device gone from the list is removed. Their batteries
-//   (Android 12 and later) and what they can do are read when they are
-//   looked for, a change told as the gamepad's: Android merges a pad's
-//   kernel devices (a DualShock 4's pad, touchpad and motion sensors)
-//   into one as each appears, so a pad listed before its motion device
-//   gains its sensors a moment later.
+//   followed. A device is read only at the look after the one that first
+//   lists it, unless its own gamepad event brought the look: Android 11
+//   keeps an app's first copy of a device whose kernel devices are still
+//   being merged into it. A device gone from the list is removed. Their
+//   batteries (Android 12 and later) and what they can do are read when
+//   they are looked for, a change told as the gamepad's: Android merges a
+//   pad's kernel devices (a DualShock 4's pad, touchpad and motion
+//   sensors) into one as each appears, so a pad listed before its motion
+//   device gains its sensors a moment later.
 // - Their keys and joystick motions come through the activity's input
 //   queue, while the window has the focus, and are taken: Android's
 //   fallbacks (B as Back) do not follow. A key is a gamepad's by its
@@ -85,7 +88,7 @@ bool mwinAndroidFindPads(mwinAndroidPlatform* platform, ANativeActivity* activit
     (*env)->SetIntArrayRegion(env, keys, 0, MWIN_ANDROID_PAD_KEYS, mwinAndroidPadKeys);
     pads->type = (*env)->NewGlobalRef(env, type);
     pads->keys = (*env)->NewGlobalRef(env, keys);
-    pads->list = (*env)->GetStaticMethodID(env, type, "list", "()[I");
+    pads->list = (*env)->GetStaticMethodID(env, type, "list", "(I)[I");
     pads->name = (*env)->GetStaticMethodID(env, type, "name", "(II)[B");
     pads->describe = (*env)->GetStaticMethodID(env, type, "describe", "(I[I)[I");
     pads->ranges = (*env)->GetStaticMethodID(env, type, "ranges", "(I[I)[F");
@@ -251,13 +254,14 @@ static bool Listed(const jint* ids, jsize count, int32_t device)
 
 // The gamepads connected now: the gone removed, the new added, a changed
 // battery or a capability gained told. Capabilities are only gained: a
-// pad's merged devices stay with it, and a failed read is no loss.
-static void Look(mwinAndroidPlatform* platform, uint64_t nowNs)
+// pad's merged devices stay with it, and a failed read is no loss. A
+// device whose gamepad event brought the look is sending, else -1.
+static void Look(mwinAndroidPlatform* platform, int32_t sending, uint64_t nowNs)
 {
     JNIEnv* env = platform->java.env;
     mwinAndroidPads* pads = &platform->pads;
     pads->lookedNs = nowNs;
-    jintArray list = (*env)->CallStaticObjectMethod(env, pads->type, pads->list);
+    jintArray list = (*env)->CallStaticObjectMethod(env, pads->type, pads->list, (jint)sending);
     if (list == nullptr || (*env)->ExceptionCheck(env))
     {
         (*env)->ExceptionClear(env);
@@ -302,7 +306,7 @@ void mwinAndroidPumpPads(mwinAndroidPlatform* platform, uint64_t nowNs)
 {
     if (nowNs - platform->pads.lookedNs >= LOOK_NS)
     {
-        Look(platform, nowNs);
+        Look(platform, -1, nowNs);
     }
 }
 
@@ -347,7 +351,7 @@ bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event
     if (pad == nullptr && FromPad(source))
     {
         // A gamepad that came since the last look.
-        Look(platform, mwinAndroidNow());
+        Look(platform, device, mwinAndroidNow());
         pad = PadOf(&platform->pads, device);
     }
     if (pad == nullptr)

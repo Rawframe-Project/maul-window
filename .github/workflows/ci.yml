@@ -656,8 +656,11 @@ jobs:
           image="system-images;android-$API;google_apis;x86_64"
           "$tools/sdkmanager" --install emulator "$image" >/dev/null
           echo no | "$tools/avdmanager" create avd -n "maul$API" -k "$image" -d pixel_5 >/dev/null
-          nohup "$ANDROID_HOME/emulator/emulator" -avd "maul$API" -no-window -no-audio -no-boot-anim \
-            -no-snapshot -gpu swiftshader_indirect -port 5554 > emulator.log 2>&1 &
+          # 4 GB rather than the 2 GB avdmanager gives: Android 15 runs short
+          # of memory at 2 GB. Both cells get the same, so they differ only
+          # in the Android version.
+          nohup "$ANDROID_HOME/emulator/emulator" -avd "maul$API" -memory 4096 -no-window -no-audio \
+            -no-boot-anim -no-snapshot -gpu swiftshader_indirect -port 5554 > emulator.log 2>&1 &
           emulator=$!
           adb="$ANDROID_HOME/platform-tools/adb"
           for i in $(seq 1 90); do

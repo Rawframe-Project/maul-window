@@ -10,3 +10,6 @@
 -keep class maul.window.tests.Tree { <init>(...); static int read; }
 -keep class maul.window.tests.ExplorerTree { <init>(...); }
 -keep class maul.window.tests.PlainTree { <init>(...); }
+# The stand-in for the gamepad helper's copies, which test_android_pad_ds4
+# puts in place by name.
+-keep class maul.window.StaleCopies { public static void install(); }

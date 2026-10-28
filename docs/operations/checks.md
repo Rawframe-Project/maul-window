@@ -41,7 +41,7 @@ A test never sleeps, reads the wall clock, tries again or skips without saying w
 | `fuzz` | Every fuzz target from its committed seeds, as many at a time as the runner has cores: 20 seconds each on a pull request, 90 on `main`. |
 | `fuzz-nightly` | Every night, each fuzz target in a job of its own for 600 seconds, from its corpus of the nights before ([Fuzzing](#fuzzing)). Not part of the required check. |
 | `ios-simulator` | The iOS backend and its tests built on every pull request; on `main` and at night, its UIKit tests and `base` (the test-backend suites run in `macos-clang`) run on an iPhone simulator of the newest runtime, then the window test and `ios_scenes` (several scenes) on an iPad of that runtime, one device booted at a time (`tools/ci_simulator.sh` picks each, and fails when the runtime has none). A simulator's boot and first launch take longer than the pull request budget leaves. |
-| `android-emulator` | The Android backend in an Android 11 emulator on the Linux runner with KVM. |
+| `android-emulator` | The Android backend in Android 11 and Android 15 emulators on the Linux runner with KVM. |
 | `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
 | `gamepads` | Every night: the virtual gamepad tests, in the CI image run by `docker` with the runner's `/dev/uinput` passed in. A skipped test fails it. |

@@ -112,7 +112,7 @@ typedef struct mwinTestPlatform
     // A drop gathered in the context waits for its report.
     bool dropWaiting;
     // The last address opened and path revealed.
-    char opened[2][MWIN_ADDRESS_BYTES];
+    char opened[2][MWIN_MAX_ADDRESS_BYTES];
     uint32_t openedLength[2];
     char dialogFiles[MWIN_TEST_DIALOG_BYTES];
     uint32_t dialogFilesLength;

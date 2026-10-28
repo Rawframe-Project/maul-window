@@ -24,7 +24,7 @@ mwinResult mwinRequestHitRegions(mwinContext* context, mwinWindowId window,
     {
         return mwinMisuse(context);
     }
-    if (count > MWIN_HIT_REGIONS)
+    if (count > MWIN_MAX_HIT_REGIONS)
     {
         return mwinRefuse(context, mwin_errorLimit);
     }

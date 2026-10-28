@@ -39,7 +39,7 @@ static bool Refused(mwinContext* context, mwinWindowId window, mwinHitRegion reg
 
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
 {
-    mwinHitRegion many[MWIN_HIT_REGIONS + 1] = {0};
+    mwinHitRegion many[MWIN_MAX_HIT_REGIONS + 1] = {0};
     mwinHitRegion fine = {{0.0f, 0.0f, 10.0f, 10.0f}, mwin_hitCaption};
     mwinHitRegion notFinite = fine;
     notFinite.rect.width = INFINITY;
@@ -49,9 +49,9 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     negative.rect.height = -1.0f;
     mwinHitRegion unknown = fine;
     unknown.kind = mwin_hitClose + 1;
-    CHECK(mwinRequestHitRegions(context, window, many, MWIN_HIT_REGIONS + 1, nullptr) ==
+    CHECK(mwinRequestHitRegions(context, window, many, MWIN_MAX_HIT_REGIONS + 1, nullptr) ==
               mwin_errorLimit,
-          "more regions than MWIN_HIT_REGIONS");
+          "more regions than MWIN_MAX_HIT_REGIONS");
     CHECK(mwinRequestHitRegions(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
               Refused(context, window, notFinite) && Refused(context, window, nan) &&
               Refused(context, window, negative) && Refused(context, window, unknown),

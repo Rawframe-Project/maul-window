@@ -94,11 +94,11 @@ static void CheckKdialog(void)
     CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && accepted &&
               Ran("kdialog\n--title\nMaul\n--error\nIt's $HOME; \xC3\xA9\n"),
           "kdialog where zenity is missing");
-    static char longest[MWIN_MESSAGE_TITLE_BYTES + 1];
-    memset(longest, 'T', MWIN_MESSAGE_TITLE_BYTES);
+    static char longest[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
+    memset(longest, 'T', MWIN_MAX_MESSAGE_TITLE_BYTES);
     error.title = longest;
-    error.titleLength = MWIN_MESSAGE_TITLE_BYTES;
-    char expected[MWIN_MESSAGE_TITLE_BYTES + 64];
+    error.titleLength = MWIN_MAX_MESSAGE_TITLE_BYTES;
+    char expected[MWIN_MAX_MESSAGE_TITLE_BYTES + 64];
     (void)snprintf(expected, sizeof(expected),
                    "kdialog\n--title\n%s\n--error\nIt's $HOME; \xC3\xA9\n", longest);
     CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && Ran(expected),
@@ -135,14 +135,14 @@ static void CheckRefused(void)
               mwinShowMessageBox(&text, nullptr) == mwin_errorInvalid &&
               mwinShowMessageBox(&nul, nullptr) == mwin_errorInvalid && !Ran(""),
           "defs refused before anything runs");
-    static char s_long[MWIN_MESSAGE_BYTES + 1];
+    static char s_long[MWIN_MAX_MESSAGE_BYTES + 1];
     memset(s_long, 'a', sizeof(s_long));
     mwinMessageBoxDef title = def;
     title.title = s_long;
-    title.titleLength = MWIN_MESSAGE_TITLE_BYTES + 1;
+    title.titleLength = MWIN_MAX_MESSAGE_TITLE_BYTES + 1;
     mwinMessageBoxDef message = def;
     message.message = s_long;
-    message.messageLength = MWIN_MESSAGE_BYTES + 1;
+    message.messageLength = MWIN_MAX_MESSAGE_BYTES + 1;
     CHECK(mwinShowMessageBox(&title, nullptr) == mwin_errorLimit &&
               mwinShowMessageBox(&message, nullptr) == mwin_errorLimit && !Ran(""),
           "a title or message past its named bound refused before anything runs");

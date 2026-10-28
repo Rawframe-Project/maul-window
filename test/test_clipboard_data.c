@@ -58,7 +58,7 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     mwinClipboardItem badText = Item("text/plain", "a\xC3", 2);
     mwinClipboardItem five[5] = {Item("a/a", "", 0), Item("a/b", "", 0), Item("a/c", "", 0),
                                  Item("a/d", "", 0), Item("a/e", "", 0)};
-    char longType[MWIN_CLIPBOARD_MIME + 2];
+    char longType[MWIN_MAX_CLIPBOARD_MIME + 2];
     memset(longType, 'a', sizeof(longType));
     longType[1] = '/';
     mwinClipboardItem tooLong = {longType, sizeof(longType) - 1, "a", 1};

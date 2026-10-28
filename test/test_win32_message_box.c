@@ -45,9 +45,9 @@ static BOOL CALLBACK FindBox(HWND window, LPARAM data)
 // buttons, each and only these of OK, Cancel, Yes and No.
 static bool IsAsked(HWND box, const Box* asked)
 {
-    static WCHAR title[MWIN_MESSAGE_TITLE_BYTES + 1];
+    static WCHAR title[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
     static const int every[] = {IDOK, IDCANCEL, IDYES, IDNO};
-    if (GetWindowTextW(box, title, MWIN_MESSAGE_TITLE_BYTES + 1) == 0 ||
+    if (GetWindowTextW(box, title, MWIN_MAX_MESSAGE_TITLE_BYTES + 1) == 0 ||
         wcscmp(title, asked->title) != 0 ||
         FindWindowExW(box, nullptr, L"Static", asked->message) == nullptr)
     {
@@ -83,8 +83,8 @@ static HWND ButtonOf(HWND box, const Box* asked)
 // Prints what the box shows where it is not the one asked for.
 static void Describe(HWND box)
 {
-    static WCHAR title[MWIN_MESSAGE_TITLE_BYTES + 1];
-    (void)GetWindowTextW(box, title, MWIN_MESSAGE_TITLE_BYTES + 1);
+    static WCHAR title[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
+    (void)GetWindowTextW(box, title, MWIN_MAX_MESSAGE_TITLE_BYTES + 1);
     (void)printf("box \"%.40ls\":", title);
     for (HWND child = GetWindow(box, GW_CHILD); child != nullptr;
          child = GetWindow(child, GW_HWNDNEXT))
@@ -187,14 +187,14 @@ int main(void)
     Box no = {L"Keep", L"Keep it?", {IDYES, IDNO}, IDNO, 0, false};
     CHECK(Shows("Keep", "Keep it?", mwin_buttonsYesNo, &no, false), "No not accepted");
     // The longest title and message a def holds, in ASCII, shown whole.
-    static char title[MWIN_MESSAGE_TITLE_BYTES + 1];
-    static char message[MWIN_MESSAGE_BYTES + 1];
-    static WCHAR wideTitle[MWIN_MESSAGE_TITLE_BYTES + 1];
-    static WCHAR wideMessage[MWIN_MESSAGE_BYTES + 1];
-    memset(title, 't', MWIN_MESSAGE_TITLE_BYTES);
-    memset(message, 'm', MWIN_MESSAGE_BYTES);
-    wmemset(wideTitle, L't', MWIN_MESSAGE_TITLE_BYTES);
-    wmemset(wideMessage, L'm', MWIN_MESSAGE_BYTES);
+    static char title[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
+    static char message[MWIN_MAX_MESSAGE_BYTES + 1];
+    static WCHAR wideTitle[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
+    static WCHAR wideMessage[MWIN_MAX_MESSAGE_BYTES + 1];
+    memset(title, 't', MWIN_MAX_MESSAGE_TITLE_BYTES);
+    memset(message, 'm', MWIN_MAX_MESSAGE_BYTES);
+    wmemset(wideTitle, L't', MWIN_MAX_MESSAGE_TITLE_BYTES);
+    wmemset(wideMessage, L'm', MWIN_MAX_MESSAGE_BYTES);
     Box longest = {wideTitle, wideMessage, {IDOK, IDOK}, IDOK, 0, false};
     CHECK(Shows(title, message, mwin_buttonsOk, &longest, true),
           "the longest title and message whole");

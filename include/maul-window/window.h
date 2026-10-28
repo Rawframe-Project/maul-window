@@ -108,7 +108,7 @@ extern "C"
         mwin_windowTooltip = 2,
     };
 
-#define MWIN_CANVAS_SELECTOR_BYTES 256
+#define MWIN_MAX_CANVAS_SELECTOR_BYTES 256
 
     // How a window is made. Build it with mwinDefaultWindowDef.
     typedef struct mwinWindowDef
@@ -124,7 +124,7 @@ extern "C"
         bool visible;
         mwinWindowStyle style;
         // The web: the CSS selector of a canvas on the page to use, UTF-8,
-        // at most MWIN_CANVAS_SELECTOR_BYTES; empty for a canvas the
+        // at most MWIN_MAX_CANVAS_SELECTOR_BYTES; empty for a canvas the
         // library makes. Only read while the window is created; other
         // platforms ignore it.
         const char* canvas;
@@ -201,7 +201,7 @@ extern "C"
     /// @param def        The window: a valid cookie, a positive size, a
     ///                   UTF-8 title within the titleBytes limit, a UTF-8
     ///                   canvas selector within
-    ///                   MWIN_CANVAS_SELECTOR_BYTES; a popup windowed, with
+    ///                   MWIN_MAX_CANVAS_SELECTOR_BYTES; a popup windowed, with
     ///                   an owner and a finite position.
     /// @param windowOut  Receives the window's id.
     /// @param requestOut Receives the id of the creation request. May be
@@ -209,7 +209,7 @@ extern "C"
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
     ///         its limit of windows or the title passes the titleBytes
     ///         limit; `mwin_errorLimit` for a canvas selector past
-    ///         MWIN_CANVAS_SELECTOR_BYTES; `mwin_errorStale` for an owner
+    ///         MWIN_MAX_CANVAS_SELECTOR_BYTES; `mwin_errorStale` for an owner
     ///         that no longer exists; `mwin_errorInvalid` for a NULL
     ///         argument or an otherwise invalid def.
     /// @par Thread safety
@@ -387,8 +387,8 @@ extern "C"
                                                           float opacity, mwinRequestId* requestOut);
 
 // The most images of a window's icon, and the most pixels on a side.
-#define MWIN_ICON_IMAGES 4
-#define MWIN_ICON_SIZE   256
+#define MWIN_MAX_ICON_IMAGES 4
+#define MWIN_MAX_ICON_SIZE   256
 
     // An image of an icon: RGBA with straight alpha, 8 bits a channel,
     // rows from the top.
@@ -402,7 +402,7 @@ extern "C"
     } mwinIconImage;
 
 // The most hit regions of a window.
-#define MWIN_HIT_REGIONS 16
+#define MWIN_MAX_HIT_REGIONS 16
 
     // What a part of a window is to the platform.
     typedef uint8_t mwinHitKind;
@@ -449,10 +449,10 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param regions     The regions. May be NULL when count is 0.
-    /// @param count       How many, at most MWIN_HIT_REGIONS; 0 for none.
+    /// @param count       How many, at most MWIN_MAX_HIT_REGIONS; 0 for none.
     /// @param requestOut  Receives the request's id. May be NULL.
     /// @return As mwinRequestTitle, with `mwin_errorLimit` for more
-    ///         regions than MWIN_HIT_REGIONS, and `mwin_errorInvalid` for
+    ///         regions than MWIN_MAX_HIT_REGIONS, and `mwin_errorInvalid` for
     ///         a region not finite, of a negative size or of an unknown
     ///         kind.
     /// @par Thread safety
@@ -473,13 +473,13 @@ extern "C"
     /// @param window      The window.
     /// @param images      The images, in any order. May be NULL when count
     ///                    is 0.
-    /// @param count       How many, at most MWIN_ICON_IMAGES; 0 for the
+    /// @param count       How many, at most MWIN_MAX_ICON_IMAGES; 0 for the
     ///                    platform's own icon.
     /// @param requestOut  Receives the request's id. May be NULL.
     /// @return As mwinRequestTitle, with `mwin_errorCapacity` when the
     ///         context cannot hold the copy, `mwin_errorLimit` for more
-    ///         images than MWIN_ICON_IMAGES or an image larger than
-    ///         MWIN_ICON_SIZE a side, and `mwin_errorInvalid` for an image
+    ///         images than MWIN_MAX_ICON_IMAGES or an image larger than
+    ///         MWIN_MAX_ICON_SIZE a side, and `mwin_errorInvalid` for an image
     ///         without pixels, with no width or height, or a stride
     ///         shorter than its row.
     /// @par Thread safety

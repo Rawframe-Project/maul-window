@@ -175,7 +175,7 @@ typedef struct mwinWindow
     uint16_t titleLength;
     uint16_t pendingTitleLength;
     // The hit regions the program declared (chrome.c).
-    mwinHitRegion regions[MWIN_HIT_REGIONS];
+    mwinHitRegion regions[MWIN_MAX_HIT_REGIONS];
     uint8_t regionCount;
     // The accessibility root the platform took, and whether a client has
     // asked for the tree (accessibility.c).

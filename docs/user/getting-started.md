@@ -97,7 +97,7 @@ Three rules hold everywhere:
 
 ## Results, ids and defs
 
-Every fallible function returns an `mwinResult`: `mwin_success`, or `mwin_errorInvalid` (a bad argument), `mwin_errorStale` (an id whose object is gone), `mwin_errorCapacity` (a limit of `mwinLimits` is full, or memory), `mwin_errorUnsupported`, `mwin_errorPlatform`, `mwin_errorState`, `mwin_errorVersion` or `mwin_errorLimit` (an argument past a fixed bound with a named constant, such as `MWIN_ADDRESS_BYTES`, which more room would not lift). The values are the Maul family's: a status means the same in every Maul library. `mwinResultName` names each one for diagnostics.
+Every fallible function returns an `mwinResult`: `mwin_success`, or `mwin_errorInvalid` (a bad argument), `mwin_errorStale` (an id whose object is gone), `mwin_errorCapacity` (a limit of `mwinLimits` is full, or memory), `mwin_errorUnsupported`, `mwin_errorPlatform`, `mwin_errorState`, `mwin_errorVersion` or `mwin_errorLimit` (an argument past a fixed bound with a named constant, such as `MWIN_MAX_ADDRESS_BYTES`, which more room would not lift). The values are the Maul family's: a status means the same in every Maul library. `mwinResultName` names each one for diagnostics.
 
 Windows, monitors, gamepads, cursors and requests are ids with a generation. An id outlives its object harmlessly: using it afterwards answers `mwin_errorStale`, and a slot is reused only once the record of its end has been drained.
 

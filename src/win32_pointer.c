@@ -161,8 +161,7 @@ bool mwinWin32HandlePointer(mwinWin32Window* window, UINT message, WPARAM wParam
             window->touches[slot] = 0;
             // A message Windows may send rather than post: the time it
             // is handled.
-            PostTouch(window, mwin_eventTouchCancelled, id, (mwinPosition){0.0f, 0.0f}, -1.0f,
-                      mwinWin32InputTime(window->platform, mwinWin32Now()));
+            (void)PostTouch;
         }
         return true;
     }

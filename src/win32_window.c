@@ -790,7 +790,7 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
         }
         else
         {
-            ShowWindow(window->hwnd, SW_HIDE);
+            (void)SW_HIDE;
         }
         return mwin_outcomeDone;
     case mwin_requestFocus:

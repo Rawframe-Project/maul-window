@@ -6,8 +6,9 @@
 // feature reports of Android's own CTS script for it, so that the
 // kernel's driver (hid-sony, or hid-playstation from Linux 5.12) makes
 // its motors, motion sensors and battery as for a real one. The pad is
-// added with its ids and rumble. Asked to rumble, heavy at a quarter and
-// light in full, then to stop, the pad gets what was asked, as Android
+// added with its ids and rumble, once Android's input service lists it.
+// Asked to rumble, heavy at a quarter and light in full, for longer than
+// the test runs, then to stop, the pad gets what was asked, as Android
 // reads it: from Android 12, where the pad has two motors, the driver's
 // output reports (the hid tool prints them) carry the light motor at 255
 // and the heavy one at 64, then both at 0; on Android 11, whose one
@@ -39,7 +40,10 @@
 #include <string.h>
 #include <time.h>
 
-#define DEADLINE_NS 40000000000ull
+// Since the program began: the runner gives a test a minute, counted
+// from before it installs it, so a timeout here comes first and names
+// its phase.
+#define DEADLINE_NS 45000000000ull
 #define FILES       "/data/data/" MWIN_TEST_PACKAGE "/files/"
 #define NAME        "Maul DS4"
 #define OUTPUT      "/data/local/tmp/mwin-ds4.out"
@@ -96,7 +100,7 @@ static const uint8_t s_feature81[] = {0x81, 0x62, 0x97, 0xC9, 0x00, 0x00, 0x00};
 typedef struct Program
 {
     int phase;
-    uint64_t startNs;
+    uint64_t beganNs;
     mwinWindowId window;
     mwinGamepadId pad;
     bool added;
@@ -108,6 +112,8 @@ typedef struct Program
     bool battery;
     // When the copy the phase waits for was last asked for.
     uint64_t askedNs;
+    // When the input service was seen listing the pad, 0 before.
+    uint64_t listedNs;
 } Program;
 
 static char s_read[65536];
@@ -331,7 +337,7 @@ static void Collect(Program* program, mwinContext* context)
             mwinGamepadInfo info = {0};
             (void)mwinGetGamepadInfo(context, event.data.gamepad, &info);
             printf("  %.2f s: gamepad %s: %.*s, capabilities %u\n",
-                   (double)(NowNs() - program->startNs) / 1e9,
+                   (double)(NowNs() - program->beganNs) / 1e9,
                    event.type == mwin_eventGamepadAdded     ? "added"
                    : event.type == mwin_eventGamepadChanged ? "changed"
                                                             : "removed",
@@ -421,6 +427,31 @@ static const Want* WantOf(int phase)
     return &s_wants[phase == 7 ? 2 : phase - 2];
 }
 
+// Whether the input service lists the pad, asked again each second,
+// so that a pad never added says whether Android had it.
+static bool Listed(Program* program)
+{
+    const char* text = ReadCopy("ds4-listed");
+    if (text != nullptr && strstr(text, NAME) != nullptr)
+    {
+        program->listedNs = NowNs();
+        printf("  %.2f s: listed by the input service\n",
+               (double)(program->listedNs - program->beganNs) / 1e9);
+        return true;
+    }
+    uint64_t now = NowNs();
+    if (now - program->askedNs >= 1000000000u)
+    {
+        (void)remove(FILES "ds4-listed");
+        printf("adb: sh -c 'dumpsys input | grep -E \"Device [0-9]+: " NAME
+               "\" | run-as " MWIN_TEST_PACKAGE
+               " sh -c \"cat > files/ds4-listed.part && mv files/ds4-listed.part "
+               "files/ds4-listed\"'\n");
+        program->askedNs = now;
+    }
+    return false;
+}
+
 static bool Ready(Program* program, mwinContext* context)
 {
     switch (program->phase)
@@ -432,7 +463,7 @@ static bool Ready(Program* program, mwinContext* context)
         return state.focused;
     }
     case 1:
-        return program->added;
+        return (program->listedNs != 0 || Listed(program)) && program->added;
     case 2:
     case 3:
     case 7:
@@ -489,7 +520,8 @@ static void Advance(Program* program, mwinContext* context)
                " cat files/ds4.sh)\" > " OUTPUT " 2>&1 &'\n");
         break;
     case 1:
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.25f, 1.0f, 5000) == mwin_success,
+        // Longer than the test runs: only the stop ends it.
+        CHECK(mwinSetGamepadRumble(context, program->pad, 0.25f, 1.0f, 60000) == mwin_success,
               "the rumble asked for");
         break;
     case 2:
@@ -531,7 +563,7 @@ static void Advance(Program* program, mwinContext* context)
             CHECK(!program->battery, "no battery on Android 11");
         }
         // The program quits with both running.
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.5f, 0.5f, 20000) == mwin_success,
+        CHECK(mwinSetGamepadRumble(context, program->pad, 0.5f, 0.5f, 60000) == mwin_success,
               "the rumble asked for, to quit with");
         if (android_get_device_api_level() >= 31)
         {
@@ -543,14 +575,14 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     program->phase += 1;
-    program->startNs = NowNs();
+    program->askedNs = 0;
 }
 
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
-    program->startNs = NowNs();
+    program->beganNs = NowNs();
     // Copies a run before this one may have left.
     for (size_t i = 0; i < sizeof(s_wants) / sizeof(s_wants[0]); i++)
     {
@@ -558,6 +590,7 @@ static mwinResult Init(mwinContext* context, void* user)
         (void)snprintf(path, sizeof(path), FILES "%s", s_wants[i].name);
         (void)remove(path);
     }
+    (void)remove(FILES "ds4-listed");
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
 
@@ -573,10 +606,19 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
-    else if (NowNs() - program->startNs > DEADLINE_NS)
+    else if (NowNs() - program->beganNs > DEADLINE_NS)
     {
-        printf("timed out in phase %d, the pad %s\n", program->phase,
+        printf("timed out in phase %d, the pad %s; ", program->phase,
                program->added ? "added" : "not added");
+        if (program->listedNs != 0)
+        {
+            printf("Android listed it at %.2f s\n",
+                   (double)(program->listedNs - program->beganNs) / 1e9);
+        }
+        else
+        {
+            printf("Android had not listed it\n");
+        }
         if (program->phase == 2 || program->phase == 3 || program->phase == 7)
         {
             CheckCopy(WantOf(program->phase));
@@ -595,13 +637,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 
 // After the program quits, once the context is gone: the motors
 // stopped and the sensors off, then the result.
-static void* Gone(void* unused)
+static void* Gone(void* user)
 {
-    (void)unused;
+    const Program* program = user;
     const Want* want = &s_wants[3];
     uint64_t askedNs = 0;
-    uint64_t startNs = NowNs();
-    while (!Copied(want, &askedNs) && NowNs() - startNs < DEADLINE_NS)
+    while (!Copied(want, &askedNs) && NowNs() - program->beganNs < DEADLINE_NS)
     {
         // hygiene: waits for the runner's copy, ended by the deadline
         (void)nanosleep(&(struct timespec){.tv_nsec = 100000000}, nullptr);
@@ -620,7 +661,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     // The context stops the pads after this returns: a thread waits for
     // that, and the runner for the result it writes.
     pthread_t thread;
-    if (program->phase <= 7 || pthread_create(&thread, nullptr, Gone, nullptr) != 0 ||
+    if (program->phase <= 7 || pthread_create(&thread, nullptr, Gone, program) != 0 ||
         pthread_detach(thread) != 0)
     {
         printf("result: %d failures\n", s_failures);

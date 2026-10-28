@@ -166,7 +166,8 @@ win32_base:
 win32_pointer: core win32
 win32_services: core win32
 win32_system: core win32
-win32_touch_keyboard: core win32
+win32_scope:
+win32_touch_keyboard: core win32 win32_scope
 win32_window: chrome core win32 win32_accessibility win32_clipboard win32_dialog win32_drop win32_icon win32_ime win32_input win32_occlusion win32_output win32_pointer win32_services win32_system win32_touch_keyboard
 window: core utf8
 x11: clicks core linux_ime linux_pad linux_services monotonic selection_reads x11_api x11_pen x11_scroll x11_touch xkb_api xkb_keyboard

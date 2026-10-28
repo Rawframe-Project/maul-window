@@ -12,6 +12,7 @@ set(MWIN_WIN32_SOURCES
     src/win32_accessibility.c
     src/win32_icon.c
     src/win32_ime.c
+    src/win32_scope.c
     src/win32_touch_keyboard.c
     src/win32_message_box.c
     src/win32_occlusion.c

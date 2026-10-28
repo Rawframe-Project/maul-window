@@ -507,7 +507,8 @@ jobs:
       - name: Install idb
         # ios_touch touches the window through the simulator's own input,
         # which only idb reaches: its client and companion of one release,
-        # checked against their published hashes.
+        # checked against their published hashes, and the client's
+        # dependencies as tools/idb-requirements.txt pins them.
         if: github.event_name != 'pull_request'
         run: |
           base=https://github.com/facebook/idb/releases/download/v1.6.9
@@ -517,7 +518,10 @@ jobs:
           400cbb1be23c407ec151d9eccbd1ed2a750d700dc6ac8dd05b7f25b43e97da17  $RUNNER_TEMP/fb_idb-1.6.9-py3-none-any.whl
           4b3ab4a8268dfb3c11d7b4ca929018b39e9ef51151e97f2af68fa2fc111c558b  $RUNNER_TEMP/idb.tar.gz
           EOF
-          python3 -m pip install --break-system-packages "$RUNNER_TEMP/fb_idb-1.6.9-py3-none-any.whl"
+          # Its dependencies at exact versions and hashes, then the client
+          # alone, so nothing comes from PyPI unpinned.
+          python3 -m pip install --break-system-packages --require-hashes -r tools/idb-requirements.txt
+          python3 -m pip install --break-system-packages --no-deps "$RUNNER_TEMP/fb_idb-1.6.9-py3-none-any.whl"
           mkdir -p "$RUNNER_TEMP/idb"
           tar -xzf "$RUNNER_TEMP/idb.tar.gz" -C "$RUNNER_TEMP/idb"
           echo "$RUNNER_TEMP/idb" >> "$GITHUB_PATH"

@@ -10,6 +10,12 @@ Releases are made by release-please from the conventional commit titles on `main
 4. Mark the pull request ready and merge it. release-please tags the merge commit and publishes the GitHub release with the changelog entry as its notes. The Pages workflow publishes the documentation from `main`.
 5. The `assets` job of `.github/workflows/release.yml` attaches the source archive `maul-window-X.Y.Z.tar.gz`, its `SHA256SUMS`, an SPDX SBOM and a build provenance attestation. A user verifies a download with `sha256sum -c SHA256SUMS` and `gh attestation verify maul-window-X.Y.Z.tar.gz -R Rawframe-Project/maul-window`.
 
+## Device checks
+
+CI runs Apple's platforms only in simulators. Before a release that changes a backend's code, check on a real device what a simulator cannot show:
+
+- **iOS:** a window before its first frame shows no flash against the launch screen. The window is black from its creation, so that it takes touches before it draws, and a simulator without a Metal device never presents a frame to compare.
+
 ## Notes
 
 - Before 1.0 every release has its own ABI: the shared library's `SOVERSION` is the whole version, the CMake package accepts only the exact version, and `mwinRun` and `mwinShowMessageBox` refuse a def stamped by another release's headers.

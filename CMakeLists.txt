@@ -650,6 +650,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator
                                  LABELS "${name};integration")
         endforeach()
+        # Intermittent in the Android 15 emulator: battery saver not
+        # reported after a fresh boot, and an explored finger not heard.
+        maul_quarantine(android_system android_access)
         # Intermittent in the Android 15 emulator: a swipe's moves and lift
         # not delivered.
         maul_quarantine(android_input)

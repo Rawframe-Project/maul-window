@@ -29,6 +29,10 @@ import java.util.Map;
 final class Gamepads {
     // The motion listeners of the gamepads whose sensors are on, by id.
     private static final Map<Integer, Motion> MOTIONS = new HashMap<>();
+    // The vibrator manager (Android 12 and later) or vibrator that started
+    // each running rumble, by gamepad id: Android cancels only what the same
+    // one started, and a device it has changed since hands out a new one.
+    private static final Map<Integer, Object> RUMBLES = new HashMap<>();
 
     private Gamepads() {
     }
@@ -164,22 +168,37 @@ final class Gamepads {
      * has none.
      */
     static boolean rumble(int id, float low, float high, int milliseconds) {
-        InputDevice device = InputDevice.getDevice(id);
-        if (device == null) {
-            return false;
+        Object motors = RUMBLES.remove(id);
+        if (motors == null) {
+            InputDevice device = InputDevice.getDevice(id);
+            if (device == null) {
+                return false;
+            }
+            motors = Build.VERSION.SDK_INT >= 31 ? device.getVibratorManager()
+                                                 : device.getVibrator();
         }
+        boolean running;
         if (Build.VERSION.SDK_INT >= 31) {
-            return rumble(device.getVibratorManager(), low, high, milliseconds);
-        }
-        Vibrator motor = device.getVibrator();
-        if (!motor.hasVibrator()) {
-            return false;
-        }
-        int amplitude = Math.round(Math.max(low, high) * 255.0f);
-        if (amplitude == 0 || milliseconds == 0) {
-            motor.cancel();
+            VibratorManager manager = (VibratorManager) motors;
+            if (manager.getVibratorIds().length == 0) {
+                return false;
+            }
+            running = rumble(manager, low, high, milliseconds);
         } else {
-            motor.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude));
+            Vibrator motor = (Vibrator) motors;
+            if (!motor.hasVibrator()) {
+                return false;
+            }
+            int amplitude = Math.round(Math.max(low, high) * 255.0f);
+            running = amplitude != 0 && milliseconds != 0;
+            if (running) {
+                motor.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude));
+            } else {
+                motor.cancel();
+            }
+        }
+        if (running) {
+            RUMBLES.put(id, motors);
         }
         return true;
     }
@@ -187,6 +206,7 @@ final class Gamepads {
     // Both motors in one effect: an input device's vibrator plays its
     // effect on every motor of the device, and a new one replaces the
     // last, so one vibrator at a time would leave both at the latest.
+    // Whether it left them running.
     private static boolean rumble(VibratorManager manager, float low, float high,
             int milliseconds) {
         int[] ids = manager.getVibratorIds();
@@ -207,7 +227,7 @@ final class Gamepads {
         } else {
             manager.cancel();
         }
-        return count > 0;
+        return running;
     }
 
     // A gamepad's accelerometer and gyroscope (Android 12 and later), or

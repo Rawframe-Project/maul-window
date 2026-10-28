@@ -587,7 +587,7 @@ static bool Copied(const Want* want, uint64_t* askedNs)
     return false;
 }
 
-// The want of phase 2, 3 or 8.
+// The want of a phase that waits for a copy.
 static const Want* WantOf(int phase)
 {
     return &s_wants[phase == 8 ? 2 : phase - 2];

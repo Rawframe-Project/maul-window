@@ -6,9 +6,11 @@
 // client, one composition a frame, as preedit records coalesce: marked
 // text reported, its selection and caret in bytes, the candidate window
 // placed at the program's caret; accepted as it is; accepted as other
-// text; shortened by a deletion; dropped when the program stops taking
-// text; and, while it does not, composed without a record, only the text
-// accepted posted.
+// text; shortened by a deletion; part of it replaced, as a correction
+// does, with the caret after the new text; a selection within it set;
+// a range past its end replaced, which accepts the text in its place;
+// dropped when the program stops taking text; and, while it does not,
+// composed without a record, only the text accepted posted.
 
 #include "test_harness.h"
 
@@ -21,6 +23,7 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
+#define LAST_PHASE  15
 
 typedef struct Program
 {
@@ -36,6 +39,9 @@ typedef struct Program
     int texts;
     char text[32];
 } Program;
+
+// The range kept from a longer composition.
+static UITextRange* s_stale;
 
 static uint64_t NowNs(void)
 {
@@ -154,11 +160,54 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
     case 7:
         CHECK(strcmp(program->preedit, "a") == 0 && program->last.caret == 1,
               "a deletion shortens the composition");
+        Mark(view, @"abc", 3, 0);
+        break;
+    case 8:
+    {
+        // A correction replaces part of the composition.
+        UITextPosition* start = view.beginningOfDocument;
+        CHECK(strcmp(program->preedit, "abc") == 0, "a longer composition");
+        [view replaceRange:[view textRangeFromPosition:[view positionFromPosition:start offset:1]
+                                            toPosition:[view positionFromPosition:start offset:2]]
+                  withText:@"XY"];
+        break;
+    }
+    case 9:
+    {
+        CHECK(strcmp(program->preedit, "aXYc") == 0 && program->last.caret == 3,
+              "part of it replaced, the caret after the new text");
+        UITextPosition* start = view.beginningOfDocument;
+        // A range that will lie past the composition's end once it is
+        // shorter.
+        s_stale = [[view textRangeFromPosition:[view positionFromPosition:start offset:3]
+                                    toPosition:view.endOfDocument] retain];
+        view.selectedTextRange =
+            [view textRangeFromPosition:[view positionFromPosition:start offset:1]
+                             toPosition:[view positionFromPosition:start offset:3]];
+        break;
+    }
+    case 10:
+        CHECK(strcmp(program->preedit, "aXYc") == 0 && program->last.selectionStart == 1 &&
+                  program->last.selectionEnd == 3,
+              "a selection within it, in bytes");
+        Mark(view, @"ab", 2, 0);
+        break;
+    case 11:
+        CHECK(strcmp(program->preedit, "ab") == 0, "a shorter composition");
+        program->texts = 0;
+        [view replaceRange:s_stale withText:@"Z"];
+        [s_stale release];
+        s_stale = nil;
+        break;
+    case 12:
+        CHECK(strcmp(program->text, "Z") == 0 && program->texts == 1 && Ended(program) &&
+                  view.markedTextRange == nil,
+              "a range past its end: the text accepted in its place");
         program->texts = 0;
         CHECK(mwinRequestTextInput(context, window, false, (mwinRect){0}, nullptr) == mwin_success,
               "text no longer taken");
         return;
-    case 8:
+    case 13:
         CHECK(Ended(program) && !Composing(context, window) && view.markedTextRange == nil &&
                   program->texts == 0,
               "the composition dropped, not accepted");
@@ -182,7 +231,7 @@ static bool Ready(const Program* program, UIView* view)
     case 0:
         return program->shown && view != nil && view.isFirstResponder;
     case 1:
-    case 8:
+    case 13:
         return program->completions >= 1;
     default:
         return true;
@@ -211,7 +260,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context, view);
         }
         // A request's step waits for its answer.
-        if (phase == 0 || phase == 7)
+        if (phase == 0 || phase == 12)
         {
             program->phase += 1;
             program->completions = 0;
@@ -224,7 +273,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         s_failures += 1;
         return mwin_frameStop;
     }
-    return program->phase == 10 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == LAST_PHASE ? mwin_frameStop : mwin_frameContinue;
 }
 
 static void Quit(mwinContext* context, mwinResult status, void* user)
@@ -232,7 +281,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 10, "every phase ran");
+    CHECK(program->phase == LAST_PHASE, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

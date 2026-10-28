@@ -14,6 +14,18 @@
 // and the heavy one at 64, then both at 0; on Android 11, whose one
 // vibrator runs at the stronger and whose hid tool prints no output, the
 // input service says the pad vibrates, then that it does not.
+//
+// Last, a second pad, "Maul Stale DS4", comes while a stand-in for the
+// library's Java helper's copies (test/android/java/maul/window/
+// StaleCopies.java) reports it as Android 11 can leave an app's copy of a
+// pad read while its kernel devices were being merged: a touchpad's
+// pointer with no joystick ranges. The library must add it on its first
+// record, its cross button's press, mapped by the keys the system says it
+// has, with Android's standard gamepad axes, so that its left stick moved
+// right reads right. The stand-in stands for the copy only: Android 11's
+// own keeping of a stale copy, a race of a few milliseconds, is not made
+// to happen, and the half second the library waits before it first reads
+// a new device is not what keeps this pad out.
 
 #include "test_harness.h"
 
@@ -24,6 +36,7 @@
 #include "maul-window/window.h"
 
 #include <android/api-level.h>
+#include <android/native_activity.h>
 #include <android/native_window.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +48,7 @@
 #define DEADLINE_NS 45000000000ull
 #define FILES       "/data/data/" MWIN_TEST_PACKAGE "/files/"
 #define NAME        "Maul DS4"
+#define STALE       "Maul Stale DS4"
 #define OUTPUT      "/data/local/tmp/mwin-ds4.out"
 
 // The USB DualShock 4 of CTS's sony_dualshock4_usb_register.json: its
@@ -97,6 +111,13 @@ typedef struct Program
     uint64_t askedNs;
     // When the input service was seen listing the pad, 0 before.
     uint64_t listedNs;
+    // The stale pad: whether it was added, its id, whether its first
+    // record after that was its cross button's press, and how far right
+    // its left stick went.
+    bool staleAdded;
+    mwinGamepadId stale;
+    int staleFirst;
+    float staleRight;
 } Program;
 
 static char s_read[65536];
@@ -130,49 +151,111 @@ static void PutFeature(FILE* file, const uint8_t* bytes, size_t count, bool last
 // them, so a delay read before the driver binds holds its answers back
 // past the driver's timeout and the pad fails to bind: the script waits
 // for the driver's battery to appear before the rest.
+// The register of a pad: its name, and the last byte of its address,
+// which the drivers make its unique id, so that two pads are two devices.
+static void PutRegister(FILE* file, int id, const char* name, uint8_t address)
+{
+    uint8_t feature81[sizeof(s_feature81)];
+    uint8_t feature12[sizeof(s_feature12)];
+    memcpy(feature81, s_feature81, sizeof(feature81));
+    memcpy(feature12, s_feature12, sizeof(feature12));
+    feature81[1] = address;
+    feature12[1] = address;
+    fprintf(file,
+            "{\"id\":%d,\"command\":\"register\",\"name\":\"%s\",\"vid\":1356,\"pid\":1476,"
+            "\"bus\":\"usb\",\"descriptor\":[",
+            id, name);
+    PutBytes(file, s_descriptor, sizeof(s_descriptor));
+    fprintf(file, "],\"feature_reports\":[");
+    PutFeature(file, s_feature02, sizeof(s_feature02), false);
+    PutFeature(file, s_featureA3, sizeof(s_featureA3), false);
+    PutFeature(file, feature81, sizeof(feature81), false);
+    PutFeature(file, feature12, sizeof(feature12), true);
+    fprintf(file, "]}\n");
+}
+
+// An input report of the stale pad: its sticks centred but the left one
+// right when right, its cross button (Android's A) held.
+static void PutStaleReport(FILE* file, bool right)
+{
+    uint8_t report[64] = {0x01, right ? 0xFF : 0x80, 0x80, 0x80, 0x80, 0x28};
+    fprintf(file, "{\"id\":2,\"command\":\"report\",\"report\":[");
+    PutBytes(file, report, sizeof(report));
+    fprintf(file, "]}\n");
+}
+
+// Waits, within a bound, until a count of the drivers' batteries.
+static void PutBatteryWait(FILE* script, int count)
+{
+    fprintf(script,
+            "i=0\n"
+            "while [ $i -lt 300 ] && [ \"$(ls /sys/class/power_supply | "
+            "grep -cE 'sony_controller|ps-controller')\" -lt %d ]; do\n"
+            "    sleep 0.1\n"
+            "    i=$((i + 1))\n"
+            "done\n",
+            count);
+}
+
+// The hid tool's input, a script run as the shell: the pad, then, once
+// the driver has bound it, a pause that keeps it while the test runs; and
+// once the test asks for it (the file ds4-stale), the stale pad, then,
+// once bound and its node open in Android's input hub, its cross button
+// pressed, its left stick right, and a pause. The hid tool reads its input as fast as it comes and
+// answers the driver's feature report requests only after the delays read before them for that
+// device, so a delay read before the driver binds holds its answers back past the driver's timeout
+// and the pad fails to bind: the script waits for the driver's battery to appear before the rest.
 static bool WriteScript(void)
 {
-    FILE* add = fopen(FILES "ds4-add.json", "w");
-    FILE* rest = fopen(FILES "ds4-rest.json", "w");
-    FILE* script = fopen(FILES "ds4.sh", "w");
-    if (add == nullptr || rest == nullptr || script == nullptr)
+    const char* const names[5] = {"ds4-add.json", "ds4-rest.json", "ds4-stale-add.json",
+                                  "ds4-stale-rest.json", "ds4.sh"};
+    FILE* files[5] = {nullptr};
+    bool opened = true;
+    for (int i = 0; i < 5; i++)
     {
-        if (add != nullptr)
-        {
-            (void)fclose(add);
-        }
-        if (rest != nullptr)
-        {
-            (void)fclose(rest);
-        }
-        if (script != nullptr)
-        {
-            (void)fclose(script);
-        }
-        return false;
+        char path[128];
+        (void)snprintf(path, sizeof(path), FILES "%s", names[i]);
+        files[i] = fopen(path, "w");
+        opened = opened && files[i] != nullptr;
     }
-    fprintf(add,
-            "{\"id\":1,\"command\":\"register\",\"name\":\"" NAME "\",\"vid\":1356,\"pid\":1476,"
-            "\"bus\":\"usb\",\"descriptor\":[");
-    PutBytes(add, s_descriptor, sizeof(s_descriptor));
-    fprintf(add, "],\"feature_reports\":[");
-    PutFeature(add, s_feature02, sizeof(s_feature02), false);
-    PutFeature(add, s_featureA3, sizeof(s_featureA3), false);
-    PutFeature(add, s_feature81, sizeof(s_feature81), false);
-    PutFeature(add, s_feature12, sizeof(s_feature12), true);
-    fprintf(add, "]}\n");
-    fprintf(rest, "{\"id\":1,\"command\":\"delay\",\"duration\":60000}\n");
-    fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/ds4-add.json\n"
-                    "i=0\n"
-                    "while [ $i -lt 300 ] && ! ls /sys/class/power_supply | "
-                    "grep -qE 'sony_controller|ps-controller'; do\n"
-                    "    sleep 0.1\n"
-                    "    i=$((i + 1))\n"
-                    "done\n"
-                    "run-as " MWIN_TEST_PACKAGE " cat files/ds4-rest.json) | hid -\n");
-    bool closed = fclose(rest) == 0;
-    closed = fclose(script) == 0 && closed;
-    return fclose(add) == 0 && closed;
+    if (opened)
+    {
+        PutRegister(files[0], 1, NAME, 0x62);
+        fprintf(files[1], "{\"id\":1,\"command\":\"delay\",\"duration\":60000}\n");
+        PutRegister(files[2], 2, STALE, 0x63);
+        fprintf(files[3], "{\"id\":2,\"command\":\"delay\",\"duration\":300}\n");
+        PutStaleReport(files[3], false);
+        fprintf(files[3], "{\"id\":2,\"command\":\"delay\",\"duration\":300}\n");
+        PutStaleReport(files[3], true);
+        fprintf(files[3], "{\"id\":2,\"command\":\"delay\",\"duration\":60000}\n");
+        FILE* script = files[4];
+        fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/ds4-add.json\n");
+        PutBatteryWait(script, 1);
+        fprintf(script, "run-as " MWIN_TEST_PACKAGE " cat files/ds4-rest.json\n"
+                        "i=0\n"
+                        "while [ $i -lt 600 ] && ! run-as " MWIN_TEST_PACKAGE
+                        " ls files/ds4-stale > /dev/null 2>&1; do\n"
+                        "    sleep 0.1\n"
+                        "    i=$((i + 1))\n"
+                        "done\n"
+                        "run-as " MWIN_TEST_PACKAGE " cat files/ds4-stale-add.json\n");
+        PutBatteryWait(script, 2);
+        // Android reads a device's reports only once its input hub has
+        // opened the device's node: until then the press would be lost.
+        fprintf(script, "i=0\n"
+                        "while [ $i -lt 300 ] && ! dumpsys input | "
+                        "grep -qE '^ +[0-9]+: " STALE "$'; do\n"
+                        "    sleep 0.1\n"
+                        "    i=$((i + 1))\n"
+                        "done\n");
+        fprintf(script, "run-as " MWIN_TEST_PACKAGE " cat files/ds4-stale-rest.json) | hid -\n");
+    }
+    bool closed = true;
+    for (int i = 0; i < 5; i++)
+    {
+        closed = (files[i] == nullptr || fclose(files[i]) == 0) && closed;
+    }
+    return opened && closed;
 }
 
 // Asks the runner to copy the hid tool's output and the input service's
@@ -293,7 +376,84 @@ static void Collect(Program* program, mwinContext* context)
         {
             Added(program, context, event.data.gamepad);
         }
+        else if (event.type == mwin_eventGamepadAdded && !program->staleAdded)
+        {
+            mwinGamepadInfo info = {0};
+            program->staleAdded =
+                mwinGetGamepadInfo(context, event.data.gamepad, &info) == mwin_success &&
+                info.nameLength >= strlen(STALE) && memcmp(info.name, STALE, strlen(STALE)) == 0;
+            program->stale = event.data.gamepad;
+        }
+        else if (program->staleAdded && program->staleFirst == 0 &&
+                 (event.type == mwin_eventGamepadButtonDown ||
+                  event.type == mwin_eventGamepadButtonUp ||
+                  event.type == mwin_eventGamepadAxisMoved))
+        {
+            // The pad's first record: its press, 1, or anything else, -1.
+            mwinGamepadId id = event.type == mwin_eventGamepadAxisMoved
+                                   ? event.data.gamepadAxis.gamepad
+                                   : event.data.gamepadButton.gamepad;
+            bool press = event.type == mwin_eventGamepadButtonDown &&
+                         event.data.gamepadButton.button == mwin_padFaceSouth;
+            if (id.index1 == program->stale.index1 && id.generation == program->stale.generation)
+            {
+                program->staleFirst = press ? 1 : -1;
+            }
+        }
+        if (program->staleAdded && event.type == mwin_eventGamepadAxisMoved &&
+            event.data.gamepadAxis.gamepad.index1 == program->stale.index1 &&
+            event.data.gamepadAxis.axis == mwin_padStickLeftX &&
+            event.data.gamepadAxis.value > program->staleRight)
+        {
+            program->staleRight = event.data.gamepadAxis.value;
+        }
     }
+}
+
+// A class of the test's application, through its class loader.
+static jclass LoadClass(JNIEnv* env, ANativeActivity* activity, const char* name)
+{
+    jclass activities = (*env)->GetObjectClass(env, activity->clazz);
+    jobject loader = (*env)->CallObjectMethod(
+        env, activity->clazz,
+        (*env)->GetMethodID(env, activities, "getClassLoader", "()Ljava/lang/ClassLoader;"));
+    jclass loaders = (*env)->GetObjectClass(env, loader);
+    jstring text = (*env)->NewStringUTF(env, name);
+    jclass type = (*env)->CallObjectMethod(
+        env, loader,
+        (*env)->GetMethodID(env, loaders, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;"),
+        text);
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, text);
+    (*env)->DeleteLocalRef(env, loaders);
+    (*env)->DeleteLocalRef(env, loader);
+    (*env)->DeleteLocalRef(env, activities);
+    return type;
+}
+
+// Puts the stand-in for the helper's copies in place (StaleCopies.java),
+// then asks the hid script for the stale pad.
+static bool AskStale(const Program* program, mwinContext* context)
+{
+    mwinNativeHandles handles = {0};
+    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    {
+        return false;
+    }
+    ANativeActivity* activity = handles.handles.android.activity;
+    JNIEnv* env = activity->env;
+    jclass stand = LoadClass(env, activity, "maul.window.StaleCopies");
+    if (stand == nullptr)
+    {
+        return false;
+    }
+    (*env)->CallStaticVoidMethod(env, stand,
+                                 (*env)->GetStaticMethodID(env, stand, "install", "()V"));
+    bool installed = !(*env)->ExceptionCheck(env);
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, stand);
+    FILE* flag = fopen(FILES "ds4-stale", "w");
+    return installed && flag != nullptr && fclose(flag) == 0;
 }
 
 // The names of the copies phases 2 and 3 wait for.
@@ -379,9 +539,29 @@ static bool Ready(Program* program, mwinContext* context)
     case 2:
     case 3:
         return Copied(program);
+    case 4:
+        return program->staleFirst != 0 && program->staleRight > 0.99f;
     default:
         return true;
     }
+}
+
+// The stale pad, which the stand-in reports as a touchpad's pointer with
+// no joystick ranges: added on its first record, its press, mapped by the
+// keys the system says it has, and its left stick on Android's standard
+// X axis.
+static void CheckStale(const Program* program, mwinContext* context)
+{
+    CHECK(program->staleAdded && program->staleFirst == 1,
+          "the stale pad added by its press, its first record");
+    mwinGamepadInfo info = {0};
+    mwinGamepadState state = {0};
+    CHECK(mwinGetGamepadInfo(context, program->stale, &info) == mwin_success && info.mapped,
+          "the stale pad mapped by its keys");
+    CHECK(mwinGetGamepadState(context, program->stale, &state) == mwin_success &&
+              (state.buttons & 1u << mwin_padFaceSouth) != 0 &&
+              state.axes[mwin_padStickLeftX] > 0.99f,
+          "its cross held and its left stick right, on the standard axes");
 }
 
 // The check of what the running or the stopped motors should show, on
@@ -423,6 +603,10 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 3:
         CheckCopy(program->phase);
+        CHECK(AskStale(program, context), "the stand-in in place and the stale pad asked for");
+        break;
+    case 4:
+        CheckStale(program, context);
         break;
     default:
         break;
@@ -436,7 +620,8 @@ static mwinResult Init(mwinContext* context, void* user)
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
     program->beganNs = NowNs();
-    // Copies a run before this one may have left.
+    // Copies and the flag a run before this one may have left.
+    (void)remove(FILES "ds4-stale");
     (void)remove(FILES "ds4-listed");
     (void)remove(FILES "ds4-running");
     (void)remove(FILES "ds4-stopped");
@@ -447,7 +632,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     Collect(program, context);
-    if (program->phase > 3)
+    if (program->phase > 4)
     {
         return mwin_frameStop;
     }
@@ -468,9 +653,19 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         {
             printf("Android had not listed it\n");
         }
-        if (program->phase >= 2)
+        if (program->phase == 2 || program->phase == 3)
         {
             CheckCopy(program->phase);
+        }
+        if (program->phase == 4)
+        {
+            printf("  the stale pad %s, its first record %s, its left stick at most %.2f\n",
+                   program->staleAdded ? "added" : "not added",
+                   program->staleFirst == 0   ? "not come"
+                   : program->staleFirst == 1 ? "its press"
+                                              : "another",
+                   (double)program->staleRight);
+            CheckStale(program, context);
         }
         s_failures += 1;
         return mwin_frameStop;
@@ -483,7 +678,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > 3, "every phase ran");
+    CHECK(program->phase > 4, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

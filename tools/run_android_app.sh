@@ -64,6 +64,10 @@ if grep -qx 'result: 0 failures' "$out"; then
 else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
 fi
+if [ -n "${MWIN_COVERAGE_DIR:-}" ]; then
+    # Probe only: the library writes the profile before quit.
+    "$adb" shell run-as "$package" cat files/cov.profraw > "$MWIN_COVERAGE_DIR/$package.profraw" || true
+fi
 "$adb" shell am force-stop "$package"
 # A finger the console left down, by a test that ended early, is lifted.
 if grep -q '^emu: event mouse' "$out"; then

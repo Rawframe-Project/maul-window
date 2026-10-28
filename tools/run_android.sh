@@ -20,7 +20,17 @@ for arg in "$@"; do
 done
 # adb's shell protocol carries the remote exit status.
 set +e
-"$adb" shell "cd $dir && ./$name$quoted"
-status=$?
+if [ -n "${MWIN_COVERAGE_DIR:-}" ]; then
+    # Probe only: the profile is written at exit and pulled to the host.
+    "$adb" shell "mkdir -p $dir/prof && cd $dir && LLVM_PROFILE_FILE=$dir/prof/%p-%m.profraw ./$name$quoted"
+    status=$?
+    for file in $("$adb" shell ls "$dir/prof" | tr -d '\r'); do
+        "$adb" pull "$dir/prof/$file" "$MWIN_COVERAGE_DIR/$name-$file" > /dev/null
+    done
+    "$adb" shell rm -rf "$dir/prof" > /dev/null
+else
+    "$adb" shell "cd $dir && ./$name$quoted"
+    status=$?
+fi
 "$adb" shell rm -f "$dir/$name" > /dev/null
 exit $status

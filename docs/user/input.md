@@ -6,7 +6,7 @@ Input belongs to a window and arrives in the event stream with the notifications
 
 Each window keeps input in four classes, each with room for `inputPerWindow` records: discrete records (keys, text, buttons, touches and pen contacts beginning or ending), motion (cursor, touch and pen), raw deltas, and the wheel.
 
-- **Discrete records are never merged.** When their storage is full, the record is lost and `mwin_eventInputStateReset` takes its place in the stream. The same record follows every loss of focus. After a reset no key or button counts as held and no composition runs, so a program never acts on a held state it cannot trust: it drops any composition it shows, and the input method's next preedit starts one again.
+- **Discrete records are never merged.** When their storage is full, the record is lost and `mwin_eventInputStateReset` takes its place in the stream. The same record follows every loss of focus. After a reset no key or button counts as held and no composition is shown, so a program never acts on a held state it cannot trust: it drops any composition it shows, and the input method's next preedit shows one again.
 - **Motion, deltas and wheel turns merge** into the newest waiting record of their kind when their storage is full: positions take the newer value, deltas and turns add, and `samples` says how many platform records a record stands for.
 
 ## Keys
@@ -24,7 +24,7 @@ Some chords never reach a program: Alt+Tab and Control+Alt+Delete on Windows, Co
 
 Typed text is not keys. It arrives as `mwin_eventTextInput`, valid UTF-8, while the window accepts text: `mwinRequestTextInput` turns it on with the caret's rectangle, where the platform places the input method's candidate window. The text of a record stays valid until the frame that drained it returns.
 
-An input method's composition arrives as `mwin_eventImePreedit` with its text, caret, selection and styled segments; a newer composition replaces one still waiting. Every offset lies on a character boundary within the text and the selection is in order, whatever the input method handed over, so the text can be sliced at any offset. While a window composes, the keys the input method takes produce no key records, and no press arrives without its release.
+An input method's composition arrives as `mwin_eventImePreedit` with its text, caret, selection and styled segments; a newer composition replaces one still waiting. Every offset lies on a character boundary within the text and the selection is in order, whatever the input method handed over, so the text can be sliced at any offset. While the input method composes, the keys it takes produce no key records, and no press arrives without its release. A reset ends the composition the program shows, not the input method's: the keys it takes stay left out until it ends its composition with an empty preedit (stopping text input ends it too) or the focus leaves.
 
 On X11 the input method is IBus or Fcitx 5, reached over the session bus; without either, text comes from the keymap and its compose sequences. Wayland uses text-input-v3 and Windows its input methods through IMM32, the system drawing the candidate list.
 

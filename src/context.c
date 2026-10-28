@@ -346,10 +346,22 @@ bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context))
     return !context->stopping;
 }
 
+#if defined(__APPLE__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+// Probe only: the iOS runner ends the application once quit prints its
+// result, before the profile runtime writes at exit.
+extern int __llvm_profile_write_file(void);
+#pragma clang diagnostic pop
+#endif
+
 mwinResult mwinEndProgram(mwinContext* context)
 {
     const mwinAppDef* app = &context->app;
     context->running = false;
+#if defined(__APPLE__)
+    (void)__llvm_profile_write_file();
+#endif
     if (app->quit != nullptr)
     {
         context->inProgram = true;

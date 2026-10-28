@@ -1,0 +1,120 @@
+# Probe, never merged: line and branch coverage of the test suite on the
+# macOS, Windows and iOS runners, reported per source file.
+name: coverage-probe
+
+on:
+  push:
+    branches: [coverage-probe]
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          cov="-fprofile-instr-generate -fcoverage-mapping"
+          cmake --preset macos-clang -DCMAKE_C_FLAGS="$cov" -DCMAKE_OBJC_FLAGS="$cov" \
+            -DCMAKE_EXE_LINKER_FLAGS="$cov" -DCMAKE_SHARED_LINKER_FLAGS="$cov"
+          cmake --build --preset macos-clang -j 4
+      - name: Test
+        run: |
+          mkdir -p "$RUNNER_TEMP/prof"
+          LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw" ctest --preset macos-clang | tail -30 || true
+      - name: Report
+        run: |
+          xcrun llvm-profdata merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          objects=()
+          while IFS= read -r binary; do
+            [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
+          done < <(find out/macos-clang -maxdepth 3 -type f -perm +111 -name 'test_*' -not -path '*/CMakeFiles/*')
+          xcrun llvm-cov report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c src/*.m 2>/dev/null
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          vs=$("/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath)
+          llvm="$(cygpath -u "$vs")/VC/Tools/Llvm/x64"
+          "$llvm/bin/clang-cl.exe" --version
+          find "$llvm/lib/clang" -iname 'clang_rt.profile*' -print
+          runtime=$(find "$llvm/lib/clang" -iname 'clang_rt.profile*.lib' | grep -i -e x86_64 -e windows | head -1)
+          mkdir -p "$RUNNER_TEMP/rt"
+          cp "$runtime" "$RUNNER_TEMP/rt/"
+          echo "LLVM_BIN=$llvm/bin" >> "$GITHUB_ENV"
+          rt=$(cygpath -m "$RUNNER_TEMP/rt")
+          lib=$(basename "$runtime")
+          cov="-fprofile-instr-generate -fcoverage-mapping"
+          cmake --preset windows-clang-cl -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS $cov" \
+            -DCMAKE_EXE_LINKER_FLAGS="/machine:x64 /LIBPATH:$rt $lib" \
+            -DCMAKE_SHARED_LINKER_FLAGS="/machine:x64 /LIBPATH:$rt $lib"
+          cmake --build --preset windows-clang-cl
+      - name: Test
+        run: |
+          mkdir -p "$RUNNER_TEMP/prof"
+          LLVM_PROFILE_FILE="$(cygpath -m "$RUNNER_TEMP/prof")/%p-%m.profraw" ctest --preset windows-clang-cl | tail -40 || true
+      - name: Report
+        run: |
+          "$LLVM_BIN/llvm-profdata.exe" merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          objects=()
+          for binary in out/windows-clang-cl/Release/test_*.exe; do
+            [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
+          done
+          "$LLVM_BIN/llvm-cov.exe" report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c 2>/dev/null
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        run: |
+          cov="-fprofile-instr-generate -fcoverage-mapping"
+          cmake --preset ios-simulator -DCMAKE_C_FLAGS="$cov" -DCMAKE_OBJC_FLAGS="$cov" \
+            -DCMAKE_EXE_LINKER_FLAGS="$cov"
+          cmake --build --preset ios-simulator -j 4
+      - name: Boot an iPhone
+        run: |
+          udid=$(tools/ci_simulator.sh iPhone)
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl launch "$udid" com.apple.Preferences
+          xcrun simctl terminate "$udid" com.apple.Preferences
+          echo "MWIN_IOS_DEVICE=$udid" >> "$GITHUB_ENV"
+      - name: Test
+        run: |
+          mkdir -p "$RUNNER_TEMP/prof"
+          # simctl launch hands SIMCTL_CHILD_ variables to the application.
+          export SIMCTL_CHILD_LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw"
+          ctest --preset ios-simulator -E '^ios_scenes$' | tail -30 || true
+          ls "$RUNNER_TEMP/prof" | head
+      - name: Report
+        run: |
+          xcrun llvm-profdata merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
+          objects=()
+          while IFS= read -r binary; do
+            [ ${#objects[@]} -eq 0 ] && objects=("$binary") || objects+=(-object "$binary")
+          done < <(find out/ios-simulator -path '*.app/test_*' -type f -perm +111)
+          xcrun llvm-cov report -instr-profile="$RUNNER_TEMP/all.profdata" "${objects[@]}" src/*.c src/*.m 2>/dev/null

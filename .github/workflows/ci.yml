@@ -120,15 +120,21 @@ jobs:
           restore-keys: ccache-checks-
       - name: clang-tidy
         # The Linux build's sources; the other platforms' code is compiled
-        # with warnings as errors by its own cell.
+        # with warnings as errors by its own cell. On a Release build,
+        # where the assertions compile out, and on a Debug build, where
+        # they trap: each hides findings the other shows.
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           ccache --zero-stats >/dev/null
-          cmake -B out/tidy -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -D${PREFIX}_BUILD_TESTS=OFF
-          cmake --build out/tidy
+          for build in Release Debug; do
+            echo "== $build"
+            cmake --preset linux-clang-20 -B "out/tidy-$build" -DCMAKE_BUILD_TYPE=$build \
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+              -D${PREFIX}_BUILD_TESTS=OFF
+            cmake --build "out/tidy-$build"
+            tools/run_tidy.sh "out/tidy-$build"
+          done
           ccache --show-stats
-          tools/run_tidy.sh out/tidy
       - name: Save ccache
         if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

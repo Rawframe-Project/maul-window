@@ -48,7 +48,7 @@ jobs=${JOBS:-8}
 
 step() { printf '\n== %s\n' "$*"; }
 
-# A tree outside the presets (clang-tidy, fuzzing).
+# A tree outside the presets, for fuzzing.
 configure() { # name, then cmake arguments
     local name=check-$1
     shift
@@ -197,10 +197,16 @@ ios_runner_checks
 step "the documentation site builds"
 python3 tools/build_docs.py >"$out/site.log"
 
-step "clang-tidy on the Linux build's sources"
-configure tidy -DCMAKE_C_COMPILER=clang-20 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_WINDOW_BUILD_TESTS=OFF
-cmake --build "$out/check-tidy" -j "$jobs" >>"$out/check-tidy.log"
-JOBS=$jobs tools/run_tidy.sh "$out/check-tidy"
+# As CI's checks job: on a Release build, where the assertions compile
+# out, and on a Debug build, where they trap. Each hides findings the
+# other shows.
+for build in Release Debug; do
+    step "clang-tidy on the Linux build's sources, $build"
+    cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_WINDOW_BUILD_TESTS=OFF >"$out/check-tidy-$build.log"
+    cmake --build "$out/check-tidy-$build" -j "$jobs" >>"$out/check-tidy-$build.log"
+    JOBS=$jobs tools/run_tidy.sh "$out/check-tidy-$build"
+done
 
 preset linux-clang-20-asan
 

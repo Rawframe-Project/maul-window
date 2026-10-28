@@ -31,7 +31,9 @@ enum
 // What the allocator calls back into, and what it saw.
 static mwinContext* s_context;
 static mwinWindowId s_window;
+#ifdef MWIN_TEST_GAMEPAD
 static mwinGamepadId s_gamepad;
+#endif
 static bool s_armed;
 static int s_allocations;
 static int s_releases;

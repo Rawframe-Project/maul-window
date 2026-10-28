@@ -17,7 +17,7 @@ mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window,
     {
         return mwinBusy(context);
     }
-    if (purpose > mwin_purposeUrl)
+    if (purpose >= MWIN_INPUT_PURPOSES)
     {
         return mwinMisuse(context);
     }

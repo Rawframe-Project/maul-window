@@ -31,7 +31,8 @@ jobs:
       - name: Test
         run: |
           mkdir -p "$RUNNER_TEMP/prof"
-          LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw" ctest --preset macos-clang | tail -30 || true
+          LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw" ctest --preset macos-clang > "$RUNNER_TEMP/ctest.log" 2>&1 || true
+          grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
       - name: Report
         run: |
           xcrun llvm-profdata merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
@@ -63,6 +64,8 @@ jobs:
           rt=$(cygpath -m "$RUNNER_TEMP/rt")
           lib=$(basename "$runtime")
           cov="-fprofile-instr-generate -fcoverage-mapping"
+          # Git's bash would turn the /flags into paths.
+          export MSYS2_ARG_CONV_EXCL='*'
           cmake --preset windows-clang-cl -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS $cov" \
             -DCMAKE_EXE_LINKER_FLAGS="/machine:x64 /LIBPATH:$rt $lib" \
             -DCMAKE_SHARED_LINKER_FLAGS="/machine:x64 /LIBPATH:$rt $lib"
@@ -70,7 +73,8 @@ jobs:
       - name: Test
         run: |
           mkdir -p "$RUNNER_TEMP/prof"
-          LLVM_PROFILE_FILE="$(cygpath -m "$RUNNER_TEMP/prof")/%p-%m.profraw" ctest --preset windows-clang-cl | tail -40 || true
+          LLVM_PROFILE_FILE="$(cygpath -m "$RUNNER_TEMP/prof")/%p-%m.profraw" ctest --preset windows-clang-cl > "$RUNNER_TEMP/ctest.log" 2>&1 || true
+          grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
       - name: Report
         run: |
           "$LLVM_BIN/llvm-profdata.exe" merge -sparse "$RUNNER_TEMP"/prof/*.profraw -o "$RUNNER_TEMP/all.profdata"
@@ -108,7 +112,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/prof"
           # simctl launch hands SIMCTL_CHILD_ variables to the application.
           export SIMCTL_CHILD_LLVM_PROFILE_FILE="$RUNNER_TEMP/prof/%p-%m.profraw"
-          ctest --preset ios-simulator -E '^ios_scenes$' | tail -30 || true
+          ctest --preset ios-simulator -E '^ios_scenes$' > "$RUNNER_TEMP/ctest.log" 2>&1 || true
+          grep -E 'tests passed|\*\*\*|Failed|Not Run' "$RUNNER_TEMP/ctest.log" || true
           ls "$RUNNER_TEMP/prof" | head
       - name: Report
         run: |

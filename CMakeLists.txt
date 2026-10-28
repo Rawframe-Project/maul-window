@@ -617,7 +617,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Applications in the emulator, built by tools/build_android_app.sh
         # without Gradle and run by tools/run_android_app.sh.
         set(MWIN_ANDROID_TESTS android android_input android_cursor android_ime android_pad
-            android_services android_dialog android_drop android_system android_access)
+            android_services android_dialog android_drop android_system android_access
+            android_pad_ds4)
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)

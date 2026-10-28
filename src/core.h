@@ -169,6 +169,11 @@ typedef struct mwinWindow
     // One bit per key code whose press a composition consumed, so its
     // release goes too.
     uint8_t consumedKeys[32];
+    // Whether the input method composes, which decides the keys it
+    // consumes: from every composition the backend posts, kept or lost.
+    // Unlike state.composing, a reset does not end it; only an empty
+    // composition or the focus leaving does.
+    bool imeComposing;
     mwinRequest* requests;
     char* title;
     char* pendingTitle;

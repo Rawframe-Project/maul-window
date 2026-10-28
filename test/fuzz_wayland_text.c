@@ -274,10 +274,11 @@ static void Push(uint32_t slot, mwinEventType type, const char* text, uint32_t l
 
 static bool Composing(const mwinContext* context, uint32_t slot)
 {
-    return context->windows[slot].state.composing;
+    return context->windows[slot].imeComposing;
 }
 
-// The composition a window shows ends.
+// The input method's composition ends, which the program reads even
+// after a reset ended the one it shows.
 static void ExpectEnd(const mwinContext* context, uint32_t slot)
 {
     if (Composing(context, slot))

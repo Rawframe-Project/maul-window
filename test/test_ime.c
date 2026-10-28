@@ -7,7 +7,8 @@
 // text, a composition ended when text input stops, refused compositions,
 // offsets fitted to their text, compositions that replace each other
 // without leaking storage, and a composition lost to the text limit
-// ending the one before with its reset.
+// ending the one before with its reset while the input method's keys
+// stay left out.
 
 #include "test_program.h"
 
@@ -233,10 +234,13 @@ static void TestStorage(void)
 }
 
 // A composition past the window's text storage is lost, and the reset
-// in its place ends the composition before it: the program can draw
-// none, and the keys go through again.
+// in its place ends the composition the program shows. The input method
+// goes on composing: the keys it takes stay left out until it ends its
+// composition itself, by text input stopping, or the focus leaves.
 static void LostStep(Program* program, mwinContext* context, int step)
 {
+    static const char* tooLong =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef!";
     mwinWindowId window = program->windows[0];
     mwinWindowState state;
     Drain(program, context);
@@ -253,19 +257,54 @@ static void LostStep(Program* program, mwinContext* context, int step)
     case 2:
         CHECK(mwinGetWindowState(context, window, &state) == mwin_success && state.composing,
               "composing");
-        Post(context,
-             Preedit(window, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef!",
-                     65, nullptr, 0));
+        Post(context, Preedit(window, tooLong, 65, nullptr, 0));
+        Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
+        Post(context, Preedit(window, "abk", 3, nullptr, 0));
+        Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
+        return;
+    case 3:
+    {
+        static const mwinEventType expected[] = {mwin_eventInputStateReset, mwin_eventImePreedit};
+        CHECK(Types(program, expected, 2) && program->events[1].data.preedit.length == 3,
+              "the reset in the lost composition's place, then the next, without the key it took");
+        Post(context, Preedit(window, tooLong, 65, nullptr, 0));
+        return;
+    }
+    case 4:
+        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventInputStateReset,
+              "the reset");
+        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && !state.composing,
+              "the reset ends the composition shown");
+        Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
+        Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
+        CHECK(mwinRequestTextInput(context, window, false, (mwinRect){0}, nullptr) == mwin_success,
+              "stop accepting text");
+        return;
+    case 5:
+    {
+        static const mwinEventType expected[] = {mwin_eventImePreedit, mwin_eventRequestCompleted};
+        CHECK(Types(program, expected, 2) && program->events[0].data.preedit.length == 0,
+              "the key the input method took left out; its composition ends with text input");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
         Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
         return;
+    }
+    case 6:
+    {
+        static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventKeyUp};
+        CHECK(Types(program, expected, 2), "then the keys go through again");
+        // A composition lost again, and the focus leaving ends it.
+        Post(context, Preedit(window, tooLong, 65, nullptr, 0));
+        Post(context, (mwinEvent){.type = mwin_eventFocusLost, .window = window});
+        Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
+        Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
+        return;
+    }
     default:
     {
-        static const mwinEventType expected[] = {mwin_eventInputStateReset, mwin_eventKeyDown,
-                                                 mwin_eventKeyUp};
-        CHECK(Types(program, expected, 3), "the reset in the lost composition's place, then keys");
-        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && !state.composing,
-              "the reset ends the composition");
+        static const mwinEventType expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
+                                                 mwin_eventKeyDown, mwin_eventKeyUp};
+        CHECK(Types(program, expected, 4), "the keys after the focus left go through");
         program->done = true;
     }
     }

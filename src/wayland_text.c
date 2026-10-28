@@ -15,10 +15,10 @@ static void Post(mwinWaylandPlatform* platform, const mwinEvent* event)
     mwinPost(platform->context, (uint32_t)platform->text.focus, event);
 }
 
-// Ends a composition the window shows.
+// Ends the input method's composition, when one runs.
 static void EndComposition(mwinWaylandPlatform* platform, uint32_t slot)
 {
-    if (!platform->context->windows[slot].state.composing)
+    if (!platform->context->windows[slot].imeComposing)
     {
         return;
     }

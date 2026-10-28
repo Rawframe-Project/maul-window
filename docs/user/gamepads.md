@@ -4,7 +4,7 @@ Gamepads belong to the context, not to a window: their records arrive whichever 
 
 ## Connecting and reading
 
-- `mwin_eventGamepadAdded` and `mwin_eventGamepadRemoved` report hotplug; each connection gets its own id, stale once the pad is gone. `mwin_eventGamepadChanged` reports a change of its facts, such as its battery.
+- `mwin_eventGamepadAdded` and `mwin_eventGamepadRemoved` report hotplug; each connection gets its own id, stale once the pad is gone. `mwin_eventGamepadChanged` reports a change of its facts, such as its battery. On Android a pad's capabilities can grow a moment after it is added, as Android merges its devices, so read them again on a change.
 - `mwinGetGamepads` lists the connected pads and `mwinGetGamepadInfo` gives one's name, vendor and product, battery (percent, -1 where unknown or wired), whether it is mapped, and its capabilities.
 - `mwin_eventGamepadButtonDown`, `mwin_eventGamepadButtonUp` and `mwin_eventGamepadAxisMoved` arrive only when a control changes. Button records are never merged: when their storage is full the pad gets `mwin_eventInputStateReset`. Axis records merge into the newest waiting one of their axis.
 - `mwinGetGamepadState` reads every control as the platform last reported it, which may be ahead of the records not yet drained. A program that polls reads it each frame; a program that follows the records reads it after a reset.

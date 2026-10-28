@@ -13,7 +13,11 @@
 // output reports (the hid tool prints them) carry the light motor at 255
 // and the heavy one at 64, then both at 0; on Android 11, whose one
 // vibrator runs at the stronger and whose hid tool prints no output, the
-// input service says the pad vibrates, then that it does not.
+// input service says the pad vibrates, then that it does not. From
+// Android 12 the pad has motion, at once or by a change a moment after
+// it is added, as Android merges the driver's motion device into it:
+// turned on, it reads the driver's samples, one g down y and a turn
+// about y; on Android 11 it has none.
 //
 // Last, a second pad, "Maul Stale DS4", comes while a stand-in for the
 // library's Java helper's copies (test/android/java/maul/window/
@@ -38,6 +42,7 @@
 #include <android/api-level.h>
 #include <android/native_activity.h>
 #include <android/native_window.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -107,6 +112,8 @@ typedef struct Program
     mwinWindowId window;
     mwinGamepadId pad;
     bool added;
+    // Whether the pad has motion, as added or changed.
+    bool motion;
     // When the copy the phase waits for was last asked for.
     uint64_t askedNs;
     // When the input service was seen listing the pad, 0 before.
@@ -151,6 +158,26 @@ static void PutFeature(FILE* file, const uint8_t* bytes, size_t count, bool last
 // them, so a delay read before the driver binds holds its answers back
 // past the driver's timeout and the pad fails to bind: the script waits
 // for the driver's battery to appear before the rest.
+// An input report of the pad: centred, its sensors read as one g down y
+// and a turn about y, its battery half full. The kernel passes an axis on
+// only when its value changes by more than its fuzz (16 raw units for the
+// sensors), so each report's readings differ from the last by 64.
+static void PutReport(FILE* file, int index)
+{
+    uint8_t report[64] = {0x01, 0x80, 0x80, 0x80, 0x80, 0x08};
+    // Gyroscope y, then accelerometer y, in the driver's raw units.
+    uint16_t gyro = (uint16_t)(-1024 + index % 2 * 64);
+    uint16_t acceleration = (uint16_t)(-8192 + index % 2 * 64);
+    report[15] = (uint8_t)(gyro & 0xFF);
+    report[16] = (uint8_t)(gyro >> 8);
+    report[21] = (uint8_t)(acceleration & 0xFF);
+    report[22] = (uint8_t)(acceleration >> 8);
+    report[30] = 5;
+    fprintf(file, "{\"id\":1,\"command\":\"report\",\"report\":[");
+    PutBytes(file, report, sizeof(report));
+    fprintf(file, "]}\n");
+}
+
 // The register of a pad: its name, and the last byte of its address,
 // which the drivers make its unique id, so that two pads are two devices.
 static void PutRegister(FILE* file, int id, const char* name, uint8_t address)
@@ -198,7 +225,8 @@ static void PutBatteryWait(FILE* script, int count)
 }
 
 // The hid tool's input, a script run as the shell: the pad, then, once
-// the driver has bound it, a pause that keeps it while the test runs; and
+// the driver has bound it, a report every tenth of a second for a
+// minute, which keeps it while the test runs; and
 // once the test asks for it (the file ds4-stale), the stale pad, then,
 // once bound and its node open in Android's input hub, its cross button
 // pressed, its left stick right, and a pause. The hid tool reads its input as fast as it comes and
@@ -221,7 +249,11 @@ static bool WriteScript(void)
     if (opened)
     {
         PutRegister(files[0], 1, NAME, 0x62);
-        fprintf(files[1], "{\"id\":1,\"command\":\"delay\",\"duration\":60000}\n");
+        for (int i = 0; i < 600; i++)
+        {
+            PutReport(files[1], i);
+            fprintf(files[1], "{\"id\":1,\"command\":\"delay\",\"duration\":100}\n");
+        }
         PutRegister(files[2], 2, STALE, 0x63);
         fprintf(files[3], "{\"id\":2,\"command\":\"delay\",\"duration\":300}\n");
         PutStaleReport(files[3], false);
@@ -349,6 +381,7 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
     }
     program->pad = id;
     program->added = true;
+    program->motion = (info.capabilities & mwin_padMotion) != 0;
     CHECK(info.vendor == 0x054c && info.product == 0x05c4 && info.mapped,
           "the pad's vendor and product, mapped");
     CHECK((info.capabilities & mwin_padRumble) != 0, "the pad's motors");
@@ -375,6 +408,14 @@ static void Collect(Program* program, mwinContext* context)
         if (event.type == mwin_eventGamepadAdded && !program->added)
         {
             Added(program, context, event.data.gamepad);
+        }
+        else if (event.type == mwin_eventGamepadChanged && program->added &&
+                 event.data.gamepad.index1 == program->pad.index1 &&
+                 event.data.gamepad.generation == program->pad.generation)
+        {
+            mwinGamepadInfo info = {0};
+            (void)mwinGetGamepadInfo(context, program->pad, &info);
+            program->motion = (info.capabilities & mwin_padMotion) != 0;
         }
         else if (event.type == mwin_eventGamepadAdded && !program->staleAdded)
         {
@@ -540,10 +581,38 @@ static bool Ready(Program* program, mwinContext* context)
     case 3:
         return Copied(program);
     case 4:
+        return android_get_device_api_level() < 31 || program->motion;
+    case 5:
+    {
+        // Each sensor's samples come on their own: both must have come.
+        mwinGamepadMotion motion = {0};
+        return android_get_device_api_level() < 31 ||
+               (mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+                motion.acceleration[1] != 0.0f && motion.rotationRate[1] != 0.0f);
+    }
+    case 6:
         return program->staleFirst != 0 && program->staleRight > 0.99f;
     default:
         return true;
     }
+}
+
+// The pad's motion: one g down y as the driver calibrates it, and a
+// turn about y, nothing about the other axes.
+static void CheckMotion(Program* program, mwinContext* context)
+{
+    mwinGamepadMotion motion = {0};
+    CHECK(mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+              fabsf(motion.acceleration[0]) < 0.1f && fabsf(motion.acceleration[1] + 9.8f) < 1.0f &&
+              fabsf(motion.acceleration[2]) < 0.1f,
+          "one g down y");
+    CHECK(fabsf(motion.rotationRate[0]) < 0.1f && motion.rotationRate[1] < -0.5f &&
+              fabsf(motion.rotationRate[2]) < 0.1f,
+          "a turn about y");
+    printf("  acceleration %.3f %.3f %.3f, rotation rate %.3f %.3f %.3f\n",
+           (double)motion.acceleration[0], (double)motion.acceleration[1],
+           (double)motion.acceleration[2], (double)motion.rotationRate[0],
+           (double)motion.rotationRate[1], (double)motion.rotationRate[2]);
 }
 
 // The stale pad, which the stand-in reports as a touchpad's pointer with
@@ -603,9 +672,30 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 3:
         CheckCopy(program->phase);
-        CHECK(AskStale(program, context), "the stand-in in place and the stale pad asked for");
         break;
     case 4:
+        if (android_get_device_api_level() >= 31)
+        {
+            CHECK(mwinSetGamepadMotion(context, program->pad, true) == mwin_success,
+                  "the pad's motion turned on");
+        }
+        else
+        {
+            CHECK(!program->motion &&
+                      mwinSetGamepadMotion(context, program->pad, true) == mwin_errorUnsupported,
+                  "no motion on Android 11");
+        }
+        break;
+    case 5:
+        if (android_get_device_api_level() >= 31)
+        {
+            CheckMotion(program, context);
+            CHECK(mwinSetGamepadMotion(context, program->pad, false) == mwin_success,
+                  "the pad's motion turned off");
+        }
+        CHECK(AskStale(program, context), "the stand-in in place and the stale pad asked for");
+        break;
+    case 6:
         CheckStale(program, context);
         break;
     default:
@@ -632,7 +722,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     Collect(program, context);
-    if (program->phase > 4)
+    if (program->phase > 6)
     {
         return mwin_frameStop;
     }
@@ -657,7 +747,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         {
             CheckCopy(program->phase);
         }
-        if (program->phase == 4)
+        CHECK(program->phase != 4, "the pad's motion, as added or changed");
+        if (program->phase == 5)
+        {
+            CheckMotion(program, context);
+        }
+        if (program->phase == 6)
         {
             printf("  the stale pad %s, its first record %s, its left stick at most %.2f\n",
                    program->staleAdded ? "added" : "not added",
@@ -678,7 +773,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > 4, "every phase ran");
+    CHECK(program->phase > 6, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

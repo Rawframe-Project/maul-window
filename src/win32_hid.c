@@ -211,8 +211,13 @@ void mwinWin32HidArrive(mwinWin32Hid* hid, HANDLE device, uint64_t timeNs)
     wchar_t path[PATH_UNITS];
     mwinHidPad* pad = Find(hid, nullptr);
     if (hid->api.getCaps == nullptr || device == nullptr || Find(hid, device) != nullptr ||
-        pad == nullptr || !IsPad(hid, device, &device_info, path))
+        !IsPad(hid, device, &device_info, path))
     {
+        return;
+    }
+    if (pad == nullptr)
+    {
+        hid->refused = true;
         return;
     }
     pad->device = device;
@@ -244,7 +249,10 @@ void mwinWin32HidArrive(mwinWin32Hid* hid, HANDLE device, uint64_t timeNs)
     int32_t slot = mwinAddGamepad(hid->context, &info, timeNs);
     if (slot < 0)
     {
+        // Every slot is taken, or held by a pad whose removal the program
+        // has not read.
         Release(hid, pad);
+        hid->refused = true;
         return;
     }
     pad->slot = (uint32_t)slot;
@@ -262,6 +270,24 @@ void mwinWin32HidFind(mwinWin32Hid* hid, uint64_t timeNs)
         if (list[i].dwType == RIM_TYPEHID)
         {
             mwinWin32HidArrive(hid, list[i].hDevice, timeNs);
+        }
+    }
+}
+
+void mwinWin32HidPump(mwinWin32Hid* hid, uint64_t timeNs)
+{
+    if (!hid->refused || Find(hid, nullptr) == nullptr)
+    {
+        return;
+    }
+    const mwinContext* context = hid->context;
+    for (uint32_t i = 0; i < context->limits.gamepads; i++)
+    {
+        if (context->gamepads[i].status == mwin_slotFree)
+        {
+            hid->refused = false;
+            mwinWin32HidFind(hid, timeNs);
+            return;
         }
     }
 }

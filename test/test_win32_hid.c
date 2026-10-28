@@ -19,7 +19,9 @@
 //   range spans all 32 bits, read in the right step;
 // - reports of no size read nothing, however many there are;
 // - a removed device is gone, and its reports read nothing; the pad's
-//   file is closed once named; started for real, Windows' parser loads.
+//   file is closed once named; started for real, Windows' parser loads;
+// - with room for one gamepad, a gamepad turned away is found again and
+//   added once the one there is unplugged and its removal read.
 
 #include "test_program.h"
 #include "win32_hid.h"
@@ -94,16 +96,26 @@ static const Device* DeviceOf(HANDLE handle)
     return nullptr;
 }
 
+// A device unplugged, which the list leaves out.
+static HANDLE s_gone;
+
 static UINT WINAPI DeviceList(PRAWINPUTDEVICELIST list, PUINT count, UINT size)
 {
     (void)size;
-    for (size_t i = 0; i < DEVICES && i < *count; i++)
+    UINT listed = 0;
+    for (size_t i = 0; i < DEVICES && listed < *count; i++)
     {
-        list[i] = (RAWINPUTDEVICELIST){s_devices[i].handle, RIM_TYPEHID};
+        if (s_devices[i].handle != s_gone)
+        {
+            list[listed++] = (RAWINPUTDEVICELIST){s_devices[i].handle, RIM_TYPEHID};
+        }
     }
     // Found again: once is all.
-    list[DEVICES] = (RAWINPUTDEVICELIST){PAD, RIM_TYPEHID};
-    return DEVICES + 1;
+    if (s_gone != PAD)
+    {
+        list[listed++] = (RAWINPUTDEVICELIST){PAD, RIM_TYPEHID};
+    }
+    return listed;
 }
 
 // The preparsed data names its device.
@@ -496,9 +508,63 @@ static void Step(Program* program, mwinContext* context, int step)
     }
 }
 
+// With room for one gamepad: the pad is added and the stick and the
+// wheel turned away; once the pad is unplugged and the program has read
+// its removal, the stick is found again and added.
+static void RoomStep(Program* program, mwinContext* context, int step)
+{
+    Drain(program, context);
+    int added = 0;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        added += program->events[i].type == mwin_eventGamepadAdded;
+    }
+    mwinGamepadInfo info;
+    switch (step)
+    {
+    case 0:
+        s_hid = (mwinWin32Hid){.context = context};
+        s_hid.api =
+            (mwinHidApi){nullptr, DeviceList, DeviceInfo,  InputData, OpenDevice, CloseFile,
+                         GetCaps, ButtonCaps, ValueCapsOf, Usages,    UsageValue, ProductString};
+        mwinWin32HidFind(&s_hid, 1);
+        break;
+    case 1:
+        CHECK(added == 1 &&
+                  mwinGetGamepadInfo(context, program->events[0].data.gamepad, &info) ==
+                      mwin_success &&
+                  info.vendor == 0x054C,
+              "room for one: the pad only");
+        s_gone = PAD;
+        mwinWin32HidRemove(&s_hid, PAD, 2);
+        // Its slot is still held: the program has not read the removal.
+        mwinWin32HidPump(&s_hid, 2);
+        break;
+    case 2:
+        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadRemoved,
+              "the pad unplugged, nothing added while its slot is held");
+        mwinWin32HidPump(&s_hid, 3);
+        break;
+    default:
+        CHECK(added == 1 &&
+                  mwinGetGamepadInfo(context, program->events[0].data.gamepad, &info) ==
+                      mwin_success &&
+                  info.vendor == 0x1234,
+              "the stick turned away is added once there is room");
+        mwinWin32HidStop(&s_hid);
+        s_gone = nullptr;
+        program->done = true;
+        break;
+    }
+}
+
 int main(void)
 {
     Program program = {.step = Step};
     CHECK(Run(&program) == mwin_success && program.done, "the program runs");
+    Program room = {.step = RoomStep};
+    mwinContextDef def = mwinDefaultContextDef();
+    def.limits.gamepads = 1;
+    CHECK(RunWith(&room, def) == mwin_success && room.done, "the program with room for one runs");
     return s_failures == 0 ? 0 : 1;
 }

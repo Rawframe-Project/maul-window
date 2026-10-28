@@ -353,7 +353,8 @@ static bool Ready(Program* program, mwinContext* context)
     }
 }
 
-// The check of what phase 2 or 3 asked for, on the latest copy.
+// The check of what the running or the stopped motors should show, on
+// the copy read.
 static void CheckCopy(int phase)
 {
     bool reports = android_get_device_api_level() >= 31;

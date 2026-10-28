@@ -3,12 +3,17 @@
 //
 // The macOS backend's input against AppKit (a CI runner's session): key
 // presses and releases by virtual key code with the layout's meaning,
-// typed text, a modifier's press and release, mouse buttons with their
-// click counts and a drag, the wheel, and the cursor requests, with a
+// typed text, each modifier's press and release and Caps Lock toggled,
+// mouse buttons with their click counts and a drag, the right, middle,
+// back and forward buttons, the wheel, and the cursor requests, with a
 // cursor made from images that a shape replaces and that leaves the
-// arrow when destroyed. No real
-// input can be made without permissions, so the test makes NSEvents and
-// hands them to the window as AppKit would; the wheel's go to the view.
+// arrow when destroyed, then each other shape as AppKit's own cursor.
+// No real input can be made without permissions, so the test makes
+// NSEvents and hands them to the window as AppKit would; the wheel's and
+// the buttons that only a Quartz event numbers go to the view. A cursor
+// captured waits for the window to be the key window, which a CI
+// runner's session never makes it, so motion as raw deltas is not
+// exercised.
 
 #include "cursor_images.h"
 #include "test_harness.h"
@@ -143,6 +148,27 @@ static NSEvent* Mouse(NSWindow* window, NSEventType type, NSPoint place, NSInteg
                               pressure:type == NSEventTypeLeftMouseUp ? 0.0f : 1.0f];
 }
 
+// A modifier key: its virtual key, its class's flag and its own bit in
+// the device-dependent flags, and its code and class.
+typedef struct Modifier
+{
+    unsigned short virtualKey;
+    NSEventModifierFlags flags;
+    NSEventModifierFlags bit;
+    mwinKeyCode code;
+    mwinModifiers modifier;
+} Modifier;
+
+static const Modifier s_modifiers[] = {
+    {kVK_RightShift, NSEventModifierFlagShift, 0x4, mwin_codeShiftRight, mwin_modShift},
+    {kVK_Control, NSEventModifierFlagControl, 0x1, mwin_codeControlLeft, mwin_modControl},
+    {kVK_RightControl, NSEventModifierFlagControl, 0x2000, mwin_codeControlRight, mwin_modControl},
+    {kVK_Command, NSEventModifierFlagCommand, 0x8, mwin_codeMetaLeft, mwin_modMeta},
+    {kVK_RightCommand, NSEventModifierFlagCommand, 0x10, mwin_codeMetaRight, mwin_modMeta},
+    {kVK_Option, NSEventModifierFlagOption, 0x20, mwin_codeAltLeft, mwin_modAlt},
+    {kVK_RightOption, NSEventModifierFlagOption, 0x40, mwin_codeAltRight, mwin_modAlt},
+};
+
 static void SendKeys(NSWindow* window)
 {
     [window sendEvent:Key(window, NSEventTypeKeyDown, 0, @"a", kVK_ANSI_A)];
@@ -151,6 +177,17 @@ static void SendKeys(NSWindow* window)
     [window sendEvent:Key(window, NSEventTypeFlagsChanged, NSEventModifierFlagShift | 0x2, @"",
                           kVK_Shift)];
     [window sendEvent:Key(window, NSEventTypeFlagsChanged, 0, @"", kVK_Shift)];
+    // Each other modifier, down with its own bit and up.
+    for (size_t i = 0; i < sizeof(s_modifiers) / sizeof(s_modifiers[0]); i++)
+    {
+        const Modifier* modifier = &s_modifiers[i];
+        [window sendEvent:Key(window, NSEventTypeFlagsChanged, modifier->flags | modifier->bit, @"",
+                              modifier->virtualKey)];
+        [window sendEvent:Key(window, NSEventTypeFlagsChanged, 0, @"", modifier->virtualKey)];
+    }
+    // Caps Lock toggled on: macOS tells nothing more.
+    [window sendEvent:Key(window, NSEventTypeFlagsChanged, NSEventModifierFlagCapsLock, @"",
+                          kVK_CapsLock)];
 }
 
 static void SendMouse(NSWindow* window)
@@ -164,6 +201,30 @@ static void SendMouse(NSWindow* window)
     CGEventRef wheel = CGEventCreateScrollWheelEvent(nullptr, kCGScrollEventUnitLine, 2, 3, 2);
     [window.contentView scrollWheel:[NSEvent eventWithCGEvent:wheel]];
     CFRelease(wheel);
+    // The right button through the window; the middle, back and forward
+    // buttons, whose number only a Quartz event carries, to the view.
+    [window sendEvent:Mouse(window, NSEventTypeRightMouseDown, NSMakePoint(60.0, 45.0), 1)];
+    [window sendEvent:Mouse(window, NSEventTypeRightMouseUp, NSMakePoint(60.0, 45.0), 1)];
+    for (int64_t number = 2; number <= 4; number++)
+    {
+        for (int up = 0; up < 2; up++)
+        {
+            CGEventRef other =
+                CGEventCreateMouseEvent(nullptr, up ? kCGEventOtherMouseUp : kCGEventOtherMouseDown,
+                                        CGPointZero, kCGMouseButtonCenter);
+            CGEventSetIntegerValueField(other, kCGMouseEventButtonNumber, number);
+            NSEvent* event = [NSEvent eventWithCGEvent:other];
+            if (up)
+            {
+                [window.contentView otherMouseUp:event];
+            }
+            else
+            {
+                [window.contentView otherMouseDown:event];
+            }
+            CFRelease(other);
+        }
+    }
 }
 
 // Command and a key through the application's queue, where AppKit
@@ -200,6 +261,22 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(unshift != nullptr && unshift->key.code == mwin_codeShiftLeft &&
               unshift->key.modifiers == 0,
           "and its release");
+    for (size_t i = 0; i < sizeof(s_modifiers) / sizeof(s_modifiers[0]); i++)
+    {
+        const Modifier* modifier = &s_modifiers[i];
+        const Record* pressed = Find(program, &at, mwin_eventKeyDown);
+        const Record* released = Find(program, &at, mwin_eventKeyUp);
+        CHECK(pressed != nullptr && pressed->key.code == modifier->code &&
+                  pressed->key.modifiers == modifier->modifier && released != nullptr &&
+                  released->key.code == modifier->code && released->key.modifiers == 0,
+              "each other modifier: its press with its class held, and its release");
+    }
+    const Record* caps = Find(program, &at, mwin_eventKeyDown);
+    const Record* capsUp = Find(program, &at, mwin_eventKeyUp);
+    CHECK(caps != nullptr && caps->key.code == mwin_codeCapsLock &&
+              caps->key.modifiers == mwin_modCapsLock && capsUp != nullptr &&
+              capsUp->key.code == mwin_codeCapsLock,
+          "Caps Lock toggled: a press and a release at once");
     char name[64];
     size_t length = 0;
     CHECK(mwinGetKeyboardLayout(context, name, sizeof(name), &length) == mwin_success && length > 0,
@@ -226,6 +303,16 @@ static void CheckMouse(const Program* program)
     const Record* wheel = Find(program, &wheelAt, mwin_eventWheel);
     CHECK(wheel != nullptr && wheel->wheel.y == 3.0f && wheel->wheel.x == -2.0f,
           "a wheel's lines as detents, away from the user and to the left");
+    static const mwinMouseButton others[] = {mwin_buttonRight, mwin_buttonMiddle, mwin_buttonBack,
+                                             mwin_buttonForward};
+    for (size_t i = 0; i < sizeof(others) / sizeof(others[0]); i++)
+    {
+        const Record* pressed = Find(program, &at, mwin_eventButtonDown);
+        const Record* released = Find(program, &at, mwin_eventButtonUp);
+        CHECK(pressed != nullptr && pressed->pointer.button == others[i] && released != nullptr &&
+                  released->pointer.button == others[i],
+              "the right, middle, back and forward buttons, each pressed and released");
+    }
 }
 
 static void CheckCommand(const Program* program)
@@ -283,6 +370,18 @@ static const Record* Completed(const Program* program)
     return Find(program, &at, mwin_eventRequestCompleted);
 }
 
+// The shapes besides the text one, in the order the phases ask for them.
+#define SHAPES     8
+#define LAST_PHASE (8 + SHAPES)
+static const mwinCursorShape s_shapes[SHAPES] = {mwin_shapePointer,
+                                                 mwin_shapeCrosshair,
+                                                 mwin_shapeMove,
+                                                 mwin_shapeResizeEastWest,
+                                                 mwin_shapeResizeNorthSouth,
+                                                 mwin_shapeResizeNortheastSouthwest,
+                                                 mwin_shapeResizeNorthwestSoutheast,
+                                                 mwin_shapeNotAllowed};
+
 // The cursor made from images: shown, replaced by a shape, shown again,
 // and destroyed.
 static void AdvanceImages(Program* program, mwinContext* context)
@@ -309,7 +408,70 @@ static void AdvanceImages(Program* program, mwinContext* context)
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   [NSCursor currentCursor] == [NSCursor arrowCursor],
               "destroyed: the arrow");
+        CHECK(mwinRequestCursorShape(context, program->window, s_shapes[0], nullptr) ==
+                  mwin_success,
+              "each other shape");
         break;
+    }
+}
+
+// AppKit's cursor for a shape: a diagonal resize cursor of its own from
+// macOS 15, the arrow before it.
+static NSCursor* AppKitCursor(mwinCursorShape shape)
+{
+    switch (shape)
+    {
+    case mwin_shapePointer:
+        return [NSCursor pointingHandCursor];
+    case mwin_shapeCrosshair:
+        return [NSCursor crosshairCursor];
+    case mwin_shapeMove:
+        return [NSCursor openHandCursor];
+    case mwin_shapeResizeEastWest:
+        return [NSCursor resizeLeftRightCursor];
+    case mwin_shapeResizeNorthSouth:
+        return [NSCursor resizeUpDownCursor];
+    case mwin_shapeResizeNortheastSouthwest:
+        if (@available(macOS 15.0, *))
+        {
+            return [NSCursor frameResizeCursorFromPosition:NSCursorFrameResizePositionTopRight
+                                              inDirections:NSCursorFrameResizeDirectionsAll];
+        }
+        return [NSCursor arrowCursor];
+    case mwin_shapeResizeNorthwestSoutheast:
+        if (@available(macOS 15.0, *))
+        {
+            return [NSCursor frameResizeCursorFromPosition:NSCursorFrameResizePositionTopLeft
+                                              inDirections:NSCursorFrameResizeDirectionsAll];
+        }
+        return [NSCursor arrowCursor];
+    default:
+        return [NSCursor operationNotAllowedCursor];
+    }
+}
+
+// Whether two cursors look the same: their images and hot spots, since
+// AppKit may make a cursor anew each time it is asked for.
+static bool SameCursor(NSCursor* a, NSCursor* b)
+{
+    return [a.image.TIFFRepresentation isEqual:b.image.TIFFRepresentation] &&
+           NSEqualPoints(a.hotSpot, b.hotSpot);
+}
+
+// Each shape the earlier phases did not show, one a phase: the shape
+// the last one asked for shows, and the next is asked for.
+static void AdvanceShapes(Program* program, mwinContext* context)
+{
+    size_t index = (size_t)program->phase - 8;
+    const Record* completed = Completed(program);
+    CHECK(completed != nullptr && completed->outcome == mwin_outcomeDone &&
+              SameCursor([NSCursor currentCursor], AppKitCursor(s_shapes[index])),
+          "pointer, crosshair, move, the four resizes and not allowed, each AppKit's cursor");
+    if (index + 1 < SHAPES)
+    {
+        CHECK(mwinRequestCursorShape(context, program->window, s_shapes[index + 1], nullptr) ==
+                  mwin_success,
+              "the next shape");
     }
 }
 
@@ -358,8 +520,13 @@ static void Advance(Program* program, mwinContext* context)
               "a cursor made from images");
         break;
     }
-    default:
+    case 5:
+    case 6:
+    case 7:
         AdvanceImages(program, context);
+        break;
+    default:
+        AdvanceShapes(program, context);
         break;
     }
     program->phase += 1;
@@ -407,7 +574,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 8 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == LAST_PHASE ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -420,6 +587,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 8, "every phase ran");
+    CHECK(program.phase == LAST_PHASE, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

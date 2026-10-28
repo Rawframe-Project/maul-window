@@ -3,8 +3,10 @@
 //
 // The Win32 backend's touch and pen against Windows, driven through
 // touch injection and a synthetic pen: a touch down, moved and up with
-// one id and its pressure, and a pen hovering, its barrel button, down
-// with pressure and tilt, and up. Where Windows injects neither (wine),
+// one id and its pressure; a touch Windows takes from the window while
+// it is down (WM_POINTERCAPTURECHANGED, sent as Windows sends it),
+// cancelled with its id and never lifted; and a pen hovering, its barrel
+// button, down with pressure and tilt, and up. Where Windows injects neither (wine),
 // the test is skipped (exit status 77). Injection now and then loses a
 // gesture, the first after a window shows most of all, so a gesture
 // that brings nothing is sent again.
@@ -24,6 +26,7 @@
 
 #define DEADLINE_MS 10000u
 #define RESEND_MS   1000u
+#define SETTLE_MS   200u
 #define MAX_RECORDS 64
 
 // The synthetic pen, Windows 10 1809's, found at run time: mingw's
@@ -37,6 +40,8 @@ typedef enum Phase
 {
     phaseCreate,
     phaseTouch,
+    phaseCancelDown,
+    phaseCancelled,
     phasePen,
     phaseDone,
 } Phase;
@@ -49,6 +54,10 @@ typedef struct Program
     mwinWindowId window;
     HWND hwnd;
     HSYNTHETICPOINTERDEVICE pen;
+    // The touch that Windows then takes, by its pointer id, and whether
+    // Windows took its lifting.
+    uint64_t cancelled;
+    bool lifted;
     InjectFunction inject;
     mwinEvent records[MAX_RECORDS];
     int count;
@@ -84,9 +93,10 @@ static void Dump(const Program* program)
 {
     POINT point = OnScreen(program, 100, 80);
     (void)printf("  phase %d: %d records, %d pointer messages; under the point %p, the window "
-                 "%p, foreground %p\n",
+                 "%p, foreground %p; the cancelled touch's lift taken %d\n",
                  (int)program->phase, program->count, s_pointerMessages,
-                 (void*)WindowFromPoint(point), (void*)program->hwnd, (void*)GetForegroundWindow());
+                 (void*)WindowFromPoint(point), (void*)program->hwnd, (void*)GetForegroundWindow(),
+                 (int)program->lifted);
     for (int i = 0; i < program->count; i++)
     {
         (void)printf("    record %d\n", (int)program->records[i].type);
@@ -122,7 +132,8 @@ static bool At(const Program* program, mwinPosition position, float x, float y)
            position.y * scale > y - 1.0f && position.y * scale < y + 1.0f;
 }
 
-static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
+// Whether Windows took the contact.
+static bool Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
 {
     POINTER_TOUCH_INFO contact = {0};
     contact.pointerInfo.pointerType = PT_TOUCH;
@@ -133,13 +144,15 @@ static void Touch(const Program* program, LONG x, LONG y, POINTER_FLAGS flags)
     contact.rcContact = (RECT){at.x - 2, at.y - 2, at.x + 2, at.y + 2};
     contact.orientation = 90;
     contact.pressure = 512;
-    if (!InjectTouchInput(1, &contact))
+    bool taken = InjectTouchInput(1, &contact) != 0;
+    if (!taken)
     {
         (void)printf("  touch not taken: error %lu\n", GetLastError());
     }
     // A frame apart, as a digitizer reports.
     // hygiene: injected contacts a frame apart, as a digitizer reports
     Sleep(16);
+    return taken;
 }
 
 static void Pen(const Program* program, LONG x, LONG y, POINTER_FLAGS flags, PEN_FLAGS pen)
@@ -175,6 +188,20 @@ static void SendGesture(Program* program)
         Touch(program, 120, 90, POINTER_FLAG_UPDATE | contact);
         Touch(program, 120, 90, POINTER_FLAG_UP);
     }
+    else if (program->phase == phaseCancelDown)
+    {
+        Touch(program, 100, 80, POINTER_FLAG_DOWN | contact);
+    }
+    else if (program->phase == phaseCancelled)
+    {
+        // Windows takes the touch from the window, as it does for a
+        // gesture of the system's: the message it sends then, while the
+        // touch is still down. Its lifting no longer reaches the window.
+        Touch(program, 100, 80, POINTER_FLAG_UPDATE | contact);
+        SendMessageW(program->hwnd, WM_POINTERCAPTURECHANGED,
+                     MAKEWPARAM((WORD)program->cancelled, 0), 0);
+        program->lifted = Touch(program, 100, 80, POINTER_FLAG_UP);
+    }
     else
     {
         Pen(program, 200, 150, hover, PEN_FLAG_BARREL);
@@ -193,6 +220,12 @@ static bool Ready(const Program* program)
     case phaseTouch:
         return Find(program, mwin_eventTouchUp) != nullptr ||
                Find(program, mwin_eventTouchCancelled) != nullptr;
+    case phaseCancelDown:
+        return Find(program, mwin_eventTouchDown) != nullptr;
+    case phaseCancelled:
+        // Long enough for the lifting to arrive, were it posted.
+        return Find(program, mwin_eventTouchCancelled) != nullptr &&
+               GetTickCount64() - program->sentMs > SETTLE_MS;
     default:
         return Find(program, mwin_eventPenUp) != nullptr;
     }
@@ -248,6 +281,20 @@ static void Advance(Program* program, mwinContext* context)
     {
         CheckTouch(program);
     }
+    else if (program->phase == phaseCancelDown)
+    {
+        program->cancelled = Find(program, mwin_eventTouchDown)->data.touch.id;
+    }
+    else if (program->phase == phaseCancelled)
+    {
+        // A lifting Windows refused would leave nothing to read, so "no
+        // lifting after" would hold for no reason.
+        CHECK(program->lifted, "the lift taken");
+        const mwinEvent* cancelled = Find(program, mwin_eventTouchCancelled);
+        CHECK(cancelled->data.touch.id == program->cancelled &&
+                  Find(program, mwin_eventTouchUp) == nullptr,
+              "a touch Windows takes: cancelled, its id, and no lifting after");
+    }
     else
     {
         CheckPen(program);
@@ -285,7 +332,20 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    else if (program->phase != phaseCreate && now - program->sentMs > RESEND_MS)
+    else if (program->phase == phaseCancelDown)
+    {
+        // An injected touch not updated for a while is cancelled by
+        // Windows itself, and a second down for it is refused: it is kept
+        // down until the backend has read it.
+        const POINTER_FLAGS contact = POINTER_FLAG_INRANGE | POINTER_FLAG_INCONTACT;
+        if (!Touch(program, 100, 80, POINTER_FLAG_UPDATE | contact))
+        {
+            // The down was lost: it is sent again.
+            (void)Touch(program, 100, 80, POINTER_FLAG_DOWN | contact);
+        }
+    }
+    else if (program->phase != phaseCreate && program->phase != phaseCancelled &&
+             now - program->sentMs > RESEND_MS)
     {
         Dump(program);
         (void)printf("  phase %d: sent again\n", (int)program->phase);

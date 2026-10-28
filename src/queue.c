@@ -305,7 +305,8 @@ static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
     reset.window = mwinWindowIdOf(context, slot);
     reset.timeNs = timeNs;
     // A reset replaces one still waiting, so it always has room.
-    bool added = Append(context, &context->windows[slot].rings[mwin_classNotification], &reset);
+    [[maybe_unused]] bool added =
+        Append(context, &context->windows[slot].rings[mwin_classNotification], &reset);
     MWIN_ASSERT(added);
 }
 
@@ -492,7 +493,7 @@ void mwinPostDestroyed(mwinContext* context, uint32_t slot, uint64_t timeNs)
     event.timeNs = timeNs;
     // Only completions are left, at most one per request slot, and the
     // ring holds more than the request slots.
-    bool added = Append(context, ring, &event);
+    [[maybe_unused]] bool added = Append(context, ring, &event);
     MWIN_ASSERT(added);
 }
 

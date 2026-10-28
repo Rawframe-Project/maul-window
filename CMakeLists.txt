@@ -308,6 +308,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
             target_sources(test_android_name PRIVATE ${PROJECT_SOURCE_DIR}/src/android_name.c)
             target_link_libraries(test_android_name PRIVATE maul-unicode::maul-unicode)
         endif()
+        # The input scope each purpose sets on Windows, on every platform.
+        maul_add_test(win32_scope WHITEBOX)
+        if(TARGET test_win32_scope AND NOT MAUL_WINDOW_WIN32)
+            target_sources(test_win32_scope PRIVATE ${PROJECT_SOURCE_DIR}/src/win32_scope.c)
+        endif()
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
             # The runtime pads' tracking against a stand-in runtime.

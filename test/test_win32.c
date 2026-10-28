@@ -5,7 +5,8 @@
 // the window a creation makes, the monitors as Windows' own calls
 // describe them (bounds, work area, primary, scale, name, refresh), the
 // native handles, size and place as Windows reports them, maximizing,
-// borderless full screen and back, a change of DPI, occlusion, the
+// borderless full screen and back, a change of DPI, occlusion, hidden
+// and shown again as the program asks and as Windows reads it, the
 // close button's message, and the process made per-monitor DPI aware.
 //
 // The runner has one monitor, so the window cannot move to one of
@@ -32,7 +33,7 @@
 // session already locked as a window is made is read from
 // WTSQuerySessionInformation, for which no message stands in, and the
 // runner's session is never locked: that path is not exercised. Wine has
-// no cloaking, so there the cloaking phase times out.
+// no cloaking, so there the cloaking phase times out, before the hiding.
 
 #include "test_harness.h"
 
@@ -172,6 +173,8 @@ typedef enum Phase
     phaseLit,
     phaseCloaked,
     phaseUncloaked,
+    phaseHidden,
+    phaseShownAgain,
     phaseClose,
     phaseDone,
 } Phase;
@@ -278,6 +281,10 @@ static bool Ready(const Program* program)
     case phaseLit:
     case phaseUncloaked:
         return Seen(program, mwin_eventRevealed);
+    case phaseHidden:
+        return program->completed && Seen(program, mwin_eventHidden);
+    case phaseShownAgain:
+        return program->completed && Seen(program, mwin_eventShown);
     default:
         return Seen(program, mwin_eventCloseRequested);
     }
@@ -516,7 +523,8 @@ static Phase AdvanceOcclusion(Program* program, mwinContext* context)
         Cloak(hwnd, FALSE);
         break;
     default:
-        PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        CHECK(mwinRequestVisible(context, program->window, false, nullptr) == mwin_success,
+              "hiding asked for");
         break;
     }
     return phase + 1;
@@ -594,6 +602,29 @@ static void Advance(Program* program, mwinContext* context)
     case phaseUncloaked:
         next = AdvanceOcclusion(program, context);
         break;
+    case phaseHidden:
+    case phaseShownAgain:
+    {
+        // As the program asked, and as Windows tells it.
+        bool shown = program->phase == phaseShownAgain;
+        mwinWindowState state;
+        CHECK(program->completion.kind == mwin_requestVisible &&
+                  program->completion.outcome == mwin_outcomeDone &&
+                  mwinGetWindowState(context, window, &state) == mwin_success &&
+                  state.visible == shown &&
+                  (IsWindowVisible(WindowOf(context, window)) != 0) == shown,
+              shown ? "shown again" : "hidden");
+        if (shown)
+        {
+            PostMessageW(WindowOf(context, window), WM_CLOSE, 0, 0);
+        }
+        else
+        {
+            CHECK(mwinRequestVisible(context, window, true, nullptr) == mwin_success,
+                  "showing asked for");
+        }
+        break;
+    }
     default:
         CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
         break;

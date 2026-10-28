@@ -45,6 +45,10 @@ static mwinResult CheckDef(const mwinCursorDef* def)
 
 mwinResult mwinCreateCursor(mwinContext* context, const mwinCursorDef* def, mwinCursorId* cursorOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || def == nullptr || cursorOut == nullptr)
     {
         return mwinMisuse(context);
@@ -104,6 +108,10 @@ static void Release(mwinContext* context, uint32_t slot)
 
 mwinResult mwinDestroyCursor(mwinContext* context, mwinCursorId cursor)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwin_errorInvalid;
@@ -130,6 +138,10 @@ void mwinReleaseCursors(mwinContext* context)
 mwinResult mwinRequestCursorImage(mwinContext* context, mwinWindowId window, mwinCursorId cursor,
                                   mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwin_errorInvalid;

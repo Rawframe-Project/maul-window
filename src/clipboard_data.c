@@ -221,6 +221,10 @@ mwinResult mwinRequestClipboardWriteData(mwinContext* context, mwinWindowId wind
                                          const mwinClipboardItem* items, uint32_t count,
                                          mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     size_t total = 0;
     int text = -1;
     if (context == nullptr)
@@ -271,6 +275,10 @@ mwinResult mwinRequestClipboardWriteData(mwinContext* context, mwinWindowId wind
 mwinResult mwinRequestClipboardReadData(mwinContext* context, mwinWindowId window, const char* mime,
                                         size_t mimeLength, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -361,6 +369,10 @@ mwinResult mwinGetPrimaryText(const mwinContext* context, mwinRequestId request,
 mwinResult mwinRequestPrimaryWrite(mwinContext* context, mwinWindowId window, const char* text,
                                    size_t length, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (text == nullptr && length != 0) ||
         muniValidateUtf8(text, length).status != muni_success)
     {
@@ -398,6 +410,10 @@ mwinResult mwinRequestPrimaryWrite(mwinContext* context, mwinWindowId window, co
 mwinResult mwinRequestPrimaryRead(mwinContext* context, mwinWindowId window,
                                   mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     uint32_t slot = 0;
     int32_t request = 0;
     mwinResult status = mwinBeginRequest(context, window, mwin_requestPrimaryRead, &slot, &request);

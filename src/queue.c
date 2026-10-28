@@ -294,8 +294,12 @@ static bool Merge(mwinRing* ring, const mwinEvent* event)
     return false;
 }
 
+// Posts a window's reset, which also ends its composition: the record
+// lost may have been a composition, and the program drops the one it
+// shows.
 static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
 {
+    context->windows[slot].state.composing = false;
     mwinEvent reset = {0};
     reset.type = mwin_eventInputStateReset;
     reset.window = mwinWindowIdOf(context, slot);

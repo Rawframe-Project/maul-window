@@ -65,6 +65,9 @@ typedef struct mwinLinuxPads
     uint64_t batteryNs;
     // One per gamepad slot of the context.
     mwinLinuxPad* pads;
+    // A gamepad was turned away for want of room: /dev/input is scanned
+    // again once there is room.
+    bool refused;
 } mwinLinuxPads;
 
 // Finds the gamepads connected and starts watching for more; false only

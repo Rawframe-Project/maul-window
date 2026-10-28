@@ -9,6 +9,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
+import android.os.CombinedVibration;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
@@ -165,18 +166,49 @@ final class Gamepads {
      */
     static boolean rumble(int id, float low, float high, int milliseconds) {
         InputDevice device = InputDevice.getDevice(id);
-        Vibrator[] motors = device != null ? motors(device) : new Vibrator[0];
-        float[] strengths = motors.length == 1 ? new float[] {Math.max(low, high)}
-                                               : new float[] {low, high};
-        for (int i = 0; i < motors.length; i++) {
+        if (device == null) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            return rumble(device.getVibratorManager(), low, high, milliseconds);
+        }
+        Vibrator motor = device.getVibrator();
+        if (!motor.hasVibrator()) {
+            return false;
+        }
+        int amplitude = Math.round(Math.max(low, high) * 255.0f);
+        if (amplitude == 0 || milliseconds == 0) {
+            motor.cancel();
+        } else {
+            motor.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude));
+        }
+        return true;
+    }
+
+    // Both motors in one effect: an input device's vibrator plays its
+    // effect on every motor of the device, and a new one replaces the
+    // last, so one vibrator at a time would leave both at the latest.
+    private static boolean rumble(VibratorManager manager, float low, float high,
+            int milliseconds) {
+        int[] ids = manager.getVibratorIds();
+        int count = Math.min(ids.length, 2);
+        float[] strengths = count == 1 ? new float[] {Math.max(low, high)}
+                                       : new float[] {low, high};
+        CombinedVibration.ParallelCombination effects = CombinedVibration.startParallel();
+        boolean running = false;
+        for (int i = 0; i < count; i++) {
             int amplitude = Math.round(strengths[i] * 255.0f);
-            if (amplitude == 0 || milliseconds == 0) {
-                motors[i].cancel();
-            } else {
-                motors[i].vibrate(VibrationEffect.createOneShot(milliseconds, amplitude));
+            if (amplitude != 0 && milliseconds != 0) {
+                effects.addVibrator(ids[i], VibrationEffect.createOneShot(milliseconds, amplitude));
+                running = true;
             }
         }
-        return motors.length > 0;
+        if (running) {
+            manager.vibrate(effects.combine());
+        } else {
+            manager.cancel();
+        }
+        return count > 0;
     }
 
     // A gamepad's accelerometer and gyroscope (Android 12 and later), or

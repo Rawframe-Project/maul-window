@@ -18,8 +18,10 @@
 //   (Android 11 and 15 count BTN_TRIGGER and up as keyboard keys).
 //   android_pad_map.c turns them into records.
 // - Rumble runs the device's motors (two, heavy then light, where
-//   Android 12 lists them; else its one at the stronger): Android times
-//   the effect, and the latest call replaces it.
+//   Android 12 lists them, played as one combined effect, since each
+//   motor's own effect would play on both; else its one at the
+//   stronger): Android times the effect, and the latest call replaces
+//   it.
 // - Motion is the device's accelerometer and gyroscope (Android 12 and
 //   later), whose listener hands each sample to the library on the main
 //   thread, in m/s^2 and rad/s and in the frame the kernel's driver

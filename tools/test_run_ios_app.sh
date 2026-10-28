@@ -1,10 +1,12 @@
 #!/bin/sh
 # Drives tools/run_ios_app.sh on any host with a POSIX shell and python3,
-# against stand-ins for simctl, PlistBuddy and a test application, with
-# date and sleep running 50 times as fast. The stand-in simulator drops
-# the first N launches that bring the application back: 0, 1 or 2 pass
-# with that many sent again, 3 fail with the runner's line saying so,
-# and an application that never ends is ended by the runner's limit.
+# against stand-ins for simctl, idb, PlistBuddy and a test application,
+# with date and sleep running 50 times as fast. The stand-in simulator
+# drops the first N launches that bring the application back: 0, 1 or 2
+# pass with that many sent again, 3 fail with the runner's line saying
+# so, and an application that never ends is ended by the runner's limit.
+# An application that asks for a touch gets it from idb, given the
+# booted device's UDID.
 # Run by tools/check.sh and CI's checks job, in seconds, so that a slip
 # in the runner fails here rather than after a simulator's boot.
 #
@@ -42,6 +44,7 @@ verb=$1
 shift
 for last; do :; done
 case "$verb $last" in
+"list booted") echo "    iPhone 16 (0A1B2C3D-0000-4000-8000-00000000ABCD) (Booted)" ;;
 "launch com.apple.Preferences") touch "$state/settings" ;;
 "launch org.test.app")
     if [ -f "$state/pid" ]; then
@@ -56,6 +59,12 @@ case "$verb $last" in
 esac
 EOF
 
+# idb: what it was asked, for the application to read.
+cat >"$work/bin/idb" <<'EOF'
+#!/bin/sh
+echo "$*" >"$FAKE_STATE/idb"
+EOF
+
 # The window test's drive: active, Settings in front, brought back; it
 # becomes active again only once the simulator has dropped FAKE_DROPS
 # launches back, and ends 30 s later, past the runner's 20. With
@@ -64,6 +73,15 @@ cat >"$work/app.sh" <<'EOF'
 out=$MWIN_TEST_OUT
 echo "active at 0.10 s" >>"$out"
 [ "$FAKE_DROPS" = never ] && exec sleep 100000
+if [ "$FAKE_DROPS" = touch ]; then
+    echo "idb: ui tap 10 20" >>"$out"
+    until [ -f "$FAKE_STATE/idb" ]; do sleep 1; done
+    failures=1
+    [ "$(cat "$FAKE_STATE/idb")" = "ui tap 10 20 --udid 0A1B2C3D-0000-4000-8000-00000000ABCD" ] &&
+        failures=0
+    echo "result: $failures failures" >>"$out"
+    exit
+fi
 echo "simctl: launch com.apple.Preferences" >>"$out"
 until [ -f "$FAKE_STATE/settings" ]; do sleep 1; done
 echo "simctl: launch org.test.app" >>"$out"
@@ -125,4 +143,5 @@ check 2 0 "waited until [0-9]+ s, the launch back sent again: 2" "result: 0 fail
 check 3 1 "waited until [0-9]+ s, the launch back sent again: 2" \
     "still in the background 20 s after the launch back was sent again twice"
 check never 1 "ended by the runner's 180 s limit, before the test's closing line"
+check touch 0 "running: idb: ui tap 10 20" "result: 0 failures"
 [ "$failures" -eq 0 ]

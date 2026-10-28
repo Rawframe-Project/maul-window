@@ -286,6 +286,10 @@ extern "C"
         mwin_purposeUrl = 4,
     };
 
+// How many input purposes there are: each is below it, and a value from
+// it on is not one.
+#define MWIN_INPUT_PURPOSES 5
+
     /// Asks to show or hide the on-screen keyboard over a window, where
     /// the platform has one; others answer mwin_outcomeUnsupported.
     /// mwin_eventVirtualKeyboardChanged reports the part it covers.

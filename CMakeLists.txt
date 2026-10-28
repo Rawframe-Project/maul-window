@@ -786,7 +786,7 @@ if(MAUL_WINDOW_FUZZ)
         list(APPEND MWIN_FUZZ_AREAS linux_bus scroll x11_drop x11_selection)
     endif()
     if(MAUL_WINDOW_WAYLAND)
-        list(APPEND MWIN_FUZZ_AREAS wayland_offer)
+        list(APPEND MWIN_FUZZ_AREAS wayland_offer wayland_text)
     endif()
     if(MAUL_WINDOW_GAMEPAD AND (MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11))
         list(APPEND MWIN_FUZZ_AREAS battery hid linux_motion pad)
@@ -827,6 +827,9 @@ if(MAUL_WINDOW_FUZZ)
         target_include_directories(fuzz_wayland_offer SYSTEM PRIVATE ${MWIN_PROTOCOL_OUT}
                                    ${MWIN_WAYLAND_INCLUDE_DIR})
         target_compile_definitions(fuzz_wayland_offer PRIVATE _POSIX_C_SOURCE=200809L)
+        target_include_directories(fuzz_wayland_text SYSTEM PRIVATE ${MWIN_PROTOCOL_OUT}
+                                   ${MWIN_WAYLAND_INCLUDE_DIR})
+        target_compile_definitions(fuzz_wayland_text PRIVATE _POSIX_C_SOURCE=200809L)
     endif()
 endif()
 

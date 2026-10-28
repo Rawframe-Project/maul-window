@@ -16,7 +16,9 @@
 // program: the window goes on with a new surface, not asked to close, and
 // the program is not asked for again; finished, the activity asks the
 // window to close, which the program hears once a new activity joins.
-// quit writes the closing line the runner waits for.
+// Then the window destroyed, its id gone, and a new window made, which
+// that activity shows. quit writes the closing line the runner waits
+// for.
 
 #include "test_harness.h"
 
@@ -37,6 +39,7 @@
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define START       "adb: am start -n " MWIN_TEST_PACKAGE "/maul.window.Activity\n"
 #define RECORDS     32
+#define LAST_PHASE  7
 
 typedef struct Program
 {
@@ -91,8 +94,8 @@ static bool SameWindow(mwinWindowId a, mwinWindowId b)
 static bool IsRecord(mwinEventType type)
 {
     return (type >= mwin_eventSuspending && type <= mwin_eventSurfaceRestored) ||
-           type == mwin_eventWindowCreated || type == mwin_eventOccluded ||
-           type == mwin_eventRevealed;
+           type == mwin_eventWindowCreated || type == mwin_eventWindowDestroyed ||
+           type == mwin_eventOccluded || type == mwin_eventRevealed;
 }
 
 static void Complete(Program* program, const mwinEvent* event)
@@ -287,11 +290,14 @@ static bool Ready(const Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
+    case 6:
         return program->created && program->shown;
     case 1:
         return program->completions >= 3;
     case 4:
         return program->closeRequests > 0;
+    case 5:
+        return Saw(program, mwin_eventWindowDestroyed);
     case 2:
     case 3:
     {
@@ -367,6 +373,26 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 4:
         CHECK(program->closeRequests == 1, "the activity finished: the window asked to close");
+        // Closed as asked; then a new window, which the activity that
+        // joined shows.
+        CHECK(mwinDestroyWindow(context, program->window) == mwin_success, "the window destroyed");
+        break;
+    case 5:
+    {
+        mwinWindowState gone;
+        CHECK(mwinGetWindowState(context, program->window, &gone) == mwin_errorStale,
+              "the destroyed window gone");
+        mwinWindowDef def = mwinDefaultWindowDef();
+        program->created = false;
+        program->shown = false;
+        program->createDone = false;
+        CHECK(mwinCreateWindow(context, &def, &program->window, nullptr) == mwin_success,
+              "a new window asked for");
+        break;
+    }
+    case 6:
+        CheckWindow(program, context);
+        CHECK(program->createDone, "the new window's making done as it shows");
         break;
     default:
         break;
@@ -396,7 +422,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     program->frame += 1;
     Collect(program, context);
     program->framedSuspended |= suspended && program->recordCount == records;
-    if (program->phase == 5)
+    if (program->phase == LAST_PHASE)
     {
         return mwin_frameStop;
     }
@@ -424,7 +450,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 5, "every phase ran");
+    CHECK(program->phase == LAST_PHASE, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

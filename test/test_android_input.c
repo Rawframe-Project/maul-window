@@ -12,8 +12,10 @@
 // through the virtual keyboard's keys, Shift's press named; Escape
 // taken by the program, so that the activity stays, and Menu, which
 // Android counts a system key, left to it; and, from Android 13, whose
-// command can scroll, a mouse's wheel. quit writes the closing line the
-// runner waits for.
+// command can scroll, a mouse's wheel; then, on the emulator's keyboard,
+// a dead key (Alt and E, a combining acute accent) and A, typing an a
+// with an acute accent. quit writes the closing line the runner waits
+// for.
 
 #include "test_harness.h"
 
@@ -32,7 +34,7 @@
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define RECORDS     128
-#define LAST_PHASE  8
+#define LAST_PHASE  9
 
 typedef struct Program
 {
@@ -146,6 +148,8 @@ static bool Ready(const Program* program)
         return KeyUpOf(program, mwin_codeKeyB) != nullptr;
     case 8:
         return android_get_device_api_level() < 33 || Find(program, mwin_eventWheel) != nullptr;
+    case 9:
+        return KeyUpOf(program, mwin_codeKeyA) != nullptr;
     default:
         return true;
     }
@@ -216,6 +220,15 @@ static void CheckTyped(const Program* program, mwinContext* context)
               shift->data.key.key == (MWIN_KEY_NAMED | mwin_codeShiftLeft),
           "Shift's press, named");
     CHECK(mwinMapKeyCode(context, mwin_codeKeyH) == 'h', "H learned to mean h");
+}
+
+// Alt and E on the emulator's keyboard, whose key map gives a combining
+// acute accent; then A, which it combines with.
+static void CheckDeadKey(const Program* program)
+{
+    CHECK(KeyUpOf(program, mwin_codeKeyE) != nullptr, "the accent's key went down and up");
+    CHECK(program->textLength == 2 && memcmp(program->text, "\xC3\xA1", 2) == 0,
+          "the accent typed nothing alone, and a after it an a with the accent");
 }
 
 static void CheckEscape(const Program* program)
@@ -305,8 +318,16 @@ static void Advance(Program* program, mwinContext* context)
     {
         const mwinEvent* wheel = Find(program, mwin_eventWheel);
         CHECK(wheel == nullptr || wheel->data.wheel.y == 1.0f, "the wheel, a detent away");
+        program->textLength = 0;
+        // The combining acute accent, which the key map puts on Alt and E,
+        // then a.
+        printf("adb: input text \xCC\x81"
+               "a\n");
         break;
     }
+    case 9:
+        CheckDeadKey(program);
+        break;
     default:
         break;
     }

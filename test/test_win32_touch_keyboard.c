@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The Win32 backend's touch keyboard: asked to show for a number field
-// and to hide, each request completes, and on Windows 10 1607 or later
+// and to hide, then to hide for a text, email, password and URL field,
+// each request completes, and on Windows 10 1607 or later
 // the window's InputPane answers (done where the keyboard shows, denied
 // where a hardware keyboard is attached), so the request is never
 // unsupported there. Under wine, which may have no InputPane, it may be.
@@ -11,7 +12,9 @@
 // the keyboard over the lower part of the client area, reports the part
 // covered in logical units, and nothing new when told again where it
 // is; shown wholly below the window or hidden, it reports none. The
-// handler answers no interface but its own.
+// handler answers no interface but its own. The input scope each purpose
+// sets is not read back: the test sees only that each request is
+// answered.
 
 #include "test_harness.h"
 #include "win32.h"
@@ -34,6 +37,11 @@ typedef enum Phase
     phaseAgain,
     phaseUncovered,
     phaseHide,
+    // Each other purpose, set as the window's input scope by a request.
+    phaseText,
+    phaseEmail,
+    phasePassword,
+    phaseUrl,
     phaseDone,
 } Phase;
 
@@ -44,7 +52,7 @@ typedef struct Program
     mwinRequestId request;
     Phase phase;
     bool wine;
-    int outcomes[2];
+    int outcomes[6];
     bool advised;
     float scale;
     float width;
@@ -203,7 +211,11 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Uncover(program, context);
             break;
         case phaseHide:
-            program->outcomes[1] = outcome;
+        case phaseText:
+        case phaseEmail:
+        case phasePassword:
+        case phaseUrl:
+            program->outcomes[1 + program->phase - phaseHide] = outcome;
             break;
         default:
             break;
@@ -214,6 +226,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             CHECK(mwinRequestVirtualKeyboard(context, program->window, show, mwin_purposeNumber,
                                              &program->request) == mwin_success,
                   show ? "asked to show" : "asked to hide");
+        }
+        if (program->phase >= phaseHide && program->phase < phaseUrl)
+        {
+            static const mwinInputPurpose purposes[] = {mwin_purposeText, mwin_purposeEmail,
+                                                        mwin_purposePassword, mwin_purposeUrl};
+            CHECK(mwinRequestVirtualKeyboard(context, program->window, false,
+                                             purposes[program->phase - phaseHide],
+                                             &program->request) == mwin_success,
+                  "asked to hide, for another purpose");
         }
         program->phase += 1;
         program->startMs = GetTickCount64();
@@ -243,6 +264,11 @@ int main(void)
           "the program runs to its end");
     CHECK(Answered(program.outcomes[0], program.wine), "showing answered by the InputPane");
     CHECK(Answered(program.outcomes[1], program.wine), "hiding answered by the InputPane");
+    for (int i = 2; i < 6; i++)
+    {
+        CHECK(Answered(program.outcomes[i], program.wine),
+              "text, email, password and URL each answered by the InputPane");
+    }
     CHECK(program.advised || program.wine, "the window follows the keyboard on Windows");
     const mwinRect* shown = &program.covered[0];
     float half = (float)(int)(program.height * program.scale / 2.0f) / program.scale;

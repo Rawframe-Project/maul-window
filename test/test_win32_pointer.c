@@ -93,9 +93,10 @@ static void Dump(const Program* program)
 {
     POINT point = OnScreen(program, 100, 80);
     (void)printf("  phase %d: %d records, %d pointer messages; under the point %p, the window "
-                 "%p, foreground %p\n",
+                 "%p, foreground %p; the cancelled touch's lift taken %d\n",
                  (int)program->phase, program->count, s_pointerMessages,
-                 (void*)WindowFromPoint(point), (void*)program->hwnd, (void*)GetForegroundWindow());
+                 (void*)WindowFromPoint(point), (void*)program->hwnd, (void*)GetForegroundWindow(),
+                 (int)program->lifted);
     for (int i = 0; i < program->count; i++)
     {
         (void)printf("    record %d\n", (int)program->records[i].type);

@@ -54,8 +54,10 @@ typedef struct Program
     mwinWindowId window;
     HWND hwnd;
     HSYNTHETICPOINTERDEVICE pen;
-    // The touch that Windows then takes, by its pointer id.
+    // The touch that Windows then takes, by its pointer id, and whether
+    // Windows took its lifting.
     uint64_t cancelled;
+    bool lifted;
     InjectFunction inject;
     mwinEvent records[MAX_RECORDS];
     int count;
@@ -197,7 +199,7 @@ static void SendGesture(Program* program)
         Touch(program, 100, 80, POINTER_FLAG_UPDATE | contact);
         SendMessageW(program->hwnd, WM_POINTERCAPTURECHANGED,
                      MAKEWPARAM((WORD)program->cancelled, 0), 0);
-        Touch(program, 100, 80, POINTER_FLAG_UP);
+        program->lifted = Touch(program, 100, 80, POINTER_FLAG_UP);
     }
     else
     {
@@ -284,6 +286,9 @@ static void Advance(Program* program, mwinContext* context)
     }
     else if (program->phase == phaseCancelled)
     {
+        // A lifting Windows refused would leave nothing to read, so "no
+        // lifting after" would hold for no reason.
+        CHECK(program->lifted, "the lift taken");
         const mwinEvent* cancelled = Find(program, mwin_eventTouchCancelled);
         CHECK(cancelled->data.touch.id == program->cancelled &&
                   Find(program, mwin_eventTouchUp) == nullptr,

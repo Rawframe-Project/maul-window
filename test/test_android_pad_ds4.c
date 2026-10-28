@@ -13,7 +13,11 @@
 // output reports (the hid tool prints them) carry the light motor at 255
 // and the heavy one at 64, then both at 0; on Android 11, whose one
 // vibrator runs at the stronger and whose hid tool prints no output, the
-// input service says the pad vibrates, then that it does not.
+// input service says the pad vibrates, then that it does not. From
+// Android 12 the pad has motion, at once or by a change a moment after
+// it is added, as Android merges the driver's motion device into it:
+// turned on, it reads the driver's samples, one g down y and a turn
+// about y; on Android 11 it has none.
 
 #include "test_harness.h"
 
@@ -25,6 +29,7 @@
 
 #include <android/api-level.h>
 #include <android/native_window.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -93,6 +98,8 @@ typedef struct Program
     mwinWindowId window;
     mwinGamepadId pad;
     bool added;
+    // Whether the pad has motion, as added or changed.
+    bool motion;
     // When the copy the phase waits for was last asked for.
     uint64_t askedNs;
     // When the input service was seen listing the pad, 0 before.
@@ -123,8 +130,29 @@ static void PutFeature(FILE* file, const uint8_t* bytes, size_t count, bool last
     fprintf(file, "]}%s", last ? "" : ",");
 }
 
+// An input report of the pad: centred, its sensors read as one g down y
+// and a turn about y, its battery half full. The kernel passes an axis on
+// only when its value changes by more than its fuzz (16 raw units for the
+// sensors), so each report's readings differ from the last by 64.
+static void PutReport(FILE* file, int index)
+{
+    uint8_t report[64] = {0x01, 0x80, 0x80, 0x80, 0x80, 0x08};
+    // Gyroscope y, then accelerometer y, in the driver's raw units.
+    uint16_t gyro = (uint16_t)(-1024 + index % 2 * 64);
+    uint16_t acceleration = (uint16_t)(-8192 + index % 2 * 64);
+    report[15] = (uint8_t)(gyro & 0xFF);
+    report[16] = (uint8_t)(gyro >> 8);
+    report[21] = (uint8_t)(acceleration & 0xFF);
+    report[22] = (uint8_t)(acceleration >> 8);
+    report[30] = 5;
+    fprintf(file, "{\"id\":1,\"command\":\"report\",\"report\":[");
+    PutBytes(file, report, sizeof(report));
+    fprintf(file, "]}\n");
+}
+
 // The hid tool's input, a script run as the shell: the pad, then, once
-// the driver has bound it, a pause that keeps it while the test runs.
+// the driver has bound it, a report every tenth of a second for a
+// minute, which keeps it while the test runs.
 // The hid tool reads its input as fast as it comes and answers the
 // driver's feature report requests only after the delays read before
 // them, so a delay read before the driver binds holds its answers back
@@ -161,7 +189,11 @@ static bool WriteScript(void)
     PutFeature(add, s_feature81, sizeof(s_feature81), false);
     PutFeature(add, s_feature12, sizeof(s_feature12), true);
     fprintf(add, "]}\n");
-    fprintf(rest, "{\"id\":1,\"command\":\"delay\",\"duration\":60000}\n");
+    for (int i = 0; i < 600; i++)
+    {
+        PutReport(rest, i);
+        fprintf(rest, "{\"id\":1,\"command\":\"delay\",\"duration\":100}\n");
+    }
     fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/ds4-add.json\n"
                     "i=0\n"
                     "while [ $i -lt 300 ] && ! ls /sys/class/power_supply | "
@@ -266,6 +298,7 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
     }
     program->pad = id;
     program->added = true;
+    program->motion = (info.capabilities & mwin_padMotion) != 0;
     CHECK(info.vendor == 0x054c && info.product == 0x05c4 && info.mapped,
           "the pad's vendor and product, mapped");
     CHECK((info.capabilities & mwin_padRumble) != 0, "the pad's motors");
@@ -292,6 +325,14 @@ static void Collect(Program* program, mwinContext* context)
         if (event.type == mwin_eventGamepadAdded && !program->added)
         {
             Added(program, context, event.data.gamepad);
+        }
+        else if (event.type == mwin_eventGamepadChanged && program->added &&
+                 event.data.gamepad.index1 == program->pad.index1 &&
+                 event.data.gamepad.generation == program->pad.generation)
+        {
+            mwinGamepadInfo info = {0};
+            (void)mwinGetGamepadInfo(context, program->pad, &info);
+            program->motion = (info.capabilities & mwin_padMotion) != 0;
         }
     }
 }
@@ -379,9 +420,37 @@ static bool Ready(Program* program, mwinContext* context)
     case 2:
     case 3:
         return Copied(program);
+    case 4:
+        return android_get_device_api_level() < 31 || program->motion;
+    case 5:
+    {
+        // Each sensor's samples come on their own: both must have come.
+        mwinGamepadMotion motion = {0};
+        return android_get_device_api_level() < 31 ||
+               (mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+                motion.acceleration[1] != 0.0f && motion.rotationRate[1] != 0.0f);
+    }
     default:
         return true;
     }
+}
+
+// The pad's motion: one g down y as the driver calibrates it, and a
+// turn about y, nothing about the other axes.
+static void CheckMotion(Program* program, mwinContext* context)
+{
+    mwinGamepadMotion motion = {0};
+    CHECK(mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+              fabsf(motion.acceleration[0]) < 0.1f && fabsf(motion.acceleration[1] + 9.8f) < 1.0f &&
+              fabsf(motion.acceleration[2]) < 0.1f,
+          "one g down y");
+    CHECK(fabsf(motion.rotationRate[0]) < 0.1f && motion.rotationRate[1] < -0.5f &&
+              fabsf(motion.rotationRate[2]) < 0.1f,
+          "a turn about y");
+    printf("  acceleration %.3f %.3f %.3f, rotation rate %.3f %.3f %.3f\n",
+           (double)motion.acceleration[0], (double)motion.acceleration[1],
+           (double)motion.acceleration[2], (double)motion.rotationRate[0],
+           (double)motion.rotationRate[1], (double)motion.rotationRate[2]);
 }
 
 // The check of what the running or the stopped motors should show, on
@@ -424,6 +493,27 @@ static void Advance(Program* program, mwinContext* context)
     case 3:
         CheckCopy(program->phase);
         break;
+    case 4:
+        if (android_get_device_api_level() >= 31)
+        {
+            CHECK(mwinSetGamepadMotion(context, program->pad, true) == mwin_success,
+                  "the pad's motion turned on");
+        }
+        else
+        {
+            CHECK(!program->motion &&
+                      mwinSetGamepadMotion(context, program->pad, true) == mwin_errorUnsupported,
+                  "no motion on Android 11");
+        }
+        break;
+    case 5:
+        if (android_get_device_api_level() >= 31)
+        {
+            CheckMotion(program, context);
+            CHECK(mwinSetGamepadMotion(context, program->pad, false) == mwin_success,
+                  "the pad's motion turned off");
+        }
+        break;
     default:
         break;
     }
@@ -447,7 +537,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     Collect(program, context);
-    if (program->phase > 3)
+    if (program->phase > 5)
     {
         return mwin_frameStop;
     }
@@ -468,9 +558,14 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         {
             printf("Android had not listed it\n");
         }
-        if (program->phase >= 2)
+        if (program->phase == 2 || program->phase == 3)
         {
             CheckCopy(program->phase);
+        }
+        CHECK(program->phase != 4, "the pad's motion, as added or changed");
+        if (program->phase == 5)
+        {
+            CheckMotion(program, context);
         }
         s_failures += 1;
         return mwin_frameStop;
@@ -483,7 +578,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > 3, "every phase ran");
+    CHECK(program->phase > 5, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

@@ -76,9 +76,9 @@ final class Gamepads {
     }
 
     /**
-     * What a gamepad is and has: its vendor and product, its motors, a
-     * bit for each of the keys given it has (the low and high 32), then
-     * its joystick axes in increasing order; null once it is gone.
+     * What a gamepad is and has: its vendor and product, a bit for each
+     * of the keys given it has (the low and high 32), then its joystick
+     * axes in increasing order; null once it is gone.
      */
     static int[] describe(int id, int[] keys) {
         InputDevice device = InputDevice.getDevice(id);
@@ -101,13 +101,12 @@ final class Gamepads {
         for (int i = 0; i < keys.length && i < 64; i++) {
             bits |= has[i] ? 1L << i : 0;
         }
-        int[] facts = new int[5 + count];
+        int[] facts = new int[4 + count];
         facts[0] = device.getVendorId();
         facts[1] = device.getProductId();
-        facts[2] = motors(device).length;
-        facts[3] = (int) bits;
-        facts[4] = (int) (bits >>> 32);
-        System.arraycopy(axes, 0, facts, 5, count);
+        facts[2] = (int) bits;
+        facts[3] = (int) (bits >>> 32);
+        System.arraycopy(axes, 0, facts, 4, count);
         return facts;
     }
 
@@ -226,9 +225,18 @@ final class Gamepads {
                 : null;
     }
 
-    /** Whether a gamepad has an accelerometer and a gyroscope. */
-    static boolean hasMotion(int id) {
-        return sensors(id) != null;
+    /**
+     * What a gamepad can do: 1 for motors, 2 for an accelerometer and a
+     * gyroscope; 0 once it is gone. Android merges a pad's kernel
+     * devices into one as each appears, so this can grow a moment after
+     * the pad is first listed.
+     */
+    static int capabilities(int id) {
+        InputDevice device = InputDevice.getDevice(id);
+        if (device == null) {
+            return 0;
+        }
+        return (motors(device).length > 0 ? 1 : 0) | (sensors(id) != null ? 2 : 0);
     }
 
     /**

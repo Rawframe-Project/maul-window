@@ -5,14 +5,15 @@
 // (tools/run_android_app.sh, which puts every setting back): reduced
 // motion while the runner's animator scale is 0; the accent from
 // Android 12; preferred locales; the battery unplugged, told within the
-// power's look, then battery saver on; the night mode and the font scale
-// changed, told through the activity made anew, with no resize; Back,
-// held, asking the window to close once, on its release, and tapped,
-// asking again, the activity staying in front; and a Back whose release
-// Android cancels (a back gesture pulled away), injected into the test's
-// own window from a thread of the test's, asking nothing (where Android
-// lets an application inject into its own window: Android 11 does,
-// Android 15 asks for INJECT_EVENTS).
+// power's look, then, once the power manager holds it unplugged, battery
+// saver on; the night mode and the font scale changed, told through the
+// activity made anew, with no resize; Back, held, asking the window to
+// close once, on its release, and tapped, asking again, the activity
+// staying in front; and a Back whose release Android cancels (a back
+// gesture pulled away), injected into the test's own window from a
+// thread of the test's, asking nothing (where Android lets an
+// application inject into its own window: Android 11 does, Android 15
+// asks for INJECT_EVENTS).
 
 #include "test_harness.h"
 
@@ -33,7 +34,8 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
-#define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
+#define FILES       "/data/data/" MWIN_TEST_PACKAGE "/files/"
+#define OUT_PATH    FILES "out"
 #define LAST_PHASE  6
 
 // KeyEvent's codes and flags.
@@ -55,6 +57,8 @@ typedef struct Program
     int resizes;
     mwinTheme theme;
     int framesAfterClose;
+    // When the power manager's state was last asked for.
+    uint64_t askedNs;
     ANativeActivity* activity;
     pthread_t injector;
     atomic_bool injected;
@@ -151,6 +155,35 @@ static void* InjectCancelledBack(void* user)
     return nullptr;
 }
 
+// Whether the power manager holds the device unplugged, asked of it each
+// second through the runner: it hears of the unplugging after the
+// battery's broadcast, which the library reads, seconds after on a fresh
+// Android 15, and Android turns battery saver on only for a device it
+// holds unplugged, and not again when it hears of the unplugging.
+static bool Unplugged(Program* program)
+{
+    char text[256] = {0};
+    FILE* file = fopen(FILES "power", "r");
+    if (file != nullptr)
+    {
+        (void)fread(text, 1, sizeof(text) - 1, file);
+        (void)fclose(file);
+    }
+    if (strstr(text, "mIsPowered=false") != nullptr && strstr(text, "mIsPowered=true") == nullptr)
+    {
+        return true;
+    }
+    uint64_t now = NowNs();
+    if (now - program->askedNs >= 1000000000u)
+    {
+        (void)remove(FILES "power");
+        printf("adb: sh -c 'dumpsys power | grep mIsPowered | run-as " MWIN_TEST_PACKAGE
+               " sh -c \"cat > files/power.part && mv files/power.part files/power\"'\n");
+        program->askedNs = now;
+    }
+    return false;
+}
+
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
@@ -163,7 +196,7 @@ static bool Ready(Program* program, mwinContext* context)
     case 1:
         // Only the power's look can see this: unplugging changes nothing
         // else.
-        return program->powerChanged && facts.onBattery == mwin_yes;
+        return program->powerChanged && facts.onBattery == mwin_yes && Unplugged(program);
     case 2:
         return facts.lowPower == mwin_yes;
     case 3:
@@ -266,6 +299,8 @@ static mwinResult Init(mwinContext* context, void* user)
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
     program->startNs = NowNs();
+    // The power manager's state a run before this one may have left.
+    (void)remove(FILES "power");
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
 

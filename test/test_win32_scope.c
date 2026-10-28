@@ -3,8 +3,10 @@
 //
 // The input scope each purpose sets on Windows (win32_scope.h), on any
 // platform: number, email, password and URL each their own, text and a
-// value the contract does not name the default. On Windows, each scope
-// must be inputscope.h's own number.
+// value that is not a purpose the default. Each purpose the contract
+// counts (MWIN_INPUT_PURPOSES) has one row in the test's table, so a
+// purpose added without its scope fails. On Windows, each scope must be
+// inputscope.h's own number.
 
 #include "test_harness.h"
 #include "win32_scope.h"
@@ -14,16 +16,44 @@
 #include <windows.h>
 #endif
 
+// Each purpose's scope, one row a purpose: a purpose the contract gains
+// needs a row, or the check of the count fails.
+static const struct
+{
+    mwinInputPurpose purpose;
+    int scope;
+} s_scopes[] = {
+    {mwin_purposeText, mwin_scopeDefault}, {mwin_purposeNumber, mwin_scopeNumber},
+    {mwin_purposeEmail, mwin_scopeEmail},  {mwin_purposePassword, mwin_scopePassword},
+    {mwin_purposeUrl, mwin_scopeUrl},
+};
+
+#define ROWS (sizeof(s_scopes) / sizeof(s_scopes[0]))
+
 static void TestPurposes(void)
 {
-    CHECK(mwinWin32ScopeOf(mwin_purposeText) == mwin_scopeDefault, "text takes the default");
-    CHECK(mwinWin32ScopeOf(mwin_purposeNumber) == mwin_scopeNumber, "number takes the number");
-    CHECK(mwinWin32ScopeOf(mwin_purposeEmail) == mwin_scopeEmail, "email takes the email address");
-    CHECK(mwinWin32ScopeOf(mwin_purposePassword) == mwin_scopePassword,
-          "password takes the password");
-    CHECK(mwinWin32ScopeOf(mwin_purposeUrl) == mwin_scopeUrl, "URL takes the URL");
-    CHECK(mwinWin32ScopeOf(5) == mwin_scopeDefault && mwinWin32ScopeOf(255) == mwin_scopeDefault,
-          "a value not named takes the default");
+    // Every purpose below the count has its own row.
+    bool rowed[256] = {false};
+    bool unique = true;
+    for (size_t i = 0; i < ROWS; i++)
+    {
+        unique = unique && !rowed[s_scopes[i].purpose];
+        rowed[s_scopes[i].purpose] = true;
+    }
+    bool every = ROWS == MWIN_INPUT_PURPOSES && unique;
+    for (int purpose = 0; purpose < MWIN_INPUT_PURPOSES; purpose++)
+    {
+        every = every && rowed[purpose];
+    }
+    CHECK(every, "a row for every purpose, and one each");
+    for (size_t i = 0; i < ROWS; i++)
+    {
+        CHECK(mwinWin32ScopeOf(s_scopes[i].purpose) == s_scopes[i].scope,
+              "each purpose takes its scope");
+    }
+    CHECK(mwinWin32ScopeOf(MWIN_INPUT_PURPOSES) == mwin_scopeDefault &&
+              mwinWin32ScopeOf(255) == mwin_scopeDefault,
+          "a value not a purpose takes the default");
 }
 
 static void TestWindowsNumbers(void)

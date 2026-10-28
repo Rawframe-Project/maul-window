@@ -107,7 +107,8 @@ static void Advance(Program* program)
         CHECK(program->downs == 1 && program->ups == 1 && program->downId == program->upId,
               "one finger down and up, through the system");
         CGPoint inView = [program->view convertPoint:program->tapped fromView:nil];
-        CHECK(fabs(program->down.x - inView.x) < 2.0 && fabs(program->down.y - inView.y) < 2.0,
+        CHECK(fabs((CGFloat)program->down.x - inView.x) < 2.0 &&
+                  fabs((CGFloat)program->down.y - inView.y) < 2.0,
               "where it was tapped");
         break;
     }

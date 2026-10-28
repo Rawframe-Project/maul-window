@@ -243,6 +243,10 @@ static mwinResult CheckDef(const mwinContext* context, const mwinWindowDef* def)
 mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwinWindowId* windowOut,
                             mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || def == nullptr || windowOut == nullptr)
     {
         return mwinMisuse(context);
@@ -296,6 +300,10 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
 
 mwinResult mwinDestroyWindow(mwinContext* context, mwinWindowId window)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -363,6 +371,10 @@ mwinResult mwinBeginRequest(mwinContext* context, mwinWindowId window, mwinReque
 mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window, const char* title,
                             size_t length, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     mwinResult checked =
         context != nullptr
             ? mwinCheckText(title, length, context->limits.titleBytes, mwin_errorCapacity, true)
@@ -391,6 +403,10 @@ mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window, const cha
 mwinResult mwinRequestSize(mwinContext* context, mwinWindowId window, mwinSize size,
                            mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (!IsPositive(size))
     {
         return mwinMisuse(context);
@@ -409,6 +425,10 @@ mwinResult mwinRequestSize(mwinContext* context, mwinWindowId window, mwinSize s
 mwinResult mwinRequestPosition(mwinContext* context, mwinWindowId window, mwinPosition position,
                                mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (!isfinite(position.x) || !isfinite(position.y))
     {
         return mwinMisuse(context);
@@ -427,6 +447,10 @@ mwinResult mwinRequestPosition(mwinContext* context, mwinWindowId window, mwinPo
 mwinResult mwinRequestMode(mwinContext* context, mwinWindowId window, mwinWindowMode mode,
                            mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (mode > mwin_modeMaximized)
     {
         return mwinMisuse(context);
@@ -445,6 +469,10 @@ mwinResult mwinRequestMode(mwinContext* context, mwinWindowId window, mwinWindow
 mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window, bool visible,
                               mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     uint32_t slot = 0;
     int32_t request = 0;
     mwinResult status = mwinBeginRequest(context, window, mwin_requestVisible, &slot, &request);
@@ -458,6 +486,10 @@ mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window, bool vi
 
 mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     uint32_t slot = 0;
     int32_t request = 0;
     mwinResult status = mwinBeginRequest(context, window, mwin_requestFocus, &slot, &request);
@@ -471,6 +503,10 @@ mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window, mwinReque
 mwinResult mwinRequestSizeLimits(mwinContext* context, mwinWindowId window, mwinSize minimum,
                                  mwinSize maximum, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     bool finite = isfinite(minimum.width) && isfinite(minimum.height) && isfinite(maximum.width) &&
                   isfinite(maximum.height);
     if (!finite || minimum.width < 0.0f || minimum.height < 0.0f || maximum.width < 0.0f ||
@@ -494,6 +530,10 @@ mwinResult mwinRequestSizeLimits(mwinContext* context, mwinWindowId window, mwin
 mwinResult mwinRequestAspectRatio(mwinContext* context, mwinWindowId window, uint32_t width,
                                   uint32_t height, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if ((width == 0) != (height == 0))
     {
         return mwinMisuse(context);
@@ -513,6 +553,10 @@ mwinResult mwinRequestAspectRatio(mwinContext* context, mwinWindowId window, uin
 mwinResult mwinRequestStyle(mwinContext* context, mwinWindowId window, mwinWindowStyle style,
                             mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (style > ALL_STYLES)
     {
         return mwinMisuse(context);
@@ -531,6 +575,10 @@ mwinResult mwinRequestStyle(mwinContext* context, mwinWindowId window, mwinWindo
 mwinResult mwinRequestOpacity(mwinContext* context, mwinWindowId window, float opacity,
                               mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (!(opacity >= 0.0f && opacity <= 1.0f))
     {
         return mwinMisuse(context);

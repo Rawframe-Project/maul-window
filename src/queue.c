@@ -543,6 +543,10 @@ static mwinRing* FindOldest(mwinContext* context, mwinWindow** windowOut)
 
 mwinResult mwinNextEvent(mwinContext* context, mwinEvent* eventOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || eventOut == nullptr)
     {
         return mwinMisuse(context);

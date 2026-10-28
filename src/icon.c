@@ -62,6 +62,10 @@ mwinIconCopy* mwinCopyIconImages(const mwinContext* context, const mwinIconImage
 mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window, const mwinIconImage* images,
                            uint32_t count, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (images == nullptr && count != 0))
     {
         return mwinMisuse(context);

@@ -170,6 +170,10 @@ mwinOutcome mwinTestUseClipboard(mwinContext* context, const mwinRequest* reques
 
 mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (bytes == nullptr && length != 0))
     {
         return mwinMisuse(context);
@@ -183,6 +187,10 @@ mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t 
 
 mwinResult mwinTestSetClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (units == nullptr && length != 0))
     {
         return mwinMisuse(context);
@@ -218,6 +226,10 @@ mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t
 mwinResult mwinTestSetClipboardData(mwinContext* context, const char* mime, size_t mimeLength,
                                     const void* bytes, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || mime == nullptr || mimeLength == 0 ||
         (bytes == nullptr && length != 0))
     {
@@ -280,6 +292,10 @@ mwinResult mwinTestGetClipboardData(const mwinContext* context, const char* mime
 
 mwinResult mwinTestSetPrimary(mwinContext* context, const char* bytes, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (bytes == nullptr && length != 0))
     {
         return mwinMisuse(context);
@@ -315,6 +331,10 @@ mwinResult mwinTestGetPrimary(const mwinContext* context, char* buffer, size_t c
 mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
                         const char* files, size_t filesLength, const char* text, size_t textLength)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (files == nullptr && filesLength != 0) ||
         (filesLength > 0 && files[filesLength - 1] != '\0'))
     {
@@ -390,6 +410,10 @@ mwinResult mwinTestGetOpened(const mwinContext* context, mwinRequestKind kind, c
 
 mwinResult mwinTestSetDialogFiles(mwinContext* context, const char* files, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || (files == nullptr && length > 0) || length > MWIN_TEST_DIALOG_BYTES ||
         (length > 0 && files[length - 1] != '\0'))
     {
@@ -512,6 +536,10 @@ mwinResult mwinTestGetIcon(const mwinContext* context, uint32_t* countOut, uint6
 
 mwinResult mwinTestAskAccessibility(mwinContext* context, mwinWindowId window)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -549,6 +577,10 @@ mwinKeyReach mwinTestKeyReachOf(const mwinContext* context, mwinKeyCode code,
 mwinResult mwinTestSetKeyReach(mwinContext* context, mwinKeyCode code, mwinModifiers modifiers,
                                mwinKeyReach reach)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight ||
         reach > mwin_keyReachNever)
     {

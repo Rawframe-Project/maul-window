@@ -226,7 +226,12 @@ typedef struct mwinDropPayload
 
 struct mwinContext
 {
+    // Every block after the context's own goes through allocator, which
+    // calls the program's, host, and counts in hosting the calls under
+    // way: while one is, a call that changes the context is refused.
     mwinAllocator allocator;
+    mwinAllocator host;
+    uint32_t hosting;
     size_t memorySize;
     // Calls refused as invalid input, counted through misuse, which
     // points at misuseCount so that calls taking a const context count
@@ -443,6 +448,21 @@ static inline mwinResult mwinMisuse(const mwinContext* context)
         ++*context->misuse;
     }
     return mwin_errorInvalid;
+}
+
+// Whether the context is inside the program's allocator, where a call
+// that changes it is refused through mwinBusy.
+static inline bool mwinIsBusy(const mwinContext* context)
+{
+    return context != nullptr && context->hosting > 0;
+}
+
+// Counts one misuse on a context inside its allocator and answers
+// mwin_errorBusy.
+static inline mwinResult mwinBusy(const mwinContext* context)
+{
+    ++*context->misuse;
+    return mwin_errorBusy;
 }
 
 // Answers a refusal's status, counting one misuse on a live context

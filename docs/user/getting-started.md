@@ -97,11 +97,11 @@ Three rules hold everywhere:
 
 ## Results, ids and defs
 
-Every fallible function returns an `mwinResult`: `mwin_success`, or `mwin_errorInvalid` (a bad argument), `mwin_errorStale` (an id whose object is gone), `mwin_errorCapacity` (a limit of `mwinLimits` is full, or memory), `mwin_errorUnsupported`, `mwin_errorPlatform`, `mwin_errorState`, `mwin_errorVersion` or `mwin_errorLimit` (an argument past a fixed bound with a named constant, such as `MWIN_MAX_ADDRESS_BYTES`, which more room would not lift). The values are the Maul family's: a status means the same in every Maul library. `mwinResultName` names each one for diagnostics.
+Every fallible function returns an `mwinResult`: `mwin_success`, or `mwin_errorInvalid` (a bad argument), `mwin_errorStale` (an id whose object is gone), `mwin_errorCapacity` (a limit of `mwinLimits` is full, or memory), `mwin_errorUnsupported`, `mwin_errorPlatform`, `mwin_errorState`, `mwin_errorVersion`, `mwin_errorLimit` (an argument past a fixed bound with a named constant, such as `MWIN_MAX_ADDRESS_BYTES`, which more room would not lift) or `mwin_errorBusy` (a call made from inside the context's allocator). The values are the Maul family's: a status means the same in every Maul library. `mwinResultName` names each one for diagnostics.
 
 Windows, monitors, gamepads, cursors and requests are ids with a generation. An id outlives its object harmlessly: using it afterwards answers `mwin_errorStale`, and a slot is reused only once the record of its end has been drained.
 
-Each `mwin_errorInvalid` or `mwin_errorLimit` a live context returns also counts as one misuse, which `mwinGetContextMisuse` reads. A release build can watch the count to catch a program's bugs; stale ids count nothing.
+Each `mwin_errorInvalid`, `mwin_errorLimit` or `mwin_errorBusy` a live context returns also counts as one misuse, which `mwinGetContextMisuse` reads. A release build can watch the count to catch a program's bugs; stale ids count nothing.
 
 Defs carry a cookie. Build each with its `mwinDefault...` function and change the fields; a def made any other way is refused. The application def and the message box def, which need no context, also carry the version of the headers the program was built with, and `mwinRun` and `mwinShowMessageBox` refuse a def built against another release with `mwin_errorVersion` before reading anything else of it.
 
@@ -109,7 +109,7 @@ Defs carry a cookie. Build each with its `mwinDefault...` function and change th
 
 Every limit on memory and work is a field of `mwinLimits` in the context def, with a default: 8 windows; per window 32 requests in flight, 256 notifications, 256 input records per class and 4,096 bytes of text; 16 monitors; 8 gamepads; 1 MiB of clipboard text; 256 files and 1 MiB per drop and per dialog; 16 cursors. A request past a limit is refused with `mwin_errorCapacity`.
 
-The context takes its memory when it is created, through the def's allocator; nothing is allocated on the event path. Payloads whose size the user decides (clipboard text, a drop, a dialog's paths) take a block of their own size when they arrive and give it back at the next one.
+The context takes its memory when it is created, through the def's allocator; nothing is allocated on the event path. Payloads whose size the user decides (clipboard text, a drop, a dialog's paths) take a block of their own size when they arrive and give it back at the next one. The allocator calls nothing that changes the context: while it runs, every function that takes a non-const context refuses with `mwin_errorBusy`.
 
 ## Where to go next
 

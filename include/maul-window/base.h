@@ -112,6 +112,10 @@ extern "C"
         // library, published as a named constant (MWIN_*): more room in
         // mwinLimits would not help.
         mwin_errorLimit = -9,
+        // The context is inside the program's allocator, which calls no
+        // function that changes it; the same call succeeds once the
+        // allocator returns.
+        mwin_errorBusy = -10,
     };
 
     // A yes or no the platform may not know.
@@ -126,7 +130,8 @@ extern "C"
 
     // The allocator an owner object takes in its def and keeps for its
     // lifetime. Alignment is a power of two. A zeroed allocator means the C
-    // library's allocation functions.
+    // library's allocation functions. It calls no function that changes
+    // the object it serves: such a call returns mwin_errorBusy.
     typedef struct mwinAllocator
     {
         void* (*alloc)(size_t size, size_t alignment, void* context);

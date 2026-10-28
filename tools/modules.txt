@@ -30,6 +30,7 @@ backend_android: allocator android backend core key_reach
 backend_ios: allocator backend core ios key_reach
 backend_macos: allocator backend core key_reach macos
 backend_test: allocator backend core cursor
+backend_test_pads: backend_test core
 backend_test_services: accessibility allocator backend backend_test clipboard_data core dialog icon
 backend_test_text: backend_test core
 backend_wayland: allocator backend core key_reach wayland wayland_api wayland_clipboard wayland_cursor wayland_drop wayland_keyboard wayland_output wayland_seat wayland_tablet wayland_text wayland_window xkb_api

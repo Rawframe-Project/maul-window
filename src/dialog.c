@@ -158,6 +158,10 @@ static mwinDialogCopy* Copy(const mwinContext* context, const mwinFileDialogDef*
 mwinResult mwinRequestFileDialog(mwinContext* context, mwinWindowId window,
                                  const mwinFileDialogDef* def, mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || def == nullptr)
     {
         return mwinMisuse(context);

@@ -150,8 +150,8 @@ if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         COMPILE_DEFINITIONS _POSIX_C_SOURCE=200809L)
 endif()
 if(MAUL_WINDOW_TEST_BACKEND)
-    target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_services.c
-        src/backend_test_text.c)
+    target_sources(maul-window PRIVATE src/backend_test.c src/backend_test_pads.c
+        src/backend_test_services.c src/backend_test_text.c)
     target_compile_definitions(maul-window PRIVATE MAUL_WINDOW_TEST_BACKEND)
 endif()
 # The gamepad component: its functions, and the backends' gamepad code.
@@ -271,6 +271,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(window)
         maul_add_test(input)
         maul_add_test(lifecycle)
+        # Calls from inside the allocator; with the gamepad component, a
+        # gamepad's setter among them.
+        maul_add_test(busy)
+        if(TARGET test_busy AND MAUL_WINDOW_GAMEPAD)
+            target_compile_definitions(test_busy PRIVATE MWIN_TEST_GAMEPAD)
+        endif()
         maul_add_test(monitor)
         maul_add_test(system)
         maul_add_test(ime)

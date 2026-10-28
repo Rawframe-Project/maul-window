@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What the test backend keeps, shared by backend_test.c and the
-// services it plays (backend_test_services.c).
+// What the test backend keeps, shared by backend_test.c, its gamepads
+// (backend_test_pads.c) and the services it plays
+// (backend_test_services.c).
 
 #ifndef MAUL_WINDOW_SRC_BACKEND_TEST_H
 #define MAUL_WINDOW_SRC_BACKEND_TEST_H

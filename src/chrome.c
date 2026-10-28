@@ -20,6 +20,10 @@ mwinResult mwinRequestHitRegions(mwinContext* context, mwinWindowId window,
                                  const mwinHitRegion* regions, uint32_t count,
                                  mwinRequestId* requestOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (regions == nullptr && count != 0)
     {
         return mwinMisuse(context);

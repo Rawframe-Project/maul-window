@@ -504,6 +504,10 @@ const mwinBackendOps mwinTestBackend = {
 
 mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOutcome outcome)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     bool cancelled = outcome == mwin_outcomeCancelled && kind != mwin_requestFileDialog;
     if (context == nullptr || kind >= MWIN_TEST_KINDS || outcome == mwin_outcomeSuperseded ||
         cancelled || outcome > mwin_outcomeFailed)
@@ -521,6 +525,10 @@ mwinResult mwinTestSetAnswer(mwinContext* context, mwinRequestKind kind, mwinOut
 
 mwinResult mwinTestHold(mwinContext* context, bool hold)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -611,6 +619,10 @@ mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* even
 
 mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || event == nullptr || !IsReportable(event->type))
     {
         return mwinMisuse(context);
@@ -636,6 +648,10 @@ mwinResult mwinTestPost(mwinContext* context, const mwinEvent* event)
 
 mwinResult mwinTestSetTime(mwinContext* context, uint64_t timeNs)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     if (context == nullptr || (platform != nullptr && timeNs < platform->timeNs))
     {
@@ -651,6 +667,10 @@ mwinResult mwinTestSetTime(mwinContext* context, uint64_t timeNs)
 
 mwinResult mwinTestSetScale(mwinContext* context, float scale)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || !isfinite(scale) || scale <= 0.0f)
     {
         return mwinMisuse(context);
@@ -692,6 +712,10 @@ mwinResult mwinTestGetTitle(const mwinContext* context, mwinWindowId window, cha
 mwinResult mwinTestAddMonitor(mwinContext* context, const mwinMonitorInfo* info,
                               mwinMonitorId* monitorOut)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || info == nullptr || monitorOut == nullptr)
     {
         return mwinMisuse(context);
@@ -712,6 +736,10 @@ mwinResult mwinTestAddMonitor(mwinContext* context, const mwinMonitorInfo* info,
 mwinResult mwinTestChangeMonitor(mwinContext* context, mwinMonitorId monitor,
                                  const mwinMonitorInfo* info)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || info == nullptr)
     {
         return mwinMisuse(context);
@@ -731,6 +759,10 @@ mwinResult mwinTestChangeMonitor(mwinContext* context, mwinMonitorId monitor,
 
 mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -750,6 +782,10 @@ mwinResult mwinTestRemoveMonitor(mwinContext* context, mwinMonitorId monitor)
 
 mwinResult mwinTestSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr || facts == nullptr)
     {
         return mwinMisuse(context);
@@ -764,6 +800,10 @@ mwinResult mwinTestSetSystemFacts(mwinContext* context, const mwinSystemFacts* f
 
 mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t length)
 {
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
     if (context == nullptr)
     {
         return mwinMisuse(context);
@@ -778,157 +818,6 @@ mwinResult mwinTestSetLocales(mwinContext* context, const char* locales, size_t 
     }
     return mwinSetLocales(context, locales, length, Now(context)) ? mwin_success
                                                                   : mwinMisuse(context);
-}
-
-// The slot of a gamepad of a test context, or why there is none.
-static mwinResult FindTestGamepad(const mwinContext* context, mwinGamepadId gamepad,
-                                  int32_t* slotOut)
-{
-    if (context == nullptr)
-    {
-        return mwinMisuse(context);
-    }
-    if (mwinTestPlatformOf(context) == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    *slotOut = mwinFindGamepad(context, gamepad);
-    return *slotOut < 0 ? mwin_errorStale : mwin_success;
-}
-
-mwinResult mwinTestAddGamepad(mwinContext* context, const mwinGamepadInfo* info,
-                              mwinGamepadId* gamepadOut)
-{
-    if (context == nullptr || info == nullptr || gamepadOut == nullptr)
-    {
-        return mwinMisuse(context);
-    }
-    if (mwinTestPlatformOf(context) == nullptr)
-    {
-        return mwin_errorUnsupported;
-    }
-    int32_t slot = mwinAddGamepad(context, info, Now(context));
-    if (slot < 0)
-    {
-        return mwin_errorCapacity;
-    }
-    mwinTestPlatformOf(context)->pads[slot] = (mwinTestPad){0};
-    *gamepadOut = mwinGamepadIdOf(context, (uint32_t)slot);
-    return mwin_success;
-}
-
-mwinResult mwinTestChangeGamepad(mwinContext* context, mwinGamepadId gamepad,
-                                 const mwinGamepadInfo* info)
-{
-    int32_t slot = -1;
-    mwinResult status =
-        info != nullptr ? FindTestGamepad(context, gamepad, &slot) : mwinMisuse(context);
-    if (status == mwin_success)
-    {
-        mwinChangeGamepad(context, (uint32_t)slot, info, Now(context));
-    }
-    return status;
-}
-
-mwinResult mwinTestRemoveGamepad(mwinContext* context, mwinGamepadId gamepad)
-{
-    int32_t slot = -1;
-    mwinResult status = FindTestGamepad(context, gamepad, &slot);
-    if (status == mwin_success)
-    {
-        mwinRemoveGamepad(context, (uint32_t)slot, Now(context));
-    }
-    return status;
-}
-
-mwinResult mwinTestGamepadButton(mwinContext* context, mwinGamepadId gamepad, uint8_t button,
-                                 bool down)
-{
-    int32_t slot = -1;
-    mwinResult status = FindTestGamepad(context, gamepad, &slot);
-    if (status == mwin_success)
-    {
-        mwinPostGamepadButton(context, (uint32_t)slot, button, down, Now(context));
-    }
-    return status;
-}
-
-mwinResult mwinTestGamepadAxis(mwinContext* context, mwinGamepadId gamepad, uint8_t axis,
-                               float value)
-{
-    int32_t slot = -1;
-    mwinResult status = FindTestGamepad(context, gamepad, &slot);
-    if (status == mwin_success)
-    {
-        mwinPostGamepadAxis(context, (uint32_t)slot, axis, value, Now(context));
-    }
-    return status;
-}
-
-// Reads one of a test gamepad's rumbles: its motors' or its triggers'.
-static mwinResult GetRumble(const mwinContext* context, mwinGamepadId gamepad, bool triggers,
-                            float* lowOut, float* highOut, uint32_t* durationMsOut,
-                            uint32_t* countOut)
-{
-    if (lowOut == nullptr || highOut == nullptr || durationMsOut == nullptr || countOut == nullptr)
-    {
-        return mwinMisuse(context);
-    }
-    int32_t slot = -1;
-    mwinResult status = FindTestGamepad(context, gamepad, &slot);
-    if (status == mwin_success)
-    {
-        const mwinTestPad* pad = &mwinTestPlatformOf(context)->pads[slot];
-        const mwinTestRumble* rumble = triggers ? &pad->triggers : &pad->rumble;
-        *lowOut = rumble->low;
-        *highOut = rumble->high;
-        *durationMsOut = rumble->durationMs;
-        *countOut = rumble->count;
-    }
-    return status;
-}
-
-mwinResult mwinTestGetRumble(const mwinContext* context, mwinGamepadId gamepad, float* lowOut,
-                             float* highOut, uint32_t* durationMsOut, uint32_t* countOut)
-{
-    return GetRumble(context, gamepad, false, lowOut, highOut, durationMsOut, countOut);
-}
-
-mwinResult mwinTestGetTriggerRumble(const mwinContext* context, mwinGamepadId gamepad,
-                                    float* leftOut, float* rightOut, uint32_t* durationMsOut,
-                                    uint32_t* countOut)
-{
-    return GetRumble(context, gamepad, true, leftOut, rightOut, durationMsOut, countOut);
-}
-
-mwinResult mwinTestGetMotionOn(const mwinContext* context, mwinGamepadId gamepad, bool* onOut)
-{
-    if (onOut == nullptr)
-    {
-        return mwinMisuse(context);
-    }
-    int32_t slot = -1;
-    mwinResult status = FindTestGamepad(context, gamepad, &slot);
-    if (status == mwin_success)
-    {
-        *onOut = mwinTestPlatformOf(context)->pads[slot].motion;
-    }
-    return status;
-}
-
-mwinResult mwinTestGamepadMotion(mwinContext* context, mwinGamepadId gamepad,
-                                 const float acceleration[3], const float rotationRate[3],
-                                 uint64_t timeNs)
-{
-    int32_t slot = -1;
-    mwinResult status = acceleration != nullptr && rotationRate != nullptr
-                            ? FindTestGamepad(context, gamepad, &slot)
-                            : mwinMisuse(context);
-    if (status == mwin_success)
-    {
-        mwinPostGamepadMotion(context, (uint32_t)slot, acceleration, rotationRate, timeNs);
-    }
-    return status;
 }
 
 mwinResult mwinTestGetCursor(const mwinContext* context, mwinWindowId window,

@@ -35,8 +35,8 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
-    /// @param buffer     Receives the paths. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the paths' length in bytes, NULs
     ///                   included.
     /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit
@@ -45,24 +45,26 @@ extern "C"
     ///         argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetDroppedFiles(const mwinContext* context,
-                                                           uint32_t drop, char* buffer,
-                                                           size_t capacity, size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetDroppedFiles(const mwinContext* context,
+                                                                   uint32_t drop, char* bufferOut,
+                                                                   size_t capacity,
+                                                                   size_t* lengthOut);
 
     /// Copies out the text of a drop.
     ///
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
-    /// @param buffer     Receives the text in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes.
-    /// @return As mwinGetDroppedFiles.
+    /// @return As mwinContext_GetDroppedFiles.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetDroppedText(const mwinContext* context, uint32_t drop,
-                                                          char* buffer, size_t capacity,
-                                                          size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetDroppedText(const mwinContext* context,
+                                                                  uint32_t drop, char* bufferOut,
+                                                                  size_t capacity,
+                                                                  size_t* lengthOut);
 
 #ifdef __cplusplus
 }

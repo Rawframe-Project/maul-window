@@ -112,7 +112,7 @@ static BOOL CALLBACK FindDialog(HWND hwnd, LPARAM data)
 static HWND OwnerOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -202,7 +202,8 @@ static void Ask(mwinContext* context, Program* program, mwinDialogKind kind)
     def.filterCount = kind == mwin_dialogFolder ? 0 : 1;
     program->outcome = -1;
     program->acted = false;
-    CHECK(mwinRequestFileDialog(context, program->window, &def, &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestFileDialog(context, program->window, &def, &program->request) ==
+              mwin_success,
           "ask for a dialog");
 }
 
@@ -214,8 +215,8 @@ static bool Chose(mwinContext* context, const Program* program, const char* cons
     char paths[MAX_PATH * 6];
     size_t length = 0;
     uint32_t count = 0;
-    bool got = mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                  &count) == mwin_success;
+    bool got = mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                          &count) == mwin_success;
     bool same = got && count == wanted;
     size_t at = 0;
     uint32_t seen = 0;
@@ -269,8 +270,8 @@ static void Check(mwinContext* context, Program* program)
         char paths[MAX_PATH * 3];
         size_t length = 0;
         bool chosen = program->outcome == mwin_outcomeDone &&
-                      mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                         nullptr) == mwin_success &&
+                      mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths),
+                                                 &length, nullptr) == mwin_success &&
                       _stricmp(paths, trimmed) == 0;
         if (!chosen)
         {
@@ -316,7 +317,7 @@ static void Next(mwinContext* context, Program* program)
 static void Drain(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type != mwin_eventRequestCompleted)

@@ -59,13 +59,15 @@ static uint64_t NowNs(void)
 static void Ask(mwinContext* context, Program* program, bool awake)
 {
     program->outcome = -1;
-    CHECK(mwinRequestKeepAwake(context, program->window, awake, &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestKeepAwake(context, program->window, awake, &program->request) ==
+              mwin_success,
           "ask to keep awake");
 }
 
 static void Show(mwinContext* context, Program* program, bool visible)
 {
-    CHECK(mwinRequestVisible(context, program->window, visible, nullptr) == mwin_success, "show");
+    CHECK(mwinWindow_RequestVisible(context, program->window, visible, nullptr) == mwin_success,
+          "show");
 }
 
 static bool Ready(const Program* program)
@@ -146,7 +148,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     FakePump(program->fake);
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&

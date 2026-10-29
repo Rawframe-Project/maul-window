@@ -111,7 +111,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= TEXT_BYTES)
@@ -380,8 +380,9 @@ static void AdvanceText(Program* program, mwinContext* context)
     {
     case phasePointerLeave:
         ServerTextEnter(program->server);
-        CHECK(mwinRequestTextInput(context, program->window, true,
-                                   (mwinRect){10.0f, 20.0f, 1.0f, 16.0f}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true,
+                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                          nullptr) == mwin_success,
               "accept text");
         break;
     case phaseTextEnable:
@@ -420,8 +421,8 @@ static void AdvanceText(Program* program, mwinContext* context)
     case phaseBrokenCommit:
         CHECK(TextIs(program, "\xE6\xBC\xA2\xEF\xBF\xBD"),
               "committed text that is not UTF-8, repaired");
-        CHECK(mwinRequestTextInput(context, program->window, false, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, (mwinRect){0},
+                                          nullptr) == mwin_success,
               "stop accepting text");
         break;
     default:
@@ -443,8 +444,8 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }
@@ -456,14 +457,14 @@ static void AdvanceCursor(Program* program, mwinContext* context)
                   cursor.destinationHeight == 16 && cursor.hotspotX == 3 && cursor.hotspotY == 5 &&
                   cursor.pixel == 0xFFFF0000u,
               "the image for scale 1 in shared memory, its viewport and hotspot");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a shape again");
         break;
     }
     case phaseShapeAgain:
         CHECK(done, "the shape in the image's place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the image again");
         break;
@@ -472,14 +473,14 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success, "destroyed");
         break;
     case phaseDestroyed:
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,
               "hide");
         break;
     case phaseHidden:
         CHECK(done, "hidden with no cursor surface");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorCaptured,
+                                           nullptr) == mwin_success,
               "capture");
         break;
     case phaseCaptured:
@@ -491,13 +492,13 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         const mwinEvent* delta = First(program, mwin_eventRawPointerDelta);
         CHECK(delta->data.delta.x == 3.0f && delta->data.delta.y == -2.0f,
               "raw deltas, before acceleration");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfined, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorConfined,
+                                           nullptr) == mwin_success,
               "confine");
         break;
     case phaseConfined:
         CHECK(done, "confined as a confined pointer, the lock gone");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");
         break;
@@ -584,7 +585,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
                   down->data.touch.position.y == 2.0f && motion->data.touch.position.x == 3.0f &&
                   up->data.touch.id == 7 && down->data.touch.pressure == -1.0f,
               "a touch goes down, moves and lifts");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
@@ -654,8 +655,9 @@ static void Advance(Program* program, mwinContext* context)
     {
         char name[64];
         size_t length = 0;
-        CHECK(mwinMapKeyCode(context, mwin_codeKeyY) == 'z' &&
-                  mwinGetKeyboardLayout(context, name, sizeof(name), &length) == mwin_success &&
+        CHECK(mwinContext_MapKeyCode(context, mwin_codeKeyY) == 'z' &&
+                  mwinContext_GetKeyboardLayout(context, name, sizeof(name), &length) ==
+                      mwin_success &&
                   length >= 6 && memcmp(name, "German", 6) == 0,
               "the second group is German");
         ServerKey(server, KEY_A, true);

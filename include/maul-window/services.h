@@ -48,9 +48,10 @@ extern "C"
     ///         or an address this does not open.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestOpenUrl(mwinContext* context, mwinWindowId window,
-                                                          const char* url, size_t length,
-                                                          mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestOpenUrl(mwinContext* context,
+                                                                 mwinWindowId window,
+                                                                 const char* url, size_t length,
+                                                                 mwinRequestId* requestOut);
 
     /// Asks the file manager to show a file, selected where it can.
     ///
@@ -60,18 +61,19 @@ extern "C"
     ///                   without NULs.
     /// @param length     Its bytes, at most MWIN_MAX_ADDRESS_BYTES.
     /// @param requestOut Receives the request's id. May be NULL.
-    /// @return As mwinRequestOpenUrl; `mwin_errorInvalid` also for a path
+    /// @return As mwinWindow_RequestOpenUrl; `mwin_errorInvalid` also for a path
     ///         that is not absolute.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestRevealFile(mwinContext* context,
-                                                             mwinWindowId window, const char* path,
-                                                             size_t length,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestRevealFile(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    const char* path, size_t length,
+                                                                    mwinRequestId* requestOut);
 
     /// Asks the system to keep the display awake, with no screensaver or
     /// dimming, while the window shows; or no longer. The window's state
-    /// says whether it does (mwinWindowState's awake).
+    /// says whether it does (mwinWindowState's awake). It asks the
+    /// platform for a state, and switches no part of the library.
     ///
     /// @param context    The context.
     /// @param window     The window.
@@ -83,9 +85,9 @@ extern "C"
     ///         context.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestKeepAwake(mwinContext* context,
-                                                            mwinWindowId window, bool awake,
-                                                            mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestKeepAwake(mwinContext* context,
+                                                                   mwinWindowId window, bool awake,
+                                                                   mwinRequestId* requestOut);
 
     // How a message box looks.
     typedef uint8_t mwinMessageKind;

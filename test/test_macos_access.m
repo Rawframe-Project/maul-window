@@ -73,7 +73,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->asked += event.type == mwin_eventAccessibilityRequested;
@@ -117,7 +117,8 @@ static void Advance(Program* program, mwinContext* context)
         root.accessibilityParent = view;
         root->child = [[NSAccessibilityElement alloc] init];
         program->root = root;
-        CHECK(mwinRequestAccessibilityRoot(context, program->window, root, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window, root, nullptr) ==
+                  mwin_success,
               "a root");
         break;
     }
@@ -139,7 +140,7 @@ static void Advance(Program* program, mwinContext* context)
     case 3:
         CHECK(!s_freed, "held while it is the root");
         program->completions = 0;
-        CHECK(mwinRequestAccessibilityRoot(context, program->window, nullptr, nullptr) ==
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window, nullptr, nullptr) ==
                   mwin_success,
               "no root");
         break;
@@ -166,7 +167,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->view == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         program->view = (NSView*)handles.handles.apple.view;
     }

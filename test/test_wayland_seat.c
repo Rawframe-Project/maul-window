@@ -98,7 +98,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->created = program->created || event.type == mwin_eventWindowCreated;
     }

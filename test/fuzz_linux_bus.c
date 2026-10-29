@@ -1041,7 +1041,7 @@ static void Dialog(mwinContext* context, mwinWindowId window, uint8_t op)
     // swapped only until the core hands the request over; Submit swaps
     // them back.
     context->backend = &s_ops;
-    mwinResult result = mwinRequestFileDialog(context, window, &def, &id);
+    mwinResult result = mwinWindow_RequestFileDialog(context, window, &def, &id);
     context->backend = s_test;
     if (result == mwin_success && s_made < TRACKED)
     {
@@ -1163,7 +1163,7 @@ static void CheckPreedit(const mwinPreeditEvent* preedit)
 static void CheckFacts(const mwinContext* context)
 {
     mwinSystemFacts facts;
-    Expect(mwinGetSystemFacts(context, &facts) == mwin_success);
+    Expect(mwinContext_GetSystemFacts(context, &facts) == mwin_success);
     Expect(facts.theme <= mwin_themeDark && facts.onBattery <= mwin_yes &&
            facts.lowPower <= mwin_yes);
     // A NaN fails both.
@@ -1176,7 +1176,7 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
     static char bytes[DIALOG_BYTES + 1];
     size_t length = 0;
     uint32_t count = 0;
-    Expect(mwinGetDialogFiles(context, request, bytes, sizeof(bytes), &length, &count) ==
+    Expect(mwinRequest_GetDialogFiles(context, request, bytes, sizeof(bytes), &length, &count) ==
                mwin_success &&
            length <= DIALOG_BYTES && count <= FILES);
     uint32_t paths = 0;
@@ -1201,7 +1201,8 @@ static void CheckLocales(const mwinContext* context)
 {
     char locales[MWIN_LINUX_LOCALE_BYTES];
     size_t length = 0;
-    Expect(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+    Expect(mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+               mwin_success &&
            length > 0 && locales[0] != ',' && locales[length - 1] != ',');
     for (size_t i = 0; i < length; i++)
     {
@@ -1212,7 +1213,7 @@ static void CheckLocales(const mwinContext* context)
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         switch (event.type)
         {

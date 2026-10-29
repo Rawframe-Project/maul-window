@@ -56,7 +56,7 @@ static double Since(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (event.type == mwin_eventRequestCompleted)
@@ -97,7 +97,8 @@ static bool Ask(Program* program, mwinContext* context, mwinDialogKind kind)
     def.name = "report.txt";
     def.nameLength = 10;
     program->completions = 0;
-    return mwinRequestFileDialog(context, program->window, &def, &program->request) == mwin_success;
+    return mwinWindow_RequestFileDialog(context, program->window, &def, &program->request) ==
+           mwin_success;
 }
 
 static bool PathIs(const Program* program, mwinContext* context, const char* expected)
@@ -105,8 +106,8 @@ static bool PathIs(const Program* program, mwinContext* context, const char* exp
     char paths[1024];
     size_t length = 0;
     uint32_t count = 0;
-    return mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length, &count) ==
-               mwin_success &&
+    return mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                      &count) == mwin_success &&
            count == 1 && strcmp(paths, expected) == 0;
 }
 
@@ -205,7 +206,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->view == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         // Held: the test reads it after its window is gone.
         program->view = [(UIView*)handles.handles.apple.view retain];

@@ -133,7 +133,7 @@ static uint64_t NowNs(void)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         for (int i = 0; i < 2 && event.type == mwin_eventRequestCompleted; i++)
@@ -177,7 +177,8 @@ static void Next(mwinContext* context, Program* program)
         pthread_mutex_unlock(&s_server.lock);
         break;
     case 1:
-        CHECK(mwinRequestFocus(context, program->windows[0], &program->requests[0]) == mwin_success,
+        CHECK(mwinWindow_RequestFocus(context, program->windows[0], &program->requests[0]) ==
+                  mwin_success,
               "focus");
         break;
     case 2:
@@ -185,9 +186,9 @@ static void Next(mwinContext* context, Program* program)
               "a token asked for with the input's serial, the seat and the focused surface");
         CHECK(activated, "the window activated with it");
         program->outcomes[0] = -1;
-        CHECK(mwinRequestFocus(context, program->windows[0], &program->requests[0]) ==
+        CHECK(mwinWindow_RequestFocus(context, program->windows[0], &program->requests[0]) ==
                       mwin_success &&
-                  mwinRequestFocus(context, program->windows[0], &program->requests[1]) ==
+                  mwinWindow_RequestFocus(context, program->windows[0], &program->requests[1]) ==
                       mwin_success,
               "focus twice");
         break;

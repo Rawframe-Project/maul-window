@@ -199,7 +199,7 @@ static Pad* PadOf(Program* program, mwinGamepadId id)
 static void Added(Program* program, mwinContext* context, mwinGamepadId id)
 {
     mwinGamepadInfo info = {0};
-    if (mwinGetGamepadInfo(context, id, &info) != mwin_success)
+    if (mwinGamepad_GetInfo(context, id, &info) != mwin_success)
     {
         return;
     }
@@ -223,8 +223,8 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
         CHECK(i < 2 || (info.rawButtons == 8 && info.rawAxes == 2),
               "the joystick's eight buttons and two axes");
         CHECK(info.capabilities == 0 && info.battery == -1, "no motors, sensors or battery");
-        CHECK(mwinSetGamepadRumble(context, id, 0.5f, 0.5f, 100) == mwin_errorUnsupported &&
-                  mwinSetGamepadMotion(context, id, true) == mwin_errorUnsupported,
+        CHECK(mwinGamepad_SetRumble(context, id, 0.5f, 0.5f, 100) == mwin_errorUnsupported &&
+                  mwinGamepad_EnableMotion(context, id, true) == mwin_errorUnsupported,
               "no rumble without motors, no motion without sensors");
     }
 }
@@ -232,7 +232,7 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventGamepadAdded)
         {
@@ -282,7 +282,7 @@ static void Collect(Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -313,7 +313,7 @@ static bool Ready(Program* program, mwinContext* context)
     case 0:
     {
         mwinWindowState state = {0};
-        (void)mwinGetWindowState(context, program->window, &state);
+        (void)mwinWindow_GetState(context, program->window, &state);
         return state.focused;
     }
     case 1:
@@ -344,7 +344,7 @@ static void CheckStill(Program* program, mwinContext* context)
     for (int i = 0; i < PADS; i++)
     {
         mwinGamepadState state = {0};
-        CHECK(mwinGetGamepadState(context, program->pads[i].id, &state) == mwin_success &&
+        CHECK(mwinGamepad_GetState(context, program->pads[i].id, &state) == mwin_success &&
                   state.buttons == 0 && Near(state.axes[0], 0.0f) && Near(state.axes[1], 0.0f) &&
                   Near(state.axes[2], 0.0f) && Near(state.axes[4], 0.0f),
               "let go: nothing held, the sticks and triggers back");

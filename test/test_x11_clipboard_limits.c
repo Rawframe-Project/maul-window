@@ -82,7 +82,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created = program->created || event.type == mwin_eventWindowCreated;
@@ -100,7 +100,8 @@ static bool Found(mwinContext* context, mwinRequestId read, const char* expected
 {
     char text[LIMIT];
     size_t found = 99;
-    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, read, text, sizeof(text), &found) ==
+               mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -118,7 +119,8 @@ static bool Ready(Program* program, mwinContext* context)
     }
     if (!program->reading && NowNs() - program->startNs >= SETTLE_NS)
     {
-        CHECK(mwinRequestClipboardRead(context, program->window, &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->request) ==
+                  mwin_success,
               "a read");
         program->reading = true;
     }
@@ -156,8 +158,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(outcome == mwin_outcomeFailed, "a text the allocator has no room for failed");
         s_refuse = false;
         program->resized = false;
-        CHECK(mwinRequestSize(context, program->window, (mwinSize){300.0f, 200.0f}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestSize(context, program->window, (mwinSize){300.0f, 200.0f},
+                                     nullptr) == mwin_success,
               "a new size");
         break;
     default:

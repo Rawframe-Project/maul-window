@@ -70,7 +70,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted && program->completions < 4)
         {
@@ -89,7 +89,7 @@ static void Collect(Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -294,7 +294,7 @@ static bool Described(Program* program)
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
     case 0:
@@ -329,7 +329,8 @@ static bool Ready(Program* program, mwinContext* context)
 
 static void SetRoot(Program* program, mwinContext* context, jobject root)
 {
-    CHECK(mwinRequestAccessibilityRoot(context, program->window, root, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window, root, nullptr) ==
+              mwin_success,
           "the root asked for");
 }
 
@@ -355,10 +356,10 @@ static void Start(Program* program, mwinContext* context)
 {
     Paint(program, context);
     mwinNativeHandles handles = {0};
-    (void)mwinGetNativeHandles(context, program->window, &handles);
+    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     program->activity = handles.handles.android.activity;
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     program->size = state.pixelSize;
     jobject view = handles.handles.android.view;
     CHECK(view != nullptr, "the view in the handles");

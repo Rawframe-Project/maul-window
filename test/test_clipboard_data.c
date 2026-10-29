@@ -43,7 +43,7 @@ static mwinClipboardItem Item(const char* mime, const char* bytes, size_t length
 static bool Refused(mwinContext* context, mwinWindowId window, const mwinClipboardItem* items,
                     uint32_t count)
 {
-    return mwinRequestClipboardWriteData(context, window, items, count, nullptr) ==
+    return mwinWindow_RequestClipboardWriteData(context, window, items, count, nullptr) ==
            mwin_errorInvalid;
 }
 
@@ -69,15 +69,16 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               Refused(context, window, texts, 2) && Refused(context, window, &badText, 1) &&
               Refused(context, window, five, 0) && Refused(context, window, nullptr, 1),
           "items refused at the call");
-    CHECK(mwinRequestClipboardWriteData(context, window, five, 5, nullptr) == mwin_errorLimit &&
-              mwinRequestClipboardWriteData(context, window, &tooLong, 1, nullptr) ==
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, five, 5, nullptr) ==
                   mwin_errorLimit &&
-              mwinRequestClipboardReadData(context, window, longType, sizeof(longType) - 1,
-                                           nullptr) == mwin_errorLimit &&
-              mwinTestSetClipboardData(context, longType, sizeof(longType) - 1, "a", 1) ==
+              mwinWindow_RequestClipboardWriteData(context, window, &tooLong, 1, nullptr) ==
+                  mwin_errorLimit &&
+              mwinWindow_RequestClipboardReadData(context, window, longType, sizeof(longType) - 1,
+                                                  nullptr) == mwin_errorLimit &&
+              mwinContext_SetTestClipboardData(context, longType, sizeof(longType) - 1, "a", 1) ==
                   mwin_errorLimit,
           "more items or a longer type than their named bounds, the test platform's too");
-    CHECK(mwinRequestClipboardWriteData(context, window, pastLimit, 2, nullptr) ==
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, pastLimit, 2, nullptr) ==
               mwin_errorCapacity,
           "past the limit in all");
     // Types alike but for case, Z included, each alone in a heap
@@ -95,13 +96,15 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     free(upper);
     mwinClipboardItem atLimit[2] = {Item("image/png", "0123456789", 10),
                                     Item("text/plain", "012345", 6)};
-    CHECK(mwinRequestClipboardWriteData(context, window, atLimit, 2, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, atLimit, 2, nullptr) ==
+              mwin_success,
           "the limit in all exactly");
-    CHECK(mwinRequestClipboardReadData(context, window, "text/plain", 10, nullptr) ==
+    CHECK(mwinWindow_RequestClipboardReadData(context, window, "text/plain", 10, nullptr) ==
                   mwin_errorInvalid &&
-              mwinRequestClipboardReadData(context, window, "TEXT/PLAIN; charset=utf-8", 25,
-                                           nullptr) == mwin_errorInvalid &&
-              mwinRequestClipboardReadData(context, window, "png", 3, nullptr) == mwin_errorInvalid,
+              mwinWindow_RequestClipboardReadData(context, window, "TEXT/PLAIN; charset=utf-8", 25,
+                                                  nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestClipboardReadData(context, window, "png", 3, nullptr) ==
+                  mwin_errorInvalid,
           "a data read refused for text/plain or a type that is not one");
 }
 
@@ -109,8 +112,8 @@ static bool PlatformHas(mwinContext* context, const char* mime, const char* expe
 {
     char bytes[LIMIT];
     size_t found = 0;
-    return mwinTestGetClipboardData(context, mime, strlen(mime), bytes, sizeof(bytes), &found) ==
-               mwin_success &&
+    return mwinContext_GetTestClipboardData(context, mime, strlen(mime), bytes, sizeof(bytes),
+                                            &found) == mwin_success &&
            found == length && memcmp(bytes, expected, length) == 0;
 }
 
@@ -118,7 +121,7 @@ static bool PlatformText(mwinContext* context, const char* expected)
 {
     char text[LIMIT];
     size_t length = 0;
-    return mwinTestGetClipboard(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinContext_GetTestClipboard(context, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -126,7 +129,8 @@ static bool FoundData(mwinContext* context, mwinRequestId read, const char* expe
 {
     char bytes[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, read, bytes, sizeof(bytes), &found) == mwin_success &&
+    return mwinRequest_GetClipboardData(context, read, bytes, sizeof(bytes), &found) ==
+               mwin_success &&
            found == length && memcmp(bytes, expected, length) == 0;
 }
 
@@ -144,8 +148,8 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckRefusals(context, window);
         mwinClipboardItem items[3] = {Item("text/plain", "hi", 2), Item("image/png", "\x89PNG", 4),
                                       Item("application/x-maul", "abc", 3)};
-        CHECK(mwinRequestClipboardWriteData(context, window, items, 3, &program->requests[1]) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestClipboardWriteData(context, window, items, 3,
+                                                   &program->requests[1]) == mwin_success,
               "a write of text and two types");
         break;
     }
@@ -154,10 +158,12 @@ static void Step(Program* program, mwinContext* context, int step)
                   PlatformHas(context, "image/png", "\x89PNG", 4) &&
                   PlatformHas(context, "application/x-maul", "abc", 3),
               "the data on the platform's clipboard, its text item as the text");
-        CHECK(mwinTestSetClipboardData(context, "image/png", 9, "PNG2", 4) == mwin_success &&
-                  mwinRequestClipboardReadData(context, window, "image/png", 9,
-                                               &program->requests[2]) == mwin_success &&
-                  mwinRequestClipboardRead(context, window, &program->requests[3]) == mwin_success,
+        CHECK(mwinContext_SetTestClipboardData(context, "image/png", 9, "PNG2", 4) ==
+                      mwin_success &&
+                  mwinWindow_RequestClipboardReadData(context, window, "image/png", 9,
+                                                      &program->requests[2]) == mwin_success &&
+                  mwinWindow_RequestClipboardRead(context, window, &program->requests[3]) ==
+                      mwin_success,
               "another program's data read, and the text");
         break;
     case 3:
@@ -167,12 +173,12 @@ static void Step(Program* program, mwinContext* context, int step)
         CHECK(Outcome(program, 2) == mwin_outcomeDone &&
                   FoundData(context, program->requests[2], "PNG2", 4) &&
                   Outcome(program, 3) == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, program->requests[3], text, sizeof(text),
-                                       &length) == mwin_success &&
+                  mwinRequest_GetClipboardText(context, program->requests[3], text, sizeof(text),
+                                               &length) == mwin_success &&
                   length == 0,
               "its data found, its text gone with the copy");
-        CHECK(mwinRequestClipboardReadData(context, window, "image/jpeg", 10,
-                                           &program->requests[4]) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardReadData(context, window, "image/jpeg", 10,
+                                                  &program->requests[4]) == mwin_success,
               "a type it lacks");
         break;
     }
@@ -180,17 +186,17 @@ static void Step(Program* program, mwinContext* context, int step)
         CHECK(Outcome(program, 4) == mwin_outcomeFailed &&
                   FoundData(context, program->requests[2], "PNG2", 4),
               "failed, the data found kept");
-        CHECK(mwinTestSetClipboardData(context, "image/png", 9, "0123456789abcdefg", LIMIT + 1) ==
-                      mwin_success &&
-                  mwinRequestClipboardReadData(context, window, "image/png", 9,
-                                               &program->requests[5]) == mwin_success,
+        CHECK(mwinContext_SetTestClipboardData(context, "image/png", 9, "0123456789abcdefg",
+                                               LIMIT + 1) == mwin_success &&
+                  mwinWindow_RequestClipboardReadData(context, window, "image/png", 9,
+                                                      &program->requests[5]) == mwin_success,
               "data past the limit");
         break;
     case 5:
         CHECK(Outcome(program, 5) == mwin_outcomeTooLarge &&
                   FoundData(context, program->requests[2], "PNG2", 4),
               "too large, the data found kept");
-        CHECK(mwinRequestClipboardWrite(context, window, "only", 4, &program->requests[6]) ==
+        CHECK(mwinWindow_RequestClipboardWrite(context, window, "only", 4, &program->requests[6]) ==
                   mwin_success,
               "a text write");
         break;
@@ -198,19 +204,20 @@ static void Step(Program* program, mwinContext* context, int step)
     {
         size_t length = 0;
         CHECK(Outcome(program, 6) == mwin_outcomeDone && PlatformText(context, "only") &&
-                  mwinTestGetClipboardData(context, "image/png", 9, nullptr, 0, &length) ==
+                  mwinContext_GetTestClipboardData(context, "image/png", 9, nullptr, 0, &length) ==
                       mwin_errorInvalid,
               "the text alone, the data gone");
-        CHECK(mwinRequestPrimaryWrite(context, window, nullptr, 0, nullptr) == mwin_success &&
-                  mwinRequestPrimaryWrite(context, window, "0123456789abcdef", LIMIT, nullptr) ==
-                      mwin_success,
-              "an empty primary selection, and one of the limit exactly");
-        CHECK(mwinRequestPrimaryWrite(context, window, "sel", 3, &program->requests[7]) ==
+        CHECK(mwinWindow_RequestPrimaryWrite(context, window, nullptr, 0, nullptr) ==
                       mwin_success &&
-                  mwinRequestPrimaryWrite(context, window, "a\xC3", 2, nullptr) ==
+                  mwinWindow_RequestPrimaryWrite(context, window, "0123456789abcdef", LIMIT,
+                                                 nullptr) == mwin_success,
+              "an empty primary selection, and one of the limit exactly");
+        CHECK(mwinWindow_RequestPrimaryWrite(context, window, "sel", 3, &program->requests[7]) ==
+                      mwin_success &&
+                  mwinWindow_RequestPrimaryWrite(context, window, "a\xC3", 2, nullptr) ==
                       mwin_errorInvalid &&
-                  mwinRequestPrimaryWrite(context, window, "0123456789abcdefg", LIMIT + 1,
-                                          nullptr) == mwin_errorCapacity,
+                  mwinWindow_RequestPrimaryWrite(context, window, "0123456789abcdefg", LIMIT + 1,
+                                                 nullptr) == mwin_errorCapacity,
               "the primary selection written; refused when not UTF-8 or past the limit");
         break;
     }
@@ -219,12 +226,14 @@ static void Step(Program* program, mwinContext* context, int step)
         char text[LIMIT];
         size_t length = 0;
         CHECK(Outcome(program, 7) == mwin_outcomeDone &&
-                  mwinTestGetPrimary(context, text, sizeof(text), &length) == mwin_success &&
+                  mwinContext_GetTestPrimary(context, text, sizeof(text), &length) ==
+                      mwin_success &&
                   length == 3 && memcmp(text, "sel", 3) == 0 && PlatformText(context, "only") &&
-                  mwinTestGetPrimary(context, text, 3, &length) == mwin_success,
+                  mwinContext_GetTestPrimary(context, text, 3, &length) == mwin_success,
               "the primary selection apart from the clipboard");
-        CHECK(mwinTestSetPrimary(context, "a\xC3(", 3) == mwin_success &&
-                  mwinRequestPrimaryRead(context, window, &program->requests[8]) == mwin_success,
+        CHECK(mwinContext_SetTestPrimary(context, "a\xC3(", 3) == mwin_success &&
+                  mwinWindow_RequestPrimaryRead(context, window, &program->requests[8]) ==
+                      mwin_success,
               "another program's selection read");
         break;
     }
@@ -233,16 +242,17 @@ static void Step(Program* program, mwinContext* context, int step)
         char text[LIMIT];
         size_t length = 0;
         CHECK(Outcome(program, 8) == mwin_outcomeDone &&
-                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
-                      mwin_success &&
+                  mwinRequest_GetPrimaryText(context, program->requests[8], text, sizeof(text),
+                                             &length) == mwin_success &&
                   length == 5 && memcmp(text, "a\xEF\xBF\xBD(", 5) == 0,
               "repaired");
         // The limit exactly, one byte of it not UTF-8: three once repaired.
-        CHECK(mwinTestSetPrimary(context,
-                                 "\xFF"
-                                 "abcdefghijklmno",
-                                 LIMIT) == mwin_success &&
-                  mwinRequestPrimaryRead(context, window, &program->requests[9]) == mwin_success,
+        CHECK(mwinContext_SetTestPrimary(context,
+                                         "\xFF"
+                                         "abcdefghijklmno",
+                                         LIMIT) == mwin_success &&
+                  mwinWindow_RequestPrimaryRead(context, window, &program->requests[9]) ==
+                      mwin_success,
               "a selection past the limit once repaired");
         break;
     }
@@ -251,11 +261,11 @@ static void Step(Program* program, mwinContext* context, int step)
         char text[LIMIT];
         size_t length = 0;
         CHECK(Outcome(program, 9) == mwin_outcomeTooLarge &&
-                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
-                      mwin_success &&
+                  mwinRequest_GetPrimaryText(context, program->requests[8], text, sizeof(text),
+                                             &length) == mwin_success &&
                   length == 5 &&
-                  mwinGetPrimaryText(context, program->requests[9], text, sizeof(text), &length) ==
-                      mwin_errorStale,
+                  mwinRequest_GetPrimaryText(context, program->requests[9], text, sizeof(text),
+                                             &length) == mwin_errorStale,
               "too large, the text found kept for the read that found it");
         program->windows[1] = Create(context, &program->requests[12]);
         break;
@@ -264,11 +274,13 @@ static void Step(Program* program, mwinContext* context, int step)
     {
         // Another window's reads: only the numbers tell the first's apart.
         window = program->windows[1];
-        CHECK(mwinTestSetPrimary(context, "two", 3) == mwin_success &&
-                  mwinRequestPrimaryRead(context, window, &program->requests[10]) == mwin_success &&
-                  mwinTestSetClipboardData(context, "image/png", 9, "PNG3", 4) == mwin_success &&
-                  mwinRequestClipboardReadData(context, window, "image/png", 9,
-                                               &program->requests[11]) == mwin_success,
+        CHECK(mwinContext_SetTestPrimary(context, "two", 3) == mwin_success &&
+                  mwinWindow_RequestPrimaryRead(context, window, &program->requests[10]) ==
+                      mwin_success &&
+                  mwinContext_SetTestClipboardData(context, "image/png", 9, "PNG3", 4) ==
+                      mwin_success &&
+                  mwinWindow_RequestClipboardReadData(context, window, "image/png", 9,
+                                                      &program->requests[11]) == mwin_success,
               "the selection and the data read again, by another window");
         break;
     }
@@ -278,12 +290,12 @@ static void Step(Program* program, mwinContext* context, int step)
         size_t length = 0;
         CHECK(Outcome(program, 10) == mwin_outcomeDone &&
                   Outcome(program, 11) == mwin_outcomeDone &&
-                  mwinGetPrimaryText(context, program->requests[8], text, sizeof(text), &length) ==
-                      mwin_errorStale &&
-                  mwinGetClipboardData(context, program->requests[2], text, sizeof(text),
-                                       &length) == mwin_errorStale &&
-                  mwinGetPrimaryText(context, program->requests[10], text, sizeof(text), &length) ==
-                      mwin_success &&
+                  mwinRequest_GetPrimaryText(context, program->requests[8], text, sizeof(text),
+                                             &length) == mwin_errorStale &&
+                  mwinRequest_GetClipboardData(context, program->requests[2], text, sizeof(text),
+                                               &length) == mwin_errorStale &&
+                  mwinRequest_GetPrimaryText(context, program->requests[10], text, sizeof(text),
+                                             &length) == mwin_success &&
                   length == 3 && memcmp(text, "two", 3) == 0 &&
                   FoundData(context, program->requests[11], "PNG3", 4),
               "the first window's selection and data stale once another window read them");

@@ -49,48 +49,51 @@ static void CheckAdded(Program* program, mwinContext* context)
           "hotplug records name the gamepad and no window");
     mwinGamepadId listed[3];
     size_t count = 0;
-    CHECK(mwinGetGamepads(context, listed, 3, &count) == mwin_success && count == 2 &&
+    CHECK(mwinContext_GetGamepads(context, listed, 3, &count) == mwin_success && count == 2 &&
               SamePad(listed[0], s_pads[0]) && SamePad(listed[1], s_pads[1]),
           "a list in the order they came");
-    CHECK(mwinGetGamepads(context, listed, 1, &count) == mwin_errorCapacity && count == 2,
+    CHECK(mwinContext_GetGamepads(context, listed, 1, &count) == mwin_errorCapacity && count == 2,
           "a short list says how many");
     // Exact heap lists, so that AddressSanitizer sees a write past one.
     mwinGamepadId* one = malloc(sizeof(mwinGamepadId));
     mwinGamepadId* two = malloc(2 * sizeof(mwinGamepadId));
     if (one != nullptr && two != nullptr)
     {
-        CHECK(mwinGetGamepads(context, one, 1, &count) == mwin_errorCapacity && count == 2 &&
-                  SamePad(one[0], s_pads[0]) &&
-                  mwinGetGamepads(context, two, 2, &count) == mwin_success && count == 2 &&
+        CHECK(mwinContext_GetGamepads(context, one, 1, &count) == mwin_errorCapacity &&
+                  count == 2 && SamePad(one[0], s_pads[0]) &&
+                  mwinContext_GetGamepads(context, two, 2, &count) == mwin_success && count == 2 &&
                   SamePad(two[1], s_pads[1]),
               "a list of one, and one that fits exactly");
     }
     free(one);
     free(two);
     mwinGamepadInfo info;
-    CHECK(mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success && info.mapped &&
+    CHECK(mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success && info.mapped &&
               info.nameLength == 7 && memcmp(info.name, "Pad \xE2\x9C\x93", 7) == 0 &&
               info.vendor == 0x045E && info.rawButtons == 0 &&
               (info.capabilities & mwin_padRumble) != 0,
           "a mapped gamepad's facts");
-    CHECK(mwinGetGamepadInfo(context, s_pads[1], &info) == mwin_success && !info.mapped &&
+    CHECK(mwinGamepad_GetInfo(context, s_pads[1], &info) == mwin_success && !info.mapped &&
               info.rawButtons == MWIN_GAMEPAD_RAW_BUTTONS && info.rawAxes == 3,
           "a raw gamepad's counts, kept to what the state holds");
 }
 
 static void Press(mwinContext* context)
 {
-    CHECK(mwinTestGamepadButton(context, s_pads[0], mwin_padFaceSouth, true) == mwin_success &&
-              mwinTestGamepadButton(context, s_pads[0], mwin_padFaceSouth, true) == mwin_success &&
-              mwinTestGamepadAxis(context, s_pads[0], mwin_padStickLeftX, 0.5f) == mwin_success &&
-              mwinTestGamepadAxis(context, s_pads[0], mwin_padStickLeftX, 0.5f) == mwin_success &&
-              mwinTestGamepadAxis(context, s_pads[0], mwin_padTriggerRight, 1.0f) == mwin_success &&
-              mwinTestGamepadButton(context, s_pads[0], mwin_padFaceSouth, false) == mwin_success,
-          "a mapped gamepad's controls");
-    CHECK(mwinTestGamepadButton(context, s_pads[1], 20, true) == mwin_success &&
-              mwinTestGamepadButton(context, s_pads[1], 40, true) == mwin_success &&
-              mwinTestGamepadAxis(context, s_pads[1], 2, -0.25f) == mwin_success &&
-              mwinTestGamepadAxis(context, s_pads[1], 5, 1.0f) == mwin_success,
+    CHECK(
+        mwinGamepad_SetTestButton(context, s_pads[0], mwin_padFaceSouth, true) == mwin_success &&
+            mwinGamepad_SetTestButton(context, s_pads[0], mwin_padFaceSouth, true) ==
+                mwin_success &&
+            mwinGamepad_SetTestAxis(context, s_pads[0], mwin_padStickLeftX, 0.5f) == mwin_success &&
+            mwinGamepad_SetTestAxis(context, s_pads[0], mwin_padStickLeftX, 0.5f) == mwin_success &&
+            mwinGamepad_SetTestAxis(context, s_pads[0], mwin_padTriggerRight, 1.0f) ==
+                mwin_success &&
+            mwinGamepad_SetTestButton(context, s_pads[0], mwin_padFaceSouth, false) == mwin_success,
+        "a mapped gamepad's controls");
+    CHECK(mwinGamepad_SetTestButton(context, s_pads[1], 20, true) == mwin_success &&
+              mwinGamepad_SetTestButton(context, s_pads[1], 40, true) == mwin_success &&
+              mwinGamepad_SetTestAxis(context, s_pads[1], 2, -0.25f) == mwin_success &&
+              mwinGamepad_SetTestAxis(context, s_pads[1], 5, 1.0f) == mwin_success,
           "a raw gamepad's controls");
 }
 
@@ -114,10 +117,10 @@ static void CheckPressed(Program* program, mwinContext* context)
               events[5].data.gamepadAxis.value == -0.25f,
           "raw records");
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, s_pads[0], &state) == mwin_success && state.buttons == 0 &&
+    CHECK(mwinGamepad_GetState(context, s_pads[0], &state) == mwin_success && state.buttons == 0 &&
               state.axes[mwin_padStickLeftX] == 0.5f && state.axes[mwin_padTriggerRight] == 1.0f,
           "a mapped gamepad's state");
-    CHECK(mwinGetGamepadState(context, s_pads[1], &state) == mwin_success &&
+    CHECK(mwinGamepad_GetState(context, s_pads[1], &state) == mwin_success &&
               state.buttons == 1u << 20 && state.axes[2] == -0.25f,
           "a raw gamepad's state");
 }
@@ -128,30 +131,32 @@ static void Rumble(mwinContext* context)
     float high = 0.0f;
     uint32_t duration = 0;
     uint32_t count = 0;
-    CHECK(mwinSetGamepadRumble(context, s_pads[0], 0.25f, 1.0f, 300) == mwin_success &&
-              mwinSetGamepadRumble(context, s_pads[0], 1.0f, 0.5f, 100) == mwin_success &&
-              mwinTestGetRumble(context, s_pads[0], &low, &high, &duration, &count) ==
+    CHECK(mwinGamepad_SetRumble(context, s_pads[0], 0.25f, 1.0f, 300) == mwin_success &&
+              mwinGamepad_SetRumble(context, s_pads[0], 1.0f, 0.5f, 100) == mwin_success &&
+              mwinGamepad_GetTestRumble(context, s_pads[0], &low, &high, &duration, &count) ==
                   mwin_success &&
               low == 1.0f && high == 0.5f && duration == 100 && count == 2,
           "rumble, the latest wins");
-    CHECK(mwinSetGamepadRumble(context, s_pads[1], 0.5f, 0.5f, 100) == mwin_errorUnsupported,
+    CHECK(mwinGamepad_SetRumble(context, s_pads[1], 0.5f, 0.5f, 100) == mwin_errorUnsupported,
           "no rumble without motors");
-    CHECK(mwinSetGamepadRumble(context, s_pads[0], 1.5f, 0.5f, 100) == mwin_errorInvalid &&
-              mwinSetGamepadRumble(context, s_pads[0], NAN, 0.5f, 100) == mwin_errorInvalid,
+    CHECK(mwinGamepad_SetRumble(context, s_pads[0], 1.5f, 0.5f, 100) == mwin_errorInvalid &&
+              mwinGamepad_SetRumble(context, s_pads[0], NAN, 0.5f, 100) == mwin_errorInvalid,
           "strengths from 0 to 1");
-    CHECK(mwinSetGamepadTriggerRumble(context, s_pads[0], 0.75f, 0.0f, 200) == mwin_success &&
-              mwinTestGetTriggerRumble(context, s_pads[0], &low, &high, &duration, &count) ==
-                  mwin_success &&
+    CHECK(mwinGamepad_SetTriggerRumble(context, s_pads[0], 0.75f, 0.0f, 200) == mwin_success &&
+              mwinGamepad_GetTestTriggerRumble(context, s_pads[0], &low, &high, &duration,
+                                               &count) == mwin_success &&
               low == 0.75f && high == 0.0f && duration == 200 && count == 1,
           "trigger rumble");
-    CHECK(mwinTestGetRumble(context, s_pads[0], &low, &high, &duration, &count) == mwin_success &&
+    CHECK(mwinGamepad_GetTestRumble(context, s_pads[0], &low, &high, &duration, &count) ==
+                  mwin_success &&
               low == 1.0f && count == 2,
           "apart from the motors' rumble");
-    CHECK(mwinSetGamepadTriggerRumble(context, s_pads[1], 0.5f, 0.5f, 100) ==
+    CHECK(mwinGamepad_SetTriggerRumble(context, s_pads[1], 0.5f, 0.5f, 100) ==
                   mwin_errorUnsupported &&
-              mwinSetGamepadTriggerRumble(context, s_pads[0], -0.1f, 0.5f, 100) ==
+              mwinGamepad_SetTriggerRumble(context, s_pads[0], -0.1f, 0.5f, 100) ==
                   mwin_errorInvalid &&
-              mwinSetGamepadTriggerRumble(nullptr, s_pads[0], 0.5f, 0.5f, 100) == mwin_errorInvalid,
+              mwinGamepad_SetTriggerRumble(nullptr, s_pads[0], 0.5f, 0.5f, 100) ==
+                  mwin_errorInvalid,
           "no trigger rumble without trigger motors; strengths from 0 to 1");
 }
 
@@ -166,41 +171,51 @@ static void Motion(mwinContext* context)
     const float turning[3] = {1.0f, -2.0f, 0.5f};
     mwinGamepadMotion motion;
     bool on = true;
-    CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 1000) == mwin_success &&
-              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+    bool enabled = true;
+    CHECK(mwinGamepad_PostTestMotion(context, s_pads[0], still, turning, 1000) == mwin_success &&
+              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.timeNs == 0 && motion.rotation[1] == 0.0f &&
-              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && !on,
+              mwinGamepad_IsTestMotionEnabled(context, s_pads[0], &on) == mwin_success && !on &&
+              mwinGamepad_IsMotionEnabled(context, s_pads[0], &enabled) == mwin_success && !enabled,
           "motion off when connected: samples left out");
-    CHECK(mwinSetGamepadMotion(context, s_pads[0], true) == mwin_success &&
-              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && on,
+    CHECK(mwinGamepad_EnableMotion(context, s_pads[0], true) == mwin_success &&
+              mwinGamepad_IsTestMotionEnabled(context, s_pads[0], &on) == mwin_success && on &&
+              mwinGamepad_IsMotionEnabled(context, s_pads[0], &enabled) == mwin_success && enabled,
           "motion turned on");
     // Four samples 10 ms apart: the first only starts the clock.
     for (uint64_t i = 0; i < 4; i++)
     {
-        CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 5000000 + i * 10000000) ==
-                  mwin_success,
+        CHECK(mwinGamepad_PostTestMotion(context, s_pads[0], still, turning,
+                                         5000000 + i * 10000000) == mwin_success,
               "a sample");
     }
-    CHECK(mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+    CHECK(mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.acceleration[1] == 9.80665f && motion.rotationRate[1] == -2.0f &&
               Near(motion.rotation[0], 0.03f) && Near(motion.rotation[1], -0.06f) &&
               Near(motion.rotation[2], 0.015f) && motion.timeNs == 35000000,
           "the latest sample, and the angle summed over 30 ms");
     // A second later: a gap, which turns the pad by 100 ms of rate only.
-    CHECK(mwinTestGamepadMotion(context, s_pads[0], still, turning, 1035000000) == mwin_success &&
-              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+    CHECK(mwinGamepad_PostTestMotion(context, s_pads[0], still, turning, 1035000000) ==
+                  mwin_success &&
+              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
               Near(motion.rotation[0], 0.1f) && motion.timeNs == 1035000000,
           "each read starts the angle anew; a gap counts 100 ms");
-    CHECK(mwinSetGamepadMotion(context, s_pads[0], false) == mwin_success &&
-              mwinGetGamepadMotion(context, s_pads[0], &motion) == mwin_success &&
+    CHECK(mwinGamepad_EnableMotion(context, s_pads[0], false) == mwin_success &&
+              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.timeNs == 0 && motion.acceleration[1] == 0.0f &&
-              mwinTestGetMotionOn(context, s_pads[0], &on) == mwin_success && !on,
+              mwinGamepad_IsTestMotionEnabled(context, s_pads[0], &on) == mwin_success && !on &&
+              mwinGamepad_IsMotionEnabled(context, s_pads[0], &enabled) == mwin_success && !enabled,
           "turned off: all zero");
-    CHECK(mwinSetGamepadMotion(context, s_pads[1], true) == mwin_errorUnsupported &&
-              mwinGetGamepadMotion(context, s_pads[1], &motion) == mwin_errorUnsupported &&
-              mwinGetGamepadMotion(context, s_pads[0], nullptr) == mwin_errorInvalid &&
-              mwinSetGamepadMotion(nullptr, s_pads[0], true) == mwin_errorInvalid &&
-              mwinTestGamepadMotion(context, s_pads[0], nullptr, turning, 0) == mwin_errorInvalid,
+    CHECK(mwinGamepad_EnableMotion(context, s_pads[1], true) == mwin_errorUnsupported &&
+              mwinGamepad_GetMotion(context, s_pads[1], &motion) == mwin_errorUnsupported &&
+              mwinGamepad_GetMotion(context, s_pads[0], nullptr) == mwin_errorInvalid &&
+              mwinGamepad_EnableMotion(nullptr, s_pads[0], true) == mwin_errorInvalid &&
+              mwinGamepad_IsMotionEnabled(context, s_pads[1], &enabled) == mwin_success &&
+              !enabled &&
+              mwinGamepad_IsMotionEnabled(context, s_pads[0], nullptr) == mwin_errorInvalid &&
+              mwinGamepad_IsMotionEnabled(nullptr, s_pads[0], &enabled) == mwin_errorInvalid &&
+              mwinGamepad_PostTestMotion(context, s_pads[0], nullptr, turning, 0) ==
+                  mwin_errorInvalid,
           "no motion without sensors; NULL refused");
 }
 
@@ -210,8 +225,8 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
     {
         mwinGamepadInfo mapped = Info("Pad \xE2\x9C\x93", true);
         mwinGamepadInfo raw = Info("Stick", false);
-        CHECK(mwinTestAddGamepad(context, &mapped, &s_pads[0]) == mwin_success &&
-                  mwinTestAddGamepad(context, &raw, &s_pads[1]) == mwin_success,
+        CHECK(mwinAddTestGamepad(context, &mapped, &s_pads[0]) == mwin_success &&
+                  mwinAddTestGamepad(context, &raw, &s_pads[1]) == mwin_success,
               "two gamepads");
         return;
     }
@@ -234,16 +249,18 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
         Motion(context);
         mwinGamepadInfo charged = Info("Pad \xE2\x9C\x93", true);
         charged.battery = 50;
-        CHECK(mwinTestChangeGamepad(context, s_pads[0], &charged) == mwin_success &&
-                  mwinTestChangeGamepad(context, s_pads[0], &charged) == mwin_success &&
-                  mwinTestRemoveGamepad(context, s_pads[1]) == mwin_success,
+        CHECK(mwinGamepad_SetTestInfo(context, s_pads[0], &charged) == mwin_success &&
+                  mwinGamepad_SetTestInfo(context, s_pads[0], &charged) == mwin_success &&
+                  mwinRemoveTestGamepad(context, s_pads[1]) == mwin_success,
               "a change, twice, and a disconnect");
         mwinGamepadInfo info;
-        CHECK(mwinGetGamepadInfo(context, s_pads[1], &info) == mwin_errorStale &&
-                  mwinTestGamepadButton(context, s_pads[1], 1, true) == mwin_errorStale,
+        bool enabled = false;
+        CHECK(mwinGamepad_GetInfo(context, s_pads[1], &info) == mwin_errorStale &&
+                  mwinGamepad_IsMotionEnabled(context, s_pads[1], &enabled) == mwin_errorStale &&
+                  mwinGamepad_SetTestButton(context, s_pads[1], 1, true) == mwin_errorStale,
               "a disconnected gamepad's id is stale at once");
         mwinGamepadInfo again = Info("Again", false);
-        CHECK(mwinTestAddGamepad(context, &again, &s_pads[2]) == mwin_success &&
+        CHECK(mwinAddTestGamepad(context, &again, &s_pads[2]) == mwin_success &&
                   s_pads[2].index1 != s_pads[1].index1,
               "its slot waits for its record to be drained");
         return;
@@ -253,10 +270,10 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
     CHECK(Types(program, types, 3) && SamePad(program->events[0].data.gamepad, s_pads[0]),
           "changes merged, then the disconnect and a new gamepad");
     mwinGamepadInfo info;
-    CHECK(mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success && info.battery == 50,
+    CHECK(mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success && info.battery == 50,
           "the battery");
     mwinGamepadId reused;
-    CHECK(mwinTestAddGamepad(context, &info, &reused) == mwin_success &&
+    CHECK(mwinAddTestGamepad(context, &info, &reused) == mwin_success &&
               reused.index1 == s_pads[1].index1 && reused.generation == s_pads[1].generation + 1,
           "drained, the slot takes a new gamepad under a new generation");
     program->done = true;
@@ -273,19 +290,20 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
     if (step == 0)
     {
         mwinGamepadInfo info = Info("Pad", true);
-        CHECK(mwinTestAddGamepad(context, &info, &s_pads[0]) == mwin_success &&
-                  mwinTestAddGamepad(context, &info, &s_pads[1]) == mwin_success,
+        CHECK(mwinAddTestGamepad(context, &info, &s_pads[0]) == mwin_success &&
+                  mwinAddTestGamepad(context, &info, &s_pads[1]) == mwin_success,
               "two gamepads");
         // Presses and releases in turn, twelve records for a ring of four.
         for (int i = 0; i < 12; i++)
         {
-            (void)mwinTestGamepadButton(context, s_pads[i % 2], mwin_padFaceEast, (i / 2) % 2 == 0);
+            (void)mwinGamepad_SetTestButton(context, s_pads[i % 2], mwin_padFaceEast,
+                                            (i / 2) % 2 == 0);
         }
         // Two axes in turn: each merges into its own.
         for (int i = 1; i <= 10; i++)
         {
             mwinGamepadAxis axis = i % 2 == 1 ? mwin_padStickRightX : mwin_padStickRightY;
-            (void)mwinTestGamepadAxis(context, s_pads[0], axis, (float)i / 10.0f);
+            (void)mwinGamepad_SetTestAxis(context, s_pads[0], axis, (float)i / 10.0f);
         }
         return;
     }
@@ -312,7 +330,7 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
           "button records past the ring are lost, and each gamepad reset");
     CHECK(x == 0.9f && y == 1.0f, "axis records past the ring merge per axis, the latest kept");
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, s_pads[1], &state) == mwin_success && state.buttons == 0,
+    CHECK(mwinGamepad_GetState(context, s_pads[1], &state) == mwin_success && state.buttons == 0,
           "the state holds what the records lost");
     program->done = true;
 }
@@ -330,28 +348,29 @@ static void LimitStep(Program* program, mwinContext* context, int step)
     (void)step;
     mwinGamepadInfo info = Info("Pad", true);
     mwinGamepadId id;
-    CHECK(mwinTestAddGamepad(context, &info, &s_pads[0]) == mwin_success, "one gamepad");
-    CHECK(mwinTestAddGamepad(context, &info, &id) == mwin_errorCapacity, "not two");
+    CHECK(mwinAddTestGamepad(context, &info, &s_pads[0]) == mwin_success, "one gamepad");
+    CHECK(mwinAddTestGamepad(context, &info, &id) == mwin_errorCapacity, "not two");
     info.name[0] = (char)0xFF;
     info.nameLength = 1;
-    CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
-              mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success && info.nameLength == 0,
+    CHECK(mwinGamepad_SetTestInfo(context, s_pads[0], &info) == mwin_success &&
+              mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success &&
+              info.nameLength == 0,
           "a name that is not UTF-8 is left empty");
     memset(info.name, 'p', 62);
     memcpy(info.name + 62, "\xE2\x9C", 2);
     info.nameLength = MWIN_GAMEPAD_NAME_BYTES;
-    CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
-              mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success &&
+    CHECK(mwinGamepad_SetTestInfo(context, s_pads[0], &info) == mwin_success &&
+              mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success &&
               info.nameLength == 62 && info.name[61] == 'p',
           "a name cut inside a character keeps its whole characters");
     memset(info.name, 'p', MWIN_GAMEPAD_NAME_BYTES);
     info.nameLength = MWIN_GAMEPAD_NAME_BYTES + 1;
-    CHECK(mwinTestChangeGamepad(context, s_pads[0], &info) == mwin_success &&
-              mwinGetGamepadInfo(context, s_pads[0], &info) == mwin_success &&
+    CHECK(mwinGamepad_SetTestInfo(context, s_pads[0], &info) == mwin_success &&
+              mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success &&
               info.nameLength == MWIN_GAMEPAD_NAME_BYTES,
           "a length past the name's bytes read as the name's bytes");
-    CHECK(mwinGetGamepadInfo(context, (mwinGamepadId){9, 1}, &info) == mwin_errorStale &&
-              mwinGetGamepadInfo(context, s_pads[0], nullptr) == mwin_errorInvalid,
+    CHECK(mwinGamepad_GetInfo(context, (mwinGamepadId){9, 1}, &info) == mwin_errorStale &&
+              mwinGamepad_GetInfo(context, s_pads[0], nullptr) == mwin_errorInvalid,
           "unknown ids and missing arguments");
     program->done = true;
 }

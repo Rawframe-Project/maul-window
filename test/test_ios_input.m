@@ -184,7 +184,7 @@ static bool Input(mwinEventType type)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (Input(event.type) && program->count < MAX_RECORDS)
@@ -197,7 +197,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (UIView*)handles.handles.apple.view
                : nil;
 }

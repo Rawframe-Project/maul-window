@@ -56,7 +56,7 @@ static bool Same(mwinWindowId a, mwinWindowId b)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         for (int i = 0; i < WINDOWS; i++)
         {
@@ -87,7 +87,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    if (mwinGetNativeHandles(context, window, &handles) != mwin_success ||
+    if (mwinWindow_GetNativeHandles(context, window, &handles) != mwin_success ||
         handles.platform != mwin_platformIOS)
     {
         return nil;
@@ -208,7 +208,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 2:
         program->failed = -1;
-        CHECK(mwinRequestTitle(context, program->windows[1], "Gone", 4, &program->failing) ==
+        CHECK(mwinWindow_RequestTitle(context, program->windows[1], "Gone", 4, &program->failing) ==
                   mwin_success,
               "a title for the window whose scene went");
         CHECK(mwinDestroyWindow(context, program->windows[1]) == mwin_success &&

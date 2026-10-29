@@ -10,8 +10,9 @@
 
 #include <math.h>
 
-mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window, bool visible,
-                                      mwinInputPurpose purpose, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context, mwinWindowId window,
+                                             bool visible, mwinInputPurpose purpose,
+                                             mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -35,8 +36,8 @@ mwinResult mwinRequestVirtualKeyboard(mwinContext* context, mwinWindowId window,
     return status;
 }
 
-mwinResult mwinRequestTextInput(mwinContext* context, mwinWindowId window, bool enabled,
-                                mwinRect caret, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestTextInput(mwinContext* context, mwinWindowId window, bool enabled,
+                                       mwinRect caret, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -60,8 +61,8 @@ mwinResult mwinRequestTextInput(mwinContext* context, mwinWindowId window, bool 
     return status;
 }
 
-mwinResult mwinRequestCursorMode(mwinContext* context, mwinWindowId window, mwinCursorMode mode,
-                                 mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestCursorMode(mwinContext* context, mwinWindowId window,
+                                        mwinCursorMode mode, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -82,8 +83,8 @@ mwinResult mwinRequestCursorMode(mwinContext* context, mwinWindowId window, mwin
     return status;
 }
 
-mwinResult mwinRequestCursorShape(mwinContext* context, mwinWindowId window, mwinCursorShape shape,
-                                  mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestCursorShape(mwinContext* context, mwinWindowId window,
+                                         mwinCursorShape shape, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -104,7 +105,7 @@ mwinResult mwinRequestCursorShape(mwinContext* context, mwinWindowId window, mwi
     return status;
 }
 
-mwinKey mwinMapKeyCode(const mwinContext* context, mwinKeyCode code)
+mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
     if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight)
     {
@@ -113,8 +114,8 @@ mwinKey mwinMapKeyCode(const mwinContext* context, mwinKeyCode code)
     return context->backend->mapKeyCode(context, code);
 }
 
-mwinResult mwinGetKeyReach(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers,
-                           mwinKeyReach* reachOut)
+mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
+                                   mwinModifiers modifiers, mwinKeyReach* reachOut)
 {
     if (context == nullptr || reachOut == nullptr || code == mwin_codeUnknown ||
         code > mwin_codeMetaRight)
@@ -125,12 +126,12 @@ mwinResult mwinGetKeyReach(const mwinContext* context, mwinKeyCode code, mwinMod
     return mwin_success;
 }
 
-mwinResult mwinGetKeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
-                                 size_t* lengthOut)
+mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* bufferOut,
+                                         size_t capacity, size_t* lengthOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
+    if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
-    return context->backend->keyboardLayout(context, buffer, capacity, lengthOut);
+    return context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
 }

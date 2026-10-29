@@ -82,7 +82,7 @@ EM_JS(bool, InputModeIs, (const char* mode), {
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -162,10 +162,11 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
-        CHECK(mwinRequestTextInput(context, program->window, true, caret, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
+                  mwin_success,
               "accept text");
         break;
     case phaseEnable:
@@ -202,15 +203,16 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseRecompose:
         CHECK(preedit->data.preedit.caret == 3, "a caret inside the composition");
-        CHECK(mwinRequestTextInput(context, program->window, false, caret, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
+                  mwin_success,
               "stop accepting text");
         break;
     case phaseDisable:
         CHECK(Last(program)->data.preedit.length == 0 && Focused() == 2 &&
                   Find(program, mwin_eventFocusLost, 0) == nullptr,
               "stopping ends the composition, the canvas has the focus back");
-        CHECK(mwinRequestVirtualKeyboard(context, program->window, true, mwin_purposeNumber,
-                                         nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true, mwin_purposeNumber,
+                                                nullptr) == mwin_success,
               "an on-screen keyboard for numbers");
         break;
     default:

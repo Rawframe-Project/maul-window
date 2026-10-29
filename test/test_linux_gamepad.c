@@ -191,7 +191,7 @@ static const uint16_t s_rawButtons[] = {BTN_TRIGGER, BTN_THUMB};
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
@@ -278,7 +278,7 @@ static void CheckAdded(Program* program, mwinContext* context, int index, bool m
 {
     mwinGamepadInfo info;
     program->pads[index] = Find(program, mwin_eventGamepadAdded, 0)->data.gamepad;
-    CHECK(mwinGetGamepadInfo(context, program->pads[index], &info) == mwin_success &&
+    CHECK(mwinGamepad_GetInfo(context, program->pads[index], &info) == mwin_success &&
               info.mapped == mapped && info.vendor == (index == 0 ? 0x045E : 0x1234),
           "a gamepad and its facts");
     if (index == 0)
@@ -314,7 +314,7 @@ static void AdvanceXbox(Program* program, mwinContext* context)
               AxisValue(program, mwin_padStickRightY, false) == -1.0f,
           "a stick right, a trigger in, a stick up");
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, program->pads[0], &state) == mwin_success &&
+    CHECK(mwinGamepad_GetState(context, program->pads[0], &state) == mwin_success &&
               (state.buttons & (1u << mwin_padDpadUp)) != 0,
           "the d-pad from the hat, in the state");
     CHECK(Make(&program->kernel, "Kernel Pad", 0x1234, 0x0001, 1, s_kernelButtons, 8, false),
@@ -341,9 +341,10 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         CHECK(Pressed(program, mwin_padFaceSouth, false),
               "a press the kernel dropped, read again from the device");
         mwinGamepadInfo info;
-        CHECK(mwinGetGamepadInfo(context, program->pads[1], &info) == mwin_success &&
+        CHECK(mwinGamepad_GetInfo(context, program->pads[1], &info) == mwin_success &&
                   (info.capabilities & mwin_padMotion) == 0 &&
-                  mwinSetGamepadMotion(context, program->pads[1], true) == mwin_errorUnsupported,
+                  mwinGamepad_EnableMotion(context, program->pads[1], true) ==
+                      mwin_errorUnsupported,
               "no motion before its sensors come");
         CHECK(MakeMotion(&program->motion), "its motion sensors device");
         break;
@@ -351,10 +352,10 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseMotionFound:
     {
         mwinGamepadInfo info;
-        CHECK(mwinGetGamepadInfo(context, program->pads[1], &info) == mwin_success &&
+        CHECK(mwinGamepad_GetInfo(context, program->pads[1], &info) == mwin_success &&
                   (info.capabilities & mwin_padMotion) != 0,
               "the sensors device of the same path grants motion");
-        CHECK(mwinSetGamepadMotion(context, program->pads[1], true) == mwin_success,
+        CHECK(mwinGamepad_EnableMotion(context, program->pads[1], true) == mwin_success,
               "motion turned on");
         // The device's first report has no stamp.
         program->sentNs = NowNs();
@@ -365,12 +366,12 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseUnstamped:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
                   motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
               "a report without a stamp at its event time");
         // Turned off and on, its motion starts anew.
-        CHECK(mwinSetGamepadMotion(context, program->pads[1], false) == mwin_success &&
-                  mwinSetGamepadMotion(context, program->pads[1], true) == mwin_success,
+        CHECK(mwinGamepad_EnableMotion(context, program->pads[1], false) == mwin_success &&
+                  mwinGamepad_EnableMotion(context, program->pads[1], true) == mwin_success,
               "motion turned off and on");
         // Three samples 4 ms apart, the stamps wrapping between them.
         program->sentNs = NowNs();
@@ -382,7 +383,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseMotion:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
                   fabsf(motion.acceleration[1] - 9.80665f) < 1e-4f &&
                   motion.acceleration[0] == 0.0f &&
                   fabsf(motion.rotationRate[0] - 1.5707964f) < 1e-4f &&
@@ -402,7 +403,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseUnstampedAfter:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
                   motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
               "a report without a stamp after stamped ones at its own event time");
         // A report the kernel drops, then the reports that overflow.
@@ -414,7 +415,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseMotionDrop:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGetGamepadMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
                   fabsf(motion.acceleration[2] - 9.80665f) < 1e-4f &&
                   fabsf(motion.acceleration[0] - 9.80665f) < 1e-4f,
               "an axis the kernel dropped, read again from the device");
@@ -434,7 +435,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
         const mwinEvent* down = Find(program, mwin_eventGamepadButtonDown, 0);
         CHECK(down->data.gamepadButton.raw && down->data.gamepadButton.button == 1,
               "raw: the second button");
-        CHECK(mwinSetGamepadRumble(context, program->pads[0], 1.0f, 0.5f, 250) == mwin_success,
+        CHECK(mwinGamepad_SetRumble(context, program->pads[0], 1.0f, 0.5f, 250) == mwin_success,
               "rumble");
         break;
     }
@@ -444,7 +445,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
                   program->xbox.length == 250,
               "force feedback with both motors' strengths");
         pthread_mutex_unlock(&program->xbox.lock);
-        CHECK(mwinSetGamepadRumble(context, program->pads[1], 1.0f, 1.0f, 100) ==
+        CHECK(mwinGamepad_SetRumble(context, program->pads[1], 1.0f, 1.0f, 100) ==
                   mwin_errorUnsupported,
               "no rumble without motors");
         Destroy(&program->kernel);
@@ -463,7 +464,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     {
         mwinGamepadInfo info;
         mwinGamepadId pad = Find(program, mwin_eventGamepadAdded, 0)->data.gamepad;
-        CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success &&
+        CHECK(mwinGamepad_GetInfo(context, pad, &info) == mwin_success &&
                   (info.capabilities & mwin_padMotion) != 0,
               "the sensors device there before it grants motion from the start");
         break;

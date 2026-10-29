@@ -50,7 +50,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted)
         {
@@ -63,7 +63,7 @@ static void Collect(Program* program, mwinContext* context)
 static mwinWindowState StateOf(const Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     return state;
 }
 
@@ -72,7 +72,7 @@ static mwinWindowState StateOf(const Program* program, mwinContext* context)
 static int Shows(const Program* program, mwinContext* context, jint type)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return 0;
     }
@@ -129,7 +129,7 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
@@ -139,20 +139,20 @@ static void Advance(Program* program, mwinContext* context)
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }
     case 2:
         CHECK(done && ShowsImages(program, context), "an icon of the images");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a shape again");
         break;
     case 3:
         CHECK(done && Shows(program, context, TYPE_TEXT) == 1, "the shape in the images' place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the images again");
         break;

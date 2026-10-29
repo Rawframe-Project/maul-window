@@ -110,8 +110,9 @@ static mwinResult Ask(mwinContext* context, Program* program, const Step* step,
 {
     size_t length = strlen(step->text);
     return step->kind == mwin_requestOpenUrl
-               ? mwinRequestOpenUrl(context, program->window, step->text, length, request)
-               : mwinRequestRevealFile(context, program->window, step->text, length, request);
+               ? mwinWindow_RequestOpenUrl(context, program->window, step->text, length, request)
+               : mwinWindow_RequestRevealFile(context, program->window, step->text, length,
+                                              request);
 }
 
 static void Begin(mwinContext* context, Program* program)
@@ -159,7 +160,7 @@ static bool Same(mwinRequestId a, mwinRequestId b)
 static void Drain(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type != mwin_eventRequestCompleted)
@@ -185,8 +186,8 @@ static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
     program->startNs = NowNs();
-    CHECK(mwinGetPreferredLocales(context, program->locales, sizeof(program->locales),
-                                  &program->localeLength) == mwin_success,
+    CHECK(mwinContext_GetPreferredLocales(context, program->locales, sizeof(program->locales),
+                                          &program->localeLength) == mwin_success,
           "locales");
     mwinWindowDef def = mwinDefaultWindowDef();
     def.size = (mwinSize){200.0f, 100.0f};

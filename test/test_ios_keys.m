@@ -94,7 +94,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->completions += event.type == mwin_eventRequestCompleted &&
@@ -122,7 +122,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (UIView*)handles.handles.apple.view
                : nil;
 }
@@ -190,8 +190,8 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(KeyIs(&r[9], mwin_eventKeyDown, 42, MWIN_KEY_NAMED | 42, 0) &&
               KeyIs(&r[10], mwin_eventKeyUp, 42, MWIN_KEY_NAMED | 42, 0),
           "a deletion as Backspace");
-    CHECK(mwinMapKeyCode(context, 4) == 'a' && mwinMapKeyCode(context, 5) == 0 &&
-              mwinMapKeyCode(context, 80) == (MWIN_KEY_NAMED | 80),
+    CHECK(mwinContext_MapKeyCode(context, 4) == 'a' && mwinContext_MapKeyCode(context, 5) == 0 &&
+              mwinContext_MapKeyCode(context, 80) == (MWIN_KEY_NAMED | 80),
           "A known once pressed, B not yet, the arrow named");
 }
 
@@ -231,10 +231,11 @@ static void Advance(Program* program, mwinContext* context, UIView* view)
     case 0:
         CHECK(view.inputView != nil, "no on-screen keyboard unless asked for");
         Type(view);
-        CHECK(mwinRequestTextInput(context, window, true, (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                   nullptr) == mwin_success &&
-                  mwinRequestVirtualKeyboard(context, window, true, mwin_purposeNumber, nullptr) ==
-                      mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, true,
+                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                          nullptr) == mwin_success &&
+                  mwinWindow_RequestVirtualKeyboard(context, window, true, mwin_purposeNumber,
+                                                    nullptr) == mwin_success,
               "text, and the keyboard for a number");
         break;
     case 1:
@@ -248,8 +249,8 @@ static void Advance(Program* program, mwinContext* context, UIView* view)
         CHECK(program->rect.y == (float)(view.bounds.size.height - 300.0) &&
                   program->rect.width == (float)view.bounds.size.width,
               "the part of the window the keyboard covers");
-        CHECK(mwinRequestVirtualKeyboard(context, window, false, mwin_purposeText, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, window, false, mwin_purposeText,
+                                                nullptr) == mwin_success,
               "the keyboard hidden");
         break;
     default:
@@ -257,7 +258,8 @@ static void Advance(Program* program, mwinContext* context, UIView* view)
         CHECK(view.inputView != nil, "no keyboard again");
         char layout[64];
         size_t length = 0;
-        CHECK(mwinGetKeyboardLayout(context, layout, sizeof(layout), &length) == mwin_success,
+        CHECK(mwinContext_GetKeyboardLayout(context, layout, sizeof(layout), &length) ==
+                  mwin_success,
               "the input mode's language");
         break;
     }

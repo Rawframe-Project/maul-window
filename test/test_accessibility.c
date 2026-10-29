@@ -45,33 +45,37 @@ static void Step(Program* program, mwinContext* context, int step)
         break;
     case 1:
         CHECK(RootOf(context, window) == nullptr, "a new window has no root");
-        CHECK(mwinRequestAccessibilityRoot(context, window, &s_first, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, window, &s_first, nullptr) ==
+                  mwin_success,
               "a root");
         break;
     case 2:
         CHECK(RootOf(context, window) == &s_first, "a root the platform took is the window's");
-        CHECK(mwinTestSetAnswer(context, mwin_requestAccessibilityRoot, mwin_outcomeUnsupported) ==
-                      mwin_success &&
-                  mwinRequestAccessibilityRoot(context, window, &s_second, nullptr) == mwin_success,
+        CHECK(mwinContext_SetTestAnswer(context, mwin_requestAccessibilityRoot,
+                                        mwin_outcomeUnsupported) == mwin_success &&
+                  mwinWindow_RequestAccessibilityRoot(context, window, &s_second, nullptr) ==
+                      mwin_success,
               "a root the platform refuses");
         break;
     case 3:
         CHECK(RootOf(context, window) == &s_first, "a refused root leaves the one before");
-        CHECK(mwinTestSetAnswer(context, mwin_requestAccessibilityRoot, mwin_outcomeDone) ==
+        CHECK(mwinContext_SetTestAnswer(context, mwin_requestAccessibilityRoot, mwin_outcomeDone) ==
                       mwin_success &&
-                  mwinRequestAccessibilityRoot(context, window, nullptr, nullptr) == mwin_success,
+                  mwinWindow_RequestAccessibilityRoot(context, window, nullptr, nullptr) ==
+                      mwin_success,
               "no root");
         break;
     case 4:
         CHECK(RootOf(context, window) == nullptr, "no root clears it");
         program->eventCount = 0;
-        CHECK(mwinTestAskAccessibility(context, window) == mwin_success &&
-                  mwinTestAskAccessibility(context, window) == mwin_success,
+        CHECK(mwinWindow_AskTestAccessibility(context, window) == mwin_success &&
+                  mwinWindow_AskTestAccessibility(context, window) == mwin_success,
               "a client asks twice");
         break;
     case 5:
         CHECK(Asked(program) == 1, "the program told once a window");
-        CHECK(mwinRequestAccessibilityRoot(context, window, &s_first, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, window, &s_first, nullptr) ==
+                  mwin_success,
               "a root again");
         break;
     case 6:
@@ -85,16 +89,17 @@ static void Step(Program* program, mwinContext* context, int step)
     case 8:
         program->eventCount = 0;
         CHECK(RootOf(context, program->windows[1]) == nullptr &&
-                  mwinTestAskAccessibility(context, program->windows[1]) == mwin_success,
+                  mwinWindow_AskTestAccessibility(context, program->windows[1]) == mwin_success,
               "it starts with no root");
         break;
     default:
         CHECK(Asked(program) == 1, "and tells of its first client again");
-        CHECK(mwinRequestAccessibilityRoot(context, window, &s_first, nullptr) == mwin_errorStale &&
-                  mwinTestAskAccessibility(context, window) == mwin_errorStale &&
-                  mwinRequestAccessibilityRoot(nullptr, window, nullptr, nullptr) ==
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, window, &s_first, nullptr) ==
+                      mwin_errorStale &&
+                  mwinWindow_AskTestAccessibility(context, window) == mwin_errorStale &&
+                  mwinWindow_RequestAccessibilityRoot(nullptr, window, nullptr, nullptr) ==
                       mwin_errorInvalid &&
-                  mwinTestAskAccessibility(nullptr, window) == mwin_errorInvalid,
+                  mwinWindow_AskTestAccessibility(nullptr, window) == mwin_errorInvalid,
               "stale windows and a missing context refused");
         program->done = true;
         break;

@@ -33,11 +33,11 @@ static void CheckPads(Program* program, mwinContext* context)
 {
     mwinGamepadId pads[8];
     size_t count = 0;
-    program->listed = mwinGetGamepads(context, pads, 8, &count) == mwin_success;
+    program->listed = mwinContext_GetGamepads(context, pads, 8, &count) == mwin_success;
     for (size_t i = 0; i < count && i < 8; i++)
     {
         mwinGamepadInfo info;
-        CHECK(mwinGetGamepadInfo(context, pads[i], &info) == mwin_success && info.mapped &&
+        CHECK(mwinGamepad_GetInfo(context, pads[i], &info) == mwin_success && info.mapped &&
                   info.nameLength > 0,
               "a pad found is mapped and named");
     }

@@ -366,7 +366,7 @@ static bool IsInput(mwinEventType type)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->restored |= event.type == mwin_eventSurfaceRestored;
@@ -535,7 +535,7 @@ static void CheckMouse(const Program* program)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }

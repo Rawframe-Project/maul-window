@@ -6,7 +6,7 @@
 // window stays live while the dialog shows, and frames go on.
 //
 // A dialog chosen from completes with mwin_outcomeDone, and its paths
-// wait under the request's id for mwinGetDialogFiles until the next
+// wait under the request's id for mwinRequest_GetDialogFiles until the next
 // dialog completes; one the user closes completes with
 // mwin_outcomeCancelled; a choice past the dialogFiles or dialogBytes
 // limits with mwin_outcomeTooLarge. A page names no files, so the web
@@ -109,31 +109,32 @@ extern "C"
     ///         or an extension with a dot, '*' or '?'.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestFileDialog(mwinContext* context,
-                                                             mwinWindowId window,
-                                                             const mwinFileDialogDef* def,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestFileDialog(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    const mwinFileDialogDef* def,
+                                                                    mwinRequestId* requestOut);
 
     /// Copies the paths a dialog chose out: absolute, UTF-8, each ended
     /// by a NUL.
     ///
-    /// @param context   The context.
-    /// @param request   The dialog's request, done.
-    /// @param buffer    Receives the paths. May be NULL when capacity is 0.
-    /// @param capacity  Its bytes.
-    /// @param lengthOut Receives the bytes of the paths.
-    /// @param countOut  Receives how many paths there are. May be NULL.
+    /// @param context    The context.
+    /// @param request    The dialog's request, done.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    /// @param capacity   Its bytes.
+    /// @param lengthOut  Receives the bytes of the paths.
+    /// @param countOut   Receives how many paths there are. May be NULL.
     /// @return `mwin_success`; `mwin_errorCapacity` with the bytes needed
-    ///         when they do not fit, the buffer filled as far as it goes;
+    ///         when they do not fit, bufferOut filled as far as it goes;
     ///         `mwin_errorStale` for a request that did not complete with
     ///         mwin_outcomeDone or whose paths a later dialog replaced;
     ///         `mwin_errorInvalid` for a NULL context or lengthOut.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetDialogFiles(const mwinContext* context,
-                                                          mwinRequestId request, char* buffer,
-                                                          size_t capacity, size_t* lengthOut,
-                                                          uint32_t* countOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetDialogFiles(const mwinContext* context,
+                                                                  mwinRequestId request,
+                                                                  char* bufferOut, size_t capacity,
+                                                                  size_t* lengthOut,
+                                                                  uint32_t* countOut);
 
 #ifdef __cplusplus
 }

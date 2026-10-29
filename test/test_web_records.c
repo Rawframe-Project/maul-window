@@ -181,15 +181,15 @@ static bool RightFacts(const mwinContext* context, const Program* program)
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinWindowState state;
-    bool right = mwinGetSystemFacts(context, &facts) == mwin_success &&
+    bool right = mwinContext_GetSystemFacts(context, &facts) == mwin_success &&
                  facts.onBattery <= mwin_yes && facts.theme <= mwin_themeDark &&
-                 mwinGetMonitors(context, monitors, 4, &count) == mwin_success &&
-                 mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                 mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success &&
+                 mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                  isfinite(state.scale) && state.scale > 0.0f;
     for (size_t i = 0; right && i < count && i < 4; i++)
     {
         mwinMonitorInfo info;
-        right = mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success &&
+        right = mwinMonitor_GetInfo(context, monitors[i], &info) == mwin_success &&
                 isfinite(info.scale) && info.scale > 0.0f;
     }
     return right;
@@ -203,7 +203,7 @@ static void Collect(Program* program, mwinContext* context)
         (void)printf("facts or scales out of the contract\n");
         program->wrong += 1;
     }
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (!Right(&event))
         {
@@ -236,7 +236,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     program->frames += 1;
     if (!program->pushed && program->frames > 5)
     {
-        CHECK(mwinRequestClipboardRead(context, program->window, &program->read) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->read) ==
+                  mwin_success,
               "a clipboard read");
         PushJunk(context, (int)program->window.index1 - 1);
         PushAll(context, program);

@@ -100,7 +100,7 @@ static bool Same(mwinRequestId a, mwinRequestId b)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created = program->created || event.type == mwin_eventWindowCreated;
@@ -152,7 +152,8 @@ static bool FoundData(mwinContext* context, mwinRequestId read, const char* expe
 {
     static char s_data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, read, s_data, sizeof(s_data), &found) == mwin_success &&
+    return mwinRequest_GetClipboardData(context, read, s_data, sizeof(s_data), &found) ==
+               mwin_success &&
            found == length && memcmp(s_data, expected, length) == 0;
 }
 
@@ -161,16 +162,17 @@ static bool FoundText(mwinContext* context, mwinRequestId read, bool primary, co
 {
     char text[64];
     size_t found = 0;
-    mwinResult status = primary ? mwinGetPrimaryText(context, read, text, sizeof(text), &found)
-                                : mwinGetClipboardText(context, read, text, sizeof(text), &found);
+    mwinResult status =
+        primary ? mwinRequest_GetPrimaryText(context, read, text, sizeof(text), &found)
+                : mwinRequest_GetClipboardText(context, read, text, sizeof(text), &found);
     return status == mwin_success && found == length && memcmp(text, expected, length) == 0;
 }
 
 static void ReadData(Program* program, mwinContext* context, const char* mime,
                      mwinRequestId* requestOut)
 {
-    CHECK(mwinRequestClipboardReadData(context, program->window, mime, strlen(mime), requestOut) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestClipboardReadData(context, program->window, mime, strlen(mime),
+                                              requestOut) == mwin_success,
           "a data read");
 }
 
@@ -181,7 +183,8 @@ static void StartReads(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseOtherBoth:
-        CHECK(mwinRequestClipboardRead(context, program->window, &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->request) ==
+                  mwin_success,
               "a text read");
         ReadData(program, context, PNG, &program->second);
         break;
@@ -189,7 +192,8 @@ static void StartReads(Program* program, mwinContext* context)
         ReadData(program, context, BIG, &program->request);
         break;
     case phaseOtherPrimary:
-        CHECK(mwinRequestPrimaryRead(context, program->window, &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestPrimaryRead(context, program->window, &program->request) ==
+                  mwin_success,
               "a primary read");
         break;
     default:
@@ -251,8 +255,8 @@ static void Write(Program* program, mwinContext* context)
         {"text/plain", 10, "hi", 2},
         {BIG, strlen(BIG), program->large, LARGE},
     };
-    CHECK(mwinRequestClipboardWriteData(context, program->window, items, 3, &program->request) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestClipboardWriteData(context, program->window, items, 3,
+                                               &program->request) == mwin_success,
           "a data write");
 }
 
@@ -300,16 +304,16 @@ static void AdvanceOwned(Program* program, mwinContext* context, int outcome)
     {
         CHECK(outcome == mwin_outcomeFailed, "a type the data lacks fails");
         mwinClipboardItem item = {PNG, strlen(PNG), s_png, sizeof(s_png)};
-        CHECK(mwinRequestClipboardWriteData(context, program->window, &item, 1,
-                                            &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardWriteData(context, program->window, &item, 1,
+                                                   &program->request) == mwin_success,
               "a write of data alone");
         break;
     }
     case phaseDataOnly:
         CHECK(outcome == mwin_outcomeDone && DataSourceHas(data, PNG) && !DataSourceHas(data, UTF8),
               "data alone offers no text");
-        CHECK(mwinRequestPrimaryWrite(context, program->window, "sel", 3, &program->request) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestPrimaryWrite(context, program->window, "sel", 3,
+                                             &program->request) == mwin_success,
               "a primary write");
         break;
     default:

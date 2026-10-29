@@ -78,7 +78,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created = program->created || event.type == mwin_eventWindowCreated;
@@ -120,20 +120,22 @@ static bool Found(mwinContext* context, mwinRequestId read, const char* expected
 {
     char text[64];
     size_t found = 0;
-    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, read, text, sizeof(text), &found) ==
+               mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
 static void Write(Program* program, mwinContext* context, const char* text, size_t length)
 {
-    CHECK(mwinRequestClipboardWrite(context, program->window, text, length, &program->request) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestClipboardWrite(context, program->window, text, length,
+                                           &program->request) == mwin_success,
           "a write");
 }
 
 static void Read(Program* program, mwinContext* context)
 {
-    CHECK(mwinRequestClipboardRead(context, program->window, &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->request) ==
+              mwin_success,
           "a read");
 }
 

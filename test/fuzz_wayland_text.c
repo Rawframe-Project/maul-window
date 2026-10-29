@@ -360,7 +360,7 @@ static void Match(uint32_t slot, const mwinEvent* event)
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         bool text = event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit ||
                     event.type == mwin_eventInputStateReset;

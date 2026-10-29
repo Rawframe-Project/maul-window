@@ -63,7 +63,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         bool input = event.type >= mwin_eventKeyDown && event.type <= mwin_eventWheel;
@@ -113,7 +113,7 @@ static const Record* Find(const Program* program, size_t* at, mwinEventType type
 static NSWindow* WindowOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? ((NSView*)handles.handles.apple.view).window
                : nil;
 }
@@ -242,7 +242,7 @@ static void SendCommand(NSWindow* window)
 static void CheckKeys(const Program* program, mwinContext* context)
 {
     size_t at = 0;
-    mwinKey meaning = mwinMapKeyCode(context, mwin_codeKeyA);
+    mwinKey meaning = mwinContext_MapKeyCode(context, mwin_codeKeyA);
     CHECK(meaning != 0 && (meaning & MWIN_KEY_NAMED) == 0, "the layout gives the A key a letter");
     const Record* down = Find(program, &at, mwin_eventKeyDown);
     CHECK(down != nullptr && down->key.code == mwin_codeKeyA && down->key.key == meaning &&
@@ -279,7 +279,8 @@ static void CheckKeys(const Program* program, mwinContext* context)
           "Caps Lock toggled: a press and a release at once");
     char name[64];
     size_t length = 0;
-    CHECK(mwinGetKeyboardLayout(context, name, sizeof(name), &length) == mwin_success && length > 0,
+    CHECK(mwinContext_GetKeyboardLayout(context, name, sizeof(name), &length) == mwin_success &&
+              length > 0,
           "the layout has a name");
 }
 
@@ -331,13 +332,16 @@ static void CheckCommand(const Program* program)
 // window, which a CI runner's session never makes it.
 static void RequestCursors(mwinContext* context, mwinWindowId window)
 {
-    CHECK(
-        mwinRequestCursorShape(context, window, mwin_shapeText, nullptr) == mwin_success &&
-            mwinRequestCursorMode(context, window, mwin_cursorConfined, nullptr) == mwin_success &&
-            mwinRequestCursorMode(context, window, mwin_cursorHidden, nullptr) == mwin_success &&
-            mwinRequestCursorMode(context, window, mwin_cursorCaptured, nullptr) == mwin_success &&
-            mwinRequestCursorMode(context, window, mwin_cursorVisible, nullptr) == mwin_success,
-        "the cursor requests");
+    CHECK(mwinWindow_RequestCursorShape(context, window, mwin_shapeText, nullptr) == mwin_success &&
+              mwinWindow_RequestCursorMode(context, window, mwin_cursorConfined, nullptr) ==
+                  mwin_success &&
+              mwinWindow_RequestCursorMode(context, window, mwin_cursorHidden, nullptr) ==
+                  mwin_success &&
+              mwinWindow_RequestCursorMode(context, window, mwin_cursorCaptured, nullptr) ==
+                  mwin_success &&
+              mwinWindow_RequestCursorMode(context, window, mwin_cursorVisible, nullptr) ==
+                  mwin_success,
+          "the cursor requests");
 }
 
 static void CheckCursors(const Program* program)
@@ -392,14 +396,14 @@ static void AdvanceImages(Program* program, mwinContext* context)
     {
     case 5:
         CHECK(done && ShowsImages(), "the cursor made from images over the view");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a shape again");
         break;
     case 6:
         CHECK(done && [NSCursor currentCursor] == [NSCursor IBeamCursor],
               "the shape in the images' place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the images again");
         break;
@@ -408,7 +412,7 @@ static void AdvanceImages(Program* program, mwinContext* context)
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   [NSCursor currentCursor] == [NSCursor arrowCursor],
               "destroyed: the arrow");
-        CHECK(mwinRequestCursorShape(context, program->window, s_shapes[0], nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, s_shapes[0], nullptr) ==
                   mwin_success,
               "each other shape");
         break;
@@ -469,8 +473,8 @@ static void AdvanceShapes(Program* program, mwinContext* context)
           "pointer, crosshair, move, the four resizes and not allowed, each AppKit's cursor");
     if (index + 1 < SHAPES)
     {
-        CHECK(mwinRequestCursorShape(context, program->window, s_shapes[index + 1], nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, s_shapes[index + 1],
+                                            nullptr) == mwin_success,
               "the next shape");
     }
 }
@@ -515,8 +519,8 @@ static void Advance(Program* program, mwinContext* context)
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }

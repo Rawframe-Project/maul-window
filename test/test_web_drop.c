@@ -139,10 +139,12 @@ static void CheckDrop(const Program* program, mwinContext* context)
     char bytes[64];
     size_t length = 0;
     uint32_t drop = dropped != nullptr ? dropped->data.drop.drop : 0;
-    CHECK(mwinGetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
               length == 13 && memcmp(bytes, "a.txt\0\xC3\xA9.png\0", 13) == 0,
           "the files' names, each ended by a NUL");
-    CHECK(mwinGetDroppedText(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedText(context, drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
               length == 6 && memcmp(bytes, "hi \xE2\x98\x83", 6) == 0,
           "the text");
 }
@@ -160,10 +162,12 @@ static void CheckLimits(const Program* program, mwinContext* context)
     char bytes[DROP_BYTES + 1];
     size_t length = 0;
     uint32_t drop = dropped != nullptr ? dropped->data.drop.drop : 0;
-    CHECK(mwinGetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
               length == NAME_BYTES + 1 && memcmp(bytes, "aaaaaaaaaaaa.txt", NAME_BYTES + 1) == 0,
           "a name of the window's text bytes kept");
-    CHECK(mwinGetDroppedText(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedText(context, drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
               length == DROP_BYTES && bytes[0] == 'c' && bytes[DROP_BYTES - 1] == 'c',
           "text of the drop bytes kept");
 }
@@ -194,7 +198,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
                   handles.handles.web.selectorLength < sizeof(program->selector),
               "the canvas");
         memcpy(program->selector, handles.handles.web.selector, handles.handles.web.selectorLength);
@@ -243,7 +247,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

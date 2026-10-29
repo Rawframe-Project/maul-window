@@ -77,8 +77,9 @@ static const mwinEvent* Find(const Program* program, mwinEventType type)
 
 static void Enable(mwinContext* context, const Program* program, bool enabled)
 {
-    CHECK(mwinRequestTextInput(context, program->window, enabled,
-                               (mwinRect){10.0f, 20.0f, 1.0f, 16.0f}, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestTextInput(context, program->window, enabled,
+                                      (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                      nullptr) == mwin_success,
           "text input");
 }
 
@@ -169,7 +170,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))

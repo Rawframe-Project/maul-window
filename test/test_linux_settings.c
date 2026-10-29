@@ -142,12 +142,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     FakePump(program->fake);
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->changes += event.type == mwin_eventThemeChanged;
     }
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "facts");
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "facts");
     const Expected* expected = program->fake->desktop == fakeGnome ? s_gnome : s_kde;
     program->frames += 1;
     if (program->fake->desktop == fakeNoSettings || program->fake->desktop == fakeOddSettings)

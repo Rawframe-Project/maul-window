@@ -60,7 +60,7 @@ static void Copy(char* to, const char* from, uint32_t length)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->completions += event.type == mwin_eventRequestCompleted &&
@@ -84,7 +84,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView<UITextInput>* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (UIView<UITextInput>*)handles.handles.apple.view
                : nil;
 }
@@ -92,7 +92,7 @@ static UIView<UITextInput>* ViewOf(mwinContext* context, mwinWindowId window)
 static bool Composing(mwinContext* context, mwinWindowId window)
 {
     mwinWindowState state = {0};
-    return mwinGetWindowState(context, window, &state) == mwin_success && state.composing;
+    return mwinWindow_GetState(context, window, &state) == mwin_success && state.composing;
 }
 
 static bool Ended(const Program* program)
@@ -113,8 +113,9 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
     {
     case 0:
         CHECK([view conformsToProtocol:@protocol(UITextInput)], "a text input client");
-        CHECK(mwinRequestTextInput(context, window, true, (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                   nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, true,
+                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                          nullptr) == mwin_success,
               "text taken");
         return;
     case 1:
@@ -204,7 +205,8 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
                   view.markedTextRange == nil,
               "a range past its end: the text accepted in its place");
         program->texts = 0;
-        CHECK(mwinRequestTextInput(context, window, false, (mwinRect){0}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
+                  mwin_success,
               "text no longer taken");
         return;
     case 13:

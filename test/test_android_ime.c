@@ -120,7 +120,7 @@ static void Keep(Program* program, const mwinEvent* event)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->completions += event.type == mwin_eventRequestCompleted;
@@ -142,14 +142,14 @@ static void Collect(Program* program, mwinContext* context)
 static mwinWindowState StateOf(const Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     return state;
 }
 
 static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    (void)mwinGetNativeHandles(context, program->window, &handles);
+    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     return handles.handles.android.activity;
 }
 
@@ -299,7 +299,7 @@ static bool Ready(const Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -390,10 +390,10 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         Paint(program, context);
-        CHECK(mwinRequestTextInput(context, program->window, true, caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
                       mwin_success &&
-                  mwinRequestVirtualKeyboard(context, program->window, true, mwin_purposeText,
-                                             nullptr) == mwin_success,
+                  mwinWindow_RequestVirtualKeyboard(context, program->window, true,
+                                                    mwin_purposeText, nullptr) == mwin_success,
               "text input and the keyboard asked for");
         break;
     case 1:
@@ -435,7 +435,7 @@ static void Advance(Program* program, mwinContext* context)
             // Text input asked for again, the caret moved: the
             // composition stays.
             mwinRect moved = {30.0f, 10.0f, 1.0f, 20.0f};
-            CHECK(mwinRequestTextInput(context, program->window, true, moved, nullptr) ==
+            CHECK(mwinWindow_RequestTextInput(context, program->window, true, moved, nullptr) ==
                       mwin_success,
                   "the caret moved while composing");
         }
@@ -444,7 +444,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(count == 1 && IsPreedit(&records[0], "xy", 2),
               "composing, the composition kept as the caret moves");
         program->completions = 0;
-        CHECK(mwinRequestTextInput(context, program->window, false, caret, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
+                  mwin_success,
               "text input stopped");
         // The input method closes its old connection, which finishes the
         // composition.
@@ -458,31 +459,31 @@ static void Advance(Program* program, mwinContext* context)
         // Not accepting text: no composition is told, committed text is.
         Text(env, connection, "setComposingText", "zz");
         Text(env, connection, "commitText", "zz");
-        CHECK(mwinRequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
-                                         nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
+                                                nullptr) == mwin_success,
               "the keyboard hidden");
         break;
     case 8:
         CHECK(count == 1 && IsText(&records[0], "zz"),
               "no composition told while not accepting text, its text committed");
         program->completions = 0;
-        CHECK(mwinRequestVirtualKeyboard(context, program->window, true, mwin_purposeNumber,
-                                         nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true, mwin_purposeNumber,
+                                                nullptr) == mwin_success,
               "a keyboard for a number");
         break;
     case 9:
         CheckType(program, context, 0x3002, "a number, signed and decimal");
         program->completions = 0;
-        CHECK(mwinRequestVirtualKeyboard(context, program->window, true, mwin_purposeEmail,
-                                         nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true, mwin_purposeEmail,
+                                                nullptr) == mwin_success,
               "a keyboard for an address");
         break;
     case 10:
         CheckType(program, context,
                   TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_EMAIL | TYPE_TEXT_FLAG_NO_SUGGESTIONS,
                   "an address");
-        CHECK(mwinRequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
-                                         nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
+                                                nullptr) == mwin_success,
               "the keyboard hidden again");
         break;
     case 11:

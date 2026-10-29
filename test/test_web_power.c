@@ -96,8 +96,8 @@ static bool PowerChanged(const Program* program)
 static bool PowerIs(const mwinContext* context, mwinTristate onBattery)
 {
     mwinSystemFacts facts;
-    return mwinGetSystemFacts(context, &facts) == mwin_success && facts.onBattery == onBattery &&
-           facts.lowPower == mwin_unknown;
+    return mwinContext_GetSystemFacts(context, &facts) == mwin_success &&
+           facts.onBattery == onBattery && facts.lowPower == mwin_unknown;
 }
 
 static bool Ready(Program* program)
@@ -153,7 +153,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

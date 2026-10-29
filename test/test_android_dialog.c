@@ -75,7 +75,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted && program->completions < 4)
         {
@@ -90,7 +90,7 @@ static void Collect(Program* program, mwinContext* context)
 static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    (void)mwinGetNativeHandles(context, program->window, &handles);
+    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     return handles.handles.android.activity;
 }
 
@@ -255,7 +255,7 @@ static mwinResult Ask(Program* program, mwinContext* context, mwinDialogKind kin
     def.kind = kind;
     def.filters = filters;
     def.filterCount = 2;
-    return mwinRequestFileDialog(context, program->window, &def, nullptr);
+    return mwinWindow_RequestFileDialog(context, program->window, &def, nullptr);
 }
 
 // Whether a file holds what the document made under a name holds.
@@ -288,8 +288,8 @@ static void CheckCopies(Program* program, mwinContext* context)
     char paths[2048];
     size_t length = 0;
     uint32_t count = 0;
-    CHECK(mwinGetDialogFiles(context, program->requests[0], paths, sizeof(paths), &length,
-                             &count) == mwin_success &&
+    CHECK(mwinRequest_GetDialogFiles(context, program->requests[0], paths, sizeof(paths), &length,
+                                     &count) == mwin_success &&
               count == 2,
           "two paths");
     const char* path = paths;
@@ -308,7 +308,7 @@ static void CheckCopies(Program* program, mwinContext* context)
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
     case 0:
@@ -421,7 +421,7 @@ static void Advance(Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }

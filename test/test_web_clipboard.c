@@ -104,7 +104,8 @@ static bool Found(mwinContext* context, mwinRequestId read, const char* expected
 {
     char text[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, read, text, sizeof(text), &found) ==
+               mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -114,7 +115,7 @@ static int Outcome(Program* program, mwinContext* context)
 {
     int outcome = -1;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -140,7 +141,8 @@ static mwinRequestId s_exactRead;
 
 static void Read(Program* program, mwinContext* context)
 {
-    CHECK(mwinRequestClipboardRead(context, program->window, &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->request) ==
+              mwin_success,
           "a read");
 }
 
@@ -168,20 +170,21 @@ static bool FoundData(mwinContext* context, mwinRequestId read, const uint8_t* e
 {
     uint8_t data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, read, data, sizeof(data), &found) == mwin_success &&
+    return mwinRequest_GetClipboardData(context, read, data, sizeof(data), &found) ==
+               mwin_success &&
            (whole ? found == length : found >= length) && memcmp(data, expected, length) == 0;
 }
 
 static void ReadData(Program* program, mwinContext* context, const char* mime)
 {
-    CHECK(mwinRequestClipboardReadData(context, program->window, mime, strlen(mime),
-                                       &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardReadData(context, program->window, mime, strlen(mime),
+                                              &program->request) == mwin_success,
           "a data read");
 }
 
 static void Write(Program* program, mwinContext* context)
 {
-    CHECK(mwinRequestClipboardWrite(context, program->window, "no", 2, &program->request) ==
+    CHECK(mwinWindow_RequestClipboardWrite(context, program->window, "no", 2, &program->request) ==
               mwin_success,
           "a write");
 }
@@ -189,8 +192,8 @@ static void Write(Program* program, mwinContext* context)
 static void WriteData(Program* program, mwinContext* context)
 {
     mwinClipboardItem item = {"image/png", 9, s_png, sizeof(s_png)};
-    CHECK(mwinRequestClipboardWriteData(context, program->window, &item, 1, &program->request) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestClipboardWriteData(context, program->window, &item, 1,
+                                               &program->request) == mwin_success,
           "a data write");
 }
 
@@ -227,7 +230,8 @@ static void AdvanceRefused(Program* program, mwinContext* context, int outcome)
     case phaseNoDataRead:
         CHECK(outcome == mwin_outcomeUnsupported, "no data read without it");
         SetClipboard(0);
-        CHECK(mwinRequestPrimaryRead(context, program->window, &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestPrimaryRead(context, program->window, &program->request) ==
+                  mwin_success,
               "a primary read");
         break;
     default:
@@ -257,8 +261,8 @@ static void AdvanceData(Program* program, mwinContext* context, int outcome)
             {"text/plain", 10, "hi", 2},
             {"application/x-maul", 18, s_custom, sizeof(s_custom)},
         };
-        CHECK(mwinRequestClipboardWriteData(context, program->window, items, 3,
-                                            &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardWriteData(context, program->window, items, 3,
+                                                   &program->request) == mwin_success,
               "a data write");
         break;
     }
@@ -299,8 +303,9 @@ static void Advance(Program* program, mwinContext* context, int outcome)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestClipboardWrite(context, program->window, s_written, sizeof(s_written) - 1,
-                                        &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardWrite(context, program->window, s_written,
+                                               sizeof(s_written) - 1,
+                                               &program->request) == mwin_success,
               "a write");
         break;
     case phaseWrite:

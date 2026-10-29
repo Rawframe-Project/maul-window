@@ -129,7 +129,7 @@ static void CheckConnected(Program* program, mwinContext* context)
           "a pad found");
     mwinGamepadInfo info;
     mwinGamepadId pad = program->events[0].data.gamepad;
-    CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success && info.mapped &&
+    CHECK(mwinGamepad_GetInfo(context, pad, &info) == mwin_success && info.mapped &&
               info.battery == 80 && (info.capabilities & mwin_padRumble) != 0 &&
               info.vendor == 0x045e && info.product == 0x0b13 && info.nameLength == 24,
           "its facts and battery");
@@ -174,7 +174,7 @@ static void CheckPressed(Program* program, mwinContext* context)
               Has(program, mwin_eventGamepadAxisMoved, mwin_padTriggerRight, 1.0f),
           "the axes as read");
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, mwinGamepadIdOf(context, s_xbox.pads[0].slot), &state) ==
+    CHECK(mwinGamepad_GetState(context, mwinGamepadIdOf(context, s_xbox.pads[0].slot), &state) ==
                   mwin_success &&
               state.axes[mwin_padStickRightX] == 1.0f && state.axes[mwin_padStickRightY] == 0.0f &&
               state.axes[mwin_padTriggerLeft] == 0.0f,
@@ -246,7 +246,7 @@ static void CheckMany(Program* program, mwinContext* context)
     CHECK(Count(program, mwin_eventGamepadAdded) == PADS - 1, "more than four pads");
     CHECK(Count(program, mwin_eventGamepadChanged) == 1, "a battery that changed is told");
     mwinGamepadInfo info;
-    CHECK(mwinGetGamepadInfo(context, mwinGamepadIdOf(context, s_xbox.pads[0].slot), &info) ==
+    CHECK(mwinGamepad_GetInfo(context, mwinGamepadIdOf(context, s_xbox.pads[0].slot), &info) ==
                   mwin_success &&
               info.battery == 40,
           "and read");

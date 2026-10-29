@@ -66,7 +66,7 @@ typedef struct Program
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
@@ -210,26 +210,26 @@ static void CheckCreated(Program* program, mwinContext* context)
     mwinMonitorId screens[2];
     size_t screenCount = 0;
     CHECK(display != nullptr &&
-              mwinGetMonitors(context, screens, 2, &screenCount) == mwin_success &&
+              mwinContext_GetMonitors(context, screens, 2, &screenCount) == mwin_success &&
               screenCount == 1 && display->data.monitor.index1 == screens[0].index1,
           "the window on the screen");
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, program->page, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->page, &handles) == mwin_success &&
               handles.platform == mwin_platformWeb && handles.handles.web.selectorLength == 12 &&
               memcmp(handles.handles.web.selector, "#page-canvas", 12) == 0,
           "the page's canvas by its selector");
-    CHECK(mwinGetNativeHandles(context, program->made, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->made, &handles) == mwin_success &&
               handles.handles.web.selectorLength < sizeof(program->madeSelector),
           "the made canvas's selector");
     memcpy(program->madeSelector, handles.handles.web.selector, handles.handles.web.selectorLength);
     program->madeSelector[handles.handles.web.selectorLength] = '\0';
     CHECK(Finds(program->madeSelector), "the selector finds the canvas");
-    CHECK(mwinGetNativeHandles(context, program->page, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->page, &handles) == mwin_success &&
               handles.handles.web.accessibilityLength == 26 &&
               memcmp(handles.handles.web.accessibility, "#page-canvas-accessibility", 26) == 0 &&
               HostOver("#page-canvas-accessibility", "#page-canvas"),
           "the page canvas's accessibility host, over it");
-    CHECK(mwinGetNativeHandles(context, program->made, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->made, &handles) == mwin_success &&
               handles.handles.web.accessibilityLength < sizeof(program->madeHost),
           "the made canvas's accessibility host");
     memcpy(program->madeHost, handles.handles.web.accessibility,
@@ -237,22 +237,26 @@ static void CheckCreated(Program* program, mwinContext* context)
     program->madeHost[handles.handles.web.accessibilityLength] = '\0';
     CHECK(HostOver(program->madeHost, program->madeSelector), "over the made canvas");
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.reducedMotion &&
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success && facts.reducedMotion &&
               facts.theme == mwin_themeLight,
           "reduced motion and a light scheme, as the runner set them");
     char locales[64];
     size_t length = 0;
-    CHECK(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+    CHECK(mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+                  mwin_success &&
               length > 0 && LanguagesAre(locales, length),
           "the preferred languages");
     mwinKeyReach closeTab = 0;
     mwinKeyReach copy = 0;
     mwinKeyReach super = 0;
     mwinKeyReach plain = 0;
-    CHECK(mwinGetKeyReach(context, mwin_codeKeyW, mwin_modControl, &closeTab) == mwin_success &&
-              mwinGetKeyReach(context, mwin_codeKeyC, mwin_modControl, &copy) == mwin_success &&
-              mwinGetKeyReach(context, mwin_codeKeyA, mwin_modMeta, &super) == mwin_success &&
-              mwinGetKeyReach(context, mwin_codeKeyA, 0, &plain) == mwin_success &&
+    CHECK(mwinContext_GetKeyReach(context, mwin_codeKeyW, mwin_modControl, &closeTab) ==
+                  mwin_success &&
+              mwinContext_GetKeyReach(context, mwin_codeKeyC, mwin_modControl, &copy) ==
+                  mwin_success &&
+              mwinContext_GetKeyReach(context, mwin_codeKeyA, mwin_modMeta, &super) ==
+                  mwin_success &&
+              mwinContext_GetKeyReach(context, mwin_codeKeyA, 0, &plain) == mwin_success &&
               closeTab == mwin_keyReachNever && copy == mwin_keyReachShared &&
               super == mwin_keyReachUncertain && plain == mwin_keyReachDelivered,
           "Chrome on Linux: its own chords never, shortcuts shared, the desktop's uncertain");
@@ -263,8 +267,8 @@ static bool Screen(const mwinContext* context, mwinMonitorInfo* infoOut)
 {
     mwinMonitorId monitors[2];
     size_t count = 0;
-    return mwinGetMonitors(context, monitors, 2, &count) == mwin_success && count == 1 &&
-           mwinGetMonitorInfo(context, monitors[0], infoOut) == mwin_success;
+    return mwinContext_GetMonitors(context, monitors, 2, &count) == mwin_success && count == 1 &&
+           mwinMonitor_GetInfo(context, monitors[0], infoOut) == mwin_success;
 }
 
 static void AdvanceLate(Program* program, mwinContext* context)
@@ -275,7 +279,8 @@ static void AdvanceLate(Program* program, mwinContext* context)
     case phaseScheme:
     {
         mwinSystemFacts facts;
-        CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == mwin_themeDark,
+        CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success &&
+                  facts.theme == mwin_themeDark,
               "a dark scheme");
         mwinMonitorInfo info;
         CHECK(Screen(context, &info) && info.hdr.known && !info.hdr.active &&
@@ -291,8 +296,8 @@ static void AdvanceLate(Program* program, mwinContext* context)
         CHECK(Screen(context, &info) && info.hdr.known && info.hdr.active &&
                   info.hdr.headroom == 0.0f && info.hdr.peakNits == 0.0f,
               "HDR on, told as a change, with no luminance");
-        CHECK(mwinRequestMode(context, program->made, mwin_modeBorderlessFullscreen, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->made, mwin_modeBorderlessFullscreen,
+                                     nullptr) == mwin_success,
               "fullscreen");
         break;
     }
@@ -304,8 +309,8 @@ static void AdvanceLate(Program* program, mwinContext* context)
         (void)printf("mwin-test: click %s 10 10\n", program->madeSelector);
         break;
     case phaseClick:
-        CHECK(mwinRequestMode(context, program->made, mwin_modeBorderlessFullscreen, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->made, mwin_modeBorderlessFullscreen,
+                                     nullptr) == mwin_success,
               "fullscreen after a click");
         break;
     case phaseGranted:
@@ -314,10 +319,11 @@ static void AdvanceLate(Program* program, mwinContext* context)
         mwinWindowState state;
         CHECK(completed->data.completion.outcome == mwin_outcomeDone && mode != nullptr &&
                   mode->data.mode == mwin_modeBorderlessFullscreen &&
-                  mwinGetWindowState(context, program->made, &state) == mwin_success &&
+                  mwinWindow_GetState(context, program->made, &state) == mwin_success &&
                   state.mode == mwin_modeBorderlessFullscreen,
               "granted: fullscreen, told as a change");
-        CHECK(mwinRequestMode(context, program->made, mwin_modeWindowed, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->made, mwin_modeWindowed, nullptr) ==
+                  mwin_success,
               "windowed again");
         break;
     }
@@ -327,7 +333,7 @@ static void AdvanceLate(Program* program, mwinContext* context)
         mwinWindowState state;
         CHECK(completed->data.completion.outcome == mwin_outcomeDone && mode != nullptr &&
                   mode->data.mode == mwin_modeWindowed &&
-                  mwinGetWindowState(context, program->made, &state) == mwin_success &&
+                  mwinWindow_GetState(context, program->made, &state) == mwin_success &&
                   state.mode == mwin_modeWindowed,
               "left: windowed, told as a change");
         (void)printf("mwin-test: click %s 10 10\n", program->madeSelector);
@@ -344,7 +350,7 @@ static void AdvanceLate(Program* program, mwinContext* context)
     }
     case phaseMadeFullscreen:
         CHECK(mwinDestroyWindow(context, program->full) == mwin_success &&
-                  mwinRequestVisible(context, program->made, false, nullptr) == mwin_success,
+                  mwinWindow_RequestVisible(context, program->made, false, nullptr) == mwin_success,
               "destroyed, and the first hidden");
         break;
     case phaseHide:
@@ -376,12 +382,13 @@ static void Advance(Program* program, mwinContext* context)
                   Find(program, mwin_eventResized, program->made, 0) == nullptr,
               "a new ratio: a new scale and pixels, the same size");
         // A new width alone: the device pixels change across only.
-        CHECK(mwinRequestSize(context, program->made, (mwinSize){400.0f, 200.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestSize(context, program->made, (mwinSize){400.0f, 200.0f}, nullptr) ==
                   mwin_success,
               "a size");
         break;
     case phaseResize:
-        CHECK(mwinRequestTitle(context, program->made, "Retitled", 8, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTitle(context, program->made, "Retitled", 8, nullptr) ==
+                  mwin_success,
               "a title");
         break;
     case phaseTitle:
@@ -399,7 +406,7 @@ static void Advance(Program* program, mwinContext* context)
                   Find(program, mwin_eventPixelSizeChanged, program->page, 0) == nullptr,
               "a canvas collapsed to no width keeps its size");
         SetWidth("#page-canvas", "200px");
-        CHECK(mwinRequestFocus(context, program->made, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->made, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
         (void)printf("mwin-test: scheme dark\n");

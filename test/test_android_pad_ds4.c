@@ -429,7 +429,7 @@ static bool LastMotors(const char* text, unsigned* light, unsigned* heavy)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -460,7 +460,7 @@ static void Battery(Program* program, int8_t percent)
 static void Added(Program* program, mwinContext* context, mwinGamepadId id)
 {
     mwinGamepadInfo info = {0};
-    if (mwinGetGamepadInfo(context, id, &info) != mwin_success || info.nameLength < strlen(NAME) ||
+    if (mwinGamepad_GetInfo(context, id, &info) != mwin_success || info.nameLength < strlen(NAME) ||
         memcmp(info.name, NAME, strlen(NAME)) != 0)
     {
         return;
@@ -477,14 +477,14 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventGamepadAdded || event.type == mwin_eventGamepadChanged ||
             event.type == mwin_eventGamepadRemoved)
         {
             // For a timeout's report: what came, when.
             mwinGamepadInfo info = {0};
-            (void)mwinGetGamepadInfo(context, event.data.gamepad, &info);
+            (void)mwinGamepad_GetInfo(context, event.data.gamepad, &info);
             printf("  %.2f s: gamepad %s: %.*s, capabilities %u\n",
                    (double)(NowNs() - program->beganNs) / 1e9,
                    event.type == mwin_eventGamepadAdded     ? "added"
@@ -501,7 +501,7 @@ static void Collect(Program* program, mwinContext* context)
                  event.data.gamepad.generation == program->pad.generation)
         {
             mwinGamepadInfo info = {0};
-            (void)mwinGetGamepadInfo(context, program->pad, &info);
+            (void)mwinGamepad_GetInfo(context, program->pad, &info);
             program->motion = (info.capabilities & mwin_padMotion) != 0;
             Battery(program, info.battery);
         }
@@ -509,7 +509,7 @@ static void Collect(Program* program, mwinContext* context)
         {
             mwinGamepadInfo info = {0};
             program->staleAdded =
-                mwinGetGamepadInfo(context, event.data.gamepad, &info) == mwin_success &&
+                mwinGamepad_GetInfo(context, event.data.gamepad, &info) == mwin_success &&
                 info.nameLength >= strlen(STALE) && memcmp(info.name, STALE, strlen(STALE)) == 0;
             program->stale = event.data.gamepad;
         }
@@ -576,11 +576,11 @@ static int AskStale(Program* program, mwinContext* context)
     if (!program->staleInstalled)
     {
         mwinNativeHandles handles = {0};
-        mwinResult result = mwinGetNativeHandles(context, program->window, &handles);
+        mwinResult result = mwinWindow_GetNativeHandles(context, program->window, &handles);
         if (result != mwin_success)
         {
             program->staleStep = "the window's handles";
-            program->staleAnswer = mwinResultName(result);
+            program->staleAnswer = mwinGetResultName(result);
             return result == mwin_errorState ? 0 : -1;
         }
         ANativeActivity* activity = handles.handles.android.activity;
@@ -730,7 +730,7 @@ static bool Ready(Program* program, mwinContext* context)
     case 0:
     {
         mwinWindowState state = {0};
-        (void)mwinGetWindowState(context, program->window, &state);
+        (void)mwinWindow_GetState(context, program->window, &state);
         return state.focused;
     }
     case 1:
@@ -746,7 +746,7 @@ static bool Ready(Program* program, mwinContext* context)
         // Each sensor's samples come on their own: both must have come.
         mwinGamepadMotion motion = {0};
         return android_get_device_api_level() < 31 ||
-               (mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+               (mwinGamepad_GetMotion(context, program->pad, &motion) == mwin_success &&
                 motion.acceleration[1] != 0.0f && motion.rotationRate[1] != 0.0f);
     }
     case 6:
@@ -772,7 +772,7 @@ static bool Ready(Program* program, mwinContext* context)
 static void CheckMotion(Program* program, mwinContext* context)
 {
     mwinGamepadMotion motion = {0};
-    CHECK(mwinGetGamepadMotion(context, program->pad, &motion) == mwin_success &&
+    CHECK(mwinGamepad_GetMotion(context, program->pad, &motion) == mwin_success &&
               fabsf(motion.acceleration[0]) < 0.1f && fabsf(motion.acceleration[1] + 9.8f) < 1.0f &&
               fabsf(motion.acceleration[2]) < 0.1f,
           "one g down y");
@@ -797,9 +797,9 @@ static void CheckStale(const Program* program, mwinContext* context)
            program->staleFirst == 1 ? "its press" : "another");
     mwinGamepadInfo info = {0};
     mwinGamepadState state = {0};
-    CHECK(mwinGetGamepadInfo(context, program->stale, &info) == mwin_success && info.mapped,
+    CHECK(mwinGamepad_GetInfo(context, program->stale, &info) == mwin_success && info.mapped,
           "the stale pad mapped by its keys");
-    CHECK(mwinGetGamepadState(context, program->stale, &state) == mwin_success &&
+    CHECK(mwinGamepad_GetState(context, program->stale, &state) == mwin_success &&
               (state.buttons & 1u << mwin_padFaceSouth) != 0 &&
               state.axes[mwin_padStickLeftX] > 0.99f,
           "its cross held and its left stick right, on the standard axes");
@@ -837,12 +837,12 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 1:
         // Longer than the test runs: only the stop ends it.
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.25f, 1.0f, 60000) == mwin_success,
+        CHECK(mwinGamepad_SetRumble(context, program->pad, 0.25f, 1.0f, 60000) == mwin_success,
               "the rumble asked for");
         break;
     case 2:
         CheckCopy(WantOf(program->phase));
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.0f, 0.0f, 0) == mwin_success,
+        CHECK(mwinGamepad_SetRumble(context, program->pad, 0.0f, 0.0f, 0) == mwin_success,
               "the rumble stopped");
         break;
     case 3:
@@ -851,13 +851,13 @@ static void Advance(Program* program, mwinContext* context)
     case 4:
         if (android_get_device_api_level() >= 31)
         {
-            CHECK(mwinSetGamepadMotion(context, program->pad, true) == mwin_success,
+            CHECK(mwinGamepad_EnableMotion(context, program->pad, true) == mwin_success,
                   "the pad's motion turned on");
         }
         else
         {
-            CHECK(!program->motion &&
-                      mwinSetGamepadMotion(context, program->pad, true) == mwin_errorUnsupported,
+            CHECK(!program->motion && mwinGamepad_EnableMotion(context, program->pad, true) ==
+                                          mwin_errorUnsupported,
                   "no motion on Android 11");
         }
         break;
@@ -865,7 +865,7 @@ static void Advance(Program* program, mwinContext* context)
         if (android_get_device_api_level() >= 31)
         {
             CheckMotion(program, context);
-            CHECK(mwinSetGamepadMotion(context, program->pad, false) == mwin_success,
+            CHECK(mwinGamepad_EnableMotion(context, program->pad, false) == mwin_success,
                   "the pad's motion turned off");
         }
         break;
@@ -886,11 +886,11 @@ static void Advance(Program* program, mwinContext* context)
             CHECK(!program->battery, "no battery on Android 11");
         }
         // The program quits with both running.
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.5f, 0.5f, 60000) == mwin_success,
+        CHECK(mwinGamepad_SetRumble(context, program->pad, 0.5f, 0.5f, 60000) == mwin_success,
               "the rumble asked for, to quit with");
         if (android_get_device_api_level() >= 31)
         {
-            CHECK(mwinSetGamepadMotion(context, program->pad, true) == mwin_success,
+            CHECK(mwinGamepad_EnableMotion(context, program->pad, true) == mwin_success,
                   "the pad's motion turned on, to quit with");
         }
         break;

@@ -85,7 +85,7 @@ EM_JS(bool, ValueIs, (const char* id, const char* text), {
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -144,14 +144,14 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
                   handles.handles.web.accessibilityLength < sizeof(program->host),
               "the accessibility host");
         memcpy(program->host, handles.handles.web.accessibility,
                handles.handles.web.accessibilityLength);
         program->host[handles.handles.web.accessibilityLength] = '\0';
         MakeElements(program->host);
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     }
     case phaseFocus:
@@ -179,7 +179,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(down != nullptr && down->data.key.code == mwin_codeKeyD && program->textLength == 0 &&
                   ValueIs("host-area", "d"),
               "a key in the host's text area, its text the area's");
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success,
               "focus while in the host");
         break;
     case phaseRequest:

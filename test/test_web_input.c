@@ -92,7 +92,7 @@ EM_JS(int, PageCursors, (const mwinContext* context), {
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -179,8 +179,9 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         CHECK(down != nullptr && down->data.key.code == mwin_codeKeyA &&
                   down->data.key.key == 'a' && !down->data.key.repeat && TextIs(program, "a"),
               "a key, what it means, and its text");
-        CHECK(mwinMapKeyCode(context, mwin_codeKeyQ) == 'q' &&
-                  mwinMapKeyCode(context, mwin_codeEscape) == (MWIN_KEY_NAMED | mwin_codeEscape),
+        CHECK(mwinContext_MapKeyCode(context, mwin_codeKeyQ) == 'q' &&
+                  mwinContext_MapKeyCode(context, mwin_codeEscape) ==
+                      (MWIN_KEY_NAMED | mwin_codeEscape),
               "what keys mean in the layout");
         Ask(program, "down", "ShiftLeft");
         Ask(program, "key", "KeyA");
@@ -267,7 +268,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
         CHECK(Find(program, mwin_eventWheel, 0)->data.wheel.y == -1.0f &&
                   Find(program, mwin_eventWheel, 0)->data.wheel.x == 0.0f,
               "a detent toward the user");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
@@ -278,22 +279,22 @@ static void AdvancePointer(Program* program, mwinContext* context)
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }
     case phaseImage:
         CHECK(outcome == mwin_outcomeDone && CursorIsImages(program->selector),
               "the images as PNG in an image-set, with the hotspot");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a shape again");
         break;
     case phaseShapeAgain:
         CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "text"),
               "the shape in the image's place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the images again");
         break;
@@ -304,14 +305,14 @@ static void AdvancePointer(Program* program, mwinContext* context)
                   mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   CursorIs(program->selector, "default") && PageCursors(context) == 0,
               "destroyed, the default shape and the page's images let go");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorHidden, nullptr) ==
                   mwin_success,
               "hide");
         break;
     case phaseHidden:
         CHECK(outcome == mwin_outcomeDone && CursorIs(program->selector, "none"), "hidden");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfined, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorConfined,
+                                           nullptr) == mwin_success,
               "confine");
         break;
     default:
@@ -330,8 +331,8 @@ static void AdvanceCapture(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseClick:
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorCaptured,
+                                           nullptr) == mwin_success,
               "capture");
         break;
     case phaseCapture:
@@ -344,7 +345,7 @@ static void AdvanceCapture(Program* program, mwinContext* context)
         CHECK(delta->data.delta.x == 10.0f && delta->data.delta.y == -5.0f &&
                   Find(program, mwin_eventCursorMoved, 0) == nullptr,
               "raw motion while captured, no cursor");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");
         break;
@@ -400,14 +401,14 @@ static void Advance(Program* program, mwinContext* context)
     if (program->phase == phaseCreate)
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
                   handles.handles.web.selectorLength < sizeof(program->selector),
               "the canvas");
         memcpy(program->selector, handles.handles.web.selector, handles.handles.web.selectorLength);
         program->selector[handles.handles.web.selectorLength] = '\0';
         // Before any input: no gesture the browser would take.
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorCaptured,
+                                           nullptr) == mwin_success,
               "capture with no gesture");
     }
     else if (program->phase == phaseRefused)
@@ -415,7 +416,7 @@ static void Advance(Program* program, mwinContext* context)
         const mwinEvent* completed = Find(program, mwin_eventRequestCompleted, 0);
         CHECK(completed->data.completion.outcome == mwin_outcomeDenied,
               "the pointer not locked without a gesture");
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
     }
     else if (program->phase <= phaseNamed)
     {

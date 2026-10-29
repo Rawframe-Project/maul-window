@@ -41,36 +41,40 @@ static bool Found(mwinContext* context, mwinRequestId read, const char* expected
 {
     char text[64];
     size_t length = 0;
-    return mwinGetClipboardText(context, read, text, sizeof(text), &length) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, read, text, sizeof(text), &length) ==
+               mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
 static void Read(Program* program, mwinContext* context, int request)
 {
-    CHECK(mwinRequestClipboardRead(context, program->windows[0], &program->requests[request]) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestClipboardRead(context, program->windows[0],
+                                          &program->requests[request]) == mwin_success,
           "a read");
 }
 
 static void Write(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->windows[0];
-    CHECK(mwinRequestClipboardWrite(context, window, nullptr, 0, nullptr) == mwin_success &&
-              mwinRequestClipboardWrite(context, window, "0123456789abcdef", LIMIT, nullptr) ==
-                  mwin_success,
+    CHECK(mwinWindow_RequestClipboardWrite(context, window, nullptr, 0, nullptr) == mwin_success &&
+              mwinWindow_RequestClipboardWrite(context, window, "0123456789abcdef", LIMIT,
+                                               nullptr) == mwin_success,
           "empty text, and text of the limit exactly");
-    CHECK(mwinRequestClipboardWrite(context, window, "h\xC3\xA9llo", 6, &program->requests[1]) ==
-                  mwin_success &&
-              mwinRequestClipboardWrite(context, window, "second", 6, &program->requests[2]) ==
-                  mwin_success,
+    CHECK(mwinWindow_RequestClipboardWrite(context, window, "h\xC3\xA9llo", 6,
+                                           &program->requests[1]) == mwin_success &&
+              mwinWindow_RequestClipboardWrite(context, window, "second", 6,
+                                               &program->requests[2]) == mwin_success,
           "two writes");
-    CHECK(mwinRequestClipboardWrite(context, window, "a\xC3", 2, nullptr) == mwin_errorInvalid &&
-              mwinRequestClipboardWrite(context, window, "0123456789abcdefg", LIMIT + 1, nullptr) ==
-                  mwin_errorCapacity &&
-              mwinRequestClipboardWrite(nullptr, window, "a", 1, nullptr) == mwin_errorInvalid &&
-              mwinRequestClipboardWrite(context, window, nullptr, 1, nullptr) ==
+    CHECK(mwinWindow_RequestClipboardWrite(context, window, "a\xC3", 2, nullptr) ==
                   mwin_errorInvalid &&
-              mwinRequestClipboardRead(context, (mwinWindowId){0}, nullptr) == mwin_errorStale,
+              mwinWindow_RequestClipboardWrite(context, window, "0123456789abcdefg", LIMIT + 1,
+                                               nullptr) == mwin_errorCapacity &&
+              mwinWindow_RequestClipboardWrite(nullptr, window, "a", 1, nullptr) ==
+                  mwin_errorInvalid &&
+              mwinWindow_RequestClipboardWrite(context, window, nullptr, 1, nullptr) ==
+                  mwin_errorInvalid &&
+              mwinWindow_RequestClipboardRead(context, (mwinWindowId){0}, nullptr) ==
+                  mwin_errorStale,
           "text not UTF-8 or past the limit refused at the call, and a stale window");
 }
 
@@ -80,11 +84,11 @@ static void CheckWritten(Program* program, mwinContext* context)
     size_t length = 0;
     CHECK(Outcome(program, 1, mwin_requestClipboardWrite) == mwin_outcomeSuperseded &&
               Outcome(program, 2, mwin_requestClipboardWrite) == mwin_outcomeDone &&
-              mwinTestGetClipboard(context, text, sizeof(text), &length) == mwin_success &&
+              mwinContext_GetTestClipboard(context, text, sizeof(text), &length) == mwin_success &&
               length == 6 && memcmp(text, "second", 6) == 0,
           "the later write on the clipboard, the first superseded");
     // A lone lead byte before '(', and a four-byte sequence cut short.
-    CHECK(mwinTestSetClipboard(context, "a\xC3(b\xF0\x9F\x98", 7) == mwin_success, "set");
+    CHECK(mwinContext_SetTestClipboard(context, "a\xC3(b\xF0\x9F\x98", 7) == mwin_success, "set");
     Read(program, context, 3);
 }
 
@@ -96,18 +100,20 @@ static void CheckRepaired(Program* program, mwinContext* context)
     char text[2];
     size_t length = 0;
     mwinRequestId read = program->requests[3];
-    CHECK(mwinGetClipboardText(context, read, text, sizeof(text), &length) == mwin_errorCapacity &&
+    CHECK(mwinRequest_GetClipboardText(context, read, text, sizeof(text), &length) ==
+                  mwin_errorCapacity &&
               length == 9 && text[0] == 'a' && (unsigned char)text[1] == 0xEF &&
-              mwinGetClipboardText(context, read, nullptr, 0, &length) == mwin_errorCapacity &&
-              mwinGetClipboardText(context, read, nullptr, 1, &length) == mwin_errorInvalid,
+              mwinRequest_GetClipboardText(context, read, nullptr, 0, &length) ==
+                  mwin_errorCapacity &&
+              mwinRequest_GetClipboardText(context, read, nullptr, 1, &length) == mwin_errorInvalid,
           "the bytes that fit, and the length");
-    CHECK(mwinGetClipboardText(context, (mwinRequestId){0}, nullptr, 0, &length) ==
+    CHECK(mwinRequest_GetClipboardText(context, (mwinRequestId){0}, nullptr, 0, &length) ==
                   mwin_errorStale &&
-              mwinGetClipboardText(context, program->requests[2], nullptr, 0, &length) ==
+              mwinRequest_GetClipboardText(context, program->requests[2], nullptr, 0, &length) ==
                   mwin_errorStale,
           "the null request and a write have no text");
     static const uint16_t units[] = {0x48, 0xD83D, 0xDE00, 0xD800, 0x21};
-    CHECK(mwinTestSetClipboardUtf16(context, units, 5) == mwin_success, "set UTF-16");
+    CHECK(mwinContext_SetTestClipboardUtf16(context, units, 5) == mwin_success, "set UTF-16");
     Read(program, context, 4);
 }
 
@@ -116,7 +122,8 @@ static void CheckUtf16(Program* program, mwinContext* context)
     CHECK(Outcome(program, 4, mwin_requestClipboardRead) == mwin_outcomeDone &&
               Found(context, program->requests[4], "H\xF0\x9F\x98\x80\xEF\xBF\xBD!"),
           "UTF-16 as UTF-8, a lone surrogate replaced");
-    CHECK(mwinTestSetClipboard(context, "0123456789abcdefg", LIMIT + 1) == mwin_success, "set");
+    CHECK(mwinContext_SetTestClipboard(context, "0123456789abcdefg", LIMIT + 1) == mwin_success,
+          "set");
     Read(program, context, 5);
 }
 
@@ -126,7 +133,8 @@ static void CheckTooLarge(Program* program, mwinContext* context)
               Found(context, program->requests[4], "H\xF0\x9F\x98\x80\xEF\xBF\xBD!"),
           "text past the limit too large, the last text kept");
     // Six bytes, eighteen once repaired.
-    CHECK(mwinTestSetClipboard(context, "\xFF\xFF\xFF\xFF\xFF\xFF", 6) == mwin_success, "set");
+    CHECK(mwinContext_SetTestClipboard(context, "\xFF\xFF\xFF\xFF\xFF\xFF", 6) == mwin_success,
+          "set");
     Read(program, context, 6);
 }
 
@@ -134,7 +142,8 @@ static void CheckRepairedTooLarge(Program* program, mwinContext* context)
 {
     CHECK(Outcome(program, 6, mwin_requestClipboardRead) == mwin_outcomeTooLarge,
           "text past the limit once repaired too large");
-    CHECK(mwinTestSetAnswer(context, mwin_requestClipboardRead, mwin_outcomeDenied) == mwin_success,
+    CHECK(mwinContext_SetTestAnswer(context, mwin_requestClipboardRead, mwin_outcomeDenied) ==
+              mwin_success,
           "deny");
     Read(program, context, 7);
 }
@@ -144,8 +153,9 @@ static void CheckDenied(Program* program, mwinContext* context)
     CHECK(Outcome(program, 7, mwin_requestClipboardRead) == mwin_outcomeDenied &&
               Found(context, program->requests[4], "H\xF0\x9F\x98\x80\xEF\xBF\xBD!"),
           "a refused read, the last text kept");
-    CHECK(mwinTestSetAnswer(context, mwin_requestClipboardRead, mwin_outcomeDone) == mwin_success &&
-              mwinTestSetClipboard(context, nullptr, 0) == mwin_success,
+    CHECK(mwinContext_SetTestAnswer(context, mwin_requestClipboardRead, mwin_outcomeDone) ==
+                  mwin_success &&
+              mwinContext_SetTestClipboard(context, nullptr, 0) == mwin_success,
           "an empty clipboard");
     Read(program, context, 8);
 }
@@ -156,9 +166,9 @@ static void CheckEmpty(Program* program, mwinContext* context)
     CHECK(Outcome(program, 8, mwin_requestClipboardRead) == mwin_outcomeDone &&
               Found(context, program->requests[8], ""),
           "an empty clipboard read as empty text");
-    CHECK(mwinGetClipboardText(context, program->requests[4], nullptr, 0, &length) ==
+    CHECK(mwinRequest_GetClipboardText(context, program->requests[4], nullptr, 0, &length) ==
                   mwin_errorStale &&
-              mwinGetClipboardText(context, program->requests[7], nullptr, 0, &length) ==
+              mwinRequest_GetClipboardText(context, program->requests[7], nullptr, 0, &length) ==
                   mwin_errorStale,
           "a read whose text a later one replaced, and a refused read, stale");
     Read(program, context, 9);
@@ -168,11 +178,11 @@ static void CheckEmpty(Program* program, mwinContext* context)
 // Two windows read in one frame, both answered before the program looks.
 static void CheckTwoWindows(Program* program, mwinContext* context)
 {
-    CHECK(mwinTestSetClipboard(context, "one", 3) == mwin_success &&
-              mwinRequestClipboardRead(context, program->windows[1], &program->requests[12]) ==
-                  mwin_success &&
-              mwinRequestClipboardRead(context, program->windows[2], &program->requests[13]) ==
-                  mwin_success,
+    CHECK(mwinContext_SetTestClipboard(context, "one", 3) == mwin_success &&
+              mwinWindow_RequestClipboardRead(context, program->windows[1],
+                                              &program->requests[12]) == mwin_success &&
+              mwinWindow_RequestClipboardRead(context, program->windows[2],
+                                              &program->requests[13]) == mwin_success,
           "two windows' reads");
 }
 
@@ -181,7 +191,7 @@ static void CheckOnlyTheLast(Program* program, mwinContext* context)
     size_t length = 0;
     CHECK(Outcome(program, 12, mwin_requestClipboardRead) == mwin_outcomeDone &&
               Outcome(program, 13, mwin_requestClipboardRead) == mwin_outcomeDone &&
-              mwinGetClipboardText(context, program->requests[12], nullptr, 0, &length) ==
+              mwinRequest_GetClipboardText(context, program->requests[12], nullptr, 0, &length) ==
                   mwin_errorStale &&
               Found(context, program->requests[13], "one"),
           "the first window's read stale once the second's found text, never given it");
@@ -251,22 +261,23 @@ static void ExactStep(Program* program, mwinContext* context, int step)
         program->windows[0] = Create(context, nullptr);
         break;
     case 1:
-        CHECK(mwinTestSetClipboard(context, text, LIMIT) == mwin_success, "set");
+        CHECK(mwinContext_SetTestClipboard(context, text, LIMIT) == mwin_success, "set");
         Read(program, context, 0);
         break;
     case 2:
         CHECK(Outcome(program, 0, mwin_requestClipboardRead) == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, program->requests[0], found, sizeof(found),
-                                       &length) == mwin_success &&
+                  mwinRequest_GetClipboardText(context, program->requests[0], found, sizeof(found),
+                                               &length) == mwin_success &&
                   length == LIMIT && memcmp(found, text, LIMIT) == 0,
               "UTF-8 of the limit exactly");
-        CHECK(mwinTestSetClipboardUtf16(context, units, LIMIT) == mwin_success, "set UTF-16");
+        CHECK(mwinContext_SetTestClipboardUtf16(context, units, LIMIT) == mwin_success,
+              "set UTF-16");
         Read(program, context, 1);
         break;
     default:
         CHECK(Outcome(program, 1, mwin_requestClipboardRead) == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, program->requests[1], found, sizeof(found),
-                                       &length) == mwin_success &&
+                  mwinRequest_GetClipboardText(context, program->requests[1], found, sizeof(found),
+                                               &length) == mwin_success &&
                   length == LIMIT && memcmp(found, "fedcba9876543210", LIMIT) == 0,
               "UTF-16 of the limit exactly");
         program->done = true;

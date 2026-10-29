@@ -53,7 +53,7 @@ static uint64_t NowNs(void)
 static void Drain(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->seen |= 1ull << event.type;
         if (event.type == mwin_eventResized)
@@ -103,11 +103,11 @@ static void CheckCreated(Program* program, mwinContext* context)
         CHECK((program->seen & (1ull << expected[i])) != 0, "what the first configure tells");
     }
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success && state.created &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success && state.created &&
               state.size.width > 0.0f && state.pixelSize.width > 0 && state.scale > 0.0f,
           "the state follows");
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
               handles.platform == mwin_platformWayland &&
               handles.handles.wayland.display != nullptr &&
               handles.handles.wayland.surface != nullptr,
@@ -115,8 +115,8 @@ static void CheckCreated(Program* program, mwinContext* context)
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinMonitorInfo info;
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
-              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success &&
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
+              mwinMonitor_GetInfo(context, monitors[0], &info) == mwin_success &&
               info.bounds.width > 0 && info.scale >= 1.0f,
           "the compositor's outputs as monitors");
 }
@@ -125,13 +125,14 @@ static void CheckCreated(Program* program, mwinContext* context)
 static void MakeRequests(Program* program, mwinContext* context)
 {
     mwinRequestId request = {0};
-    CHECK(mwinRequestTitle(context, program->window, "Retitled", 8, nullptr) == mwin_success &&
-              mwinRequestSizeLimits(context, program->window, (mwinSize){200.0f, 150.0f},
-                                    (mwinSize){0.0f, 0.0f}, nullptr) == mwin_success &&
-              mwinRequestPosition(context, program->window, (mwinPosition){10.0f, 10.0f},
-                                  nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestTitle(context, program->window, "Retitled", 8, nullptr) ==
+                  mwin_success &&
+              mwinWindow_RequestSizeLimits(context, program->window, (mwinSize){200.0f, 150.0f},
+                                           (mwinSize){0.0f, 0.0f}, nullptr) == mwin_success &&
+              mwinWindow_RequestPosition(context, program->window, (mwinPosition){10.0f, 10.0f},
+                                         nullptr) == mwin_success,
           "title, size limits, position");
-    CHECK(mwinRequestSize(context, program->window, (mwinSize){800.0f, 600.0f}, &request) ==
+    CHECK(mwinWindow_RequestSize(context, program->window, (mwinSize){800.0f, 600.0f}, &request) ==
               mwin_success,
           "a new size");
     Wait(program, request);
@@ -152,7 +153,7 @@ static void Step(Program* program, mwinContext* context)
                   program->size.height == 600.0f,
               "a windowed toplevel sizes itself");
         mwinRequestId request = {0};
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, &request) ==
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMaximized, &request) ==
                   mwin_success,
               "maximize");
         Wait(program, request);
@@ -162,7 +163,7 @@ static void Step(Program* program, mwinContext* context)
     case phaseMode:
     {
         mwinWindowState state;
-        CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                   (program->completion.outcome == mwin_outcomeDenied ||
                    (program->completion.outcome == mwin_outcomeDone &&
                     state.mode == mwin_modeMaximized)),

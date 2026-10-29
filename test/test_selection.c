@@ -48,8 +48,8 @@ static void ReadStep(Program* program, mwinContext* context, int step)
     }
     // Held, the platform answers nothing; the backend's loop starts the
     // reads, here the first request slot's.
-    CHECK(mwinTestHold(context, true) == mwin_success &&
-              mwinRequestPrimaryRead(context, program->windows[0], &program->requests[0]) ==
+    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+              mwinWindow_RequestPrimaryRead(context, program->windows[0], &program->requests[0]) ==
                   mwin_success &&
               program->requests[0].index1 == 1,
           "a read in the first request slot");
@@ -60,8 +60,8 @@ static void ReadStep(Program* program, mwinContext* context, int step)
               SameId(program->events[0].data.completion.request, program->requests[0]) &&
               program->events[0].data.completion.outcome == mwin_outcomeDone,
           "started, and done at once");
-    CHECK(mwinRequestClipboardReadData(context, program->windows[0], "IMAGE/PNG", 9,
-                                       &program->requests[1]) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardReadData(context, program->windows[0], "IMAGE/PNG", 9,
+                                              &program->requests[1]) == mwin_success,
           "a data read");
     mwinRequest asked = {0};
     asked.kind = mwin_requestClipboardReadData;
@@ -75,7 +75,7 @@ static void ReadStep(Program* program, mwinContext* context, int step)
               SameId(program->events[0].data.completion.request, program->requests[1]) &&
               program->events[0].data.completion.outcome == mwin_outcomeFailed,
           "a finished read answers the request for its type, whatever the case");
-    CHECK(mwinTestHold(context, false) == mwin_success, "release");
+    CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
 }
 
 static void TestStartAndFinish(void)

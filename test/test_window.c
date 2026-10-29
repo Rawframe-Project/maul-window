@@ -23,10 +23,10 @@ static void CreationStep(Program* program, mwinContext* context, int step)
     mwinWindowState state;
     if (step == 0)
     {
-        CHECK(mwinTestSetScale(context, 1.5f) == mwin_success, "scale");
+        CHECK(mwinContext_SetTestScale(context, 1.5f) == mwin_success, "scale");
         program->windows[0] = Create(context, &program->requests[0]);
         CHECK(program->windows[0].index1 != 0, "the id is live at once");
-        CHECK(mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->windows[0], &state) == mwin_success &&
                   !state.created,
               "not created before the platform answers");
         return;
@@ -43,7 +43,7 @@ static void CreationStep(Program* program, mwinContext* context, int step)
               completion->kind == mwin_requestCreate && completion->outcome == mwin_outcomeDone,
           "the completion names the creation request");
     CHECK(SameWindow(program->events[0].window, program->windows[0]), "records name the window");
-    CHECK(mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->windows[0], &state) == mwin_success &&
               state.created && state.visible && state.scale == 1.5f && state.size.width == 640.0f &&
               state.pixelSize.width == 960 && state.pixelSize.height == 720,
           "the state follows the notifications");
@@ -68,10 +68,11 @@ static void RequestStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinRequestSize(context, window, (mwinSize){800.0f, 600.0f}, &program->requests[0]) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestSize(context, window, (mwinSize){800.0f, 600.0f},
+                                     &program->requests[0]) == mwin_success,
               "a size request");
-        CHECK(mwinRequestTitle(context, window, "Neu", 3, &program->requests[1]) == mwin_success,
+        CHECK(mwinWindow_RequestTitle(context, window, "Neu", 3, &program->requests[1]) ==
+                  mwin_success,
               "a title request");
         return;
     }
@@ -85,10 +86,10 @@ static void RequestStep(Program* program, mwinContext* context, int step)
     CHECK(program->events[0].data.size.width == 800.0f, "the new size");
     char title[8];
     size_t length = 0;
-    CHECK(mwinTestGetTitle(context, window, title, sizeof(title), &length) == mwin_success &&
+    CHECK(mwinWindow_GetTestTitle(context, window, title, sizeof(title), &length) == mwin_success &&
               length == 3 && memcmp(title, "Neu", 3) == 0,
           "the platform shows the new title");
-    CHECK(mwinTestGetTitle(context, window, nullptr, 0, &length) == mwin_errorCapacity &&
+    CHECK(mwinWindow_GetTestTitle(context, window, nullptr, 0, &length) == mwin_errorCapacity &&
               length == 3,
           "its length without a buffer");
     program->done = true;
@@ -111,11 +112,11 @@ static void SupersedeStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinTestHold(context, true) == mwin_success, "hold");
-        CHECK(mwinRequestSize(context, window, (mwinSize){100.0f, 100.0f}, &program->requests[0]) ==
-                      mwin_success &&
-                  mwinRequestSize(context, window, (mwinSize){200.0f, 100.0f},
-                                  &program->requests[1]) == mwin_success,
+        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
+        CHECK(mwinWindow_RequestSize(context, window, (mwinSize){100.0f, 100.0f},
+                                     &program->requests[0]) == mwin_success &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){200.0f, 100.0f},
+                                         &program->requests[1]) == mwin_success,
               "two size requests");
         return;
     }
@@ -125,7 +126,7 @@ static void SupersedeStep(Program* program, mwinContext* context, int step)
                   program->events[0].data.completion.outcome == mwin_outcomeSuperseded &&
                   SameId(program->events[0].data.completion.request, program->requests[0]),
               "the first is superseded at once");
-        CHECK(mwinTestHold(context, false) == mwin_success, "release");
+        CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
         return;
     }
     static const mwinEventType expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
@@ -148,11 +149,12 @@ static void AnswerStep(Program* program, mwinContext* context, int step)
     if (step == 0)
     {
         program->windows[0] = Create(context, nullptr);
-        CHECK(mwinTestSetAnswer(context, mwin_requestPosition, mwin_outcomeUnsupported) ==
+        CHECK(mwinContext_SetTestAnswer(context, mwin_requestPosition, mwin_outcomeUnsupported) ==
                       mwin_success &&
-                  mwinTestSetAnswer(context, mwin_requestFocus, mwin_outcomeDenied) == mwin_success,
+                  mwinContext_SetTestAnswer(context, mwin_requestFocus, mwin_outcomeDenied) ==
+                      mwin_success,
               "answers");
-        CHECK(mwinTestSetAnswer(context, mwin_requestFocus, mwin_outcomeSuperseded) ==
+        CHECK(mwinContext_SetTestAnswer(context, mwin_requestFocus, mwin_outcomeSuperseded) ==
                   mwin_errorInvalid,
               "only the core supersedes");
         return;
@@ -160,9 +162,9 @@ static void AnswerStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinRequestPosition(context, window, (mwinPosition){10.0f, 20.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestPosition(context, window, (mwinPosition){10.0f, 20.0f}, nullptr) ==
                       mwin_success &&
-                  mwinRequestFocus(context, window, nullptr) == mwin_success,
+                  mwinWindow_RequestFocus(context, window, nullptr) == mwin_success,
               "requests the platform refuses");
         return;
     }
@@ -191,27 +193,27 @@ static void CloseStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         mwinEvent close = {.type = mwin_eventCloseRequested, .window = window};
-        CHECK(mwinTestPost(context, &close) == mwin_success, "the close button");
+        CHECK(mwinContext_PostTestEvent(context, &close) == mwin_success, "the close button");
         return;
     }
     if (step == 2)
     {
         mwinWindowState state;
         CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventCloseRequested &&
-                  mwinGetWindowState(context, window, &state) == mwin_success,
+                  mwinWindow_GetState(context, window, &state) == mwin_success,
               "a close request closes nothing");
-        CHECK(mwinTestHold(context, true) == mwin_success, "hold");
-        CHECK(mwinRequestMode(context, window, mwin_modeMaximized, &program->requests[0]) ==
+        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeMaximized, &program->requests[0]) ==
                   mwin_success,
               "a request in flight");
         CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
         CHECK(mwinDestroyWindow(context, window) == mwin_errorStale, "destroy once");
         mwinWindowState state2;
-        CHECK(mwinGetWindowState(context, window, &state2) == mwin_errorStale &&
-                  mwinRequestFocus(context, window, nullptr) == mwin_errorStale &&
-                  mwinRequestSize(context, window, (mwinSize){1.0f, 1.0f}, nullptr) ==
+        CHECK(mwinWindow_GetState(context, window, &state2) == mwin_errorStale &&
+                  mwinWindow_RequestFocus(context, window, nullptr) == mwin_errorStale &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){1.0f, 1.0f}, nullptr) ==
                       mwin_errorStale &&
-                  mwinRequestTitle(context, window, "x", 1, nullptr) == mwin_errorStale,
+                  mwinWindow_RequestTitle(context, window, "x", 1, nullptr) == mwin_errorStale,
               "a stale id is refused");
         Drain(program, context);
         static const mwinEventType expected[] = {mwin_eventRequestCompleted,
@@ -219,7 +221,7 @@ static void CloseStep(Program* program, mwinContext* context, int step)
         CHECK(Types(program, expected, 2) &&
                   program->events[0].data.completion.outcome == mwin_outcomeCancelled,
               "its request is cancelled, then it is destroyed");
-        CHECK(mwinTestHold(context, false) == mwin_success, "release");
+        CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
         return;
     }
     CHECK(program->eventCount == 0, "nothing answers a destroyed window's requests");
@@ -247,8 +249,8 @@ static void CriticalStep(Program* program, mwinContext* context, int step)
         Drain(program, context);
         mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
         mwinEvent other = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
-        CHECK(mwinTestPost(context, &lost) == mwin_success &&
-                  mwinTestPost(context, &other) == mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &other) == mwin_success,
               "both windows lose their surfaces");
         return;
     }
@@ -298,10 +300,10 @@ static void DropStep(Program* program, mwinContext* context, int step)
         Drain(program, context);
         mwinEvent resized = {.type = mwin_eventResized, .window = window};
         resized.data.size = (mwinSize){30.0f, 30.0f};
-        CHECK(mwinTestPost(context, &resized) == mwin_success &&
-                  mwinTestHold(context, true) == mwin_success &&
-                  mwinRequestMode(context, window, mwin_modeMaximized, &program->requests[0]) ==
-                      mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &resized) == mwin_success &&
+                  mwinContext_HoldTestRequests(context, true) == mwin_success &&
+                  mwinWindow_RequestMode(context, window, mwin_modeMaximized,
+                                         &program->requests[0]) == mwin_success,
               "a size waits, a request in flight");
         return;
     }
@@ -311,7 +313,7 @@ static void DropStep(Program* program, mwinContext* context, int step)
     CHECK(Types(program, expected, 2) &&
               program->events[0].data.completion.outcome == mwin_outcomeCancelled,
           "the size goes, the cancelled request stays");
-    CHECK(mwinTestHold(context, false) == mwin_success, "release");
+    CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
     program->done = true;
 }
 
@@ -344,10 +346,11 @@ static void EdgeStep(Program* program, mwinContext* context, int step)
         static char title[1024];
         memset(title, 'a', sizeof(title));
         title[0] = (char)0xFF;
-        CHECK(mwinRequestTitle(context, window, title, sizeof(title), nullptr) == mwin_errorInvalid,
+        CHECK(mwinWindow_RequestTitle(context, window, title, sizeof(title), nullptr) ==
+                  mwin_errorInvalid,
               "a title of the most bytes, not UTF-8, is misuse");
-        CHECK(mwinRequestTitle(context, window, nullptr, 0, nullptr) == mwin_success &&
-                  mwinRequestVisible(context, window, false, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTitle(context, window, nullptr, 0, nullptr) == mwin_success &&
+                  mwinWindow_RequestVisible(context, window, false, nullptr) == mwin_success,
               "an empty title, and hiding");
         return;
     }
@@ -359,7 +362,7 @@ static void EdgeStep(Program* program, mwinContext* context, int step)
             completions += program->events[i].type == mwin_eventRequestCompleted &&
                            program->events[i].data.completion.outcome == mwin_outcomeDone;
         }
-        CHECK(completions == 2 && mwinGetWindowState(context, window, &state) == mwin_success &&
+        CHECK(completions == 2 && mwinWindow_GetState(context, window, &state) == mwin_success &&
                   !state.visible,
               "both carried out");
     }
@@ -370,7 +373,8 @@ static void EdgeStep(Program* program, mwinContext* context, int step)
         bool all = true;
         for (int i = 0; i < 32; i++)
         {
-            all = all && mwinRequestSize(context, window, (mwinSize){100.0f + (float)i, 100.0f},
+            all = all &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){100.0f + (float)i, 100.0f},
                                          nullptr) == mwin_success;
         }
         CHECK(all, "32 requests");
@@ -397,13 +401,13 @@ static void NeighbourStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinTestHold(context, true) == mwin_success &&
-                  mwinRequestSize(context, program->windows[0], (mwinSize){10.0f, 10.0f},
-                                  nullptr) == mwin_success &&
-                  mwinRequestSize(context, program->windows[1], (mwinSize){20.0f, 20.0f},
-                                  &program->requests[0]) == mwin_success &&
+        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+                  mwinWindow_RequestSize(context, program->windows[0], (mwinSize){10.0f, 10.0f},
+                                         nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, program->windows[1], (mwinSize){20.0f, 20.0f},
+                                         &program->requests[0]) == mwin_success &&
                   mwinDestroyWindow(context, program->windows[0]) == mwin_success &&
-                  mwinTestHold(context, false) == mwin_success,
+                  mwinContext_HoldTestRequests(context, false) == mwin_success,
               "a request each, then the first window goes");
         return;
     }
@@ -441,9 +445,9 @@ static void FullCriticalStep(Program* program, mwinContext* context, int step)
         mwinEvent first = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
         mwinEvent second = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
         mwinEvent suspending = {.type = mwin_eventSuspending};
-        CHECK(mwinTestPost(context, &first) == mwin_success &&
-                  mwinTestPost(context, &second) == mwin_success &&
-                  mwinTestPost(context, &suspending) == mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &first) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &second) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &suspending) == mwin_success,
               "both surfaces lost, then the program suspended");
         return;
     }
@@ -480,7 +484,7 @@ static void StopStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
-        CHECK(mwinTestPost(context, &lost) == mwin_success, "the surface goes");
+        CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
     program->done = true; // in the critical frame of the lost surface
@@ -515,19 +519,19 @@ static void LimitStep(Program* program, mwinContext* context, int step)
         CHECK(mwinCreateWindow(context, &def, &program->windows[0], nullptr) == mwin_success,
               "the slot is free once drained");
         mwinWindowId window = program->windows[1];
-        CHECK(mwinTestHold(context, true) == mwin_success, "hold");
+        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
         for (int i = 0; i < 32; i++)
         {
-            CHECK(mwinRequestSize(context, window, (mwinSize){10.0f + (float)i, 10.0f}, nullptr) ==
-                      mwin_success,
+            CHECK(mwinWindow_RequestSize(context, window, (mwinSize){10.0f + (float)i, 10.0f},
+                                         nullptr) == mwin_success,
                   "32 requests");
         }
-        CHECK(mwinRequestSize(context, window, (mwinSize){5.0f, 5.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestSize(context, window, (mwinSize){5.0f, 5.0f}, nullptr) ==
                   mwin_errorCapacity,
               "33 are too many while the completions wait");
         return;
     }
-    CHECK(mwinRequestSize(context, program->windows[1], (mwinSize){5.0f, 5.0f}, nullptr) ==
+    CHECK(mwinWindow_RequestSize(context, program->windows[1], (mwinSize){5.0f, 5.0f}, nullptr) ==
               mwin_success,
           "draining frees them");
     program->done = true;
@@ -553,17 +557,18 @@ static void OrderStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         mwinEvent event = {.type = mwin_eventFocusLost, .window = a};
-        CHECK(mwinTestSetTime(context, 1000) == mwin_success, "time");
-        CHECK(mwinTestPost(context, &event) == mwin_success, "focus leaves A");
+        CHECK(mwinContext_SetTestTime(context, 1000) == mwin_success, "time");
+        CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "focus leaves A");
         event = (mwinEvent){.type = mwin_eventFocusGained, .window = b};
-        CHECK(mwinTestPost(context, &event) == mwin_success, "and enters B");
+        CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "and enters B");
         for (int i = 1; i <= 3; i++)
         {
             event = (mwinEvent){.type = mwin_eventResized, .window = a};
             event.data.size = (mwinSize){(float)(100 * i), 50.0f};
-            CHECK(mwinTestPost(context, &event) == mwin_success, "the user drags A's edge");
+            CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success,
+                  "the user drags A's edge");
         }
-        CHECK(mwinTestSetTime(context, 999) == mwin_errorInvalid, "time goes forward");
+        CHECK(mwinContext_SetTestTime(context, 999) == mwin_errorInvalid, "time goes forward");
         return;
     }
     static const mwinEventType expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
@@ -585,7 +590,7 @@ static void TestOrderAndCoalescing(void)
 static void RefusalStep(Program* program, mwinContext* context, int step)
 {
     (void)step;
-    CHECK(mwinGetContextMisuse(context) == 0 && mwinGetContextMisuse(nullptr) == 0,
+    CHECK(mwinContext_GetMisuse(context) == 0 && mwinContext_GetMisuse(nullptr) == 0,
           "no misuse yet");
     mwinWindowDef def = mwinDefaultWindowDef();
     mwinWindowId window = {0};
@@ -617,27 +622,29 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     CHECK(mwinCreateWindow(context, &def, &window, nullptr) == mwin_errorCapacity,
           "a def's title past the titleBytes limit");
     window = Create(context, nullptr);
-    CHECK(mwinRequestTitle(context, window, longTitle, sizeof(longTitle), nullptr) ==
+    CHECK(mwinWindow_RequestTitle(context, window, longTitle, sizeof(longTitle), nullptr) ==
               mwin_errorCapacity,
           "a title past the limit");
-    CHECK(mwinRequestTitle(context, window, "\xFF", 1, nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestTitle(context, window, "\xFF", 1, nullptr) == mwin_errorInvalid,
           "a title that is not UTF-8");
-    CHECK(mwinRequestMode(context, window, 9, nullptr) == mwin_errorInvalid, "a mode");
-    CHECK(mwinRequestPosition(context, window, (mwinPosition){INFINITY, 0.0f}, nullptr) ==
+    CHECK(mwinWindow_RequestMode(context, window, 9, nullptr) == mwin_errorInvalid, "a mode");
+    CHECK(mwinWindow_RequestPosition(context, window, (mwinPosition){INFINITY, 0.0f}, nullptr) ==
               mwin_errorInvalid,
           "a position");
-    CHECK(mwinRequestSize(context, window, (mwinSize){-1.0f, 1.0f}, nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestSize(context, window, (mwinSize){-1.0f, 1.0f}, nullptr) ==
+              mwin_errorInvalid,
           "a negative size");
     mwinEvent event = {.type = mwin_eventRequestCompleted, .window = window};
-    CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "completions are the core's");
-    CHECK(mwinNextEvent(nullptr, &event) == mwin_errorInvalid, "a NULL context");
-    CHECK(mwinGetWindowState(context, window, nullptr) == mwin_errorInvalid,
+    CHECK(mwinContext_PostTestEvent(context, &event) == mwin_errorInvalid,
+          "completions are the core's");
+    CHECK(mwinContext_NextEvent(nullptr, &event) == mwin_errorInvalid, "a NULL context");
+    CHECK(mwinWindow_GetState(context, window, nullptr) == mwin_errorInvalid,
           "a getter's missing output");
     mwinWindowId never = {3, 7};
     CHECK(mwinDestroyWindow(context, never) == mwin_errorStale, "an id never given");
     // Each invalid refusal of the live context counts; the capacity
     // refusal, the NULL context and the stale id do not.
-    CHECK(mwinGetContextMisuse(context) == 11, "every misuse counted");
+    CHECK(mwinContext_GetMisuse(context) == 11, "every misuse counted");
     program->done = true;
 }
 

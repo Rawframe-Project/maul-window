@@ -129,8 +129,8 @@ bool mwinWantsAwake(const mwinContext* context)
     return false;
 }
 
-mwinResult mwinRequestOpenUrl(mwinContext* context, mwinWindowId window, const char* url,
-                              size_t length, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestOpenUrl(mwinContext* context, mwinWindowId window, const char* url,
+                                     size_t length, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -148,8 +148,8 @@ mwinResult mwinRequestOpenUrl(mwinContext* context, mwinWindowId window, const c
     return RequestText(context, window, mwin_requestOpenUrl, url, length, requestOut);
 }
 
-mwinResult mwinRequestRevealFile(mwinContext* context, mwinWindowId window, const char* path,
-                                 size_t length, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestRevealFile(mwinContext* context, mwinWindowId window, const char* path,
+                                        size_t length, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -171,8 +171,8 @@ mwinResult mwinRequestRevealFile(mwinContext* context, mwinWindowId window, cons
     return RequestText(context, window, mwin_requestRevealFile, path, length, requestOut);
 }
 
-mwinResult mwinRequestKeepAwake(mwinContext* context, mwinWindowId window, bool awake,
-                                mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestKeepAwake(mwinContext* context, mwinWindowId window, bool awake,
+                                       mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {

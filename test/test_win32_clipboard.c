@@ -38,7 +38,7 @@ typedef struct Program
 static int Outcome(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -91,7 +91,7 @@ static mwinRequestId s_read;
 static int Read(mwinContext* context, mwinWindowId window)
 {
     s_read = (mwinRequestId){0};
-    return mwinRequestClipboardRead(context, window, &s_read) == mwin_success
+    return mwinWindow_RequestClipboardRead(context, window, &s_read) == mwin_success
                ? Outcome(context, s_read)
                : -1;
 }
@@ -100,7 +100,8 @@ static bool Found(mwinContext* context, const char* expected)
 {
     char text[LIMIT];
     size_t length = 0;
-    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
+               mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -130,14 +131,15 @@ static bool FoundData(mwinContext* context, const uint8_t* expected, size_t leng
 {
     uint8_t data[LIMIT];
     size_t found = 0;
-    return mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
+    return mwinRequest_GetClipboardData(context, s_read, data, sizeof(data), &found) ==
+               mwin_success &&
            found >= length && memcmp(data, expected, length) == 0;
 }
 
 static int ReadData(mwinContext* context, mwinWindowId window, const char* mime)
 {
     s_read = (mwinRequestId){0};
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
+    return mwinWindow_RequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                    mwin_success
                ? Outcome(context, s_read)
                : -1;
@@ -166,7 +168,7 @@ static void CheckHeld(mwinContext* context, mwinWindowId window)
     mwinRequestId request = {0};
     CHECK(Read(context, window) == mwin_outcomeFailed &&
               ReadData(context, window, "image/png") == mwin_outcomeFailed &&
-              mwinRequestClipboardWrite(context, window, "x", 1, &request) == mwin_success &&
+              mwinWindow_RequestClipboardWrite(context, window, "x", 1, &request) == mwin_success &&
               Outcome(context, request) == mwin_outcomeFailed,
           "while another thread holds the clipboard, reads and writes fail");
     SetEvent(events[1]);
@@ -190,16 +192,19 @@ static void CheckData(mwinContext* context, mwinWindowId window)
         {"application/x-maul", 18, other, sizeof(other)},
     };
     mwinRequestId request = {0};
-    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, &request) == mwin_success &&
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, items, 3, &request) ==
+                  mwin_success &&
               Outcome(context, request) == mwin_outcomeDone && Holds(L"hi") &&
               HoldsData(png, s_png, sizeof(s_png)) && HoldsData(maul, other, sizeof(other)),
           "data written as registered formats, image/png as PNG, beside its text");
-    CHECK(mwinRequestClipboardWriteData(context, window, items, 1, &request) == mwin_success &&
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, items, 1, &request) ==
+                  mwin_success &&
               Outcome(context, request) == mwin_outcomeDone &&
               HoldsData(png, s_png, sizeof(s_png)) && !IsClipboardFormatAvailable(CF_UNICODETEXT),
           "data alone without text");
     mwinClipboardItem empty[] = {items[0], {"application/x-empty", 19, "", 0}};
-    CHECK(mwinRequestClipboardWriteData(context, window, empty, 2, &request) == mwin_success &&
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, empty, 2, &request) ==
+                  mwin_success &&
               Outcome(context, request) == mwin_outcomeDone &&
               IsClipboardFormatAvailable(RegisterClipboardFormatW(L"application/x-empty")),
           "an empty item written too");
@@ -214,7 +219,7 @@ static void CheckData(mwinContext* context, mwinWindowId window)
           "another program's PNG read");
     CHECK(ReadData(context, window, "image/gif") == mwin_outcomeFailed,
           "a type the clipboard lacks fails");
-    CHECK(mwinRequestPrimaryRead(context, window, &request) == mwin_success &&
+    CHECK(mwinWindow_RequestPrimaryRead(context, window, &request) == mwin_success &&
               Outcome(context, request) == mwin_outcomeUnsupported,
           "no primary selection");
 }
@@ -223,9 +228,9 @@ static void Check(mwinContext* context, mwinWindowId window)
 {
     mwinRequestId request = {0};
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, window, &handles) == mwin_success, "the handles");
-    CHECK(mwinRequestClipboardWrite(context, window, "h\xC3\xA9llo \xF0\x9F\x98\x80", 11,
-                                    &request) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success, "the handles");
+    CHECK(mwinWindow_RequestClipboardWrite(context, window, "h\xC3\xA9llo \xF0\x9F\x98\x80", 11,
+                                           &request) == mwin_success &&
               Outcome(context, request) == mwin_outcomeDone && Holds(L"h\x00E9llo \xD83D\xDE00") &&
               GetClipboardOwner() == (HWND)handles.handles.win32.hwnd,
           "written text on the clipboard as UTF-16, the window its owner");

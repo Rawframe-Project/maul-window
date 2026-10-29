@@ -295,7 +295,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
 {
     static char bytes[LIMIT + 1];
     size_t length = 0;
-    Expect(mwinGetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
+    Expect(mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
                mwin_success &&
            length <= LIMIT);
     uint32_t count = 0;
@@ -308,7 +308,8 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
         at += path + 1;
     }
     Expect(count == drop->fileCount && count <= FILES);
-    Expect(mwinGetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    Expect(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
+               mwin_success &&
            length == drop->textLength && length <= LIMIT && IsUtf8(bytes, length));
 }
 
@@ -317,7 +318,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         int i = 0;
         while (i < WINDOWS && memcmp(&s_ids[i], &event.window, sizeof(mwinWindowId)) != 0)

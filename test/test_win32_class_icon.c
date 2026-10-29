@@ -30,7 +30,7 @@ typedef struct Program
 static bool Created(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -87,7 +87,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     if (!program->done && Created(context, program->request))
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's handle");
         HWND hwnd = (HWND)handles.handles.win32.hwnd;
         HICON bigIcon = (HICON)GetClassLongPtrW(hwnd, GCLP_HICON);

@@ -44,7 +44,7 @@ static bool Same(mwinWindowId a, mwinWindowId b)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted &&
             event.data.completion.outcome == mwin_outcomeDone)
@@ -64,7 +64,7 @@ static void Collect(mwinContext* context, Program* program)
 static HWND Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -157,8 +157,8 @@ static void Next(mwinContext* context, Program* program)
             program->hwnds[i] = Handle(context, ids[i]);
         }
         CheckMade(program);
-        CHECK(mwinGetWindowState(context, program->owner, &state) == mwin_success &&
-                  mwinRequestPosition(
+        CHECK(mwinWindow_GetState(context, program->owner, &state) == mwin_success &&
+                  mwinWindow_RequestPosition(
                       context, program->owner,
                       (mwinPosition){state.position.x + 60.0f, state.position.y + 40.0f},
                       nullptr) == mwin_success,
@@ -166,12 +166,12 @@ static void Next(mwinContext* context, Program* program)
         break;
     case 2:
         CHECK(program->menuMoves == 1, "a menu following its owner keeps its place");
-        CHECK(mwinRequestPosition(context, program->menu, (mwinPosition){5.0f, 6.0f}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestPosition(context, program->menu, (mwinPosition){5.0f, 6.0f},
+                                         nullptr) == mwin_success,
               "place the menu");
         break;
     case 3:
-        CHECK(mwinGetWindowState(context, program->menu, &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->menu, &state) == mwin_success &&
                   state.position.x == 5.0f && state.position.y == 6.0f,
               "a menu placed again against its owner");
         SetActiveWindow(program->hwnds[0]);

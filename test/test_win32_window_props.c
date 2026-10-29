@@ -50,7 +50,7 @@ typedef struct Program
 static HWND Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -60,7 +60,7 @@ static int Completed(mwinContext* context)
 {
     int done = 0;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted)
         {
@@ -190,15 +190,16 @@ static void Ask(mwinContext* context, const Program* program, bool set)
 {
     mwinSize least = set ? (mwinSize){200.0f, 100.0f} : (mwinSize){0.0f, 100.0f};
     mwinSize most = set ? (mwinSize){400.0f, 300.0f} : (mwinSize){0.0f, 300.0f};
-    CHECK(mwinRequestSizeLimits(context, program->framed, least, most, nullptr) == mwin_success &&
-              mwinRequestAspectRatio(context, program->framed, set ? 2 : 0, set ? 1 : 0, nullptr) ==
+    CHECK(mwinWindow_RequestSizeLimits(context, program->framed, least, most, nullptr) ==
                   mwin_success &&
-              mwinRequestOpacity(context, program->framed, set ? 0.5f : 1.0f, nullptr) ==
+              mwinWindow_RequestAspectRatio(context, program->framed, set ? 2 : 0, set ? 1 : 0,
+                                            nullptr) == mwin_success &&
+              mwinWindow_RequestOpacity(context, program->framed, set ? 0.5f : 1.0f, nullptr) ==
                   mwin_success &&
-              mwinRequestStyle(context, program->framed,
-                               mwin_styleDecorated | mwin_styleResizable |
-                                   (set ? 0 : mwin_styleAlwaysOnTop),
-                               nullptr) == mwin_success,
+              mwinWindow_RequestStyle(context, program->framed,
+                                      mwin_styleDecorated | mwin_styleResizable |
+                                          (set ? 0 : mwin_styleAlwaysOnTop),
+                                      nullptr) == mwin_success,
           "the limits, the ratio, the opacity and the style asked");
 }
 

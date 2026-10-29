@@ -116,7 +116,7 @@ static bool Asked(mwinContext* context, const Program* program, const char* expe
     mwinNativeHandles handles;
     char parent[32] = "";
     char text[1024];
-    if (mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         (void)snprintf(parent, sizeof(parent), "x11:%x", (unsigned)handles.handles.x11.window);
     }
@@ -157,7 +157,8 @@ static void Begin(mwinContext* context, Program* program)
         program->chosen = program->fake->chosen;
     }
     mwinFileDialogDef def = Def(step->kind, step->bare);
-    CHECK(mwinRequestFileDialog(context, program->window, &def, &program->request) == mwin_success,
+    CHECK(mwinWindow_RequestFileDialog(context, program->window, &def, &program->request) ==
+              mwin_success,
           step->what);
     program->asked = true;
     program->answered = false;
@@ -193,8 +194,8 @@ static bool Chose(mwinContext* context, const Program* program, const Step* step
     char paths[256];
     size_t length = 0;
     return step->files == nullptr ||
-           (mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length, nullptr) ==
-                mwin_success &&
+           (mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                       nullptr) == mwin_success &&
             length == step->filesLength && memcmp(paths, step->files, length) == 0);
 }
 
@@ -221,7 +222,7 @@ static void Finish(mwinContext* context, Program* program)
 static void Drain(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type != mwin_eventRequestCompleted)

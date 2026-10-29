@@ -114,7 +114,8 @@ static bool Found(const mwinContext* context, mwinRequestId read, const char* ex
 {
     char text[16];
     size_t found = 0;
-    return mwinGetClipboardText(context, read, text, sizeof(text), &found) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, read, text, sizeof(text), &found) ==
+               mwin_success &&
            found == length && memcmp(text, expected, length) == 0;
 }
 
@@ -181,7 +182,8 @@ static bool Ready(const Program* program)
 
 static void Probe(Program* program, mwinContext* context)
 {
-    CHECK(mwinRequestClipboardRead(context, program->window, &program->probe) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->probe) ==
+              mwin_success,
           "a read of the offer asked for");
 }
 
@@ -201,8 +203,8 @@ static void Advance(Program* program, mwinContext* context)
               "a window made maximized asks the compositor for it");
         CHECK(Find(program, mwin_eventFocusGained) != nullptr,
               "configured activated, it has focus");
-        CHECK(mwinRequestSizeLimits(context, program->window, (mwinSize){0.0f, 0.0f},
-                                    (mwinSize){300.0f, 0.0f}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestSizeLimits(context, program->window, (mwinSize){0.0f, 0.0f},
+                                           (mwinSize){300.0f, 0.0f}, nullptr) == mwin_success,
               "a largest width");
         break;
     case phaseLimits:
@@ -221,7 +223,7 @@ static void Advance(Program* program, mwinContext* context)
         Configure(program, 0, 0, nullptr, 0);
         break;
     case phaseUnfocused:
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
                   mwin_success,
               "minimize");
         break;
@@ -236,8 +238,8 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseRestored:
         CHECK(ModeIs(program, mwin_modeWindowed), "one that activates it restores it");
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMaximized,
+                                     &program->request) == mwin_success,
               "maximize");
         break;
     case phaseAskMaximized:
@@ -255,10 +257,10 @@ static void Advance(Program* program, mwinContext* context)
               "fullscreen and maximized states together are fullscreen");
         // A maximize waits for its configure; the minimize after it
         // supersedes it and is done at once.
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request) ==
-                      mwin_success &&
-                  mwinRequestMode(context, program->window, mwin_modeMinimized,
-                                  &program->minimize) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMaximized,
+                                     &program->request) == mwin_success &&
+                  mwinWindow_RequestMode(context, program->window, mwin_modeMinimized,
+                                         &program->minimize) == mwin_success,
               "maximize, then minimize before the configure");
         break;
     case phaseSuperseded:
@@ -284,7 +286,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(Found(context, program->probe, "paste", 5), "the client hears of the offer");
         // The read takes the lowest free slot, the maximize's, and waits
         // for its pipe; the configure comes before any of its bytes.
-        CHECK(mwinRequestClipboardRead(context, program->window, &program->read) == mwin_success &&
+        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &program->read) ==
+                      mwin_success &&
                   program->read.index1 == program->request.index1,
               "a clipboard read in the maximize's slot");
         Configure(program, 0, 0, s_activated, 1);
@@ -315,7 +318,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

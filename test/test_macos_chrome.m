@@ -47,7 +47,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->downs += event.type == mwin_eventButtonDown;
@@ -146,18 +146,19 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        CHECK(mwinRequestStyle(context, window,
-                               mwin_styleDecorated | mwin_styleResizable | mwin_styleCustomChrome,
-                               nullptr) == mwin_success &&
-                  mwinRequestOpacity(context, window, 0.5f, nullptr) == mwin_success &&
-                  mwinRequestAspectRatio(context, window, 16, 9, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestStyle(context, window,
+                                      mwin_styleDecorated | mwin_styleResizable |
+                                          mwin_styleCustomChrome,
+                                      nullptr) == mwin_success &&
+                  mwinWindow_RequestOpacity(context, window, 0.5f, nullptr) == mwin_success &&
+                  mwinWindow_RequestAspectRatio(context, window, 16, 9, nullptr) == mwin_success,
               "custom chrome, half opaque, 16 to 9");
         break;
     case 1:
         CheckCustom(program);
-        CHECK(mwinRequestAspectRatio(context, window, 0, 0, nullptr) == mwin_success &&
-                  mwinRequestSizeLimits(context, window, (mwinSize){200.0f, 150.0f},
-                                        (mwinSize){250.0f, 200.0f}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestAspectRatio(context, window, 0, 0, nullptr) == mwin_success &&
+                  mwinWindow_RequestSizeLimits(context, window, (mwinSize){200.0f, 150.0f},
+                                               (mwinSize){250.0f, 200.0f}, nullptr) == mwin_success,
               "no ratio, limits");
         break;
     case 2:
@@ -167,10 +168,11 @@ static void Advance(Program* program, mwinContext* context)
             {{0.0f, 0.0f, 250.0f, 30.0f}, mwin_hitCaption},
             {{220.0f, 5.0f, 20.0f, 20.0f}, mwin_hitClose},
             {{180.0f, 130.0f, 20.0f, 20.0f}, mwin_hitBottomRight}};
-        CHECK(mwinRequestSizeLimits(context, window, (mwinSize){0}, (mwinSize){0}, nullptr) ==
-                      mwin_success &&
-                  mwinRequestHitRegions(context, window, regions, 3, nullptr) == mwin_success,
-              "free again, hit regions");
+        CHECK(
+            mwinWindow_RequestSizeLimits(context, window, (mwinSize){0}, (mwinSize){0}, nullptr) ==
+                    mwin_success &&
+                mwinWindow_RequestHitRegions(context, window, regions, 3, nullptr) == mwin_success,
+            "free again, hit regions");
         break;
     }
     case 3:
@@ -185,8 +187,8 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 5:
         CHECK(program->downs == 2, "a double click on a caption zooms, and is not reported");
-        CHECK(mwinRequestStyle(context, window, mwin_styleResizable | mwin_styleAlwaysOnTop,
-                               nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestStyle(context, window, mwin_styleResizable | mwin_styleAlwaysOnTop,
+                                      nullptr) == mwin_success,
               "undecorated, always on top");
         break;
     default:
@@ -217,7 +219,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->host == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         program->host = ((NSView*)handles.handles.apple.view).window;
     }

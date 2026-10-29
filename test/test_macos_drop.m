@@ -66,7 +66,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         bool drag = event.type >= mwin_eventDragEntered && event.type <= mwin_eventDropped;
@@ -148,10 +148,11 @@ static void CheckDrop(const Program* program, mwinContext* context)
     char text[32];
     size_t length = 0;
     size_t textLength = 0;
-    CHECK(mwinGetDroppedFiles(context, drop->drop, files, sizeof(files), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, files, sizeof(files), &length) ==
+                  mwin_success &&
               length == strlen(program->path) + 1 && strcmp(files, program->path) == 0,
           "the file's path");
-    CHECK(mwinGetDroppedText(context, drop->drop, text, sizeof(text), &textLength) ==
+    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &textLength) ==
                   mwin_success &&
               textLength == sizeof(TEXT) - 1 && memcmp(text, TEXT, textLength) == 0,
           "the text");
@@ -172,7 +173,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     Collect(program, context);
     mwinNativeHandles handles;
-    if (program->shown && mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+    if (program->shown &&
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         @autoreleasepool
         {

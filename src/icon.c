@@ -59,8 +59,9 @@ mwinIconCopy* mwinCopyIconImages(const mwinContext* context, const mwinIconImage
     return icon;
 }
 
-mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window, const mwinIconImage* images,
-                           uint32_t count, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestIcon(mwinContext* context, mwinWindowId window,
+                                  const mwinIconImage* images, uint32_t count,
+                                  mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {

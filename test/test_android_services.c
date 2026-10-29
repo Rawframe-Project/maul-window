@@ -61,7 +61,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted && program->completions < 8)
         {
@@ -76,14 +76,14 @@ static void Collect(Program* program, mwinContext* context)
 static mwinWindowState StateOf(const Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     return state;
 }
 
 static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    (void)mwinGetNativeHandles(context, program->window, &handles);
+    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     return handles.handles.android.activity;
 }
 
@@ -119,7 +119,7 @@ static jint WindowFlags(const Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -171,16 +171,17 @@ static bool ReadBack(mwinContext* context, const char* expected)
 {
     char text[64] = {0};
     size_t length = 0;
-    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
+               mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
 // Writes text and reads it back: two requests.
 static void WriteRead(const Program* program, mwinContext* context, const char* text)
 {
-    CHECK(mwinRequestClipboardWrite(context, program->window, text, strlen(text), nullptr) ==
+    CHECK(mwinWindow_RequestClipboardWrite(context, program->window, text, strlen(text), nullptr) ==
                   mwin_success &&
-              mwinRequestClipboardRead(context, program->window, &s_read) == mwin_success,
+              mwinWindow_RequestClipboardRead(context, program->window, &s_read) == mwin_success,
           "a write and a read asked for");
 }
 
@@ -204,9 +205,10 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         Paint(program, context);
-        CHECK(mwinRequestKeepAwake(context, program->window, true, nullptr) == mwin_success &&
-                  mwinRequestClipboardWrite(context, program->window, TEXT, strlen(TEXT),
-                                            nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestClipboardWrite(context, program->window, TEXT, strlen(TEXT),
+                                                   nullptr) == mwin_success,
               "keeping awake and a write asked for");
         break;
     case 1:
@@ -215,20 +217,21 @@ static void Advance(Program* program, mwinContext* context)
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0 &&
                   StateOf(program, context).awake,
               "kept awake: the window's flag");
-        CHECK(mwinRequestClipboardRead(context, program->window, &s_read) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &s_read) == mwin_success,
               "a read asked for");
         break;
     case 2:
         CHECK(outcomes[0] == mwin_outcomeDone, "the read done");
         CHECK(ReadBack(context, TEXT), "the clipboard's text read back the same");
         WriteRead(program, context, LIMIT_TEXT);
-        CHECK(mwinRequestKeepAwake(context, program->window, false, nullptr) == mwin_success &&
-                  mwinRequestRevealFile(context, program->window, "/sdcard", 7, nullptr) ==
+        CHECK(mwinWindow_RequestKeepAwake(context, program->window, false, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestRevealFile(context, program->window, "/sdcard", 7, nullptr) ==
                       mwin_success,
               "no longer awake, and a file shown, asked for");
-        CHECK(mwinRequestClipboardReadData(context, program->window, "image/png", 9, nullptr) ==
-                      mwin_success &&
-                  mwinRequestPrimaryRead(context, program->window, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardReadData(context, program->window, "image/png", 9,
+                                                  nullptr) == mwin_success &&
+                  mwinWindow_RequestPrimaryRead(context, program->window, nullptr) == mwin_success,
               "data and the primary selection asked for");
         {
             mwinMessageBoxDef box = mwinDefaultMessageBoxDef();
@@ -251,9 +254,10 @@ static void Advance(Program* program, mwinContext* context)
               "the window's flag cleared");
         {
             const char url[] = "https://example.com/maul";
-            CHECK(mwinRequestKeepAwake(context, program->window, true, nullptr) == mwin_success &&
-                      mwinRequestOpenUrl(context, program->window, url, sizeof(url) - 1, nullptr) ==
-                          mwin_success,
+            CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, nullptr) ==
+                          mwin_success &&
+                      mwinWindow_RequestOpenUrl(context, program->window, url, sizeof(url) - 1,
+                                                nullptr) == mwin_success,
                   "awake again, and an address opened");
         }
         break;

@@ -142,18 +142,18 @@ static mwinResult CopyOut(const mwinContext* context, uint32_t drop, const char*
     return length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
-mwinResult mwinGetDroppedFiles(const mwinContext* context, uint32_t drop, char* buffer,
-                               size_t capacity, size_t* lengthOut)
+mwinResult mwinContext_GetDroppedFiles(const mwinContext* context, uint32_t drop, char* bufferOut,
+                                       size_t capacity, size_t* lengthOut)
 {
     return CopyOut(context, drop, context != nullptr ? context->dropped.files.bytes : nullptr,
-                   context != nullptr ? context->dropped.files.length : 0, buffer, capacity,
+                   context != nullptr ? context->dropped.files.length : 0, bufferOut, capacity,
                    lengthOut);
 }
 
-mwinResult mwinGetDroppedText(const mwinContext* context, uint32_t drop, char* buffer,
-                              size_t capacity, size_t* lengthOut)
+mwinResult mwinContext_GetDroppedText(const mwinContext* context, uint32_t drop, char* bufferOut,
+                                      size_t capacity, size_t* lengthOut)
 {
     return CopyOut(context, drop, context != nullptr ? context->dropped.text : nullptr,
-                   context != nullptr ? context->dropped.textLength : 0, buffer, capacity,
+                   context != nullptr ? context->dropped.textLength : 0, bufferOut, capacity,
                    lengthOut);
 }

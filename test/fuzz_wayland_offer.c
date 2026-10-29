@@ -301,13 +301,13 @@ static void CheckFound(const mwinContext* context, const mwinCompletion* complet
     switch (completion->kind)
     {
     case mwin_requestClipboardRead:
-        result = mwinGetClipboardText(context, completion->request, found, LIMIT, &length);
+        result = mwinRequest_GetClipboardText(context, completion->request, found, LIMIT, &length);
         break;
     case mwin_requestPrimaryRead:
-        result = mwinGetPrimaryText(context, completion->request, found, LIMIT, &length);
+        result = mwinRequest_GetPrimaryText(context, completion->request, found, LIMIT, &length);
         break;
     case mwin_requestClipboardReadData:
-        result = mwinGetClipboardData(context, completion->request, found, LIMIT, &length);
+        result = mwinRequest_GetClipboardData(context, completion->request, found, LIMIT, &length);
         break;
     default:
         return;
@@ -325,7 +325,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
 {
     static char bytes[LIMIT + 1];
     size_t length = 0;
-    Expect(mwinGetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
+    Expect(mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
                mwin_success &&
            length <= LIMIT);
     uint32_t count = 0;
@@ -338,7 +338,8 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
         at += path + 1;
     }
     Expect(count == drop->fileCount && count <= FILES);
-    Expect(mwinGetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    Expect(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
+               mwin_success &&
            length == drop->textLength && length <= LIMIT && IsUtf8(bytes, length));
     for (int i = 0; i < WRITERS; i++)
     {
@@ -354,7 +355,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventDropped)
         {
@@ -548,30 +549,33 @@ static void Request(mwinContext* context, mwinWindowId window)
     switch ((shape & 7) % 6)
     {
     case 0:
-        Track(context, mwinRequestClipboardRead(context, window, &id), id,
+        Track(context, mwinWindow_RequestClipboardRead(context, window, &id), id,
               mwin_requestClipboardRead);
         break;
     case 1:
-        Track(context, mwinRequestPrimaryRead(context, window, &id), id, mwin_requestPrimaryRead);
+        Track(context, mwinWindow_RequestPrimaryRead(context, window, &id), id,
+              mwin_requestPrimaryRead);
         break;
     case 2:
-        Track(context, mwinRequestClipboardReadData(context, window, mime, strlen(mime), &id), id,
+        Track(context,
+              mwinWindow_RequestClipboardReadData(context, window, mime, strlen(mime), &id), id,
               mwin_requestClipboardReadData);
         break;
     case 3:
-        Track(context, mwinRequestClipboardWrite(context, window, text, sizeof(text) - 1, &id), id,
+        Track(context,
+              mwinWindow_RequestClipboardWrite(context, window, text, sizeof(text) - 1, &id), id,
               mwin_requestClipboardWrite);
         break;
     case 4:
     {
         mwinClipboardItem item = {mime, strlen(mime), text, sizeof(text) - 1};
-        Track(context, mwinRequestClipboardWriteData(context, window, &item, 1, &id), id,
+        Track(context, mwinWindow_RequestClipboardWriteData(context, window, &item, 1, &id), id,
               mwin_requestClipboardWriteData);
         break;
     }
     default:
-        Track(context, mwinRequestPrimaryWrite(context, window, text, sizeof(text) - 1, &id), id,
-              mwin_requestPrimaryWrite);
+        Track(context, mwinWindow_RequestPrimaryWrite(context, window, text, sizeof(text) - 1, &id),
+              id, mwin_requestPrimaryWrite);
         break;
     }
 }

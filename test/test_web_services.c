@@ -125,7 +125,7 @@ static const char s_address[] = "https://example.com/\xC3\xA9";
 static void Drain(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -154,25 +154,26 @@ static void CheckOpen(mwinContext* context, Program* program)
     mwinWindowId window = program->window;
     StandInOpen(false);
     CHECK(Now(context, program,
-              mwinRequestOpenUrl(context, window, s_address, sizeof(s_address) - 1,
-                                 &program->request)) == mwin_outcomeDone &&
+              mwinWindow_RequestOpenUrl(context, window, s_address, sizeof(s_address) - 1,
+                                        &program->request)) == mwin_outcomeDone &&
               OpenedCut(),
           "an address opened in a new tab cut from the page");
     StandInOpen(true);
     CHECK(Now(context, program,
-              mwinRequestOpenUrl(context, window, s_address, sizeof(s_address) - 1,
-                                 &program->request)) == mwin_outcomeDenied,
+              mwinWindow_RequestOpenUrl(context, window, s_address, sizeof(s_address) - 1,
+                                        &program->request)) == mwin_outcomeDenied,
           "a blocked popup denied");
-    CHECK(
-        Now(context, program, mwinRequestRevealFile(context, window, "/a", 2, &program->request)) ==
-            mwin_outcomeUnsupported,
-        "a file never revealed");
+    CHECK(Now(context, program,
+              mwinWindow_RequestRevealFile(context, window, "/a", 2, &program->request)) ==
+              mwin_outcomeUnsupported,
+          "a file never revealed");
     mwinFileDialogDef dialog = mwinDefaultFileDialogDef();
-    CHECK(
-        Now(context, program, mwinRequestFileDialog(context, window, &dialog, &program->request)) ==
-            mwin_outcomeUnsupported,
-        "no file dialogs, a page naming no files");
-    CHECK(Now(context, program, mwinRequestIcon(context, window, nullptr, 0, &program->request)) ==
+    CHECK(Now(context, program,
+              mwinWindow_RequestFileDialog(context, window, &dialog, &program->request)) ==
+              mwin_outcomeUnsupported,
+          "no file dialogs, a page naming no files");
+    CHECK(Now(context, program,
+              mwinWindow_RequestIcon(context, window, nullptr, 0, &program->request)) ==
               mwin_outcomeUnsupported,
           "no window icons, a page having one for every canvas");
     mwinWindowDef menu = mwinDefaultWindowDef();
@@ -185,15 +186,16 @@ static void CheckOpen(mwinContext* context, Program* program)
           "no popups, a page having no windows over its canvases");
     mwinHitRegion caption = {{0.0f, 0.0f, 100.0f, 20.0f}, mwin_hitCaption};
     CHECK(Now(context, program,
-              mwinRequestHitRegions(context, window, &caption, 1, &program->request)) ==
+              mwinWindow_RequestHitRegions(context, window, &caption, 1, &program->request)) ==
               mwin_outcomeUnsupported,
           "no hit regions, a page's canvas having no frame to drag");
     CHECK(Now(context, program,
-              mwinRequestAccessibilityRoot(context, window, &caption, &program->request)) ==
+              mwinWindow_RequestAccessibilityRoot(context, window, &caption, &program->request)) ==
               mwin_outcomeUnsupported,
           "no accessibility root, the page's elements being the tree");
     StandInWakeLock();
-    CHECK(Now(context, program, mwinRequestKeepAwake(context, window, true, &program->request)) ==
+    CHECK(Now(context, program,
+              mwinWindow_RequestKeepAwake(context, window, true, &program->request)) ==
               mwin_outcomeDone,
           "keep the screen awake");
 }
@@ -232,10 +234,10 @@ static void Advance(mwinContext* context, Program* program)
         CheckOpen(context, program);
         break;
     case phaseAwake:
-        CHECK(mwinRequestVisible(context, window, false, nullptr) == mwin_success, "hide");
+        CHECK(mwinWindow_RequestVisible(context, window, false, nullptr) == mwin_success, "hide");
         break;
     case phaseHidden:
-        CHECK(mwinRequestVisible(context, window, true, nullptr) == mwin_success, "show");
+        CHECK(mwinWindow_RequestVisible(context, window, true, nullptr) == mwin_success, "show");
         break;
     case phaseShown:
         DropLocks(false);
@@ -244,11 +246,11 @@ static void Advance(mwinContext* context, Program* program)
         DropLocks(true);
         break;
     case phaseRegainedLater:
-        CHECK(mwinRequestKeepAwake(context, window, false, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestKeepAwake(context, window, false, nullptr) == mwin_success,
               "let the screen go");
         break;
     case phaseAsleep:
-        CHECK(mwinRequestKeepAwake(context, window, true, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestKeepAwake(context, window, true, nullptr) == mwin_success,
               "keep the screen awake to the end");
         break;
     default:

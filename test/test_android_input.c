@@ -68,7 +68,7 @@ static bool IsInput(mwinEventType type)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (event.type == mwin_eventTextInput &&
@@ -219,7 +219,7 @@ static void CheckTyped(const Program* program, mwinContext* context)
     CHECK(shift != nullptr && shift->data.key.code == mwin_codeShiftLeft &&
               shift->data.key.key == (MWIN_KEY_NAMED | mwin_codeShiftLeft),
           "Shift's press, named");
-    CHECK(mwinMapKeyCode(context, mwin_codeKeyH) == 'h', "H learned to mean h");
+    CHECK(mwinContext_MapKeyCode(context, mwin_codeKeyH) == 'h', "H learned to mean h");
 }
 
 // Alt and E on the emulator's keyboard, whose key map gives a combining
@@ -245,7 +245,7 @@ static void CheckEscape(const Program* program)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -271,7 +271,7 @@ static void Advance(Program* program, mwinContext* context)
     {
         Paint(program, context);
         mwinWindowState state = {0};
-        (void)mwinGetWindowState(context, program->window, &state);
+        (void)mwinWindow_GetState(context, program->window, &state);
         program->x = (int)state.pixelSize.width / 2;
         program->y = (int)state.pixelSize.height / 2;
         program->scale = state.scale;

@@ -81,7 +81,7 @@ static uint64_t NowNs(void)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         bool done = event.type == mwin_eventRequestCompleted &&
                     event.data.completion.outcome == mwin_outcomeDone;
@@ -187,7 +187,8 @@ static uint32_t Property(const Program* program, xcb_atom_t property, int index)
 static void Locate(mwinContext* context, Program* program)
 {
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success, "handles");
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
+          "handles");
     program->handle = (xcb_window_t)handles.handles.x11.window;
     xcb_translate_coordinates_reply_t* reply = xcb_translate_coordinates_reply(
         program->connection,
@@ -235,14 +236,14 @@ static void Next(mwinContext* context, Program* program)
     case 0:
         // Away from the root's corner, so a place on the desktop is not
         // one in the window.
-        CHECK(mwinRequestPosition(context, program->window, (mwinPosition){70, 50}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestPosition(context, program->window, (mwinPosition){70, 50},
+                                         nullptr) == mwin_success,
               "move");
         break;
     case 1:
         CHECK(Property(program, program->atoms[atomMotif], 2) == 0,
               "a decorated window of custom chrome asks for no decorations");
-        CHECK(mwinRequestHitRegions(context, program->window, s_regions, 3, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->window, s_regions, 3, nullptr) ==
                   mwin_success,
               "regions");
         break;

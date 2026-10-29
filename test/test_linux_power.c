@@ -106,12 +106,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     FakePump(program->session);
     FakePump(program->system);
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->changes += event.type == mwin_eventPowerChanged;
     }
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "facts");
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "facts");
     program->frames += 1;
     if (program->phases == 0)
     {

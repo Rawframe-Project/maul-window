@@ -105,9 +105,9 @@ extern "C"
     ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetNativeHandles(const mwinContext* context,
-                                                            mwinWindowId window,
-                                                            mwinNativeHandles* handlesOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_GetNativeHandles(const mwinContext* context,
+                                                                   mwinWindowId window,
+                                                                   mwinNativeHandles* handlesOut);
 
 #ifdef __cplusplus
 }

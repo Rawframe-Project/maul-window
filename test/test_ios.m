@@ -102,7 +102,7 @@ static void Replace(Program* program, mwinContext* context)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->hidden |= event.type == mwin_eventHidden;
@@ -125,7 +125,7 @@ static void Collect(Program* program, mwinContext* context)
             if (program->occlusion == 0)
             {
                 program->occludedState =
-                    mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                    mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                     state.occluded;
             }
             program->occlusionTypes[program->occlusion] = event.type;
@@ -143,7 +143,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    if (mwinGetNativeHandles(context, window, &handles) != mwin_success ||
+    if (mwinWindow_GetNativeHandles(context, window, &handles) != mwin_success ||
         handles.platform != mwin_platformIOS)
     {
         return nil;
@@ -156,7 +156,7 @@ static bool LaidOut(mwinContext* context, mwinWindowId window)
 {
     UIView* view = ViewOf(context, window);
     mwinWindowState state;
-    if (view == nil || mwinGetWindowState(context, window, &state) != mwin_success)
+    if (view == nil || mwinWindow_GetState(context, window, &state) != mwin_success)
     {
         return false;
     }
@@ -170,7 +170,7 @@ static void CheckWindow(Program* program, mwinContext* context)
 {
     UIView* view = ViewOf(context, program->window);
     mwinWindowState state = {0};
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success, "the state");
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success, "the state");
     CHECK([view.layer isKindOfClass:[CAMetalLayer class]], "the view's layer a CAMetalLayer");
     UIScreen* screen = view.window.windowScene.screen;
     CHECK(state.scale == (float)screen.scale && view.contentScaleFactor == screen.scale,
@@ -182,8 +182,8 @@ static void CheckWindow(Program* program, mwinContext* context)
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinMonitorInfo info = {0};
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
-              mwinGetMonitorInfo(context, state.monitor, &info) == mwin_success,
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
+              mwinMonitor_GetInfo(context, state.monitor, &info) == mwin_success,
           "the window's monitor");
     CHECK(info.primary && info.scale == (float)screen.scale &&
               info.bounds.width == (uint32_t)lround(screen.bounds.size.width * screen.scale),
@@ -239,7 +239,7 @@ static void CheckOcclusion(const Program* program, mwinContext* context, const c
                 program->occlusionTypes[1] == mwin_eventRevealed;
     CHECK(told && program->occlusionFrames[0] == program->lifecycleFrames[0] &&
               program->occludedState &&
-              mwinGetWindowState(context, program->window, &state) == mwin_success &&
+              mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               !state.occluded,
           how);
 }
@@ -270,10 +270,10 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         CheckWindow(program, context);
-        CHECK(mwinRequestTitle(context, window, "Renamed", 7, nullptr) == mwin_success &&
-                  mwinRequestSize(context, window, (mwinSize){100.0f, 100.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestTitle(context, window, "Renamed", 7, nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){100.0f, 100.0f}, nullptr) ==
                       mwin_success &&
-                  mwinRequestVisible(context, window, false, nullptr) == mwin_success,
+                  mwinWindow_RequestVisible(context, window, false, nullptr) == mwin_success,
               "a title, a size, hidden");
         break;
     case 1:
@@ -284,7 +284,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK([program->scene.title isEqual:@"Renamed"], "the scene's title");
         CHECK(ViewOf(context, window).window.hidden, "the window hidden");
         program->shown = false;
-        CHECK(mwinRequestVisible(context, window, true, nullptr) == mwin_success, "shown");
+        CHECK(mwinWindow_RequestVisible(context, window, true, nullptr) == mwin_success, "shown");
         break;
     case 2:
         Background(program->scene);

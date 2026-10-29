@@ -68,7 +68,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created =
@@ -89,7 +89,7 @@ static void Collect(Program* program, mwinContext* context)
 static bool Occluded(const Program* program, mwinContext* context)
 {
     mwinWindowState state;
-    return mwinGetWindowState(context, program->window, &state) == mwin_success && state.occluded;
+    return mwinWindow_GetState(context, program->window, &state) == mwin_success && state.occluded;
 }
 
 static bool Ready(const Program* program)
@@ -116,7 +116,7 @@ static bool Ready(const Program* program)
 static void Measure(Program* program, mwinContext* context)
 {
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
           "the window's handle");
     xcb_window_t window = (xcb_window_t)handles.handles.x11.window;
     xcb_screen_t* screen = xcb_setup_roots_iterator(xcb_get_setup(program->connection)).data;
@@ -186,7 +186,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseCoveredAgain:
         CHECK(Occluded(program, context), "a window covered wholly again is occluded");
-        CHECK(mwinRequestVisible(context, program->window, false, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVisible(context, program->window, false, nullptr) == mwin_success,
               "hidden");
         break;
     case phaseHidden:
@@ -198,7 +198,8 @@ static void Advance(Program* program, mwinContext* context)
         free(xcb_get_input_focus_reply(program->connection,
                                        xcb_get_input_focus(program->connection), nullptr));
         program->shown = false;
-        CHECK(mwinRequestVisible(context, program->window, true, nullptr) == mwin_success, "shown");
+        CHECK(mwinWindow_RequestVisible(context, program->window, true, nullptr) == mwin_success,
+              "shown");
         break;
     case phaseUncovered:
         CHECK(!Occluded(program, context), "a window shown again with nothing over it is revealed");

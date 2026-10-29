@@ -9,7 +9,7 @@
 // frame paste once unless the program counts the superseded read.
 //
 // A read that completes with mwin_outcomeDone leaves the text it found
-// in the context, where mwinGetClipboardText copies it out under the
+// in the context, where mwinRequest_GetClipboardText copies it out under the
 // read's request until another read finds text; a read refused or too
 // large leaves it. Asked with any other request, the getter answers
 // mwin_errorStale, so a completion is never answered with another
@@ -27,8 +27,8 @@
 // of which may be text/plain, offered as the platform's text and read
 // with the text calls; a text write replaces the data, a data write the
 // text. X11 and Wayland also keep the primary selection, the text last
-// selected, apart from the clipboard: mwinRequestPrimaryWrite and
-// mwinRequestPrimaryRead, unsupported elsewhere.
+// selected, apart from the clipboard: mwinWindow_RequestPrimaryWrite and
+// mwinWindow_RequestPrimaryRead, unsupported elsewhere.
 
 #ifndef MAUL_WINDOW_CLIPBOARD_H
 #define MAUL_WINDOW_CLIPBOARD_H
@@ -56,13 +56,14 @@ extern "C"
     ///         UTF-8.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestClipboardWrite(mwinContext* context,
-                                                                 mwinWindowId window,
-                                                                 const char* text, size_t length,
-                                                                 mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestClipboardWrite(mwinContext* context,
+                                                                        mwinWindowId window,
+                                                                        const char* text,
+                                                                        size_t length,
+                                                                        mwinRequestId* requestOut);
 
     /// Asks for the clipboard's text; when the request completes with
-    /// mwin_outcomeDone, mwinGetClipboardText has it.
+    /// mwin_outcomeDone, mwinRequest_GetClipboardText has it.
     ///
     /// @param context    The context.
     /// @param window     The window asking, which should have focus.
@@ -73,9 +74,9 @@ extern "C"
     ///         context.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestClipboardRead(mwinContext* context,
-                                                                mwinWindowId window,
-                                                                mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestClipboardRead(mwinContext* context,
+                                                                       mwinWindowId window,
+                                                                       mwinRequestId* requestOut);
 
     /// Copies out the text a clipboard read found, while it is the text
     /// the last read found: the read completed with mwin_outcomeDone, and
@@ -83,9 +84,9 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the text in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes.
     /// @return `mwin_success`; `mwin_errorCapacity` when the text does not
     ///         fit (the bytes that fit are written); `mwin_errorStale` for
@@ -94,9 +95,11 @@ extern "C"
     ///         argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetClipboardText(const mwinContext* context,
-                                                            mwinRequestId request, char* buffer,
-                                                            size_t capacity, size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetClipboardText(const mwinContext* context,
+                                                                    mwinRequestId request,
+                                                                    char* bufferOut,
+                                                                    size_t capacity,
+                                                                    size_t* lengthOut);
 
 #define MWIN_MAX_CLIPBOARD_ITEMS 4
 #define MWIN_MAX_CLIPBOARD_MIME  63
@@ -132,49 +135,47 @@ extern "C"
     ///         twice, or a text/plain item that is not UTF-8.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestClipboardWriteData(mwinContext* context,
-                                                                     mwinWindowId window,
-                                                                     const mwinClipboardItem* items,
-                                                                     uint32_t count,
-                                                                     mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestClipboardWriteData(
+        mwinContext* context, mwinWindowId window, const mwinClipboardItem* items, uint32_t count,
+        mwinRequestId* requestOut);
 
     /// Asks for the clipboard's data of a MIME type; when the request
-    /// completes with mwin_outcomeDone, mwinGetClipboardData has it. A
+    /// completes with mwin_outcomeDone, mwinRequest_GetClipboardData has it. A
     /// clipboard without that type completes it with mwin_outcomeFailed;
     /// data past the clipboardBytes limit with mwin_outcomeTooLarge.
     ///
     /// @param context     The context.
     /// @param window      The window asking, which should have focus.
     /// @param mime        The type, as in mwinClipboardItem; not
-    ///                    text/plain, which mwinRequestClipboardRead reads.
+    ///                    text/plain, which mwinWindow_RequestClipboardRead reads.
     /// @param mimeLength  Its bytes.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestClipboardRead, with `mwin_errorLimit` for a
+    /// @return As mwinWindow_RequestClipboardRead, with `mwin_errorLimit` for a
     ///         type longer than MWIN_MAX_CLIPBOARD_MIME, and
     ///         `mwin_errorInvalid` for a type that is not a MIME type, or
     ///         text/plain.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestClipboardReadData(mwinContext* context,
-                                                                    mwinWindowId window,
-                                                                    const char* mime,
-                                                                    size_t mimeLength,
-                                                                    mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult
+    mwinWindow_RequestClipboardReadData(mwinContext* context, mwinWindowId window, const char* mime,
+                                        size_t mimeLength, mwinRequestId* requestOut);
 
-    /// Copies out the data a data read found, as mwinGetClipboardText does
+    /// Copies out the data a data read found, as mwinRequest_GetClipboardText does
     /// the text.
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the data's length in bytes.
-    /// @return As mwinGetClipboardText.
+    /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetClipboardData(const mwinContext* context,
-                                                            mwinRequestId request, void* buffer,
-                                                            size_t capacity, size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetClipboardData(const mwinContext* context,
+                                                                    mwinRequestId request,
+                                                                    void* bufferOut,
+                                                                    size_t capacity,
+                                                                    size_t* lengthOut);
 
     /// Asks to make text the primary selection, where the platform has one
     /// (X11, Wayland); others answer mwin_outcomeUnsupported.
@@ -185,43 +186,45 @@ extern "C"
     ///                    call returns. May be NULL when length is 0.
     /// @param length      Its bytes.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestClipboardWrite.
+    /// @return As mwinWindow_RequestClipboardWrite.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestPrimaryWrite(mwinContext* context,
-                                                               mwinWindowId window,
-                                                               const char* text, size_t length,
-                                                               mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestPrimaryWrite(mwinContext* context,
+                                                                      mwinWindowId window,
+                                                                      const char* text,
+                                                                      size_t length,
+                                                                      mwinRequestId* requestOut);
 
     /// Asks for the primary selection's text; when the request completes
-    /// with mwin_outcomeDone, mwinGetPrimaryText has it, checked as the
+    /// with mwin_outcomeDone, mwinRequest_GetPrimaryText has it, checked as the
     /// clipboard's is.
     ///
     /// @param context     The context.
     /// @param window      The window asking, which should have focus.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestClipboardRead.
+    /// @return As mwinWindow_RequestClipboardRead.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestPrimaryRead(mwinContext* context,
-                                                              mwinWindowId window,
-                                                              mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestPrimaryRead(mwinContext* context,
+                                                                     mwinWindowId window,
+                                                                     mwinRequestId* requestOut);
 
     /// Copies out the text a primary selection read found, as
-    /// mwinGetClipboardText does the clipboard's.
+    /// mwinRequest_GetClipboardText does the clipboard's.
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the text in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes.
-    /// @return As mwinGetClipboardText.
+    /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetPrimaryText(const mwinContext* context,
-                                                          mwinRequestId request, char* buffer,
-                                                          size_t capacity, size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetPrimaryText(const mwinContext* context,
+                                                                  mwinRequestId request,
+                                                                  char* bufferOut, size_t capacity,
+                                                                  size_t* lengthOut);
 
 #ifdef __cplusplus
 }

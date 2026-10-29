@@ -118,7 +118,7 @@ static double Since(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         bool drag = event.type >= mwin_eventDragEntered && event.type <= mwin_eventDropped;
@@ -132,7 +132,7 @@ static void Collect(Program* program, mwinContext* context)
 static UIView* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (UIView*)handles.handles.apple.view
                : nil;
 }
@@ -210,7 +210,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "dropped where it was let go, a file and text");
     char files[1024];
     size_t length = 0;
-    CHECK(mwinGetDroppedFiles(context, drop->drop, files, sizeof(files), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, files, sizeof(files), &length) ==
+                  mwin_success &&
               length > 14 && strcmp(files + length - 14, "drop-test.dat") == 0,
           "the file's copy, by its name");
     NSString* copied = [NSString stringWithContentsOfFile:@(files)
@@ -218,7 +219,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
                                                     error:nullptr];
     CHECK([copied isEqual:@"abc"], "with its contents");
     char text[32];
-    CHECK(mwinGetDroppedText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
+                  mwin_success &&
               length == 12 && memcmp(text, "dropped text", 12) == 0,
           "the text");
 }

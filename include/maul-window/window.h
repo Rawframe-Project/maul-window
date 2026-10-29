@@ -164,12 +164,12 @@ extern "C"
         // The part of the window an on-screen keyboard covers, empty while
         // none shows.
         mwinRect virtualKeyboard;
-        // The window accepts text (mwinRequestTextInput answered done).
+        // The window accepts text (mwinWindow_RequestTextInput answered done).
         bool textInput;
         // An input method composes: a preedit that is not empty came, and
         // no empty one or mwin_eventInputStateReset since.
         bool composing;
-        // The window keeps the display awake (mwinRequestKeepAwake answered
+        // The window keeps the display awake (mwinWindow_RequestKeepAwake answered
         // done).
         bool awake;
         mwinWindowStyle style;
@@ -242,9 +242,9 @@ extern "C"
     ///         longer exists; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetWindowState(const mwinContext* context,
-                                                          mwinWindowId window,
-                                                          mwinWindowState* stateOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_GetState(const mwinContext* context,
+                                                           mwinWindowId window,
+                                                           mwinWindowState* stateOut);
 
     /// Asks for a new title.
     ///
@@ -260,9 +260,10 @@ extern "C"
     ///         not UTF-8.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestTitle(mwinContext* context, mwinWindowId window,
-                                                        const char* title, size_t length,
-                                                        mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestTitle(mwinContext* context,
+                                                               mwinWindowId window,
+                                                               const char* title, size_t length,
+                                                               mwinRequestId* requestOut);
 
     /// Asks for a new logical size of the area the program draws in.
     /// mwin_eventResized and mwin_eventPixelSizeChanged report what the
@@ -272,12 +273,13 @@ extern "C"
     /// @param window      The window.
     /// @param size        A positive, finite size.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a size
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a size
     ///         that is not positive and finite.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestSize(mwinContext* context, mwinWindowId window,
-                                                       mwinSize size, mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestSize(mwinContext* context,
+                                                              mwinWindowId window, mwinSize size,
+                                                              mwinRequestId* requestOut);
 
     /// Asks to move a window. Wayland does not let programs place windows,
     /// and answers mwin_outcomeUnsupported, except popups. A popup's
@@ -287,14 +289,14 @@ extern "C"
     /// @param window      The window.
     /// @param position    A finite position.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a
     ///         position that is not finite.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestPosition(mwinContext* context,
-                                                           mwinWindowId window,
-                                                           mwinPosition position,
-                                                           mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestPosition(mwinContext* context,
+                                                                  mwinWindowId window,
+                                                                  mwinPosition position,
+                                                                  mwinRequestId* requestOut);
 
     /// Asks for a mode: windowed, borderless fullscreen, minimized or
     /// maximized. A popup, always windowed, answers
@@ -304,25 +306,29 @@ extern "C"
     /// @param window      The window.
     /// @param mode        One of the mwin_mode values.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown mode.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestMode(mwinContext* context, mwinWindowId window,
-                                                       mwinWindowMode mode,
-                                                       mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestMode(mwinContext* context,
+                                                              mwinWindowId window,
+                                                              mwinWindowMode mode,
+                                                              mwinRequestId* requestOut);
 
-    /// Asks to show or hide a window.
+    /// Asks to show or hide a window. It asks the platform for a state of
+    /// the window, which mwinWindowState's visible reports, and switches
+    /// no part of the library.
     ///
     /// @param context     The context.
     /// @param window      The window.
     /// @param visible     true to show it, false to hide it.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle.
+    /// @return As mwinWindow_RequestTitle.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestVisible(mwinContext* context, mwinWindowId window,
-                                                          bool visible, mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestVisible(mwinContext* context,
+                                                                 mwinWindowId window, bool visible,
+                                                                 mwinRequestId* requestOut);
 
     /// Asks for limits on the logical size the user can give the window;
     /// a zero width or height leaves that side free.
@@ -332,14 +338,15 @@ extern "C"
     /// @param minimum     The smallest size, zero or positive and finite.
     /// @param maximum     The largest size, zero or at least minimum.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for limits
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for limits
     ///         that are not finite, negative, or crossed.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestSizeLimits(mwinContext* context,
-                                                             mwinWindowId window, mwinSize minimum,
-                                                             mwinSize maximum,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestSizeLimits(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    mwinSize minimum,
+                                                                    mwinSize maximum,
+                                                                    mwinRequestId* requestOut);
 
     /// Asks the platform to keep the window's width to height at a ratio
     /// while the user resizes it; 0 by 0 lifts the constraint.
@@ -349,14 +356,15 @@ extern "C"
     /// @param width       The ratio's width.
     /// @param height      The ratio's height; both zero or both positive.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a ratio
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a ratio
     ///         with one side zero.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestAspectRatio(mwinContext* context,
-                                                              mwinWindowId window, uint32_t width,
-                                                              uint32_t height,
-                                                              mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestAspectRatio(mwinContext* context,
+                                                                     mwinWindowId window,
+                                                                     uint32_t width,
+                                                                     uint32_t height,
+                                                                     mwinRequestId* requestOut);
 
     /// Asks for a style: resizable, decorated, always on top. A popup,
     /// undecorated and above its owner, answers mwin_outcomeUnsupported.
@@ -365,13 +373,14 @@ extern "C"
     /// @param window      The window.
     /// @param style       mwin_style flags.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for unknown
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for unknown
     ///         flags.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestStyle(mwinContext* context, mwinWindowId window,
-                                                        mwinWindowStyle style,
-                                                        mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestStyle(mwinContext* context,
+                                                               mwinWindowId window,
+                                                               mwinWindowStyle style,
+                                                               mwinRequestId* requestOut);
 
     /// Asks for the window's opacity, where the platform can blend windows;
     /// others answer mwin_outcomeUnsupported.
@@ -380,12 +389,13 @@ extern "C"
     /// @param window      The window.
     /// @param opacity     From 0 to 1.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         opacity outside 0 to 1.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestOpacity(mwinContext* context, mwinWindowId window,
-                                                          float opacity, mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestOpacity(mwinContext* context,
+                                                                 mwinWindowId window, float opacity,
+                                                                 mwinRequestId* requestOut);
 
 // The most images of a window's icon, and the most pixels on a side.
 #define MWIN_MAX_ICON_IMAGES 4
@@ -452,17 +462,17 @@ extern "C"
     /// @param regions     The regions. May be NULL when count is 0.
     /// @param count       How many, at most MWIN_MAX_HIT_REGIONS; 0 for none.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorLimit` for more
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorLimit` for more
     ///         regions than MWIN_MAX_HIT_REGIONS, and `mwin_errorInvalid` for
     ///         a region not finite, of a negative size or of an unknown
     ///         kind.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestHitRegions(mwinContext* context,
-                                                             mwinWindowId window,
-                                                             const mwinHitRegion* regions,
-                                                             uint32_t count,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestHitRegions(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    const mwinHitRegion* regions,
+                                                                    uint32_t count,
+                                                                    mwinRequestId* requestOut);
 
     /// Asks for the window's icon, as its title bar, the taskbar and the
     /// window switcher show it; each platform takes the images nearest
@@ -477,7 +487,7 @@ extern "C"
     /// @param count       How many, at most MWIN_MAX_ICON_IMAGES; 0 for the
     ///                    platform's own icon.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorCapacity` when the
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorCapacity` when the
     ///         context cannot hold the copy, `mwin_errorLimit` for more
     ///         images than MWIN_MAX_ICON_IMAGES or an image larger than
     ///         MWIN_MAX_ICON_SIZE a side, and `mwin_errorInvalid` for an image
@@ -485,9 +495,11 @@ extern "C"
     ///         shorter than its row.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestIcon(mwinContext* context, mwinWindowId window,
-                                                       const mwinIconImage* images, uint32_t count,
-                                                       mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestIcon(mwinContext* context,
+                                                              mwinWindowId window,
+                                                              const mwinIconImage* images,
+                                                              uint32_t count,
+                                                              mwinRequestId* requestOut);
 
     /// Asks for keyboard focus. Platforms may refuse to take focus from
     /// another program, and answer mwin_outcomeDenied.
@@ -495,11 +507,12 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle.
+    /// @return As mwinWindow_RequestTitle.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestFocus(mwinContext* context, mwinWindowId window,
-                                                        mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestFocus(mwinContext* context,
+                                                               mwinWindowId window,
+                                                               mwinRequestId* requestOut);
 
 #ifdef __cplusplus
 }

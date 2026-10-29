@@ -138,7 +138,7 @@ static const Spec s_kernel = {
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventGamepadAdded)
         {
@@ -194,7 +194,7 @@ static void CheckPad(mwinContext* context, mwinGamepadId pad, uint16_t vendor, u
                      const char* what)
 {
     mwinGamepadInfo info;
-    CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success && info.mapped &&
+    CHECK(mwinGamepad_GetInfo(context, pad, &info) == mwin_success && info.mapped &&
               info.vendor == vendor && info.product == product,
           what);
 }
@@ -228,7 +228,7 @@ static void Advance(Program* program, mwinContext* context)
         Report(&program->kernel);
         break;
     case phaseHat:
-        CHECK(mwinGetGamepadState(context, program->pad, &state) == mwin_success &&
+        CHECK(mwinGamepad_GetState(context, program->pad, &state) == mwin_success &&
                   (state.buttons & (1u << mwin_padDpadUp)) != 0,
               "up on the d-pad, from the hat's only axis");
         CHECK(state.axes[mwin_padTriggerLeft] == 1.0f && state.axes[mwin_padTriggerRight] == 0.0f,
@@ -247,7 +247,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseHalvesMoved:
         CHECK(Pressed(program, mwin_padFaceSouth), "its first button");
-        CHECK(mwinGetGamepadState(context, program->pad, &state) == mwin_success &&
+        CHECK(mwinGamepad_GetState(context, program->pad, &state) == mwin_success &&
                   state.axes[mwin_padStickLeftX] == 1.0f && state.axes[mwin_padStickLeftY] == -1.0f,
               "the hat right and up: the left stick right and up");
         program->added = 0;
@@ -265,12 +265,12 @@ static void Advance(Program* program, mwinContext* context)
     case phaseFeedback:
     {
         mwinGamepadInfo info;
-        CHECK(mwinGetGamepadInfo(context, program->pad, &info) == mwin_success &&
+        CHECK(mwinGamepad_GetInfo(context, program->pad, &info) == mwin_success &&
                   (info.capabilities & mwin_padRumble) != 0,
               "it has motors");
-        CHECK(mwinSetGamepadRumble(context, program->pad, 0.0f, 0.0f, 0) == mwin_success,
+        CHECK(mwinGamepad_SetRumble(context, program->pad, 0.0f, 0.0f, 0) == mwin_success,
               "a stop before any rumble");
-        CHECK(mwinSetGamepadRumble(context, program->pad, 1.0f, 1.0f, 100) == mwin_errorPlatform,
+        CHECK(mwinGamepad_SetRumble(context, program->pad, 1.0f, 1.0f, 100) == mwin_errorPlatform,
               "rumble the device refuses");
         break;
     }
@@ -337,7 +337,7 @@ static mwinFrameResult FullFrame(mwinContext* context, void* user)
 {
     Full* full = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         full->added += event.type == mwin_eventGamepadAdded ? 1 : 0;
         full->removed += event.type == mwin_eventGamepadRemoved ? 1 : 0;
@@ -362,7 +362,8 @@ static mwinFrameResult FullFrame(mwinContext* context, void* user)
     else if (full->phase == 2 && full->added == 2)
     {
         mwinGamepadInfo info;
-        CHECK(full->removed == 1 && mwinGetGamepadInfo(context, full->pad, &info) == mwin_success &&
+        CHECK(full->removed == 1 &&
+                  mwinGamepad_GetInfo(context, full->pad, &info) == mwin_success &&
                   info.product == 0x0006,
               "the first gone, the second is added");
         return mwin_frameStop;

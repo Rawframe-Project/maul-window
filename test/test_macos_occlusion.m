@@ -62,7 +62,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (event.type == mwin_eventOccluded || event.type == mwin_eventRevealed)
@@ -116,7 +116,7 @@ static void CheckAgreed(const Program* program, mwinContext* context, bool occlu
                         const char* what)
 {
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               state.occluded == occluded && Visible(program) == !occluded,
           what);
 }
@@ -135,13 +135,14 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseUncovered:
         CheckAgreed(program, context, false, "a window uncovered is revealed");
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
                   mwin_success,
               "minimized");
         break;
     case phaseMinimized:
         CheckAgreed(program, context, true, "a minimized window is occluded");
-        CHECK(mwinRequestMode(context, program->window, mwin_modeWindowed, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeWindowed, nullptr) ==
+                  mwin_success,
               "windowed");
         break;
     case phaseRestored:
@@ -190,7 +191,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->host == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         program->host = ((NSView*)handles.handles.apple.view).window;
     }

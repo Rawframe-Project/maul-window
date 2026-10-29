@@ -59,7 +59,7 @@ bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, ui
     return true;
 }
 
-mwinResult mwinGetSystemFacts(const mwinContext* context, mwinSystemFacts* factsOut)
+mwinResult mwinContext_GetSystemFacts(const mwinContext* context, mwinSystemFacts* factsOut)
 {
     if (context == nullptr || factsOut == nullptr)
     {
@@ -69,17 +69,17 @@ mwinResult mwinGetSystemFacts(const mwinContext* context, mwinSystemFacts* facts
     return mwin_success;
 }
 
-mwinResult mwinGetPreferredLocales(const mwinContext* context, char* buffer, size_t capacity,
-                                   size_t* lengthOut)
+mwinResult mwinContext_GetPreferredLocales(const mwinContext* context, char* bufferOut,
+                                           size_t capacity, size_t* lengthOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
+    if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
     size_t length = context->localeLength;
     if (capacity > 0 && length > 0)
     {
-        memcpy(buffer, context->locales, length < capacity ? length : capacity);
+        memcpy(bufferOut, context->locales, length < capacity ? length : capacity);
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;

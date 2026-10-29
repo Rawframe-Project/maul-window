@@ -186,7 +186,7 @@ extern "C"
     /// @return A static, NUL-terminated string such as "mwin_errorCapacity".
     /// @par Thread safety
     /// Safe from any thread.
-    MWIN_API const char* mwinResultName(mwinResult result);
+    MWIN_API const char* mwinGetResultName(mwinResult result);
 
 #ifdef __cplusplus
 }

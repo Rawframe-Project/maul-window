@@ -115,6 +115,8 @@ void mwinReleaseMonitor(mwinContext* context, mwinMonitorId monitor)
 mwinResult mwinContext_GetMonitors(const mwinContext* context, mwinMonitorId* monitorsOut,
                                    size_t capacity, size_t* countOut)
 {
+    mwinClearArray(monitorsOut, capacity, sizeof *monitorsOut);
+    mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || countOut == nullptr || (monitorsOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
@@ -138,12 +140,13 @@ mwinResult mwinContext_GetMonitors(const mwinContext* context, mwinMonitorId* mo
         }
     }
     *countOut = count;
-    return count > capacity ? mwin_errorCapacity : mwin_success;
+    return mwin_success;
 }
 
 mwinResult mwinMonitor_GetInfo(const mwinContext* context, mwinMonitorId monitor,
                                mwinMonitorInfo* infoOut)
 {
+    mwinClearOut(infoOut, sizeof *infoOut);
     if (context == nullptr || infoOut == nullptr)
     {
         return mwinMisuse(context);

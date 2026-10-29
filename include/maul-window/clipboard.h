@@ -47,7 +47,8 @@ extern "C"
     /// @param text       UTF-8, not NUL-terminated; copied before the call
     ///                   returns. May be NULL when length is 0.
     /// @param length     Its bytes.
-    /// @param requestOut Receives the request's id. May be NULL.
+    /// @param requestOut Receives the request's id. May be NULL. The null
+    ///                   request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` for text past the
     ///         clipboardBytes limit, when the context cannot hold it, or
     ///         when the window has its limit of requests in flight;
@@ -67,7 +68,8 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param window     The window asking, which should have focus.
-    /// @param requestOut Receives the request's id. May be NULL.
+    /// @param requestOut Receives the request's id. May be NULL. The null
+    ///                   request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the window has its
     ///         limit of requests in flight; `mwin_errorStale` for a window
     ///         that no longer exists; `mwin_errorInvalid` for a NULL
@@ -85,14 +87,17 @@ extern "C"
     /// @param context    The context.
     /// @param request    The read, from its completion record.
     /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
-    ///                   May be NULL when capacity is 0.
+    ///                   May be NULL when capacity is 0. Zeroed over
+    ///                   capacity on failure, so a buffer too short holds
+    ///                   none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the text's length in bytes.
+    /// @param lengthOut  Receives the text's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the text does not
-    ///         fit (the bytes that fit are written); `mwin_errorStale` for
-    ///         a request that is no read answered done, or whose text a
-    ///         later read replaced; `mwin_errorInvalid` for a NULL
-    ///         argument.
+    ///         fit; `mwin_errorStale` for a request that is no read
+    ///         answered done, or whose text a later read replaced;
+    ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetClipboardText(const mwinContext* context,
@@ -123,7 +128,8 @@ extern "C"
     /// @param window      The window asking, which should have focus.
     /// @param items       The items, each of a different type.
     /// @param count       Their number, 1 to MWIN_MAX_CLIPBOARD_ITEMS.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` for bytes past the
     ///         clipboardBytes limit in all, when the context cannot hold
     ///         them, or when the window has its limit of requests in
@@ -149,7 +155,8 @@ extern "C"
     /// @param mime        The type, as in mwinClipboardItem; not
     ///                    text/plain, which mwinWindow_RequestClipboardRead reads.
     /// @param mimeLength  Its bytes.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestClipboardRead, with `mwin_errorLimit` for a
     ///         type longer than MWIN_MAX_CLIPBOARD_MIME, and
     ///         `mwin_errorInvalid` for a type that is not a MIME type, or
@@ -165,9 +172,13 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is
+    ///                   0. Zeroed over capacity on failure, so a buffer
+    ///                   too short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the data's length in bytes.
+    /// @param lengthOut  Receives the data's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.
@@ -185,7 +196,8 @@ extern "C"
     /// @param text        UTF-8, not NUL-terminated; copied before the
     ///                    call returns. May be NULL when length is 0.
     /// @param length      Its bytes.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestClipboardWrite.
     /// @par Thread safety
     /// Main thread only.
@@ -201,7 +213,8 @@ extern "C"
     ///
     /// @param context     The context.
     /// @param window      The window asking, which should have focus.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestClipboardRead.
     /// @par Thread safety
     /// Main thread only.
@@ -215,9 +228,13 @@ extern "C"
     /// @param context    The context.
     /// @param request    The read, from its completion record.
     /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
-    ///                   May be NULL when capacity is 0.
+    ///                   May be NULL when capacity is 0. Zeroed over
+    ///                   capacity on failure, so a buffer too short holds
+    ///                   none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the text's length in bytes.
+    /// @param lengthOut  Receives the text's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.

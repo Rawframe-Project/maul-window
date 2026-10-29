@@ -167,13 +167,13 @@ extern "C"
     ///
     /// @param context      The context.
     /// @param gamepadsOut  Receives up to capacity ids. May be NULL when
-    ///                     capacity is 0.
+    ///                     capacity is 0. Zeroed over capacity on failure.
     /// @param capacity     The ids gamepadsOut holds.
     /// @param countOut     Receives the number connected, which may exceed
-    ///                     capacity.
-    /// @return `mwin_success`; `mwin_errorCapacity` when they do not all
-    ///         fit (the first capacity are written); `mwin_errorInvalid`
-    ///         for a NULL argument.
+    ///                     capacity. 0 on failure.
+    /// @return `mwin_success`, also when they do not all fit, with the
+    ///         first capacity written and the total in countOut;
+    ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetGamepads(const mwinContext* context,
@@ -184,7 +184,7 @@ extern "C"
     ///
     /// @param context  The context.
     /// @param gamepad  The gamepad.
-    /// @param infoOut  Receives its facts.
+    /// @param infoOut  Receives its facts. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorStale` for a gamepad no longer
     ///         connected; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
@@ -200,7 +200,7 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param gamepad   The gamepad.
-    /// @param stateOut  Receives its state.
+    /// @param stateOut  Receives its state. Zeroed on failure.
     /// @return As mwinGamepad_GetInfo.
     /// @par Thread safety
     /// Main thread only.
@@ -271,7 +271,8 @@ extern "C"
     ///
     /// @param context     The context.
     /// @param gamepad     The gamepad.
-    /// @param enabledOut  Receives true while they are on.
+    /// @param enabledOut  Receives true while they are on. False on
+    ///                    failure.
     /// @return `mwin_success`; `mwin_errorStale` for a gamepad no longer
     ///         connected; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
@@ -287,7 +288,7 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param gamepad    The gamepad.
-    /// @param motionOut  Receives its motion.
+    /// @param motionOut  Receives its motion. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorUnsupported` for a gamepad
     ///         without mwin_padMotion; `mwin_errorStale` for a gamepad no
     ///         longer connected; `mwin_errorInvalid` for a NULL argument.

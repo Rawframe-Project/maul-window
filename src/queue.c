@@ -544,6 +544,7 @@ static mwinRing* FindOldest(mwinContext* context, mwinWindow** windowOut)
 
 mwinResult mwinContext_NextEvent(mwinContext* context, mwinEvent* eventOut)
 {
+    mwinClearOut(eventOut, sizeof *eventOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

@@ -299,7 +299,8 @@ extern "C"
     /// @param window      The window.
     /// @param visible     true to show it, false to hide it.
     /// @param purpose     What the text field takes.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown purpose.
     /// @par Thread safety
@@ -321,7 +322,8 @@ extern "C"
     /// @param window      The window.
     /// @param enabled     true to accept text, false to stop.
     /// @param caret       Where the caret is, in the window's logical units.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a caret
     ///         that is not finite or has a negative size.
     /// @par Thread safety
@@ -336,7 +338,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param mode        One of the mwin_cursor values.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown mode.
     /// @par Thread safety
@@ -351,7 +354,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param shape       One of the mwin_shape values.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown shape.
     /// @par Thread safety
@@ -375,7 +379,7 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param def        The images and hotspot.
-    /// @param cursorOut  Receives the cursor's id.
+    /// @param cursorOut  Receives the cursor's id. The null id on failure.
     /// @return `mwin_success`; `mwin_errorLimit` for more images than
     ///         MWIN_MAX_CURSOR_IMAGES or an image larger than MWIN_MAX_CURSOR_SIZE
     ///         a side; `mwin_errorInvalid` for a NULL argument, a def
@@ -408,7 +412,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param cursor      The cursor.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorStale` for a cursor
     ///         that is not live.
     /// @par Thread safety
@@ -434,12 +439,15 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param bufferOut  Receives the name in UTF-8, not NUL-terminated.
-    ///                   May be NULL when capacity is 0.
+    ///                   May be NULL when capacity is 0. Zeroed over
+    ///                   capacity on failure, so a buffer too short holds
+    ///                   none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the name's length in bytes.
+    /// @param lengthOut  Receives the name's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the name does not
-    ///         fit (the bytes that fit are written); `mwin_errorInvalid`
-    ///         for a NULL argument.
+    ///         fit; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context,
@@ -459,7 +467,7 @@ extern "C"
     /// @param code       The key.
     /// @param modifiers  The modifiers held with it; the lock bits are
     ///                   ignored.
-    /// @param reachOut   Receives the answer.
+    /// @param reachOut   Receives the answer. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorInvalid` for a NULL argument or
     ///         a code that is not a key.
     /// @par Thread safety

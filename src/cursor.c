@@ -45,6 +45,7 @@ static mwinResult CheckDef(const mwinCursorDef* def)
 
 mwinResult mwinCreateCursor(mwinContext* context, const mwinCursorDef* def, mwinCursorId* cursorOut)
 {
+    mwinClearOut(cursorOut, sizeof *cursorOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -138,6 +139,7 @@ void mwinReleaseCursors(mwinContext* context)
 mwinResult mwinWindow_RequestCursorImage(mwinContext* context, mwinWindowId window,
                                          mwinCursorId cursor, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

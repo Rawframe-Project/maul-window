@@ -35,6 +35,7 @@ static mwinResult FindTestGamepad(const mwinContext* context, mwinGamepadId game
 mwinResult mwinAddTestGamepad(mwinContext* context, const mwinGamepadInfo* info,
                               mwinGamepadId* gamepadOut)
 {
+    mwinClearOut(gamepadOut, sizeof *gamepadOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -126,6 +127,10 @@ static mwinResult GetRumble(const mwinContext* context, mwinGamepadId gamepad, b
                             float* lowOut, float* highOut, uint32_t* durationMsOut,
                             uint32_t* countOut)
 {
+    mwinClearOut(lowOut, sizeof *lowOut);
+    mwinClearOut(highOut, sizeof *highOut);
+    mwinClearOut(durationMsOut, sizeof *durationMsOut);
+    mwinClearOut(countOut, sizeof *countOut);
     if (lowOut == nullptr || highOut == nullptr || durationMsOut == nullptr || countOut == nullptr)
     {
         return mwinMisuse(context);
@@ -161,6 +166,7 @@ mwinResult mwinGamepad_GetTestTriggerRumble(const mwinContext* context, mwinGame
 mwinResult mwinGamepad_IsTestMotionEnabled(const mwinContext* context, mwinGamepadId gamepad,
                                            bool* onOut)
 {
+    mwinClearOut(onOut, sizeof *onOut);
     if (onOut == nullptr)
     {
         return mwinMisuse(context);

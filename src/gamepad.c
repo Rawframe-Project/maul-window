@@ -13,6 +13,8 @@
 mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* gamepadsOut,
                                    size_t capacity, size_t* countOut)
 {
+    mwinClearArray(gamepadsOut, capacity, sizeof *gamepadsOut);
+    mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || countOut == nullptr || (gamepadsOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
@@ -47,12 +49,13 @@ mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* ga
         first = false;
     }
     *countOut = count;
-    return count > capacity ? mwin_errorCapacity : mwin_success;
+    return mwin_success;
 }
 
 mwinResult mwinGamepad_GetInfo(const mwinContext* context, mwinGamepadId gamepad,
                                mwinGamepadInfo* infoOut)
 {
+    mwinClearOut(infoOut, sizeof *infoOut);
     if (context == nullptr || infoOut == nullptr)
     {
         return mwinMisuse(context);
@@ -69,6 +72,7 @@ mwinResult mwinGamepad_GetInfo(const mwinContext* context, mwinGamepadId gamepad
 mwinResult mwinGamepad_GetState(const mwinContext* context, mwinGamepadId gamepad,
                                 mwinGamepadState* stateOut)
 {
+    mwinClearOut(stateOut, sizeof *stateOut);
     if (context == nullptr || stateOut == nullptr)
     {
         return mwinMisuse(context);
@@ -166,6 +170,7 @@ mwinResult mwinGamepad_EnableMotion(mwinContext* context, mwinGamepadId gamepad,
 mwinResult mwinGamepad_IsMotionEnabled(const mwinContext* context, mwinGamepadId gamepad,
                                        bool* enabledOut)
 {
+    mwinClearOut(enabledOut, sizeof *enabledOut);
     if (context == nullptr || enabledOut == nullptr)
     {
         return mwinMisuse(context);
@@ -182,6 +187,7 @@ mwinResult mwinGamepad_IsMotionEnabled(const mwinContext* context, mwinGamepadId
 mwinResult mwinGamepad_GetMotion(mwinContext* context, mwinGamepadId gamepad,
                                  mwinGamepadMotion* motionOut)
 {
+    mwinClearOut(motionOut, sizeof *motionOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

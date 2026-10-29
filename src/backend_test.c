@@ -447,12 +447,7 @@ static mwinResult KeyboardLayout(const mwinContext* context, char* buffer, size_
     (void)context;
     static const char name[] = "English (US)";
     size_t length = sizeof(name) - 1;
-    if (capacity > 0)
-    {
-        memcpy(buffer, name, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(name, length, buffer, capacity, lengthOut);
 }
 
 static void NativeHandles(const mwinContext* context, uint32_t slot, mwinNativeHandles* out)
@@ -688,6 +683,8 @@ mwinResult mwinContext_SetTestScale(mwinContext* context, float scale)
 mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId window, char* bufferOut,
                                    size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
@@ -702,17 +699,13 @@ mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId wind
         return mwin_errorStale;
     }
     size_t length = found->titleLength;
-    if (capacity > 0)
-    {
-        memcpy(bufferOut, found->title, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(found->title, length, bufferOut, capacity, lengthOut);
 }
 
 mwinResult mwinAddTestMonitor(mwinContext* context, const mwinMonitorInfo* info,
                               mwinMonitorId* monitorOut)
 {
+    mwinClearOut(monitorOut, sizeof *monitorOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -824,6 +817,8 @@ mwinResult mwinContext_SetTestLocales(mwinContext* context, const char* locales,
 mwinResult mwinWindow_GetTestCursor(const mwinContext* context, mwinWindowId window,
                                     mwinCursorId* cursorOut, uint32_t* imageOut)
 {
+    mwinClearOut(cursorOut, sizeof *cursorOut);
+    mwinClearOut(imageOut, sizeof *imageOut);
     if (context == nullptr || cursorOut == nullptr)
     {
         return mwin_errorInvalid;

@@ -14,6 +14,7 @@ mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context, mwinWindowId 
                                              bool visible, mwinInputPurpose purpose,
                                              mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -39,6 +40,7 @@ mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context, mwinWindowId 
 mwinResult mwinWindow_RequestTextInput(mwinContext* context, mwinWindowId window, bool enabled,
                                        mwinRect caret, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -64,6 +66,7 @@ mwinResult mwinWindow_RequestTextInput(mwinContext* context, mwinWindowId window
 mwinResult mwinWindow_RequestCursorMode(mwinContext* context, mwinWindowId window,
                                         mwinCursorMode mode, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -86,6 +89,7 @@ mwinResult mwinWindow_RequestCursorMode(mwinContext* context, mwinWindowId windo
 mwinResult mwinWindow_RequestCursorShape(mwinContext* context, mwinWindowId window,
                                          mwinCursorShape shape, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -117,6 +121,7 @@ mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code)
 mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
                                    mwinModifiers modifiers, mwinKeyReach* reachOut)
 {
+    mwinClearOut(reachOut, sizeof *reachOut);
     if (context == nullptr || reachOut == nullptr || code == mwin_codeUnknown ||
         code > mwin_codeMetaRight)
     {
@@ -129,9 +134,21 @@ mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
 mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* bufferOut,
                                          size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
-    return context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
+    mwinResult status = context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
+    if (status != mwin_success)
+    {
+        // A backend may have written part of the name before it failed.
+        mwinClearOut(bufferOut, capacity);
+        if (status != mwin_errorCapacity)
+        {
+            *lengthOut = 0;
+        }
+    }
+    return status;
 }

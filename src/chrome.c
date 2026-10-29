@@ -20,6 +20,7 @@ mwinResult mwinWindow_RequestHitRegions(mwinContext* context, mwinWindowId windo
                                         const mwinHitRegion* regions, uint32_t count,
                                         mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

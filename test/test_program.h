@@ -11,6 +11,8 @@
 
 #include "maul-window/test.h"
 
+#include <string.h>
+
 #define MAX_EVENTS 64
 
 typedef struct Program Program;
@@ -79,6 +81,26 @@ static inline void Drain(Program* program, mwinContext* context)
     {
         program->events[program->eventCount++] = event;
     }
+}
+
+// Fills an output with a pattern, so that a check sees what a call left.
+static inline void Fill(void* out, size_t size)
+{
+    memset(out, 0xA5, size);
+}
+
+// Whether every byte of an output is zero.
+static inline bool Zeroed(const void* out, size_t size)
+{
+    const unsigned char* bytes = out;
+    for (size_t i = 0; i < size; i++)
+    {
+        if (bytes[i] != 0)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 static inline bool SameId(mwinRequestId a, mwinRequestId b)

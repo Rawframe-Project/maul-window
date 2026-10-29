@@ -60,9 +60,9 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
               "a snapshot, the primary first");
         CHECK(mwinContext_GetMonitors(context, listed, 2, &count) == mwin_success && count == 2,
               "a list that fits exactly");
-        CHECK(mwinContext_GetMonitors(context, listed, 1, &count) == mwin_errorCapacity &&
-                  count == 2,
-              "a short list says how many");
+        CHECK(mwinContext_GetMonitors(context, listed, 1, &count) == mwin_success && count == 2 &&
+                  SameMonitor(listed[0], s_monitors[1]),
+              "a short list is the primary, and says how many");
         CHECK(mwinMonitor_GetInfo(context, s_monitors[1], &info) == mwin_success &&
                   info.nameLength == 7 && memcmp(info.name, "Main \xC3\x9C", 7) == 0 &&
                   info.hdr.active && info.hdr.sdrWhiteNits == 240.0f &&

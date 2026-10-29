@@ -63,15 +63,16 @@ static void CheckDrop(Program* program, mwinContext* context)
           "the paths each ended by a NUL, and the text repaired");
     char two[2];
     size_t length = 0;
+    Fill(two, sizeof(two));
     CHECK(mwinContext_GetDroppedFiles(context, drop->drop, two, sizeof(two), &length) ==
                   mwin_errorCapacity &&
-              length == 17 && two[0] == '/' &&
+              length == 17 && Zeroed(two, sizeof(two)) &&
               mwinContext_GetDroppedFiles(context, drop->drop + 1, two, 2, &length) ==
                   mwin_errorStale &&
               mwinContext_GetDroppedText(context, 0, nullptr, 0, &length) == mwin_errorStale &&
               mwinContext_GetDroppedText(context, drop->drop, nullptr, 1, &length) ==
                   mwin_errorInvalid,
-          "the bytes that fit, a number not the last drop's, and a NULL buffer");
+          "a buffer too short zeroed, a number not the last drop's, and a NULL buffer");
     program->requests[1].index1 = drop->drop;
     Drag(context, program->windows[0], mwin_eventDragEntered, 10.0f, 20.0f);
     Drag(context, program->windows[0], mwin_eventDragLeft, 10.0f, 20.0f);

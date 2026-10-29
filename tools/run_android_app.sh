@@ -16,8 +16,10 @@
 # the enabled accessibility services, which a test may change, are put
 # back too, and a finger the console put down is lifted. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
-# failures; otherwise shows the application's crashes from the log, the
-# activity made anew or input dropped, and the resources' changes.
+# failures and the system did not restart meanwhile; otherwise shows the
+# application's crashes from the log, the activity made anew or input
+# dropped, and the resources' changes, and a restart of the system with
+# Android's own abort message, apart from the test's failures.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -71,6 +73,7 @@ services=$("$adb" shell settings get secure enabled_accessibility_services | tr 
 accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r')
 "$adb" install -r "$apk" > /dev/null
 began_assets=$(assets)
+server=$("$adb" shell pidof system_server | tr -d '\r')
 "$adb" logcat -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
@@ -95,8 +98,22 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
 done
 echo "waited until $(($(date +%s) - start)) s"
 grep -v -E '^(adb|emu): ' "$out" || true
+# The system's crash takes the test with it: said as such, once the
+# system is back.
+server_now=$("$adb" shell pidof system_server | tr -d '\r' || true)
+restarted=
+if [ "$server_now" != "$server" ]; then
+    restarted=1
+    echo "the system restarted during the test: system_server was pid $server, now ${server_now:-gone}"
+    "$adb" logcat -d -b crash | grep -E 'Fatal signal|Abort message' | head -6 || true
+    began=$(date +%s)
+    while [ $(($(date +%s) - began)) -lt 60 ] &&
+        ! "$adb" shell service check activity 2> /dev/null | grep -q ': found'; do
+        sleep 1
+    done
+fi
 status=1
-if grep -qx 'result: 0 failures' "$out"; then
+if [ -z "$restarted" ] && grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60

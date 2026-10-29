@@ -5,6 +5,41 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.6.0](https://github.com/Rawframe-Project/maul-window/compare/v0.5.1...v0.6.0) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **build:** Maul Window now needs Maul Unicode 0.6.0.
+* **core:** refuse calls from inside the allocator with mwin_errorBusy ([#198](https://github.com/Rawframe-Project/maul-window/issues/198))
+* the bounds refused with mwin_errorLimit are renamed: MWIN_ADDRESS_BYTES to MWIN_MAX_ADDRESS_BYTES, MWIN_CANVAS_SELECTOR_BYTES to MWIN_MAX_CANVAS_SELECTOR_BYTES, MWIN_CLIPBOARD_ITEMS to MWIN_MAX_CLIPBOARD_ITEMS, MWIN_CLIPBOARD_MIME to MWIN_MAX_CLIPBOARD_MIME, MWIN_CURSOR_IMAGES to MWIN_MAX_CURSOR_IMAGES, MWIN_CURSOR_SIZE to MWIN_MAX_CURSOR_SIZE, MWIN_DIALOG_FILTER_BYTES to MWIN_MAX_DIALOG_FILTER_BYTES, MWIN_DIALOG_FILTERS to MWIN_MAX_DIALOG_FILTERS, MWIN_DIALOG_TITLE_BYTES to MWIN_MAX_DIALOG_TITLE_BYTES, MWIN_HIT_REGIONS to MWIN_MAX_HIT_REGIONS, MWIN_ICON_IMAGES to MWIN_MAX_ICON_IMAGES, MWIN_ICON_SIZE to MWIN_MAX_ICON_SIZE, MWIN_MESSAGE_BYTES to MWIN_MAX_MESSAGE_BYTES, and MWIN_MESSAGE_TITLE_BYTES to MWIN_MAX_MESSAGE_TITLE_BYTES.
+* calls refuse an argument past a fixed bound with a named constant with the new mwin_errorLimit (-9) instead of mwin_errorInvalid, and mwinCreateWindow refuses a title past the titleBytes limit with mwin_errorCapacity instead of mwin_errorInvalid.
+
+### Added
+
+* **input:** count the input purposes, and test a scope for each ([#228](https://github.com/Rawframe-Project/maul-window/issues/228)) ([6aaa247](https://github.com/Rawframe-Project/maul-window/commit/6aaa247346935b2d05c1148407af8b6a211c245b)), closes [#223](https://github.com/Rawframe-Project/maul-window/issues/223)
+
+
+### Fixed
+
+* **android:** find a gamepad Android 11 first read half merged ([#227](https://github.com/Rawframe-Project/maul-window/issues/227)) ([f3fa8dc](https://github.com/Rawframe-Project/maul-window/commit/f3fa8dc841864216cd489e62841d269cb49e124d)), closes [#226](https://github.com/Rawframe-Project/maul-window/issues/226)
+* **android:** give a gamepad the motion Android finds after adding it ([#225](https://github.com/Rawframe-Project/maul-window/issues/225)) ([295e562](https://github.com/Rawframe-Project/maul-window/commit/295e562d7763e7d9136447a86c04403f3d6b5949)), closes [#220](https://github.com/Rawframe-Project/maul-window/issues/220)
+* **android:** give each of a gamepad's two motors its own strength ([#224](https://github.com/Rawframe-Project/maul-window/issues/224)) ([a4a773a](https://github.com/Rawframe-Project/maul-window/commit/a4a773a99b39a893ed71d2fc3d9e57d1ce536b9e)), closes [#219](https://github.com/Rawframe-Project/maul-window/issues/219)
+* **android:** stop a rumble through the vibrator that started it ([#240](https://github.com/Rawframe-Project/maul-window/issues/240)) ([6d734fd](https://github.com/Rawframe-Project/maul-window/commit/6d734fde269e983b99ce118d3e90319026a83807)), closes [#237](https://github.com/Rawframe-Project/maul-window/issues/237)
+* **build:** build against Maul Unicode 0.6.0 ([#250](https://github.com/Rawframe-Project/maul-window/issues/250)) ([4298640](https://github.com/Rawframe-Project/maul-window/commit/429864009c05f20d2dd4abe56f3271d71d468202)), closes [#248](https://github.com/Rawframe-Project/maul-window/issues/248)
+* **core:** end a window's composition with its input state reset ([#194](https://github.com/Rawframe-Project/maul-window/issues/194)) ([63f4852](https://github.com/Rawframe-Project/maul-window/commit/63f48525775fd95b4a1085da34fb904582c7a969)), closes [#192](https://github.com/Rawframe-Project/maul-window/issues/192)
+* **core:** leave out the keys an input method takes after a reset ([#199](https://github.com/Rawframe-Project/maul-window/issues/199)) ([763470f](https://github.com/Rawframe-Project/maul-window/commit/763470f4bb92b8f67e7a99fe74ef8988e313e685)), closes [#196](https://github.com/Rawframe-Project/maul-window/issues/196)
+* **core:** refuse calls from inside the allocator with mwin_errorBusy ([#198](https://github.com/Rawframe-Project/maul-window/issues/198)) ([62d3fdc](https://github.com/Rawframe-Project/maul-window/commit/62d3fdc1e95e53ec615a47dd0817df219c99a7e2)), closes [#191](https://github.com/Rawframe-Project/maul-window/issues/191)
+* **ios:** take touches before a window first draws ([#197](https://github.com/Rawframe-Project/maul-window/issues/197)) ([2b01b63](https://github.com/Rawframe-Project/maul-window/commit/2b01b633adf4bdd2ae739741f00ccded6d7ddeb5)), closes [#195](https://github.com/Rawframe-Project/maul-window/issues/195)
+* **linux:** add a pad turned away for want of room once there is room ([#213](https://github.com/Rawframe-Project/maul-window/issues/213)) ([94d846e](https://github.com/Rawframe-Project/maul-window/commit/94d846e9fdd1e933920ad7c655bd74e07529680c)), closes [#205](https://github.com/Rawframe-Project/maul-window/issues/205)
+* **linux:** post nothing when a pad's resync cannot read its buttons ([#173](https://github.com/Rawframe-Project/maul-window/issues/173)) ([de43ab2](https://github.com/Rawframe-Project/maul-window/commit/de43ab25dbb505fb18e01e561e74aa3a8637c7f4)), closes [#171](https://github.com/Rawframe-Project/maul-window/issues/171)
+* **linux:** skip a report the kernel cut and read the state again ([#170](https://github.com/Rawframe-Project/maul-window/issues/170)) ([10dae15](https://github.com/Rawframe-Project/maul-window/commit/10dae150251506403b5c67e5ea020fbfd8280bd6)), closes [#167](https://github.com/Rawframe-Project/maul-window/issues/167) [#168](https://github.com/Rawframe-Project/maul-window/issues/168)
+* **linux:** time motion samples on the records' clock ([#164](https://github.com/Rawframe-Project/maul-window/issues/164)) ([22b17c1](https://github.com/Rawframe-Project/maul-window/commit/22b17c125e00e88ce71fe305f63446b55bd2d33e)), closes [#163](https://github.com/Rawframe-Project/maul-window/issues/163)
+* name the bounds refused with mwin_errorLimit MWIN_MAX_* ([#186](https://github.com/Rawframe-Project/maul-window/issues/186)) ([5c22fcf](https://github.com/Rawframe-Project/maul-window/commit/5c22fcf687d5b2422ca77102ba5887874ad854c5))
+* return mwin_errorLimit past a named bound ([#182](https://github.com/Rawframe-Project/maul-window/issues/182)) ([01f0057](https://github.com/Rawframe-Project/maul-window/commit/01f00572252640f9249feea6abf76867d056fd2a))
+* **wayland:** repair the input method's text that is not UTF-8 ([#188](https://github.com/Rawframe-Project/maul-window/issues/188)) ([33a0919](https://github.com/Rawframe-Project/maul-window/commit/33a0919b845066177231c198d884c1d5653aeb7a)), closes [#187](https://github.com/Rawframe-Project/maul-window/issues/187)
+* **win32:** add a Raw Input pad turned away for want of room later ([#208](https://github.com/Rawframe-Project/maul-window/issues/208)) ([3cad2c8](https://github.com/Rawframe-Project/maul-window/commit/3cad2c864cb2a5518de63d37c372443efe6b866a)), closes [#206](https://github.com/Rawframe-Project/maul-window/issues/206)
+
 ## [0.5.1](https://github.com/Rawframe-Project/maul-window/compare/v0.5.0...v0.5.1) (2026-10-27)
 
 ### Fixed

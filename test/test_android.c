@@ -17,8 +17,9 @@
 // the program is not asked for again; finished, the activity asks the
 // window to close, which the program hears once a new activity joins.
 // Then the window destroyed, its id gone, and a new window made, which
-// that activity shows. quit writes the closing line the runner waits
-// for.
+// that activity shows. Each phase that checks the window waits for the
+// display's facts to agree with it, less than a second. quit writes the
+// closing line the runner waits for.
 
 #include "test_harness.h"
 
@@ -71,6 +72,9 @@ typedef struct Program
     int resumingFrame;
     // Whether the window was taller than wide before it was turned.
     bool wasPortrait;
+    // When the window was ready for a phase's checks while its monitor's
+    // facts did not yet agree with it, or 0.
+    uint64_t disagreedNs;
     // The frame that first told the window occluded, and whether its
     // state said so then.
     int occludedFrame;
@@ -180,6 +184,22 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
+// The window's monitor, the display, and its facts; false without them.
+static bool MonitorOf(mwinContext* context, mwinMonitorId* monitor, mwinMonitorInfo* info)
+{
+    size_t count = 0;
+    return mwinContext_GetMonitors(context, monitor, 1, &count) == mwin_success && count == 1 &&
+           mwinMonitor_GetInfo(context, *monitor, info) == mwin_success;
+}
+
+// Whether the monitor's facts agree with the window: the display at
+// least as large, each way, and the same scale.
+static bool Agrees(const mwinMonitorInfo* info, const mwinWindowState* state)
+{
+    return info->scale == state->scale && info->bounds.width >= state->pixelSize.width &&
+           info->bounds.height >= state->pixelSize.height;
+}
+
 static bool Saw(const Program* program, mwinEventType type)
 {
     for (int i = 0; i < program->recordCount; i++)
@@ -213,18 +233,22 @@ static mwinWindowState StateOf(const Program* program, mwinContext* context)
 // the emulator shows no HDR.
 static void CheckMonitor(const mwinWindowState* state, mwinContext* context)
 {
-    mwinMonitorId monitors[4];
-    size_t count = 0;
+    mwinMonitorId monitor = {0};
     mwinMonitorInfo info = {0};
-    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count == 1 &&
-              memcmp(&monitors[0], &state->monitor, sizeof(monitors[0])) == 0 &&
-              mwinMonitor_GetInfo(context, monitors[0], &info) == mwin_success,
+    CHECK(MonitorOf(context, &monitor, &info) &&
+              memcmp(&monitor, &state->monitor, sizeof(monitor)) == 0,
           "one monitor, the window's");
-    CHECK(info.primary && info.nameLength > 0 && info.scale == state->scale &&
-              info.bounds.width >= state->pixelSize.width &&
-              info.bounds.height >= state->pixelSize.height && info.widthMm > 0 &&
-              info.heightMm > 0 && info.refreshMilliHz > 0,
-          "the display's facts, turned as the window");
+    bool facts = info.primary && info.nameLength > 0 && Agrees(&info, state) && info.widthMm > 0 &&
+                 info.heightMm > 0 && info.refreshMilliHz > 0;
+    CHECK(facts, "the display's facts, turned as the window");
+    if (!facts)
+    {
+        printf("  the display %ux%u pixels at scale %.3f, %ux%u mm, %u mHz, named %d bytes; the "
+               "window %ux%u pixels at scale %.3f\n",
+               info.bounds.width, info.bounds.height, (double)info.scale, info.widthMm,
+               info.heightMm, info.refreshMilliHz, (int)info.nameLength, state->pixelSize.width,
+               state->pixelSize.height, (double)state->scale);
+    }
     CHECK(info.hdr.known && !info.hdr.active && info.hdr.headroom == 1.0f &&
               info.hdr.sdrWhiteNits == 0.0f && info.variableRefresh == mwin_unknown,
           "no HDR on the emulator's display, variable refresh unknown before Android 16");
@@ -406,6 +430,41 @@ static void Advance(Program* program, mwinContext* context)
     program->startNs = NowNs();
 }
 
+// Whether a phase that checks the window can: its monitor's facts agree
+// with it. An activity that starts turned can have its window before
+// Android has turned the display's facts (Android 11), and the library
+// reads them again every tenth of a second until the window fits; so
+// where they did not agree when the window was ready, the phase waits
+// for them, says how long it waited, and requires less than a second,
+// well under the two seconds between the library's usual reads.
+static bool MonitorReady(Program* program, mwinContext* context)
+{
+    if (program->phase != 0 && program->phase != 3 && program->phase != 6)
+    {
+        return true;
+    }
+    mwinMonitorId monitor = {0};
+    mwinMonitorInfo info = {0};
+    mwinWindowState state = StateOf(program, context);
+    if (!MonitorOf(context, &monitor, &info) || !Agrees(&info, &state))
+    {
+        if (program->disagreedNs == 0)
+        {
+            program->disagreedNs = NowNs();
+        }
+        return false;
+    }
+    if (program->disagreedNs != 0)
+    {
+        uint64_t waitedNs = NowNs() - program->disagreedNs;
+        printf("  the display's facts agreed with the window %.2f s after it was ready\n",
+               (double)waitedNs / 1e9);
+        CHECK(waitedNs < 1000000000u, "the display's facts follow the window within a second");
+        program->disagreedNs = 0;
+    }
+    return true;
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
@@ -426,7 +485,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         return mwin_frameStop;
     }
-    if (Ready(program, context))
+    if (Ready(program, context) && MonitorReady(program, context))
     {
         printf("phase %d\n", program->phase);
         Advance(program, context);
@@ -439,6 +498,18 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             printf(" %d", (int)program->records[i]);
         }
         printf(", surface lost %d\n", (int)StateOf(program, context).surfaceLost);
+        if (program->disagreedNs != 0)
+        {
+            mwinMonitorId monitor = {0};
+            mwinMonitorInfo info = {0};
+            mwinWindowState state = StateOf(program, context);
+            bool found = MonitorOf(context, &monitor, &info);
+            printf("the display's facts never agreed with the window: %s %ux%u at scale %.3f, "
+                   "the window %ux%u at scale %.3f\n",
+                   found ? "the display" : "no display", info.bounds.width, info.bounds.height,
+                   (double)info.scale, state.pixelSize.width, state.pixelSize.height,
+                   (double)state.scale);
+        }
         s_failures += 1;
         return mwin_frameStop;
     }

@@ -16,7 +16,8 @@
 # the enabled accessibility services, which a test may change, are put
 # back too, and a finger the console put down is lifted. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
-# failures; otherwise shows the application's crashes from the log.
+# failures; otherwise shows the application's crashes from the log, the
+# activity made anew or input dropped, and the resources' changes.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -60,6 +61,7 @@ saver=$("$adb" shell settings get global low_power | tr -d '\r')
 services=$("$adb" shell settings get secure enabled_accessibility_services | tr -d '\r')
 accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r')
 "$adb" install -r "$apk" > /dev/null
+began_assets=$(assets)
 "$adb" logcat -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
@@ -89,6 +91,11 @@ if grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
+    # Whether the system made the activity anew or dropped input meant
+    # for it, and the resources' changes from the start to now.
+    "$adb" logcat -d -s ActivityTaskManager:I WindowManager:I InputDispatcher:W |
+        grep -E 'Config changes|relaunch|NO_INPUT_CHANNEL|no input channel' | tail -20 || true
+    echo "assets from ${began_assets:-as.0} to $(assets | grep . || echo as.0)"
 fi
 "$adb" shell am force-stop "$package"
 # A finger the console left down, by a test that ended early, is lifted.

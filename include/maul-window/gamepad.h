@@ -165,19 +165,19 @@ extern "C"
 
     /// Lists the gamepads connected now, in the order they came.
     ///
-    /// @param context   The context.
-    /// @param gamepads  Receives up to capacity ids. May be NULL when
-    ///                  capacity is 0.
-    /// @param capacity  The ids gamepads holds.
-    /// @param countOut  Receives the number connected, which may exceed
-    ///                  capacity.
+    /// @param context      The context.
+    /// @param gamepadsOut  Receives up to capacity ids. May be NULL when
+    ///                     capacity is 0.
+    /// @param capacity     The ids gamepadsOut holds.
+    /// @param countOut     Receives the number connected, which may exceed
+    ///                     capacity.
     /// @return `mwin_success`; `mwin_errorCapacity` when they do not all
     ///         fit (the first capacity are written); `mwin_errorInvalid`
     ///         for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetGamepads(const mwinContext* context,
-                                                               mwinGamepadId* gamepads,
+                                                               mwinGamepadId* gamepadsOut,
                                                                size_t capacity, size_t* countOut);
 
     /// Reads what the platform tells about a gamepad.

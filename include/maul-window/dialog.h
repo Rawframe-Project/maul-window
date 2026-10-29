@@ -117,14 +117,14 @@ extern "C"
     /// Copies the paths a dialog chose out: absolute, UTF-8, each ended
     /// by a NUL.
     ///
-    /// @param context   The context.
-    /// @param request   The dialog's request, done.
-    /// @param buffer    Receives the paths. May be NULL when capacity is 0.
-    /// @param capacity  Its bytes.
-    /// @param lengthOut Receives the bytes of the paths.
-    /// @param countOut  Receives how many paths there are. May be NULL.
+    /// @param context    The context.
+    /// @param request    The dialog's request, done.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    /// @param capacity   Its bytes.
+    /// @param lengthOut  Receives the bytes of the paths.
+    /// @param countOut   Receives how many paths there are. May be NULL.
     /// @return `mwin_success`; `mwin_errorCapacity` with the bytes needed
-    ///         when they do not fit, the buffer filled as far as it goes;
+    ///         when they do not fit, bufferOut filled as far as it goes;
     ///         `mwin_errorStale` for a request that did not complete with
     ///         mwin_outcomeDone or whose paths a later dialog replaced;
     ///         `mwin_errorInvalid` for a NULL context or lengthOut.
@@ -132,7 +132,7 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetDialogFiles(const mwinContext* context,
                                                                   mwinRequestId request,
-                                                                  char* buffer, size_t capacity,
+                                                                  char* bufferOut, size_t capacity,
                                                                   size_t* lengthOut,
                                                                   uint32_t* countOut);
 

@@ -84,9 +84,9 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the text in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes.
     /// @return `mwin_success`; `mwin_errorCapacity` when the text does not
     ///         fit (the bytes that fit are written); `mwin_errorStale` for
@@ -97,7 +97,8 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetClipboardText(const mwinContext* context,
                                                                     mwinRequestId request,
-                                                                    char* buffer, size_t capacity,
+                                                                    char* bufferOut,
+                                                                    size_t capacity,
                                                                     size_t* lengthOut);
 
 #define MWIN_MAX_CLIPBOARD_ITEMS 4
@@ -164,15 +165,16 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the data's length in bytes.
     /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetClipboardData(const mwinContext* context,
                                                                     mwinRequestId request,
-                                                                    void* buffer, size_t capacity,
+                                                                    void* bufferOut,
+                                                                    size_t capacity,
                                                                     size_t* lengthOut);
 
     /// Asks to make text the primary selection, where the platform has one
@@ -212,16 +214,16 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The read, from its completion record.
-    /// @param buffer     Receives the text in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes.
     /// @return As mwinRequest_GetClipboardText.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetPrimaryText(const mwinContext* context,
                                                                   mwinRequestId request,
-                                                                  char* buffer, size_t capacity,
+                                                                  char* bufferOut, size_t capacity,
                                                                   size_t* lengthOut);
 
 #ifdef __cplusplus

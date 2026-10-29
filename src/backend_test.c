@@ -685,10 +685,10 @@ mwinResult mwinContext_SetTestScale(mwinContext* context, float scale)
     return mwin_success;
 }
 
-mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId window, char* buffer,
+mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId window, char* bufferOut,
                                    size_t capacity, size_t* lengthOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
+    if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
@@ -704,7 +704,7 @@ mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId wind
     size_t length = found->titleLength;
     if (capacity > 0)
     {
-        memcpy(buffer, found->title, length < capacity ? length : capacity);
+        memcpy(bufferOut, found->title, length < capacity ? length : capacity);
     }
     *lengthOut = length;
     return length > capacity ? mwin_errorCapacity : mwin_success;

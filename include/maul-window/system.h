@@ -62,9 +62,9 @@ extern "C"
     /// does not say.
     ///
     /// @param context    The context.
-    /// @param buffer     Receives the list, not NUL-terminated. May be NULL
+    /// @param bufferOut  Receives the list, not NUL-terminated. May be NULL
     ///                   when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the list's length in bytes.
     /// @return `mwin_success`; `mwin_errorCapacity` when the list does not
     ///         fit (the bytes that fit are written); `mwin_errorInvalid`
@@ -72,7 +72,7 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetPreferredLocales(const mwinContext* context,
-                                                                       char* buffer,
+                                                                       char* bufferOut,
                                                                        size_t capacity,
                                                                        size_t* lengthOut);
 

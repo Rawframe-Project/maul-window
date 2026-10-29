@@ -351,20 +351,20 @@ mwinResult mwinCopyFound(const mwinContext* context, mwinRequestId request, uint
 }
 
 mwinResult mwinRequest_GetClipboardData(const mwinContext* context, mwinRequestId request,
-                                        void* buffer, size_t capacity, size_t* lengthOut)
+                                        void* bufferOut, size_t capacity, size_t* lengthOut)
 {
     return mwinCopyFound(context, request, mwin_foundData,
                          context != nullptr ? context->clipboardDataFound : nullptr,
-                         context != nullptr ? context->clipboardDataFoundLength : 0, buffer,
+                         context != nullptr ? context->clipboardDataFoundLength : 0, bufferOut,
                          capacity, lengthOut);
 }
 
 mwinResult mwinRequest_GetPrimaryText(const mwinContext* context, mwinRequestId request,
-                                      char* buffer, size_t capacity, size_t* lengthOut)
+                                      char* bufferOut, size_t capacity, size_t* lengthOut)
 {
     return mwinCopyFound(
         context, request, mwin_foundPrimary, context != nullptr ? context->primaryFound : nullptr,
-        context != nullptr ? context->primaryFoundLength : 0, buffer, capacity, lengthOut);
+        context != nullptr ? context->primaryFoundLength : 0, bufferOut, capacity, lengthOut);
 }
 
 mwinResult mwinWindow_RequestPrimaryWrite(mwinContext* context, mwinWindowId window,

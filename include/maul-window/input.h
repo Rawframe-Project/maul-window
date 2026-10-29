@@ -433,9 +433,9 @@ extern "C"
     /// gives it, for showing which layout key labels come from.
     ///
     /// @param context    The context.
-    /// @param buffer     Receives the name in UTF-8, not NUL-terminated.
+    /// @param bufferOut  Receives the name in UTF-8, not NUL-terminated.
     ///                   May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the name's length in bytes.
     /// @return `mwin_success`; `mwin_errorCapacity` when the name does not
     ///         fit (the bytes that fit are written); `mwin_errorInvalid`
@@ -443,7 +443,8 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context,
-                                                                     char* buffer, size_t capacity,
+                                                                     char* bufferOut,
+                                                                     size_t capacity,
                                                                      size_t* lengthOut);
 
     /// Tells whether a chord reaches the program on the platform the

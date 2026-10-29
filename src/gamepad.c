@@ -10,10 +10,10 @@
 
 #include <math.h>
 
-mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* gamepads,
+mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* gamepadsOut,
                                    size_t capacity, size_t* countOut)
 {
-    if (context == nullptr || countOut == nullptr || (gamepads == nullptr && capacity != 0))
+    if (context == nullptr || countOut == nullptr || (gamepadsOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
@@ -40,7 +40,7 @@ mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* ga
         }
         if (count < capacity)
         {
-            gamepads[count] = mwinGamepadIdOf(context, (uint32_t)next);
+            gamepadsOut[count] = mwinGamepadIdOf(context, (uint32_t)next);
         }
         count += 1;
         after = context->gamepads[next].arrival;

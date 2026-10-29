@@ -105,9 +105,9 @@ extern "C"
     ///
     /// @param context    A context of the test backend.
     /// @param window     The window.
-    /// @param buffer     Receives the title, not NUL-terminated. May be
+    /// @param bufferOut  Receives the title, not NUL-terminated. May be
     ///                   NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the title's length in bytes.
     /// @return `mwin_success`; `mwin_errorCapacity` when the title does not
     ///         fit (the bytes that fit are written); `mwin_errorStale` for
@@ -117,7 +117,7 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinWindow_GetTestTitle(const mwinContext* context,
-                                                               mwinWindowId window, char* buffer,
+                                                               mwinWindowId window, char* bufferOut,
                                                                size_t capacity, size_t* lengthOut);
 
     /// Connects a monitor to the test platform, at once: its
@@ -378,8 +378,8 @@ extern "C"
     /// wrote, or what mwinContext_SetTestClipboard put there.
     ///
     /// @param context    A context of the test backend.
-    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives their number.
     /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit
     ///         (the bytes that fit are written); `mwin_errorUnsupported`
@@ -388,7 +388,8 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestClipboard(const mwinContext* context,
-                                                                    char* buffer, size_t capacity,
+                                                                    char* bufferOut,
+                                                                    size_t capacity,
                                                                     size_t* lengthOut);
 
     /// Puts data of one MIME type on the test platform's clipboard, at
@@ -416,16 +417,16 @@ extern "C"
     /// @param context     A context of the test backend.
     /// @param mime        The type, as written.
     /// @param mimeLength  Its bytes.
-    /// @param buffer      Receives the bytes. May be NULL when capacity is
+    /// @param bufferOut   Receives the bytes. May be NULL when capacity is
     ///                    0.
-    /// @param capacity    The bytes buffer holds.
+    /// @param capacity    The bytes bufferOut holds.
     /// @param lengthOut   Receives their number.
     /// @return As mwinContext_GetTestClipboard, with `mwin_errorInvalid` for a
     ///         type the clipboard does not hold.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestClipboardData(
-        const mwinContext* context, const char* mime, size_t mimeLength, void* buffer,
+        const mwinContext* context, const char* mime, size_t mimeLength, void* bufferOut,
         size_t capacity, size_t* lengthOut);
 
     /// Puts bytes in the test platform's primary selection, at once, as
@@ -443,14 +444,14 @@ extern "C"
     /// Reads the test platform's primary selection as bytes.
     ///
     /// @param context    A context of the test backend.
-    /// @param buffer     Receives the bytes. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives their number.
     /// @return As mwinContext_GetTestClipboard.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestPrimary(const mwinContext* context,
-                                                                  char* buffer, size_t capacity,
+                                                                  char* bufferOut, size_t capacity,
                                                                   size_t* lengthOut);
 
     /// Drops files and text on a window of the test platform: gathered at
@@ -484,8 +485,8 @@ extern "C"
     ///
     /// @param context    A context of the test backend.
     /// @param kind       mwin_requestOpenUrl or mwin_requestRevealFile.
-    /// @param buffer     Receives it. May be NULL when capacity is 0.
-    /// @param capacity   The bytes buffer holds.
+    /// @param bufferOut  Receives it. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives its length in bytes, 0 before any.
     /// @return `mwin_success`; `mwin_errorCapacity` when it does not fit
     ///         (the bytes that fit are written); `mwin_errorUnsupported`
@@ -494,8 +495,8 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestOpened(const mwinContext* context,
-                                                                 mwinRequestKind kind, char* buffer,
-                                                                 size_t capacity,
+                                                                 mwinRequestKind kind,
+                                                                 char* bufferOut, size_t capacity,
                                                                  size_t* lengthOut);
 
     /// Sets the paths the next file dialogs choose when they are done:
@@ -517,15 +518,15 @@ extern "C"
     /// lines: its kind as a digit, title, folder and name, then each
     /// filter as its name, ':' and its extensions.
     ///
-    /// @param context   A context of the test backend.
-    /// @param buffer    Receives it. May be NULL when capacity is 0.
-    /// @param capacity  The bytes buffer holds.
-    /// @param lengthOut Receives its length in bytes, 0 before any.
+    /// @param context    A context of the test backend.
+    /// @param bufferOut  Receives it. May be NULL when capacity is 0.
+    /// @param capacity   The bytes bufferOut holds.
+    /// @param lengthOut  Receives its length in bytes, 0 before any.
     /// @return As mwinContext_GetTestOpened.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestDialog(const mwinContext* context,
-                                                                 char* buffer, size_t capacity,
+                                                                 char* bufferOut, size_t capacity,
                                                                  size_t* lengthOut);
 
     /// Reads the icon the backend was last given: how many images, and a

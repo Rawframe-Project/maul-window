@@ -126,12 +126,12 @@ mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
     return mwin_success;
 }
 
-mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* buffer, size_t capacity,
-                                         size_t* lengthOut)
+mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* bufferOut,
+                                         size_t capacity, size_t* lengthOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity != 0))
+    if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinMisuse(context);
     }
-    return context->backend->keyboardLayout(context, buffer, capacity, lengthOut);
+    return context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
 }

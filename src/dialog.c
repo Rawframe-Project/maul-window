@@ -259,10 +259,10 @@ void mwinReleaseDialogs(mwinContext* context)
 }
 
 mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId request,
-                                      char* buffer, size_t capacity, size_t* lengthOut,
+                                      char* bufferOut, size_t capacity, size_t* lengthOut,
                                       uint32_t* countOut)
 {
-    if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
+    if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
         return mwinMisuse(context);
     }
@@ -274,7 +274,7 @@ mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId 
     }
     if (files->length > 0 && capacity > 0)
     {
-        memcpy(buffer, files->bytes, files->length < capacity ? files->length : capacity);
+        memcpy(bufferOut, files->bytes, files->length < capacity ? files->length : capacity);
     }
     *lengthOut = files->length;
     if (countOut != nullptr)

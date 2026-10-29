@@ -45,6 +45,7 @@ typedef struct Program
     mwinWindowId window;
     int completions;
     mwinOutcome outcomes[8];
+    mwinRequestKind kinds[8];
     bool suspended;
     bool resumed;
     bool wasPortrait;
@@ -64,6 +65,7 @@ static void Collect(Program* program, mwinContext* context)
     {
         if (event.type == mwin_eventRequestCompleted && program->completions < 8)
         {
+            program->kinds[program->completions] = event.data.completion.kind;
             program->outcomes[program->completions++] = event.data.completion.outcome;
         }
         program->suspended |= event.type == mwin_eventSuspending;
@@ -182,8 +184,21 @@ static void WriteRead(const Program* program, mwinContext* context, const char* 
           "a write and a read asked for");
 }
 
+// Prints a phase's completions in the order they came, each its request's
+// kind and its outcome, so that a failed check shows what it read.
+static void PrintCompletions(const Program* program)
+{
+    printf("phase %d's %d completions (kind:outcome):", program->phase, program->completions);
+    for (int i = 0; i < program->completions; i++)
+    {
+        printf(" %d:%d", (int)program->kinds[i], (int)program->outcomes[i]);
+    }
+    printf("\n");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
+    int failures = s_failures;
     const mwinOutcome* outcomes = program->outcomes;
     switch (program->phase)
     {
@@ -264,6 +279,10 @@ static void Advance(Program* program, mwinContext* context)
         break;
     default:
         break;
+    }
+    if (s_failures > failures)
+    {
+        PrintCompletions(program);
     }
     program->phase += 1;
     program->completions = 0;

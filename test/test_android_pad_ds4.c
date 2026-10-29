@@ -568,7 +568,8 @@ static void CheckAsked(const Program* program)
 }
 
 // What a copy should show: from Android 12 the last report's motors and
-// whether the pad's sensors are on; on Android 11 whether it vibrates.
+// whether the pad's sensors are on; on Android 11 the input service's
+// line saying whether it vibrates, which must be there.
 typedef struct Want
 {
     const char* name;
@@ -604,7 +605,10 @@ static bool Shows(const Want* want, const char* text)
         return LastMotors(text, &light, &heavy) && light == want->light && heavy == want->heavy &&
                sensing == want->sensing;
     }
-    return (strstr(text, "Vibrating: true") != nullptr) == running;
+    // Each vibrator of every pad has a line: still is none true, and one
+    // there at least.
+    bool vibrating = strstr(text, "Vibrating: true") != nullptr;
+    return running ? vibrating : !vibrating && strstr(text, "Vibrating: false") != nullptr;
 }
 
 // Asks for a copy, again each second until one shows what is wanted:
@@ -753,7 +757,9 @@ static void CheckCopy(const Want* want)
         printf("  the copy: motors %s %u %u, sensors %s, vibrating %s\n",
                found ? "set to" : "never set, at", light, heavy,
                strstr(s_read, "enabled: 1") != nullptr ? "on" : "off",
-               strstr(s_read, "Vibrating: true") != nullptr ? "true" : "false");
+               strstr(s_read, "Vibrating: true") != nullptr    ? "true"
+               : strstr(s_read, "Vibrating: false") != nullptr ? "false"
+                                                               : "not said");
     }
 }
 

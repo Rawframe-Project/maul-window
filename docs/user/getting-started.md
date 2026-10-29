@@ -33,6 +33,8 @@ cmake --install build --prefix <prefix>
 
 A program then finds it with `find_package(maul-window REQUIRED CONFIG)` and links `maul-window::maul-window`, or uses the `maul-window` pkg-config module.
 
+A program that builds Maul Unicode itself can check that its version is the one Maul Window is built and tested with, before anything else, since Maul Unicode's package takes only its exact version: an installed Maul Window names it in `maul-window_UNICODE_VERSION`, set by `find_package(maul-window)` even when the Maul Unicode it then looks for is another version, and a Maul Window built from source with `add_subdirectory` or FetchContent names it in the cache variable `MAUL_WINDOW_UNICODE_VERSION`.
+
 | Option | Default | What it does |
 |---|---|---|
 | `MAUL_WINDOW_WAYLAND`, `MAUL_WINDOW_X11` | on for Linux | The Linux backends; one build carries both. |

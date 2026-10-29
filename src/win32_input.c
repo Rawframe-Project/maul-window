@@ -152,7 +152,7 @@ static void OnCharacter(mwinWin32Window* window, WPARAM unit)
     char text[4];
     size_t length = 0;
     if (character < 0x20 || character == 0x7F ||
-        muniEncodeUtf8(character, text, &length) != muni_success)
+        muniEncodeUtf8(character, text, sizeof(text), &length) != muni_success)
     {
         return;
     }

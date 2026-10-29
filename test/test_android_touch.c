@@ -117,7 +117,7 @@ typedef struct Program
     // The input records since the phase began.
     mwinEvent records[RECORDS];
     int recordCount;
-    // Whether an earlier run's devices kept this run from making its own.
+    // Whether another test's devices kept this run from making its own.
     bool blocked;
     // Where the two fingers went down, in logical units.
     mwinPosition first;
@@ -283,25 +283,27 @@ static bool WriteScript(void)
         // this run's, and two pens' hovering in one device stops the
         // system (its input dispatcher aborts). They go once their script
         // sees this run begun, or once the runner uninstalls the test.
-        // When they stay 15 seconds, well within the phase's deadline, this
-        // run makes none and says whose they are (the file touch-blocked).
-        fprintf(script,
-                "others() {\n"
-                "    dumpsys input | grep -E '^ +[0-9]+: Maul (Touch|Pen|Mouse)( [0-9]+)?$'\n"
-                "}\n"
-                "began=$SECONDS\n"
-                "while [ $((SECONDS - began)) -lt 15 ] && mine && others > /dev/null; do\n"
-                "    sleep 0.1\n"
-                "done\n"
-                "if ! mine; then\n"
-                "    exit 0\n"
-                "fi\n"
-                "if others > /dev/null; then\n"
-                "    others | run-as " MWIN_TEST_PACKAGE " sh -c '\n"
-                "        cat > files/touch-blocked.part && mv files/touch-blocked.part "
-                "files/touch-blocked'\n"
-                "    exit 0\n"
-                "fi\n");
+        // Another test's devices change what reaches the window too (a
+        // gamepad's touchpad is a mouse to Android), so this run waits for
+        // every Maul device to go. When they stay 15 seconds, well within
+        // the phase's deadline, it makes none and says whose they are (the
+        // file touch-blocked).
+        fprintf(script, "others() {\n"
+                        "    dumpsys input | grep -E '^ +[0-9]+: Maul '\n"
+                        "}\n"
+                        "began=$SECONDS\n"
+                        "while [ $((SECONDS - began)) -lt 15 ] && mine && others > /dev/null; do\n"
+                        "    sleep 0.1\n"
+                        "done\n"
+                        "if ! mine; then\n"
+                        "    exit 0\n"
+                        "fi\n"
+                        "if others > /dev/null; then\n"
+                        "    others | run-as " MWIN_TEST_PACKAGE " sh -c '\n"
+                        "        cat > files/touch-blocked.part && mv files/touch-blocked.part "
+                        "files/touch-blocked'\n"
+                        "    exit 0\n"
+                        "fi\n");
         fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/touch-add.json\n");
         // Android reads a device's reports only once its input hub has
         // opened the device's node: until then they would be lost. Only
@@ -328,7 +330,7 @@ static bool WriteScript(void)
     return opened && closed;
 }
 
-// Says whether the script found an earlier run's devices still there
+// Says whether the script found another test's devices still there
 // and made none, and prints which.
 static bool Blocked(void)
 {
@@ -337,7 +339,7 @@ static bool Blocked(void)
     {
         return false;
     }
-    printf("an earlier run's devices are still there, so this run made none:\n");
+    printf("another test's devices are still there, so this run made none:\n");
     char line[128];
     while (fgets(line, sizeof(line), file) != nullptr)
     {
@@ -551,8 +553,21 @@ static void Paint(const Program* program, mwinContext* context)
     }
 }
 
+// Prints a phase's records by type, so that a failed
+// check shows what came.
+static void PrintRecords(const Program* program)
+{
+    printf("phase %d's %d records:", program->phase, program->recordCount);
+    for (int i = 0; i < program->recordCount; i++)
+    {
+        printf(" %d", (int)program->records[i].type);
+    }
+    printf("\n");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
+    int failures = s_failures;
     switch (program->phase)
     {
     case 0:
@@ -574,6 +589,10 @@ static void Advance(Program* program, mwinContext* context)
         break;
     default:
         break;
+    }
+    if (s_failures > failures)
+    {
+        PrintRecords(program);
     }
     program->phase += 1;
     program->recordCount = 0;

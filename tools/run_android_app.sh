@@ -21,6 +21,32 @@ set -eu
 adb=${ADB:-adb}
 apk=$1
 package=$2
+# A few seconds after a fresh boot, SystemUI takes its theme's overlays
+# off, and at times puts them back (Android 12 and later): each a change
+# of the resources that makes the activity in front anew, so that input
+# a test asked for meanwhile meets no window. On a fresh boot (the
+# overlays on, the resources never changed) the test starts once they
+# have changed and then stayed so for five seconds, forty at most.
+assets() {
+    "$adb" shell dumpsys window | grep -m1 mGlobalConfiguration | grep -oE 'as\.[0-9]+' || true
+}
+if "$adb" shell cmd overlay list | grep -qE '\[x\] com\.android\.systemui:(neutral|accent|dynamic)' &&
+    [ -z "$(assets)" ]; then
+    began=$(date +%s)
+    seen=
+    since=$began
+    while [ $(($(date +%s) - began)) -lt 40 ]; do
+        now=$(assets)
+        if [ "$now" != "$seen" ]; then
+            seen=$now
+            since=$(date +%s)
+        elif [ -n "$now" ] && [ $(($(date +%s) - since)) -ge 5 ]; then
+            break
+        fi
+        sleep 0.2
+    done
+    echo "theme settled at ${seen:-no change} in $(($(date +%s) - began)) s"
+fi
 start=$(date +%s)
 rotating=$("$adb" shell settings get system accelerometer_rotation | tr -d '\r')
 rotation=$("$adb" shell settings get system user_rotation | tr -d '\r')

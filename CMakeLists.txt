@@ -277,6 +277,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_busy AND MAUL_WINDOW_GAMEPAD)
             target_compile_definitions(test_busy PRIVATE MWIN_TEST_GAMEPAD)
         endif()
+        # What a failed call leaves in its outputs; with the gamepad
+        # component, the gamepad's calls among them.
+        maul_add_test(outputs)
+        if(TARGET test_outputs AND MAUL_WINDOW_GAMEPAD)
+            target_compile_definitions(test_outputs PRIVATE MWIN_TEST_GAMEPAD)
+        endif()
         maul_add_test(monitor)
         maul_add_test(system)
         maul_add_test(ime)

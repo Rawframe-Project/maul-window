@@ -204,9 +204,9 @@ extern "C"
     ///                   canvas selector within
     ///                   MWIN_MAX_CANVAS_SELECTOR_BYTES; a popup windowed, with
     ///                   an owner and a finite position.
-    /// @param windowOut  Receives the window's id.
+    /// @param windowOut  Receives the window's id. The null id on failure.
     /// @param requestOut Receives the id of the creation request. May be
-    ///                   NULL.
+    ///                   NULL. The null request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
     ///         its limit of windows or the title passes the titleBytes
     ///         limit; `mwin_errorLimit` for a canvas selector past
@@ -237,7 +237,7 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param window    The window.
-    /// @param stateOut  Receives the state.
+    /// @param stateOut  Receives the state. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
     ///         longer exists; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
@@ -252,7 +252,8 @@ extern "C"
     /// @param window      The window.
     /// @param title       UTF-8. May be NULL when length is 0.
     /// @param length      The number of bytes, at most the titleBytes limit.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
     ///         longer exists; `mwin_errorCapacity` when the window has its
     ///         limit of requests in flight or the title is too long;
@@ -272,7 +273,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param size        A positive, finite size.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a size
     ///         that is not positive and finite.
     /// @par Thread safety
@@ -288,7 +290,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param position    A finite position.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a
     ///         position that is not finite.
     /// @par Thread safety
@@ -305,7 +308,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param mode        One of the mwin_mode values.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown mode.
     /// @par Thread safety
@@ -322,7 +326,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param visible     true to show it, false to hide it.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle.
     /// @par Thread safety
     /// Main thread only.
@@ -337,7 +342,8 @@ extern "C"
     /// @param window      The window.
     /// @param minimum     The smallest size, zero or positive and finite.
     /// @param maximum     The largest size, zero or at least minimum.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for limits
     ///         that are not finite, negative, or crossed.
     /// @par Thread safety
@@ -355,7 +361,8 @@ extern "C"
     /// @param window      The window.
     /// @param width       The ratio's width.
     /// @param height      The ratio's height; both zero or both positive.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a ratio
     ///         with one side zero.
     /// @par Thread safety
@@ -372,7 +379,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param style       mwin_style flags.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for unknown
     ///         flags.
     /// @par Thread safety
@@ -388,7 +396,8 @@ extern "C"
     /// @param context     The context.
     /// @param window      The window.
     /// @param opacity     From 0 to 1.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         opacity outside 0 to 1.
     /// @par Thread safety
@@ -461,7 +470,8 @@ extern "C"
     /// @param window      The window.
     /// @param regions     The regions. May be NULL when count is 0.
     /// @param count       How many, at most MWIN_MAX_HIT_REGIONS; 0 for none.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorLimit` for more
     ///         regions than MWIN_MAX_HIT_REGIONS, and `mwin_errorInvalid` for
     ///         a region not finite, of a negative size or of an unknown
@@ -486,7 +496,8 @@ extern "C"
     ///                    is 0.
     /// @param count       How many, at most MWIN_MAX_ICON_IMAGES; 0 for the
     ///                    platform's own icon.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle, with `mwin_errorCapacity` when the
     ///         context cannot hold the copy, `mwin_errorLimit` for more
     ///         images than MWIN_MAX_ICON_IMAGES or an image larger than
@@ -506,7 +517,8 @@ extern "C"
     ///
     /// @param context     The context.
     /// @param window      The window.
-    /// @param requestOut  Receives the request's id. May be NULL.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
     /// @return As mwinWindow_RequestTitle.
     /// @par Thread safety
     /// Main thread only.

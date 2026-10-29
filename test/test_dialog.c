@@ -202,13 +202,16 @@ static void CheckChosen(Program* program, mwinContext* context)
                                  "ffnen\n" ROOT "/tmp\nx.txt\nImages:png;jpg\nText:txt\n"),
           "a dialog's def copied as asked");
     size_t length = 0;
+    uint32_t count = 0;
     char small[4];
+    Fill(small, sizeof(small));
     CHECK(Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&
               mwinRequest_GetDialogFiles(context, program->requests[1], small, sizeof(small),
-                                         &length, nullptr) == mwin_errorCapacity &&
-              length == sizeof(s_chosen) && memcmp(small, s_chosen, sizeof(small)) == 0 &&
+                                         &length, &count) == mwin_errorCapacity &&
+              length == sizeof(s_chosen) && count == 2 && Zeroed(small, sizeof(small)) &&
               Stale(context, program->requests[0]) && Stale(context, (mwinRequestId){0}),
-          "its paths copied out under its request, stale under another");
+          "its paths copied out under its request, none into a buffer too short, stale under "
+          "another");
     CHECK(mwinContext_SetTestAnswer(context, mwin_requestFileDialog, mwin_outcomeCancelled) ==
               mwin_success,
           "cancel the next");

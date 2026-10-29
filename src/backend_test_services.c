@@ -206,6 +206,8 @@ mwinResult mwinContext_SetTestClipboardUtf16(mwinContext* context, const uint16_
 mwinResult mwinContext_GetTestClipboard(const mwinContext* context, char* bufferOut,
                                         size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
         return mwinMisuse(context);
@@ -216,12 +218,7 @@ mwinResult mwinContext_GetTestClipboard(const mwinContext* context, char* buffer
         return mwin_errorUnsupported;
     }
     size_t length = platform->clipboardBytes;
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, platform->clipboard, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(platform->clipboard, length, bufferOut, capacity, lengthOut);
 }
 
 mwinResult mwinContext_SetTestClipboardData(mwinContext* context, const char* mime,
@@ -268,6 +265,8 @@ mwinResult mwinContext_GetTestClipboardData(const mwinContext* context, const ch
                                             size_t mimeLength, void* bufferOut, size_t capacity,
                                             size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || mime == nullptr || lengthOut == nullptr ||
         (bufferOut == nullptr && capacity > 0))
     {
@@ -283,13 +282,8 @@ mwinResult mwinContext_GetTestClipboardData(const mwinContext* context, const ch
     {
         return mwinMisuse(context);
     }
-    if (item->length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, mwinClipboardBytesOf(platform->data, item),
-               item->length < capacity ? item->length : capacity);
-    }
-    *lengthOut = item->length;
-    return item->length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(mwinClipboardBytesOf(platform->data, item), item->length, bufferOut,
+                         capacity, lengthOut);
 }
 
 mwinResult mwinContext_SetTestPrimary(mwinContext* context, const char* bytes, size_t length)
@@ -312,6 +306,8 @@ mwinResult mwinContext_SetTestPrimary(mwinContext* context, const char* bytes, s
 mwinResult mwinContext_GetTestPrimary(const mwinContext* context, char* bufferOut, size_t capacity,
                                       size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
         return mwinMisuse(context);
@@ -322,12 +318,7 @@ mwinResult mwinContext_GetTestPrimary(const mwinContext* context, char* bufferOu
         return mwin_errorUnsupported;
     }
     size_t length = platform->primaryBytes;
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, platform->primary, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(platform->primary, length, bufferOut, capacity, lengthOut);
 }
 
 mwinResult mwinWindow_PostTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
@@ -391,6 +382,8 @@ void mwinTestOpen(mwinContext* context, const mwinRequest* request)
 mwinResult mwinContext_GetTestOpened(const mwinContext* context, mwinRequestKind kind,
                                      char* bufferOut, size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     bool known = kind == mwin_requestOpenUrl || kind == mwin_requestRevealFile;
     if (context == nullptr || lengthOut == nullptr || !known ||
         (bufferOut == nullptr && capacity > 0))
@@ -404,12 +397,7 @@ mwinResult mwinContext_GetTestOpened(const mwinContext* context, mwinRequestKind
     }
     int which = kind == mwin_requestOpenUrl ? 0 : 1;
     size_t length = platform->openedLength[which];
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, platform->opened[which], length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(platform->opened[which], length, bufferOut, capacity, lengthOut);
 }
 
 mwinResult mwinContext_SetTestDialogFiles(mwinContext* context, const char* files, size_t length)
@@ -474,6 +462,8 @@ mwinOutcome mwinTestAnswerDialog(mwinContext* context, uint32_t slot, uint32_t r
 mwinResult mwinContext_GetTestDialog(const mwinContext* context, char* bufferOut, size_t capacity,
                                      size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
         return mwinMisuse(context);
@@ -484,12 +474,7 @@ mwinResult mwinContext_GetTestDialog(const mwinContext* context, char* bufferOut
         return mwin_errorUnsupported;
     }
     size_t length = platform->dialogLength;
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, platform->dialog, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(platform->dialog, length, bufferOut, capacity, lengthOut);
 }
 
 static uint64_t Hash(uint64_t hash, const uint8_t* bytes, size_t length)
@@ -525,6 +510,8 @@ void mwinTestSetIcon(mwinContext* context, const mwinRequest* request)
 mwinResult mwinContext_GetTestIcon(const mwinContext* context, uint32_t* countOut,
                                    uint64_t* checksumOut)
 {
+    mwinClearOut(countOut, sizeof *countOut);
+    mwinClearOut(checksumOut, sizeof *checksumOut);
     if (context == nullptr || countOut == nullptr || checksumOut == nullptr)
     {
         return mwinMisuse(context);

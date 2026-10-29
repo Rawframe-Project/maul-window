@@ -35,14 +35,16 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
-    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is
+    ///                   0. Zeroed over capacity on failure, so a buffer
+    ///                   too short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the paths' length in bytes, NULs
-    ///                   included.
-    /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit
-    ///         (the bytes that fit are written); `mwin_errorStale` for a
-    ///         drop a later one replaced; `mwin_errorInvalid` for a NULL
-    ///         argument.
+    ///                   included. On `mwin_errorCapacity`, the bytes
+    ///                   needed; 0 on any other failure.
+    /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit;
+    ///         `mwin_errorStale` for a drop a later one replaced;
+    ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetDroppedFiles(const mwinContext* context,
@@ -55,9 +57,13 @@ extern "C"
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
     /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
-    ///                   May be NULL when capacity is 0.
+    ///                   May be NULL when capacity is 0. Zeroed over
+    ///                   capacity on failure, so a buffer too short holds
+    ///                   none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the text's length in bytes.
+    /// @param lengthOut  Receives the text's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return As mwinContext_GetDroppedFiles.
     /// @par Thread safety
     /// Main thread only.

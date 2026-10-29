@@ -39,7 +39,8 @@ extern "C"
     ///                   mailto: (in any case), then no spaces or control
     ///                   characters.
     /// @param length     Its bytes, at most MWIN_MAX_ADDRESS_BYTES.
-    /// @param requestOut Receives the request's id. May be NULL.
+    /// @param requestOut Receives the request's id. May be NULL. The null
+    ///                   request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context
     ///         cannot hold the copy or the window has its limit of
     ///         requests in flight; `mwin_errorStale` for a window that no
@@ -60,7 +61,8 @@ extern "C"
     /// @param path       An absolute path in UTF-8, not NUL-terminated,
     ///                   without NULs.
     /// @param length     Its bytes, at most MWIN_MAX_ADDRESS_BYTES.
-    /// @param requestOut Receives the request's id. May be NULL.
+    /// @param requestOut Receives the request's id. May be NULL. The null
+    ///                   request on failure.
     /// @return As mwinWindow_RequestOpenUrl; `mwin_errorInvalid` also for a path
     ///         that is not absolute.
     /// @par Thread safety
@@ -78,7 +80,8 @@ extern "C"
     /// @param context    The context.
     /// @param window     The window.
     /// @param awake      true to keep the display awake.
-    /// @param requestOut Receives the request's id. May be NULL.
+    /// @param requestOut Receives the request's id. May be NULL. The null
+    ///                   request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the window has its
     ///         limit of requests in flight; `mwin_errorStale` for a window
     ///         that no longer exists; `mwin_errorInvalid` for a NULL

@@ -94,8 +94,8 @@ extern "C"
     /// @param context    The context.
     /// @param window     The window the dialog belongs to.
     /// @param def        The dialog.
-    /// @param requestOut Receives the request's id, which names its
-    ///                   paths. May be NULL.
+    /// @param requestOut Receives the request's id, which names its paths.
+    ///                   May be NULL. The null request on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context
     ///         cannot hold the copy or the window has its limit of
     ///         requests in flight; `mwin_errorStale` for a window that no
@@ -119,15 +119,21 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The dialog's request, done.
-    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is
+    ///                   0. Zeroed over capacity on failure, so a buffer
+    ///                   too short holds none of it.
     /// @param capacity   Its bytes.
-    /// @param lengthOut  Receives the bytes of the paths.
-    /// @param countOut   Receives how many paths there are. May be NULL.
+    /// @param lengthOut  Receives the bytes of the paths. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
+    /// @param countOut   Receives how many paths there are, on
+    ///                   `mwin_errorCapacity` too; 0 on any other failure.
+    ///                   May be NULL.
     /// @return `mwin_success`; `mwin_errorCapacity` with the bytes needed
-    ///         when they do not fit, bufferOut filled as far as it goes;
-    ///         `mwin_errorStale` for a request that did not complete with
-    ///         mwin_outcomeDone or whose paths a later dialog replaced;
-    ///         `mwin_errorInvalid` for a NULL context or lengthOut.
+    ///         when they do not fit; `mwin_errorStale` for a request that
+    ///         did not complete with mwin_outcomeDone or whose paths a
+    ///         later dialog replaced; `mwin_errorInvalid` for a NULL
+    ///         context or lengthOut.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetDialogFiles(const mwinContext* context,

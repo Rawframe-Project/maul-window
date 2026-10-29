@@ -221,6 +221,7 @@ mwinResult mwinWindow_RequestClipboardWriteData(mwinContext* context, mwinWindow
                                                 const mwinClipboardItem* items, uint32_t count,
                                                 mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -276,6 +277,7 @@ mwinResult mwinWindow_RequestClipboardReadData(mwinContext* context, mwinWindowI
                                                const char* mime, size_t mimeLength,
                                                mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -342,17 +344,14 @@ mwinResult mwinCopyFound(const mwinContext* context, mwinRequestId request, uint
     {
         return mwin_errorStale;
     }
-    if (length > 0 && capacity > 0)
-    {
-        memcpy(buffer, found, length < capacity ? length : capacity);
-    }
-    *lengthOut = length;
-    return length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(found, length, buffer, capacity, lengthOut);
 }
 
 mwinResult mwinRequest_GetClipboardData(const mwinContext* context, mwinRequestId request,
                                         void* bufferOut, size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     return mwinCopyFound(context, request, mwin_foundData,
                          context != nullptr ? context->clipboardDataFound : nullptr,
                          context != nullptr ? context->clipboardDataFoundLength : 0, bufferOut,
@@ -362,6 +361,8 @@ mwinResult mwinRequest_GetClipboardData(const mwinContext* context, mwinRequestI
 mwinResult mwinRequest_GetPrimaryText(const mwinContext* context, mwinRequestId request,
                                       char* bufferOut, size_t capacity, size_t* lengthOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
     return mwinCopyFound(
         context, request, mwin_foundPrimary, context != nullptr ? context->primaryFound : nullptr,
         context != nullptr ? context->primaryFoundLength : 0, bufferOut, capacity, lengthOut);
@@ -371,6 +372,7 @@ mwinResult mwinWindow_RequestPrimaryWrite(mwinContext* context, mwinWindowId win
                                           const char* text, size_t length,
                                           mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -412,6 +414,7 @@ mwinResult mwinWindow_RequestPrimaryWrite(mwinContext* context, mwinWindowId win
 mwinResult mwinWindow_RequestPrimaryRead(mwinContext* context, mwinWindowId window,
                                          mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

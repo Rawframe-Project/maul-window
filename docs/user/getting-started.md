@@ -99,6 +99,8 @@ Three rules hold everywhere:
 
 Every fallible function returns an `mwinResult`: `mwin_success`, or `mwin_errorInvalid` (a bad argument), `mwin_errorStale` (an id whose object is gone), `mwin_errorCapacity` (a limit of `mwinLimits` is full, or memory), `mwin_errorUnsupported`, `mwin_errorPlatform`, `mwin_errorState`, `mwin_errorVersion`, `mwin_errorLimit` (an argument past a fixed bound with a named constant, such as `MWIN_MAX_ADDRESS_BYTES`, which more room would not lift) or `mwin_errorBusy` (a call made from inside the context's allocator). The values are the Maul family's: a status means the same in every Maul library. `mwinGetResultName` names each one for diagnostics.
 
+A call on the context that fails leaves nothing from before in its outputs: a value is zero, an id the null id and a request the null request. A buffer too short for text or bytes gets none of them, so it never holds text cut inside a character; the call answers `mwin_errorCapacity` with the length it needs. A list of ids that does not all fit, from `mwinContext_GetGamepads` or `mwinContext_GetMonitors`, is a success: the first ones are written and the count is the total.
+
 Windows, monitors, gamepads, cursors and requests are ids with a generation. An id outlives its object harmlessly: using it afterwards answers `mwin_errorStale`, and a slot is reused only once the record of its end has been drained.
 
 Each `mwin_errorInvalid`, `mwin_errorLimit` or `mwin_errorBusy` a live context returns also counts as one misuse, which `mwinContext_GetMisuse` reads. A release build can watch the count to catch a program's bugs; stale ids count nothing.

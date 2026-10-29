@@ -457,10 +457,11 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
           "the layout maps codes to keys");
     char name[8];
     size_t length = 0;
+    Fill(name, sizeof(name));
     CHECK(mwinContext_GetKeyboardLayout(context, name, sizeof(name), &length) ==
                   mwin_errorCapacity &&
-              length == 12 && memcmp(name, "English ", 8) == 0,
-          "the layout's name, cut to the buffer");
+              length == 12 && Zeroed(name, sizeof(name)),
+          "a buffer too short for the layout's name zeroed, with the length it needs");
     program->done = true;
 }
 

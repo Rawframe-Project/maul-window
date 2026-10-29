@@ -158,6 +158,7 @@ static mwinDialogCopy* Copy(const mwinContext* context, const mwinFileDialogDef*
 mwinResult mwinWindow_RequestFileDialog(mwinContext* context, mwinWindowId window,
                                         const mwinFileDialogDef* def, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -262,6 +263,9 @@ mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId 
                                       char* bufferOut, size_t capacity, size_t* lengthOut,
                                       uint32_t* countOut)
 {
+    mwinClearOut(bufferOut, capacity);
+    mwinClearOut(lengthOut, sizeof *lengthOut);
+    mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
         return mwinMisuse(context);
@@ -272,14 +276,9 @@ mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId 
     {
         return mwin_errorStale;
     }
-    if (files->length > 0 && capacity > 0)
-    {
-        memcpy(bufferOut, files->bytes, files->length < capacity ? files->length : capacity);
-    }
-    *lengthOut = files->length;
     if (countOut != nullptr)
     {
         *countOut = files->count;
     }
-    return files->length > capacity ? mwin_errorCapacity : mwin_success;
+    return mwinGiveBytes(files->bytes, files->length, bufferOut, capacity, lengthOut);
 }

@@ -52,15 +52,16 @@ static void CheckAdded(Program* program, mwinContext* context)
     CHECK(mwinContext_GetGamepads(context, listed, 3, &count) == mwin_success && count == 2 &&
               SamePad(listed[0], s_pads[0]) && SamePad(listed[1], s_pads[1]),
           "a list in the order they came");
-    CHECK(mwinContext_GetGamepads(context, listed, 1, &count) == mwin_errorCapacity && count == 2,
-          "a short list says how many");
+    CHECK(mwinContext_GetGamepads(context, listed, 1, &count) == mwin_success && count == 2 &&
+              SamePad(listed[0], s_pads[0]),
+          "a short list is the first, and says how many");
     // Exact heap lists, so that AddressSanitizer sees a write past one.
     mwinGamepadId* one = malloc(sizeof(mwinGamepadId));
     mwinGamepadId* two = malloc(2 * sizeof(mwinGamepadId));
     if (one != nullptr && two != nullptr)
     {
-        CHECK(mwinContext_GetGamepads(context, one, 1, &count) == mwin_errorCapacity &&
-                  count == 2 && SamePad(one[0], s_pads[0]) &&
+        CHECK(mwinContext_GetGamepads(context, one, 1, &count) == mwin_success && count == 2 &&
+                  SamePad(one[0], s_pads[0]) &&
                   mwinContext_GetGamepads(context, two, 2, &count) == mwin_success && count == 2 &&
                   SamePad(two[1], s_pads[1]),
               "a list of one, and one that fits exactly");

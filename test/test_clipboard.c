@@ -100,13 +100,14 @@ static void CheckRepaired(Program* program, mwinContext* context)
     char text[2];
     size_t length = 0;
     mwinRequestId read = program->requests[3];
+    Fill(text, sizeof(text));
     CHECK(mwinRequest_GetClipboardText(context, read, text, sizeof(text), &length) ==
                   mwin_errorCapacity &&
-              length == 9 && text[0] == 'a' && (unsigned char)text[1] == 0xEF &&
+              length == 9 && Zeroed(text, sizeof(text)) &&
               mwinRequest_GetClipboardText(context, read, nullptr, 0, &length) ==
                   mwin_errorCapacity &&
               mwinRequest_GetClipboardText(context, read, nullptr, 1, &length) == mwin_errorInvalid,
-          "the bytes that fit, and the length");
+          "a buffer too short zeroed, not cut inside a character, and the length");
     CHECK(mwinRequest_GetClipboardText(context, (mwinRequestId){0}, nullptr, 0, &length) ==
                   mwin_errorStale &&
               mwinRequest_GetClipboardText(context, program->requests[2], nullptr, 0, &length) ==

@@ -132,6 +132,7 @@ bool mwinWantsAwake(const mwinContext* context)
 mwinResult mwinWindow_RequestOpenUrl(mwinContext* context, mwinWindowId window, const char* url,
                                      size_t length, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -151,6 +152,7 @@ mwinResult mwinWindow_RequestOpenUrl(mwinContext* context, mwinWindowId window, 
 mwinResult mwinWindow_RequestRevealFile(mwinContext* context, mwinWindowId window, const char* path,
                                         size_t length, mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
@@ -174,6 +176,7 @@ mwinResult mwinWindow_RequestRevealFile(mwinContext* context, mwinWindowId windo
 mwinResult mwinWindow_RequestKeepAwake(mwinContext* context, mwinWindowId window, bool awake,
                                        mwinRequestId* requestOut)
 {
+    mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);

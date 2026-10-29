@@ -106,14 +106,16 @@ extern "C"
     /// @param context    A context of the test backend.
     /// @param window     The window.
     /// @param bufferOut  Receives the title, not NUL-terminated. May be
-    ///                   NULL when capacity is 0.
+    ///                   NULL when capacity is 0. Zeroed over capacity on
+    ///                   failure, so a buffer too short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives the title's length in bytes.
+    /// @param lengthOut  Receives the title's length in bytes. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the title does not
-    ///         fit (the bytes that fit are written); `mwin_errorStale` for
-    ///         a window that no longer exists; `mwin_errorUnsupported` for
-    ///         a context of another backend; `mwin_errorInvalid` for a NULL
-    ///         argument.
+    ///         fit; `mwin_errorStale` for a window that no longer exists;
+    ///         `mwin_errorUnsupported` for a context of another backend;
+    ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinWindow_GetTestTitle(const mwinContext* context,
@@ -126,7 +128,7 @@ extern "C"
     ///
     /// @param context     A context of the test backend.
     /// @param info        The monitor's facts.
-    /// @param monitorOut  Receives its id.
+    /// @param monitorOut  Receives its id. The null id on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
     ///         its limit of monitors; `mwin_errorUnsupported` for a context
     ///         of another backend; `mwin_errorInvalid` for a NULL argument.
@@ -197,7 +199,7 @@ extern "C"
     ///
     /// @param context     A context of the test backend.
     /// @param info        The gamepad's facts.
-    /// @param gamepadOut  Receives its id.
+    /// @param gamepadOut  Receives its id. The null id on failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the context has
     ///         its limit of gamepads; `mwin_errorUnsupported` for a context
     ///         of another backend; `mwin_errorInvalid` for a NULL argument.
@@ -265,9 +267,12 @@ extern "C"
     /// @param context        A context of the test backend.
     /// @param gamepad        The gamepad.
     /// @param lowOut         Receives the low frequency motor's strength.
+    ///                       Zeroed on failure.
     /// @param highOut        Receives the high frequency motor's strength.
-    /// @param durationMsOut  Receives the duration.
-    /// @param countOut       Receives how many rumbles it was given.
+    ///                       Zeroed on failure.
+    /// @param durationMsOut  Receives the duration. 0 on failure.
+    /// @param countOut       Receives how many rumbles it was given. 0 on
+    ///                       failure.
     /// @return As mwinGamepad_SetTestInfo.
     /// @par Thread safety
     /// Main thread only.
@@ -282,11 +287,13 @@ extern "C"
     ///
     /// @param context        A context of the test backend.
     /// @param gamepad        The gamepad.
-    /// @param leftOut        Receives the left trigger's strength.
-    /// @param rightOut       Receives the right trigger's strength.
-    /// @param durationMsOut  Receives the duration.
+    /// @param leftOut        Receives the left trigger's strength. Zeroed
+    ///                       on failure.
+    /// @param rightOut       Receives the right trigger's strength. Zeroed
+    ///                       on failure.
+    /// @param durationMsOut  Receives the duration. 0 on failure.
     /// @param countOut       Receives how many trigger rumbles it was
-    ///                       given.
+    ///                       given. 0 on failure.
     /// @return As mwinGamepad_SetTestInfo.
     /// @par Thread safety
     /// Main thread only.
@@ -299,7 +306,7 @@ extern "C"
     ///
     /// @param context  A context of the test backend.
     /// @param gamepad  The gamepad.
-    /// @param onOut    Receives true while they are on.
+    /// @param onOut    Receives true while they are on. False on failure.
     /// @return As mwinGamepad_SetTestInfo.
     /// @par Thread safety
     /// Main thread only.
@@ -378,13 +385,15 @@ extern "C"
     /// wrote, or what mwinContext_SetTestClipboard put there.
     ///
     /// @param context    A context of the test backend.
-    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is
+    ///                   0. Zeroed over capacity on failure, so a buffer
+    ///                   too short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives their number.
-    /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit
-    ///         (the bytes that fit are written); `mwin_errorUnsupported`
-    ///         for a context of another backend; `mwin_errorInvalid` for a
-    ///         NULL argument.
+    /// @param lengthOut  Receives their number. On `mwin_errorCapacity`,
+    ///                   the bytes needed; 0 on any other failure.
+    /// @return `mwin_success`; `mwin_errorCapacity` when they do not fit;
+    ///         `mwin_errorUnsupported` for a context of another backend;
+    ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestClipboard(const mwinContext* context,
@@ -418,9 +427,11 @@ extern "C"
     /// @param mime        The type, as written.
     /// @param mimeLength  Its bytes.
     /// @param bufferOut   Receives the bytes. May be NULL when capacity is
-    ///                    0.
+    ///                    0. Zeroed over capacity on failure, so a buffer
+    ///                    too short holds none of it.
     /// @param capacity    The bytes bufferOut holds.
-    /// @param lengthOut   Receives their number.
+    /// @param lengthOut   Receives their number. On `mwin_errorCapacity`,
+    ///                    the bytes needed; 0 on any other failure.
     /// @return As mwinContext_GetTestClipboard, with `mwin_errorInvalid` for a
     ///         type the clipboard does not hold.
     /// @par Thread safety
@@ -444,9 +455,12 @@ extern "C"
     /// Reads the test platform's primary selection as bytes.
     ///
     /// @param context    A context of the test backend.
-    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is
+    ///                   0. Zeroed over capacity on failure, so a buffer
+    ///                   too short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives their number.
+    /// @param lengthOut  Receives their number. On `mwin_errorCapacity`,
+    ///                   the bytes needed; 0 on any other failure.
     /// @return As mwinContext_GetTestClipboard.
     /// @par Thread safety
     /// Main thread only.
@@ -486,12 +500,15 @@ extern "C"
     /// @param context    A context of the test backend.
     /// @param kind       mwin_requestOpenUrl or mwin_requestRevealFile.
     /// @param bufferOut  Receives it. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives its length in bytes, 0 before any.
-    /// @return `mwin_success`; `mwin_errorCapacity` when it does not fit
-    ///         (the bytes that fit are written); `mwin_errorUnsupported`
-    ///         for a context of another backend; `mwin_errorInvalid` for a
-    ///         NULL argument or another kind.
+    /// @param lengthOut  Receives its length in bytes, 0 before any. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
+    /// @return `mwin_success`; `mwin_errorCapacity` when it does not fit;
+    ///         `mwin_errorUnsupported` for a context of another backend;
+    ///         `mwin_errorInvalid` for a NULL argument or another kind.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestOpened(const mwinContext* context,
@@ -520,8 +537,12 @@ extern "C"
     ///
     /// @param context    A context of the test backend.
     /// @param bufferOut  Receives it. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it.
     /// @param capacity   The bytes bufferOut holds.
-    /// @param lengthOut  Receives its length in bytes, 0 before any.
+    /// @param lengthOut  Receives its length in bytes, 0 before any. On
+    ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
+    ///                   other failure.
     /// @return As mwinContext_GetTestOpened.
     /// @par Thread safety
     /// Main thread only.
@@ -535,8 +556,9 @@ extern "C"
     /// pixels, packed.
     ///
     /// @param context     A context of the test backend.
-    /// @param countOut    Receives the images, 0 before any icon.
-    /// @param checksumOut Receives the checksum.
+    /// @param countOut    Receives the images, 0 before any icon. 0 on
+    ///                    failure.
+    /// @param checksumOut Receives the checksum. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
@@ -551,8 +573,9 @@ extern "C"
     /// @param context    A context of the test backend.
     /// @param window     The window.
     /// @param cursorOut  Receives the cursor; a zero id while the window
-    ///                   shows a shape.
-    /// @param imageOut   Receives the image's index. May be NULL.
+    ///                   shows a shape. The null id on failure.
+    /// @param imageOut   Receives the image's index. May be NULL. 0 on
+    ///                   failure.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
     ///         longer exists; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL argument.

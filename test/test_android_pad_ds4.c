@@ -17,9 +17,11 @@
 // Android 12 the pad has motion, at once or by a change a moment after
 // it is added, as Android merges the driver's motion device into it:
 // turned on, it reads the driver's samples, one g down y and a turn
-// about y; on Android 11 it has none.
+// about y; on Android 11 it has none. From Android 12 its battery is read
+// from its reports and a change is told: 55% (half full, unplugged, as
+// the drivers count it), then 85%; on Android 11 it has none.
 //
-// Last, a second pad, "Maul Stale DS4", comes while a stand-in for the
+// Then a second pad, "Maul Stale DS4", comes while a stand-in for the
 // library's Java helper's copies (test/android/java/maul/window/
 // StaleCopies.java) reports it as Android 11 can leave an app's copy of a
 // pad read while its kernel devices were being merged: a touchpad's
@@ -33,6 +35,10 @@
 // own keeping of a stale copy, a race of a few milliseconds, is not made
 // to happen, and the half second the library waits before it first reads
 // a new device is not what keeps this pad out.
+//
+// Last, the program quits with the first pad rumbling and its motion on,
+// and once the context is gone the motors are stopped and the sensors
+// off, as Android reads them.
 
 #include "test_harness.h"
 
@@ -46,6 +52,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -54,10 +61,14 @@
 // from before it installs it, so a timeout here comes first and names
 // its phase.
 #define DEADLINE_NS 45000000000ull
-#define FILES       "/data/data/" MWIN_TEST_PACKAGE "/files/"
-#define NAME        "Maul DS4"
-#define STALE       "Maul Stale DS4"
-#define OUTPUT      "/data/local/tmp/mwin-ds4.out"
+// Since the program quit: Android freezes a process about ten seconds
+// after its activity has gone (the cached apps freezer), so the wait
+// for the stopped pad ends before that and the result line comes out.
+#define GONE_NS 5000000000ull
+#define FILES   "/data/data/" MWIN_TEST_PACKAGE "/files/"
+#define NAME    "Maul DS4"
+#define STALE   "Maul Stale DS4"
+#define OUTPUT  "/data/local/tmp/mwin-ds4.out"
 
 // The USB DualShock 4 of CTS's sony_dualshock4_usb_register.json: its
 // report descriptor, then the feature reports the drivers read as they
@@ -117,10 +128,15 @@ typedef struct Program
     bool added;
     // Whether the pad has motion, as added or changed.
     bool motion;
+    // The pad's batteries, as added or changed: 55% then 85%, or any.
+    bool half;
+    bool fuller;
+    bool battery;
     // When the copy the phase waits for was last asked for.
     uint64_t askedNs;
     // When the input service was seen listing the pad, 0 before.
     uint64_t listedNs;
+    uint64_t quitNs;
     // The stale pad: whether it was added, its id, whether its first
     // record after that was its cross button's press, whether that press
     // came, and how far right its left stick went.
@@ -170,7 +186,8 @@ static void PutFeature(FILE* file, const uint8_t* bytes, size_t count, bool last
 // past the driver's timeout and the pad fails to bind: the script waits
 // for the driver's battery to appear before the rest.
 // An input report of the pad: centred, its sensors read as one g down y
-// and a turn about y, its battery half full. The kernel passes an axis on
+// and a turn about y, its battery at level 5 of 10, from the hundredth
+// report at level 8, unplugged. The kernel passes an axis on
 // only when its value changes by more than its fuzz (16 raw units for the
 // sensors), so each report's readings differ from the last by 64.
 static void PutReport(FILE* file, int index)
@@ -183,7 +200,7 @@ static void PutReport(FILE* file, int index)
     report[16] = (uint8_t)(gyro >> 8);
     report[21] = (uint8_t)(acceleration & 0xFF);
     report[22] = (uint8_t)(acceleration >> 8);
-    report[30] = 5;
+    report[30] = index < 100 ? 5 : 8;
     fprintf(file, "{\"id\":1,\"command\":\"report\",\"report\":[");
     PutBytes(file, report, sizeof(report));
     fprintf(file, "]}\n");
@@ -305,10 +322,11 @@ static bool WriteScript(void)
 // vibrating lines into a file of the test's, whole once it is there.
 static void AskCopy(const char* name)
 {
-    printf("adb: sh -c '{ cat " OUTPUT
-           "; echo; dumpsys input | grep Vibrating; } | run-as " MWIN_TEST_PACKAGE
-           " sh -c \"cat > files/%s.part && mv files/%s.part files/%s\"'\n",
-           name, name, name);
+    printf(
+        "adb: sh -c '{ cat " OUTPUT
+        "; echo; dumpsys input | grep -E \"Vibrating|enabled: [01]\"; } | run-as " MWIN_TEST_PACKAGE
+        " sh -c \"cat > files/%s.part && mv files/%s.part files/%s\"'\n",
+        name, name, name);
 }
 
 // The copy, once there: NULL before.
@@ -380,6 +398,14 @@ static void Paint(const Program* program, mwinContext* context)
     }
 }
 
+// A battery of the pad told: 85% counts only after 55%.
+static void Battery(Program* program, int8_t percent)
+{
+    program->battery = program->battery || percent != -1;
+    program->half = program->half || percent == 55;
+    program->fuller = program->fuller || (program->half && percent == 85);
+}
+
 // The pad added: Android names the device it merges from the driver's
 // three (the pad, its touchpad and its motion sensors) after one of them.
 static void Added(Program* program, mwinContext* context, mwinGamepadId id)
@@ -393,6 +419,7 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
     program->pad = id;
     program->added = true;
     program->motion = (info.capabilities & mwin_padMotion) != 0;
+    Battery(program, info.battery);
     CHECK(info.vendor == 0x054c && info.product == 0x05c4 && info.mapped,
           "the pad's vendor and product, mapped");
     CHECK((info.capabilities & mwin_padRumble) != 0, "the pad's motors");
@@ -427,6 +454,7 @@ static void Collect(Program* program, mwinContext* context)
             mwinGamepadInfo info = {0};
             (void)mwinGetGamepadInfo(context, program->pad, &info);
             program->motion = (info.capabilities & mwin_padMotion) != 0;
+            Battery(program, info.battery);
         }
         else if (event.type == mwin_eventGamepadAdded && !program->staleAdded)
         {
@@ -549,47 +577,76 @@ static void CheckAsked(const Program* program)
     }
 }
 
-// The names of the copies phases 2 and 3 wait for.
-static const char* const s_copies[2] = {"ds4-running", "ds4-stopped"};
-
-// Whether a copy shows what its phase asked for: from Android 12 the
-// last report's motors, light in full and heavy at a quarter, then both
-// stopped; on Android 11 the pad vibrating, then not.
-static bool Shows(int phase, const char* text)
+// What a copy should show: from Android 12 the last report's motors and
+// whether the pad's sensors are on; on Android 11 the input service's
+// line saying whether it vibrates, which must be there.
+typedef struct Want
 {
-    unsigned light = 0;
-    unsigned heavy = 0;
+    const char* name;
+    unsigned light;
+    unsigned heavy;
+    bool sensing;
+    // The check's words, from Android 12 and on Android 11.
+    const char* check;
+    const char* check11;
+} Want;
+
+// What phases 2, 3 and 8 and the end wait for: the light motor in full
+// and the heavy one at a quarter, both stopped, both at half with the
+// sensors on, and everything stopped once the context is gone.
+static const Want s_wants[4] = {
+    {"ds4-running", 255, 64, false, "the light motor in full and the heavy one at a quarter",
+     "the pad vibrating"},
+    {"ds4-stopped", 0, 0, false, "both motors stopped", "the pad still"},
+    {"ds4-quitting", 128, 128, true, "before quitting, both motors at half and the sensors on",
+     "before quitting, the pad vibrating"},
+    {"ds4-gone", 0, 0, false, "once the context is gone, the motors stopped and the sensors off",
+     "once the context is gone, the pad still"},
+};
+
+static bool Shows(const Want* want, const char* text)
+{
+    bool running = want->light != 0 || want->heavy != 0;
     if (android_get_device_api_level() >= 31)
     {
-        bool motors = LastMotors(text, &light, &heavy);
-        return phase == 2 ? motors && light == 255 && heavy == 64
-                          : motors && light == 0 && heavy == 0;
+        unsigned light = 0;
+        unsigned heavy = 0;
+        bool sensing = strstr(text, "enabled: 1") != nullptr;
+        return LastMotors(text, &light, &heavy) && light == want->light && heavy == want->heavy &&
+               sensing == want->sensing;
     }
+    // Each vibrator of every pad has a line: still is none true, and one
+    // there at least.
     bool vibrating = strstr(text, "Vibrating: true") != nullptr;
-    return phase == 2 ? vibrating : !vibrating;
+    return running ? vibrating : !vibrating && strstr(text, "Vibrating: false") != nullptr;
 }
 
-// Asks for a copy, again each second until one shows what the phase
-// asked for: the driver's report and the input service's state follow
-// the call a moment later.
-static bool Copied(Program* program)
+// Asks for a copy, again each second until one shows what is wanted:
+// the driver's report and the input service's state follow the call a
+// moment later.
+static bool Copied(const Want* want, uint64_t* askedNs)
 {
-    const char* name = s_copies[program->phase - 2];
-    const char* text = ReadCopy(name);
-    if (text != nullptr && Shows(program->phase, text))
+    const char* text = ReadCopy(want->name);
+    if (text != nullptr && Shows(want, text))
     {
         return true;
     }
     uint64_t now = NowNs();
-    if (now - program->askedNs >= 1000000000u)
+    if (now - *askedNs >= 1000000000u)
     {
         char path[128];
-        (void)snprintf(path, sizeof(path), FILES "%s", name);
+        (void)snprintf(path, sizeof(path), FILES "%s", want->name);
         (void)remove(path);
-        AskCopy(name);
-        program->askedNs = now;
+        AskCopy(want->name);
+        *askedNs = now;
     }
     return false;
+}
+
+// The want of a phase that waits for a copy.
+static const Want* WantOf(int phase)
+{
+    return &s_wants[phase == 8 ? 2 : phase - 2];
 }
 
 // Whether the input service lists the pad, asked again each second,
@@ -631,7 +688,8 @@ static bool Ready(Program* program, mwinContext* context)
         return (program->listedNs != 0 || Listed(program)) && program->added;
     case 2:
     case 3:
-        return Copied(program);
+    case 8:
+        return Copied(WantOf(program->phase), &program->askedNs);
     case 4:
         return android_get_device_api_level() < 31 || program->motion;
     case 5:
@@ -653,6 +711,8 @@ static bool Ready(Program* program, mwinContext* context)
         }
         return program->staleAsk < 0 ||
                (program->staleFirst != 0 && program->staleCross && program->staleRight > 0.99f);
+    case 7:
+        return android_get_device_api_level() < 31 || program->fuller;
     default:
         return true;
     }
@@ -696,20 +756,23 @@ static void CheckStale(const Program* program, mwinContext* context)
           "its cross held and its left stick right, on the standard axes");
 }
 
-// The check of what the running or the stopped motors should show, on
-// the copy read.
-static void CheckCopy(int phase)
+// The check of what is wanted, on the copy read, and what the copy
+// showed when it fails.
+static void CheckCopy(const Want* want)
 {
-    bool reports = android_get_device_api_level() >= 31;
-    bool shown = Shows(phase, s_read);
-    if (phase == 2)
+    bool shows = Shows(want, s_read);
+    CHECK(shows, android_get_device_api_level() >= 31 ? want->check : want->check11);
+    if (!shows)
     {
-        CHECK(shown, reports ? "the light motor in full and the heavy one at a quarter"
-                             : "the pad vibrating");
-    }
-    else
-    {
-        CHECK(shown, reports ? "both motors stopped" : "the pad still");
+        unsigned light = 0;
+        unsigned heavy = 0;
+        bool found = LastMotors(s_read, &light, &heavy);
+        printf("  the copy: motors %s %u %u, sensors %s, vibrating %s\n",
+               found ? "set to" : "never set, at", light, heavy,
+               strstr(s_read, "enabled: 1") != nullptr ? "on" : "off",
+               strstr(s_read, "Vibrating: true") != nullptr    ? "true"
+               : strstr(s_read, "Vibrating: false") != nullptr ? "false"
+                                                               : "not said");
     }
 }
 
@@ -729,12 +792,12 @@ static void Advance(Program* program, mwinContext* context)
               "the rumble asked for");
         break;
     case 2:
-        CheckCopy(program->phase);
+        CheckCopy(WantOf(program->phase));
         CHECK(mwinSetGamepadRumble(context, program->pad, 0.0f, 0.0f, 0) == mwin_success,
               "the rumble stopped");
         break;
     case 3:
-        CheckCopy(program->phase);
+        CheckCopy(WantOf(program->phase));
         break;
     case 4:
         if (android_get_device_api_level() >= 31)
@@ -764,6 +827,24 @@ static void Advance(Program* program, mwinContext* context)
             CheckStale(program, context);
         }
         break;
+    case 7:
+        if (android_get_device_api_level() >= 31)
+        {
+            CHECK(program->fuller, "the battery's change told, 55% then 85%");
+        }
+        else
+        {
+            CHECK(!program->battery, "no battery on Android 11");
+        }
+        // The program quits with both running.
+        CHECK(mwinSetGamepadRumble(context, program->pad, 0.5f, 0.5f, 60000) == mwin_success,
+              "the rumble asked for, to quit with");
+        if (android_get_device_api_level() >= 31)
+        {
+            CHECK(mwinSetGamepadMotion(context, program->pad, true) == mwin_success,
+                  "the pad's motion turned on, to quit with");
+        }
+        break;
     default:
         break;
     }
@@ -778,9 +859,13 @@ static mwinResult Init(mwinContext* context, void* user)
     program->beganNs = NowNs();
     // Copies and the flag a run before this one may have left.
     (void)remove(FILES "ds4-stale");
+    for (size_t i = 0; i < sizeof(s_wants) / sizeof(s_wants[0]); i++)
+    {
+        char path[128];
+        (void)snprintf(path, sizeof(path), FILES "%s", s_wants[i].name);
+        (void)remove(path);
+    }
     (void)remove(FILES "ds4-listed");
-    (void)remove(FILES "ds4-running");
-    (void)remove(FILES "ds4-stopped");
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
 
@@ -788,7 +873,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     Collect(program, context);
-    if (program->phase > 6)
+    if (program->phase > 8)
     {
         return mwin_frameStop;
     }
@@ -809,10 +894,11 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         {
             printf("Android had not listed it\n");
         }
-        if (program->phase == 2 || program->phase == 3)
+        if (program->phase == 2 || program->phase == 3 || program->phase == 8)
         {
-            CheckCopy(program->phase);
+            CheckCopy(WantOf(program->phase));
         }
+        CHECK(program->phase != 7, "the battery's change told, 55% then 85%");
         CHECK(program->phase != 4, "the pad's motion, as added or changed");
         if (program->phase == 5)
         {
@@ -836,13 +922,38 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     return mwin_frameContinue;
 }
 
+// After the program quits, once the context is gone: the motors
+// stopped and the sensors off, then the result.
+static void* Gone(void* user)
+{
+    const Program* program = user;
+    const Want* want = &s_wants[3];
+    uint64_t askedNs = 0;
+    while (!Copied(want, &askedNs) && NowNs() - program->quitNs < GONE_NS)
+    {
+        // hygiene: waits for the runner's copy, ended by the deadline
+        (void)nanosleep(&(struct timespec){.tv_nsec = 100000000}, nullptr);
+    }
+    CheckCopy(want);
+    printf("result: %d failures\n", s_failures);
+    return nullptr;
+}
+
 static void Quit(mwinContext* context, mwinResult status, void* user)
 {
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > 6, "every phase ran");
-    printf("result: %d failures\n", s_failures);
+    CHECK(program->phase > 8, "every phase ran");
+    // The context stops the pads after this returns: a thread waits for
+    // that, and the runner for the result it writes.
+    program->quitNs = NowNs();
+    pthread_t thread;
+    if (program->phase <= 8 || pthread_create(&thread, nullptr, Gone, program) != 0 ||
+        pthread_detach(thread) != 0)
+    {
+        printf("result: %d failures\n", s_failures);
+    }
 }
 
 mwinAppDef mwinAndroidMain(void)

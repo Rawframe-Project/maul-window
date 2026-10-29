@@ -27,7 +27,8 @@ package=$2
 # of the resources that makes the activity in front anew, so that input
 # a test asked for meanwhile meets no window. On a fresh boot (the
 # overlays on, the resources never changed) the test starts once they
-# have changed and then stayed so for five seconds, forty at most.
+# have changed and then stayed so for five seconds, or after forty
+# seconds anyway, saying whether they never changed or kept changing.
 assets() {
     "$adb" shell dumpsys window | grep -m1 mGlobalConfiguration | grep -oE 'as\.[0-9]+' || true
 }
@@ -36,17 +37,25 @@ if "$adb" shell cmd overlay list | grep -qE '\[x\] com\.android\.systemui:(neutr
     began=$(date +%s)
     seen=
     since=$began
+    settled=
     while [ $(($(date +%s) - began)) -lt 40 ]; do
         now=$(assets)
         if [ "$now" != "$seen" ]; then
             seen=$now
             since=$(date +%s)
         elif [ -n "$now" ] && [ $(($(date +%s) - since)) -ge 5 ]; then
+            settled=1
             break
         fi
         sleep 0.2
     done
-    echo "theme settled at ${seen:-no change} in $(($(date +%s) - began)) s"
+    if [ -n "$settled" ]; then
+        echo "theme settled at $seen in $(($(date +%s) - began)) s"
+    elif [ -z "$seen" ]; then
+        echo "theme never changed in 40 s; starting anyway"
+    else
+        echo "theme still changing after 40 s; starting anyway"
+    fi
 fi
 start=$(date +%s)
 rotating=$("$adb" shell settings get system accelerometer_rotation | tr -d '\r')

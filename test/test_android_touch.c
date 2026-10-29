@@ -25,7 +25,10 @@
 // enters.
 //
 // The mouse: moved, its left button clicked. It is the cursor and a
-// button, not a touch.
+// button, not a touch. Android can give its moves as one enter at the
+// place they end (Android 15) or end its hovering between them (Android
+// 11), so the cursor is checked where it is before the press, whether an
+// enter or a move put it there.
 
 #include "test_harness.h"
 
@@ -517,12 +520,34 @@ static void CheckPen(const Program* program)
           "a pen is no touch and no button");
 }
 
+// The last record that placed the cursor before a record, or -1.
+static int Placed(const Program* program, int before)
+{
+    int placed = -1;
+    for (int i = 0; i < before; i++)
+    {
+        mwinEventType type = program->records[i].type;
+        if (type == mwin_eventCursorEntered || type == mwin_eventCursorMoved)
+        {
+            placed = i;
+        }
+    }
+    return placed;
+}
+
 static void CheckMouse(const Program* program)
 {
-    int moved = Find(program, mwin_eventCursorMoved);
     int down = Find(program, mwin_eventButtonDown);
     int up = Find(program, mwin_eventButtonUp);
-    CHECK(moved >= 0 && down > moved, "the mouse moved the cursor, then pressed");
+    int placed = down >= 0 ? Placed(program, down) : -1;
+    // Placed by the mouse's hovering, before the press: an enter the
+    // press itself makes comes at the press's time.
+    CHECK(placed >= 0 && program->records[placed].timeNs < program->records[down].timeNs &&
+              program->records[placed].data.pointer.position.x ==
+                  program->records[down].data.pointer.position.x &&
+              program->records[placed].data.pointer.position.y ==
+                  program->records[down].data.pointer.position.y,
+          "the mouse moved the cursor, then pressed where it was");
     CHECK(down >= 0 && program->records[down].data.pointer.button == mwin_buttonLeft && up > down &&
               program->records[up].data.pointer.button == mwin_buttonLeft,
           "its left button down and up");

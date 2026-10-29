@@ -7,11 +7,11 @@
 // only moved fingers told, a cancel ending every touch, pressure kept to
 // 0..1; the pen hovering, touching, its barrel and eraser (from a source
 // that is a mouse's too), tilts toward x and y from Android's tilt and
-// orientation; the cursor entering at its first motion and never leaving
-// on a hover's end, buttons from the state's changes (Back and Forward
-// too), quick clicks within the double tap's time, a press with no
-// button state as the primary button and the pointer's going up
-// releasing it, the wheel; and everything forgotten.
+// orientation; the cursor entering at its first motion, never leaving
+// on a hover's end, and moving at a hover's enter while inside, buttons from the state's changes
+// (Back and Forward too), quick clicks within the double tap's time, a press with no button state
+// as the primary button and the pointer's going up releasing it, the wheel; and everything
+// forgotten.
 
 #include "android_motion.h"
 #include "test_program.h"
@@ -224,6 +224,21 @@ static void CheckForgetting(Program* program, mwinContext* context)
           "a forgotten touch's end left out; the cursor entering again, its button pressed anew");
 }
 
+// A hover's enter while the cursor is inside, as Android 11 sends a
+// mouse's move after a hover's end between two moves: the cursor moved.
+static void CheckEnterAgain(Program* program, mwinContext* context)
+{
+    mwinAndroidForgetPointers(&s_pointers);
+    Mouse(context, mwin_androidHoverEnter, 0, 7.0f, 8.0f);
+    Mouse(context, mwin_androidHoverExit, 0, 7.0f, 8.0f);
+    Mouse(context, mwin_androidHoverEnter, 0, 7.0f, 9.0f);
+    Drain(program, context);
+    static const mwinEventType types[] = {mwin_eventCursorEntered, mwin_eventCursorMoved};
+    CHECK(Types(program, types, 2) && program->events[0].data.pointer.position.y == 8.0f &&
+              program->events[1].data.pointer.position.y == 9.0f,
+          "entered at the first enter; a second enter after a hover's end moved the cursor");
+}
+
 static void Step(Program* program, mwinContext* context, int step)
 {
     switch (step)
@@ -239,6 +254,7 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckCursor(program, context);
         CheckSideButtons(program, context);
         CheckForgetting(program, context);
+        CheckEnterAgain(program, context);
         program->done = true;
         break;
     default:

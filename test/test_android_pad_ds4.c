@@ -56,6 +56,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 // Since the program began: the runner gives a test a minute, counted
 // from before it installs it, so a timeout here comes first and names
@@ -152,7 +153,13 @@ typedef struct Program
     int staleAsk;
     const char* staleStep;
     const char* staleAnswer;
+    // Whether another test's devices kept this run from making its pads.
+    bool blocked;
 } Program;
+
+// This run's number, in the file ds4-run, so that a script an earlier run
+// left stops once a later run has begun.
+static int s_run;
 
 static char s_read[65536];
 
@@ -289,6 +296,32 @@ static bool WriteScript(void)
         PutStaleReport(files[3], true);
         fprintf(files[3], "{\"id\":2,\"command\":\"delay\",\"duration\":60000}\n");
         FILE* script = files[4];
+        // Android takes pads of the same vendor, product and address for
+        // one, so another run's pads, still there, would merge with this
+        // run's: this run makes its pads once no other test's devices are
+        // listed, and when they stay 15 seconds it makes none and says
+        // whose they are (the file ds4-blocked).
+        fprintf(
+            script,
+            "mine() {\n"
+            "    [ \"$(run-as " MWIN_TEST_PACKAGE " cat files/ds4-run 2> /dev/null)\" = %d ]\n"
+            "}\n"
+            "others() {\n"
+            "    dumpsys input | grep -E '^ +[0-9]+: Maul '\n"
+            "}\n"
+            "began=$SECONDS\n"
+            "while [ $((SECONDS - began)) -lt 15 ] && mine && others > /dev/null; do\n"
+            "    sleep 0.1\n"
+            "done\n"
+            "if ! mine; then\n"
+            "    exit 0\n"
+            "fi\n"
+            "if others > /dev/null; then\n"
+            "    others | run-as " MWIN_TEST_PACKAGE " sh -c '\n"
+            "        cat > files/ds4-blocked.part && mv files/ds4-blocked.part files/ds4-blocked'\n"
+            "    exit 0\n"
+            "fi\n",
+            s_run);
         fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/ds4-add.json\n");
         PutBatteryWait(script, 1);
         fprintf(script, "run-as " MWIN_TEST_PACKAGE " cat files/ds4-rest.json\n"
@@ -308,7 +341,20 @@ static bool WriteScript(void)
                         "    sleep 0.1\n"
                         "    i=$((i + 1))\n"
                         "done\n");
-        fprintf(script, "run-as " MWIN_TEST_PACKAGE " cat files/ds4-stale-rest.json) | hid -\n");
+        fprintf(script, "run-as " MWIN_TEST_PACKAGE " cat files/ds4-stale-rest.json) | hid - &\n");
+        // The hid tool plays what it has read to the end, a minute of
+        // reports, and removes the pads only then: it is ended, which
+        // removes them, once the test has its result (the file
+        // ds4-done), a later run has begun or the runner has uninstalled
+        // the test.
+        fprintf(script,
+                "hid=$!\n"
+                "began=$SECONDS\n"
+                "while [ $((SECONDS - began)) -lt 120 ] && mine &&\n"
+                "    ! run-as " MWIN_TEST_PACKAGE " ls files/ds4-done > /dev/null 2>&1; do\n"
+                "    sleep 0.2\n"
+                "done\n"
+                "kill $hid\n");
     }
     bool closed = true;
     for (int i = 0; i < 5; i++)
@@ -866,7 +912,42 @@ static mwinResult Init(mwinContext* context, void* user)
         (void)remove(path);
     }
     (void)remove(FILES "ds4-listed");
+    (void)remove(FILES "ds4-done");
+    (void)remove(FILES "ds4-blocked");
+    // Then this run is the latest, which ends an earlier run's script and
+    // its pads.
+    s_run = (int)getpid();
+    FILE* run = fopen(FILES "ds4-run", "w");
+    bool written = run != nullptr && fprintf(run, "%d", s_run) > 0;
+    CHECK(run != nullptr && fclose(run) == 0 && written, "the run's number written");
     return mwinCreateWindow(context, &def, &program->window, nullptr);
+}
+
+// Writes the result, and tells the script, which then removes the pads.
+static void End(void)
+{
+    FILE* done = fopen(FILES "ds4-done", "w");
+    CHECK(done != nullptr && fclose(done) == 0, "the pads let go");
+    printf("result: %d failures\n", s_failures);
+}
+
+// Says whether the script found another test's devices still there and
+// made no pads, and prints which.
+static bool Blocked(void)
+{
+    FILE* file = fopen(FILES "ds4-blocked", "r");
+    if (file == nullptr)
+    {
+        return false;
+    }
+    printf("another test's devices are still there, so this run made no pads:\n");
+    char line[128];
+    while (fgets(line, sizeof(line), file) != nullptr)
+    {
+        printf("  %s", line);
+    }
+    (void)fclose(file);
+    return true;
 }
 
 static mwinFrameResult Frame(mwinContext* context, void* user)
@@ -875,6 +956,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     if (program->phase > 8)
     {
+        return mwin_frameStop;
+    }
+    if (program->phase == 1 && Blocked())
+    {
+        program->blocked = true;
+        s_failures += 1;
         return mwin_frameStop;
     }
     if (Ready(program, context))
@@ -935,7 +1022,7 @@ static void* Gone(void* user)
         (void)nanosleep(&(struct timespec){.tv_nsec = 100000000}, nullptr);
     }
     CheckCopy(want);
-    printf("result: %d failures\n", s_failures);
+    End();
     return nullptr;
 }
 
@@ -944,7 +1031,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > 8, "every phase ran");
+    CHECK(program->blocked || program->phase > 8, "every phase ran");
     // The context stops the pads after this returns: a thread waits for
     // that, and the runner for the result it writes.
     program->quitNs = NowNs();
@@ -952,7 +1039,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     if (program->phase <= 8 || pthread_create(&thread, nullptr, Gone, program) != 0 ||
         pthread_detach(thread) != 0)
     {
-        printf("result: %d failures\n", s_failures);
+        End();
     }
 }
 

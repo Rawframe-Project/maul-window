@@ -74,7 +74,7 @@ static int Outcome(Program* program, mwinContext* context, mwinRequestId request
 {
     mwinEvent event;
     int outcome = -1;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         *created = *created || event.type == mwin_eventWindowCreated;
@@ -223,17 +223,18 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         if (program->phase == phaseCreate || program->phase == phaseUncovered)
         {
             bool show = program->phase == phaseCreate;
-            CHECK(mwinRequestVirtualKeyboard(context, program->window, show, mwin_purposeNumber,
-                                             &program->request) == mwin_success,
+            CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, show,
+                                                    mwin_purposeNumber,
+                                                    &program->request) == mwin_success,
                   show ? "asked to show" : "asked to hide");
         }
         if (program->phase >= phaseHide && program->phase < phaseUrl)
         {
             static const mwinInputPurpose purposes[] = {mwin_purposeText, mwin_purposeEmail,
                                                         mwin_purposePassword, mwin_purposeUrl};
-            CHECK(mwinRequestVirtualKeyboard(context, program->window, false,
-                                             purposes[program->phase - phaseHide],
-                                             &program->request) == mwin_success,
+            CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false,
+                                                    purposes[program->phase - phaseHide],
+                                                    &program->request) == mwin_success,
                   "asked to hide, for another purpose");
         }
         program->phase += 1;

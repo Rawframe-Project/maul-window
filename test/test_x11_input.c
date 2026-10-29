@@ -93,7 +93,7 @@ static void Fake(Program* program, uint8_t type, uint8_t detail, int16_t x, int1
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -347,7 +347,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
                       1u << (mwin_buttonBack - 1) &&
                   Find(program, mwin_eventButtonDown, 1) == nullptr,
               "button 8 the back button, and the tenth left out");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
@@ -358,22 +358,22 @@ static void AdvancePointer(Program* program, mwinContext* context)
         mwinIconImage images[2];
         mwinCursorDef def = CursorImagesDef(images);
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }
     case phaseImage:
         CHECK(outcome == mwin_outcomeDone && ShowsRedSoon(program, true),
               "the image for scale 1, with its hotspot");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a shape again");
         break;
     case phaseShapeAgain:
         CHECK(outcome == mwin_outcomeDone && ShowsRedSoon(program, false),
               "the shape in the image's place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the image again");
         break;
@@ -384,14 +384,14 @@ static void AdvancePointer(Program* program, mwinContext* context)
         break;
     case phaseDestroyed:
         CHECK(ShowsRedSoon(program, false), "destroyed, the window shows the default shape");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorConfinedHidden, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorConfinedHidden,
+                                           nullptr) == mwin_success,
               "confine and hide");
         break;
     case phaseConfine:
         CHECK(outcome == mwin_outcomeDone && !CanGrab(program),
               "confined: the window holds a grab");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");
         break;
@@ -399,8 +399,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
         CHECK(outcome == mwin_outcomeDone && CanGrabSoon(program), "released: the grab goes");
         // Requests sent after the confinement's have been taken.
         CHECK(PointerAtSoon(program, 100, 120), "confined, the pointer stayed where it was");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorCaptured,
+                                           nullptr) == mwin_success,
               "capture");
         break;
     case phaseCapture:
@@ -414,7 +414,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
         const mwinEvent* delta = Find(program, mwin_eventRawPointerDelta, 0);
         CHECK(delta->data.delta.x == 5.0f && delta->data.delta.y == -3.0f,
               "raw motion while captured");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release the capture");
         break;
@@ -434,7 +434,7 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
         Fake(program, XCB_KEY_PRESS, KEYCODE_A, 0, 0);

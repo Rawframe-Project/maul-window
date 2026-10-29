@@ -93,7 +93,7 @@ static void Keep(Record* record, const mwinEvent* event)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         bool kept = event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit ||
@@ -134,7 +134,7 @@ static bool Is(const Record* record, const char* text)
 static NSView<NSTextInputClient>* ViewOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (NSView<NSTextInputClient>*)handles.handles.apple.view
                : nil;
 }
@@ -220,8 +220,9 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         CHECK(view != nil && RomanOnly(view), "only Roman layouts without text input");
-        CHECK(mwinRequestTextInput(context, program->window, true,
-                                   (mwinRect){10.0f, 20.0f, 2.0f, 16.0f}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true,
+                                          (mwinRect){10.0f, 20.0f, 2.0f, 16.0f},
+                                          nullptr) == mwin_success,
               "text input on");
         break;
     case 1:
@@ -249,8 +250,8 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 4:
         CheckPlain(program);
-        CHECK(mwinRequestTextInput(context, program->window, false, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, (mwinRect){0},
+                                          nullptr) == mwin_success,
               "text input off");
         break;
     case 5:

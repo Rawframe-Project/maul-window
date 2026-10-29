@@ -56,14 +56,14 @@ static void OnKey(Sample* sample, mwinContext* context, const mwinKeyEvent* key)
         sample->fullscreen = !sample->fullscreen;
         mwinWindowMode mode =
             sample->fullscreen ? mwin_modeBorderlessFullscreen : mwin_modeWindowed;
-        (void)mwinRequestMode(context, sample->window, mode, nullptr);
+        (void)mwinWindow_RequestMode(context, sample->window, mode, nullptr);
     }
     else if (key->code == mwin_codeKeyT && !sample->texting)
     {
         sample->texting = true;
         // The caret near the top left, for the input method's windows.
         mwinRect caret = {20.0f, 20.0f, 2.0f, 20.0f};
-        (void)mwinRequestTextInput(context, sample->window, true, caret, nullptr);
+        (void)mwinWindow_RequestTextInput(context, sample->window, true, caret, nullptr);
         printf("accepting text; Escape stops\n");
     }
 }
@@ -97,7 +97,8 @@ static bool Show(Sample* sample, mwinContext* context, const mwinEvent* event)
         if (event->data.key.code == mwin_codeEscape && sample->texting)
         {
             sample->texting = false;
-            (void)mwinRequestTextInput(context, sample->window, false, (mwinRect){0}, nullptr);
+            (void)mwinWindow_RequestTextInput(context, sample->window, false, (mwinRect){0},
+                                              nullptr);
             printf("not accepting text\n");
             break;
         }
@@ -131,7 +132,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Sample* sample = user;
     mwinEvent event;
     bool running = true;
-    while (running && mwinNextEvent(context, &event) == mwin_success)
+    while (running && mwinContext_NextEvent(context, &event) == mwin_success)
     {
         running = Show(sample, context, &event);
     }

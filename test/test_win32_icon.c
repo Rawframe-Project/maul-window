@@ -40,7 +40,7 @@ typedef struct Program
 static int Outcome(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -56,7 +56,7 @@ static int Outcome(mwinContext* context, mwinRequestId request)
 static HWND Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -125,7 +125,7 @@ static void Ask(mwinContext* context, Program* program, uint32_t count)
     {
         images[i] = (mwinIconImage){s_sizes[i], s_sizes[i], s_sizes[i] * 4, s_pixels[i]};
     }
-    CHECK(mwinRequestIcon(context, program->window, images, count, &program->request) ==
+    CHECK(mwinWindow_RequestIcon(context, program->window, images, count, &program->request) ==
               mwin_success,
           "ask for an icon");
 }

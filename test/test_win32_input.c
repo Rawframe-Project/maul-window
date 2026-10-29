@@ -137,7 +137,7 @@ static void Mouse(DWORD flags, LONG dx, LONG dy, DWORD data)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -377,7 +377,7 @@ static void AdvanceCursor(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseWheel:
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");
         break;
@@ -396,8 +396,8 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         def.hotspotX = 4;
         def.hotspotY = 4;
         CHECK(mwinCreateCursor(context, &def, &program->cursor) == mwin_success &&
-                  mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
-                      mwin_success,
+                  mwinWindow_RequestCursorImage(context, program->window, program->cursor,
+                                                nullptr) == mwin_success,
               "a cursor made from images");
         break;
     }
@@ -411,25 +411,25 @@ static void AdvanceCursor(Program* program, mwinContext* context)
               "the cursor made from images over the window");
         if (program->phase == phaseImage)
         {
-            CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
-                      mwin_success,
+            CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText,
+                                                nullptr) == mwin_success,
                   "a shape again");
             break;
         }
         CHECK(mwinDestroyCursor(context, program->cursor) == mwin_success &&
                   GetCursor() == LoadCursorA(nullptr, IDC_ARROW),
               "destroyed: the default shape");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                       mwin_success &&
-                  mwinRequestCursorMode(context, program->window, mwin_cursorConfinedHidden,
-                                        nullptr) == mwin_success,
+                  mwinWindow_RequestCursorMode(context, program->window, mwin_cursorConfinedHidden,
+                                               nullptr) == mwin_success,
               "the text cursor again; confine and hide");
         break;
     }
     case phaseShapeAgain:
         CHECK(outcome == mwin_outcomeDone && GetCursor() == LoadCursorA(nullptr, IDC_IBEAM),
               "the shape in the image's place");
-        CHECK(mwinRequestCursorImage(context, program->window, program->cursor, nullptr) ==
+        CHECK(mwinWindow_RequestCursorImage(context, program->window, program->cursor, nullptr) ==
                   mwin_success,
               "the images again");
         break;
@@ -438,7 +438,7 @@ static void AdvanceCursor(Program* program, mwinContext* context)
                   ClipIs(ClientOnScreen(program->hwnd)),
               "confined: hidden and clipped to the client area");
         CheckConfinedFollows(program);
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release");
         break;
@@ -446,8 +446,8 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         CHECK(outcome == mwin_outcomeDone && ClipIs(Desktop()) &&
                   GetCursor() == LoadCursorA(nullptr, IDC_IBEAM),
               "released: shown and free");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorCaptured, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorCaptured,
+                                           nullptr) == mwin_success,
               "capture");
         break;
     case phaseCapture:
@@ -464,7 +464,7 @@ static void AdvanceCursor(Program* program, mwinContext* context)
         const mwinEvent* delta = Find(program, mwin_eventRawPointerDelta, 0);
         CHECK(delta->data.delta.x == 5.0f && delta->data.delta.y == -3.0f,
               "raw motion while captured");
-        CHECK(mwinRequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
+        CHECK(mwinWindow_RequestCursorMode(context, program->window, mwin_cursorVisible, nullptr) ==
                   mwin_success,
               "release the capture");
         break;
@@ -483,12 +483,12 @@ static void CheckLayout(mwinContext* context)
 {
     char tag[32];
     size_t length = 0;
-    CHECK(mwinGetKeyboardLayout(context, tag, sizeof(tag), &length) == mwin_success &&
+    CHECK(mwinContext_GetKeyboardLayout(context, tag, sizeof(tag), &length) == mwin_success &&
               length >= 2 && memchr(tag, '\0', length) == nullptr,
           "the layout's language tag");
     char exact[32];
     size_t again = 0;
-    CHECK(mwinGetKeyboardLayout(context, exact, length, &again) == mwin_success &&
+    CHECK(mwinContext_GetKeyboardLayout(context, exact, length, &again) == mwin_success &&
               again == length && memcmp(exact, tag, length) == 0,
           "and into a buffer of its length");
 }
@@ -500,7 +500,7 @@ static void AdvanceKeys(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
         Key(KEY_A, true);
@@ -510,8 +510,9 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         CHECK(down != nullptr && down->data.key.code == mwin_codeKeyA &&
                   down->data.key.key == 'a' && !down->data.key.repeat && TextIs(program, "a"),
               "a key, what it means, and its text");
-        CHECK(mwinMapKeyCode(context, mwin_codeKeyA) == 'a' &&
-                  mwinMapKeyCode(context, mwin_codeEscape) == (MWIN_KEY_NAMED | mwin_codeEscape),
+        CHECK(mwinContext_MapKeyCode(context, mwin_codeKeyA) == 'a' &&
+                  mwinContext_MapKeyCode(context, mwin_codeEscape) ==
+                      (MWIN_KEY_NAMED | mwin_codeEscape),
               "what keys mean in the layout");
         CheckLayout(context);
         Key(KEY_SHIFT, true);
@@ -643,7 +644,7 @@ static void Advance(Program* program, mwinContext* context)
     if (program->phase == phaseCreate)
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
     }

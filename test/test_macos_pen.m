@@ -54,7 +54,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->mouse |= event.type >= mwin_eventCursorMoved && event.type <= mwin_eventWheel;
@@ -167,7 +167,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         @autoreleasepool
         {
             if (program->phase == 0 &&
-                mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+                mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
             {
                 program->count = 0;
                 program->mouse = false;

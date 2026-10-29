@@ -29,7 +29,7 @@ static uint32_t Channel(CGFloat value)
 static void CheckFacts(mwinContext* context)
 {
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "the facts");
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "the facts");
     NSAppearanceName name = [NSApp.effectiveAppearance
         bestMatchFromAppearancesWithNames:@[ NSAppearanceNameAqua, NSAppearanceNameDarkAqua ]];
     mwinTheme theme = [name isEqual:NSAppearanceNameDarkAqua] ? mwin_themeDark : mwin_themeLight;
@@ -56,7 +56,7 @@ static void CheckLocales(mwinContext* context)
     char list[256];
     size_t length = 0;
     NSString* joined = [NSLocale.preferredLanguages componentsJoinedByString:@","];
-    CHECK(mwinGetPreferredLocales(context, list, sizeof(list), &length) == mwin_success &&
+    CHECK(mwinContext_GetPreferredLocales(context, list, sizeof(list), &length) == mwin_success &&
               length > 0 && length == strlen(joined.UTF8String) &&
               memcmp(list, joined.UTF8String, length) == 0,
           "the preferred languages in order");

@@ -155,8 +155,8 @@ static mwinDialogCopy* Copy(const mwinContext* context, const mwinFileDialogDef*
     return copy;
 }
 
-mwinResult mwinRequestFileDialog(mwinContext* context, mwinWindowId window,
-                                 const mwinFileDialogDef* def, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestFileDialog(mwinContext* context, mwinWindowId window,
+                                        const mwinFileDialogDef* def, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -258,8 +258,9 @@ void mwinReleaseDialogs(mwinContext* context)
     mwinListRelease(&context->dialogFiles, &context->allocator);
 }
 
-mwinResult mwinGetDialogFiles(const mwinContext* context, mwinRequestId request, char* buffer,
-                              size_t capacity, size_t* lengthOut, uint32_t* countOut)
+mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId request,
+                                      char* buffer, size_t capacity, size_t* lengthOut,
+                                      uint32_t* countOut)
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
     {

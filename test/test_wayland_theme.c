@@ -153,7 +153,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(cursor.surfaceShown && cursor.width == 16 && cursor.height == 16 &&
                   cursor.pixel == DEFAULT_16 && cursor.hotspotX == 2 && cursor.hotspotY == 3,
               "the default shape at the size asked, with its hotspot");
-        CHECK(mwinRequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
+        CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "the text shape");
         break;
@@ -178,7 +178,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->created = program->created || event.type == mwin_eventWindowCreated;
     }

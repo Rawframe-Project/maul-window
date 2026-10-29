@@ -123,7 +123,7 @@ static void Press(Program* program, uint8_t keycode)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
@@ -197,7 +197,7 @@ static bool Has(const Program* program, mwinEventType type)
 static bool CaretOnScreen(Program* program, mwinContext* context, int32_t* xOut, int32_t* yOut)
 {
     mwinNativeHandles handles;
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return false;
     }
@@ -219,7 +219,7 @@ static bool CaretOnScreen(Program* program, mwinContext* context, int32_t* xOut,
 static bool Ready(const Program* program, const mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
     case phaseCreate:
@@ -264,7 +264,8 @@ static bool Ready(const Program* program, const mwinContext* context)
 static void AskForText(Program* program, mwinContext* context)
 {
     program->focusIns = s_fakeIme.focusIns;
-    CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
+              mwin_success,
           "text input asked for in the new window");
 }
 
@@ -274,19 +275,19 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success, "focus");
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
     {
-        CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
                   mwin_success,
               "text input asked for");
         bool flag = false;
         mwinRect caret = {0};
         mwinInputPurpose purpose = mwin_purposeText;
-        CHECK(mwinTestGetTextInput(context, program->window, &flag, &caret) ==
+        CHECK(mwinWindow_GetTestTextInput(context, program->window, &flag, &caret) ==
                       mwin_errorUnsupported &&
-                  mwinTestGetVirtualKeyboard(context, program->window, &flag, &purpose) ==
+                  mwinWindow_GetTestVirtualKeyboard(context, program->window, &flag, &purpose) ==
                       mwin_errorUnsupported,
               "the test backend's readers refuse an X11 context");
         break;
@@ -303,7 +304,8 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(s_fakeIme.capabilities != 0, "a composition the program shows asked for");
         mwinRect wider = s_caret;
         wider.width = 4.0f;
-        CHECK(mwinRequestTextInput(context, program->window, true, wider, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, wider, nullptr) ==
+                  mwin_success,
               "the caret widened");
         break;
     }
@@ -330,14 +332,14 @@ static void Advance(Program* program, mwinContext* context)
     case phasePassed:
         CHECK(program->textLength == 4 && program->text[3] == 'b',
               "a key the method left arrives with its text");
-        CHECK(mwinRequestTextInput(context, program->window, false, s_caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, s_caret, nullptr) ==
                   mwin_success,
               "text input given up");
         break;
     case phaseDisabled:
         CHECK(s_fakeIme.resets > 0, "the context reset");
         program->focusIns = s_fakeIme.focusIns;
-        CHECK(mwinRequestTextInput(context, program->window, true, s_caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
                   mwin_success,
               "text input asked for again");
         break;
@@ -365,7 +367,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseReplaced:
         CHECK(CountKeys(program, mwin_codeKeyB) == 0,
               "the held key reaches no window made in its slot");
-        CHECK(mwinRequestFocus(context, program->window, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success,
               "the new window focused");
         break;
     case phaseOrderFocus:
@@ -380,7 +382,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseOrderHeld:
         // Without text input the method is not asked about C, which still
         // waits behind B.
-        CHECK(mwinRequestTextInput(context, program->window, false, s_caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, s_caret, nullptr) ==
                   mwin_success,
               "text input given up with B held");
         Press(program, KEYCODE_C);

@@ -58,7 +58,7 @@ typedef struct Program
 static int Outcome(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -81,14 +81,15 @@ static bool Holds(EXECUTION_STATE expected)
 static mwinWindowState StateOf(mwinContext* context, mwinWindowId window)
 {
     mwinWindowState state = {0};
-    CHECK(mwinGetWindowState(context, window, &state) == mwin_success, "the window's state");
+    CHECK(mwinWindow_GetState(context, window, &state) == mwin_success, "the window's state");
     return state;
 }
 
 static int Reveal(mwinContext* context, mwinWindowId window, const char* path)
 {
     mwinRequestId request = {0};
-    return mwinRequestRevealFile(context, window, path, strlen(path), &request) == mwin_success
+    return mwinWindow_RequestRevealFile(context, window, path, strlen(path), &request) ==
+                   mwin_success
                ? Outcome(context, request)
                : -1;
 }
@@ -167,7 +168,7 @@ static void StepAwake(mwinContext* context, Program* program)
     {
     case phaseAwake:
         CHECK(state.awake && Holds(AWAKE), "the display kept awake while the window shows");
-        CHECK(mwinRequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeMinimized, nullptr) ==
                   mwin_success,
               "minimize");
         program->phase = phaseMinimized;
@@ -176,7 +177,7 @@ static void StepAwake(mwinContext* context, Program* program)
         if (state.mode == mwin_modeMinimized)
         {
             CHECK(Holds(ES_CONTINUOUS), "the display let go while the window is minimized");
-            CHECK(mwinRequestMode(context, program->window, mwin_modeWindowed, nullptr) ==
+            CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeWindowed, nullptr) ==
                       mwin_success,
                   "restore");
             program->phase = phaseRestored;
@@ -186,7 +187,7 @@ static void StepAwake(mwinContext* context, Program* program)
         if (state.mode == mwin_modeWindowed)
         {
             CHECK(Holds(AWAKE), "the display kept awake again once the window shows");
-            CHECK(mwinRequestKeepAwake(context, program->window, false, &program->request) ==
+            CHECK(mwinWindow_RequestKeepAwake(context, program->window, false, &program->request) ==
                       mwin_success,
                   "let the display go");
             program->phase = phaseAsleep;
@@ -200,7 +201,7 @@ static void StepAwake(mwinContext* context, Program* program)
 // Keeps the display awake again, for the end to let go.
 static void Awaken(mwinContext* context, Program* program)
 {
-    CHECK(mwinRequestKeepAwake(context, program->window, true, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, nullptr) == mwin_success,
           "keep the display awake to the end");
     program->phase = phaseEnding;
 }
@@ -221,8 +222,8 @@ static void StepOpen(mwinContext* context, Program* program)
         }
         CHECK(Handle(program), "this program handles http");
         mwinRequestId request = {0};
-        CHECK(mwinRequestOpenUrl(context, program->window, s_address, sizeof(s_address) - 1,
-                                 &request) == mwin_success &&
+        CHECK(mwinWindow_RequestOpenUrl(context, program->window, s_address, sizeof(s_address) - 1,
+                                        &request) == mwin_success &&
                   Outcome(context, request) == mwin_outcomeDone,
               "the address opened");
         program->phase = phaseOpened;
@@ -255,7 +256,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         if (Outcome(context, program->request) == mwin_outcomeDone)
         {
             mwinRequestId request = {0};
-            CHECK(mwinRequestKeepAwake(context, program->window, true, &request) == mwin_success &&
+            CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, &request) ==
+                          mwin_success &&
                       Outcome(context, request) == mwin_outcomeDone,
                   "keep the display awake");
             program->phase = phaseAwake;

@@ -123,7 +123,7 @@ static void Complete(Program* program, const mwinEvent* event)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (IsRecord(event.type) && program->recordCount < RECORDS)
         {
@@ -153,7 +153,7 @@ static void Collect(Program* program, mwinContext* context)
         {
             mwinWindowState state = {0};
             program->occludedState =
-                mwinGetWindowState(context, program->window, &state) == mwin_success &&
+                mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                 state.occluded;
             break;
         }
@@ -205,7 +205,7 @@ static bool SawInOrder(const Program* program, const mwinEventType* order, int c
 static mwinWindowState StateOf(const Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     return state;
 }
 
@@ -216,9 +216,9 @@ static void CheckMonitor(const mwinWindowState* state, mwinContext* context)
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinMonitorInfo info = {0};
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count == 1 &&
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count == 1 &&
               memcmp(&monitors[0], &state->monitor, sizeof(monitors[0])) == 0 &&
-              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success,
+              mwinMonitor_GetInfo(context, monitors[0], &info) == mwin_success,
           "one monitor, the window's");
     CHECK(info.primary && info.nameLength > 0 && info.scale == state->scale &&
               info.bounds.width >= state->pixelSize.width &&
@@ -260,7 +260,7 @@ static void CheckWindow(const Program* program, mwinContext* context)
 {
     CHECK(s_mains == 1, "the program asked for once");
     mwinNativeHandles handles = {0};
-    CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
               handles.platform == mwin_platformAndroid && handles.handles.android.window &&
               handles.handles.android.activity,
           "the native window and the activity");
@@ -326,8 +326,8 @@ static void Advance(Program* program, mwinContext* context)
         mwinWindowDef def = mwinDefaultWindowDef();
         CHECK(mwinCreateWindow(context, &def, &program->second, nullptr) == mwin_success,
               "a second window asked for");
-        CHECK(mwinRequestVisible(context, program->window, true, nullptr) == mwin_success &&
-                  mwinRequestSize(context, program->window, (mwinSize){100, 100}, nullptr) ==
+        CHECK(mwinWindow_RequestVisible(context, program->window, true, nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, program->window, (mwinSize){100, 100}, nullptr) ==
                       mwin_success,
               "showing and sizing asked for");
         break;
@@ -366,7 +366,7 @@ static void Advance(Program* program, mwinContext* context)
             // The activity finished, as Back at the root does it; the
             // program, with no activity, runs no frames until one joins.
             mwinNativeHandles handles = {0};
-            (void)mwinGetNativeHandles(context, program->window, &handles);
+            (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
             ANativeActivity_finish(handles.handles.android.activity);
             printf(START);
         }
@@ -380,7 +380,7 @@ static void Advance(Program* program, mwinContext* context)
     case 5:
     {
         mwinWindowState gone;
-        CHECK(mwinGetWindowState(context, program->window, &gone) == mwin_errorStale,
+        CHECK(mwinWindow_GetState(context, program->window, &gone) == mwin_errorStale,
               "the destroyed window gone");
         mwinWindowDef def = mwinDefaultWindowDef();
         program->created = false;

@@ -65,7 +65,7 @@ static int IndexOf(const Program* program, mwinWindowId id)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         int index = IndexOf(program, event.window);
         program->shown += event.type == mwin_eventShown;
@@ -85,7 +85,7 @@ static void Collect(Program* program, mwinContext* context)
 static NSWindow* WindowOf(mwinContext* context, mwinWindowId id)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, id, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, id, &handles) == mwin_success
                ? ((NSView*)handles.handles.apple.view).window
                : nil;
 }
@@ -143,7 +143,7 @@ static void Icon(mwinContext* context, mwinWindowId window)
     memset(small, 0xFF, sizeof(small));
     memset(large, 0x80, sizeof(large));
     const mwinIconImage images[] = {{16, 16, 16 * 4, small}, {32, 32, 32 * 4, large}};
-    CHECK(mwinRequestIcon(context, window, images, 2, nullptr) == mwin_success, "an icon");
+    CHECK(mwinWindow_RequestIcon(context, window, images, 2, nullptr) == mwin_success, "an icon");
 }
 
 // The middle pixel of an image drawn at 32 by 32, premultiplied RGBA.
@@ -210,10 +210,10 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 1:
         CheckMade(program, context);
-        CHECK(mwinRequestPosition(context, program->ids[owner], (mwinPosition){200.0f, 150.0f},
-                                  nullptr) == mwin_success &&
-                  mwinRequestPosition(context, program->ids[tooltip], (mwinPosition){50.0f, 60.0f},
-                                      nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestPosition(context, program->ids[owner],
+                                         (mwinPosition){200.0f, 150.0f}, nullptr) == mwin_success &&
+                  mwinWindow_RequestPosition(context, program->ids[tooltip],
+                                             (mwinPosition){50.0f, 60.0f}, nullptr) == mwin_success,
               "the owner moved, the tooltip placed");
         break;
     case 2:
@@ -228,7 +228,8 @@ static void Advance(Program* program, mwinContext* context)
     case 3:
         CHECK(program->outcomes[0] == mwin_outcomeDone, "the icon set");
         CheckIcon();
-        CHECK(mwinRequestIcon(context, program->ids[dialog], nullptr, 0, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestIcon(context, program->ids[dialog], nullptr, 0, nullptr) ==
+                  mwin_success,
               "no icon");
         break;
     case 4:

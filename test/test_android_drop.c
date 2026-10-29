@@ -66,7 +66,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->touched |= event.type == mwin_eventTouchDown;
         program->entered |= event.type == mwin_eventDragEntered;
@@ -87,7 +87,7 @@ static void Collect(Program* program, mwinContext* context)
 static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    (void)mwinGetNativeHandles(context, program->window, &handles);
+    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     return handles.handles.android.activity;
 }
 
@@ -252,7 +252,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "one file and the text");
     char paths[1024] = {0};
     size_t length = 0;
-    CHECK(mwinGetDroppedFiles(context, drop->drop, paths, sizeof(paths), &length) == mwin_success,
+    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, paths, sizeof(paths), &length) ==
+              mwin_success,
           "the paths copied out");
     size_t name = strlen(program->name);
     size_t size = strlen(paths);
@@ -268,7 +269,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
     CHECK(got == strlen(CONTENT) && memcmp(content, CONTENT, got) == 0,
           "the copy the same as the document");
     char text[64] = {0};
-    CHECK(mwinGetDroppedText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
+    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
+                  mwin_success &&
               length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
           "the text");
 }
@@ -276,7 +278,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
     case 0:
@@ -297,7 +299,7 @@ static void Advance(Program* program, mwinContext* context)
     case 0:
     {
         mwinWindowState state = {0};
-        (void)mwinGetWindowState(context, program->window, &state);
+        (void)mwinWindow_GetState(context, program->window, &state);
         program->activity = ActivityOf(program, context);
         program->scale = state.scale;
         program->x = (int)state.pixelSize.width / 3;
@@ -331,7 +333,7 @@ static void Advance(Program* program, mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }

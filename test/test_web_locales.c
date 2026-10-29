@@ -71,7 +71,8 @@ static bool LocalesAre(const mwinContext* context, const char* expected, size_t 
 {
     static char locales[LIST_BYTES];
     size_t got = 0;
-    return mwinGetPreferredLocales(context, locales, sizeof(locales), &got) == mwin_success &&
+    return mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &got) ==
+               mwin_success &&
            got == length && memcmp(locales, expected, length) == 0;
 }
 
@@ -121,7 +122,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

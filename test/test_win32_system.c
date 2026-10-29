@@ -96,7 +96,7 @@ static void Restore(const Setting* setting)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->changed |= event.type == mwin_eventThemeChanged;
         if (event.type == mwin_eventShown && program->phase == phaseCreate)
@@ -120,7 +120,7 @@ static bool SnapLayouts(void)
 static void CheckStart(mwinContext* context, const Program* program)
 {
     mwinSystemFacts facts;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "the facts");
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "the facts");
     const Setting* theme = &program->settings[0];
     CHECK(facts.theme == (!theme->present     ? mwin_themeUnknown
                           : theme->value != 0 ? mwin_themeLight
@@ -135,7 +135,8 @@ static void CheckStart(mwinContext* context, const Program* program)
     char locales[256];
     size_t length = 0;
     CHECK(GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, first, &units) &&
-              mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success,
+              mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+                  mwin_success,
           "the preferred locales");
     char expected[LOCALE_NAME_MAX_LENGTH] = {0};
     int bytes =
@@ -152,7 +153,7 @@ static void CheckChanged(mwinContext* context, const Program* program)
     // The accent as 0xAABBGGRR, from Windows' 0xAARRGGBB.
     uint32_t accent = (program->accent & 0xFFu) << 24 | ((program->accent >> 8) & 0xFFu) << 16 |
                       ((program->accent >> 16) & 0xFFu) << 8 | 0xFFu;
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == theme &&
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success && facts.theme == theme &&
               facts.hasAccent && facts.accent == accent &&
               facts.textScale == (float)program->scale / 100.0f,
           "the theme, the accent and the text scale set");
@@ -171,7 +172,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
         CheckStart(context, program);

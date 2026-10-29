@@ -102,7 +102,7 @@ static bool Same(mwinWindowId a, mwinWindowId b)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->created += event.type == mwin_eventWindowCreated;
         program->completed += event.type == mwin_eventRequestCompleted &&
@@ -135,7 +135,7 @@ static void Collect(mwinContext* context, Program* program)
 static xcb_window_t Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (xcb_window_t)handles.handles.x11.window
                : 0;
 }
@@ -258,14 +258,15 @@ static void Advance(mwinContext* context, Program* program)
         program->windows[0] = Handle(context, program->ids[0]);
         program->windows[1] = Handle(context, program->ids[1]);
         CheckMade(program);
-        CHECK(mwinRequestSizeLimits(context, program->ids[0], (mwinSize){0.2f, 0.0f},
-                                    (mwinSize){0.0f, 400.0f}, nullptr) == mwin_success &&
-                  mwinRequestOpacity(context, program->ids[0], 0.5f, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestSizeLimits(context, program->ids[0], (mwinSize){0.2f, 0.0f},
+                                           (mwinSize){0.0f, 400.0f}, nullptr) == mwin_success &&
+                  mwinWindow_RequestOpacity(context, program->ids[0], 0.5f, nullptr) ==
+                      mwin_success,
               "limits and an opacity");
         break;
     case 1:
         CheckLimits(program);
-        CHECK(mwinRequestOpacity(context, program->ids[0], 1.0f, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestOpacity(context, program->ids[0], 1.0f, nullptr) == mwin_success,
               "an opacity of 1");
         break;
     case 2:
@@ -278,7 +279,7 @@ static void Advance(mwinContext* context, Program* program)
         xcb_change_property(program->connection, XCB_PROP_MODE_REPLACE, program->windows[0],
                             atoms[atomState], XCB_ATOM_ATOM, 32, 2, states);
         xcb_flush(program->connection);
-        CHECK(mwinRequestMode(context, program->ids[1], mwin_modeMaximized, nullptr) ==
+        CHECK(mwinWindow_RequestMode(context, program->ids[1], mwin_modeMaximized, nullptr) ==
                   mwin_success,
               "a maximized mode asked");
         break;
@@ -357,12 +358,12 @@ static mwinFrameResult AskingFrame(mwinContext* context, void* user)
 {
     Asking* asking = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventWindowCreated)
         {
-            CHECK(mwinRequestMode(context, asking->window, mwin_modeMaximized, &asking->request) ==
-                      mwin_success,
+            CHECK(mwinWindow_RequestMode(context, asking->window, mwin_modeMaximized,
+                                         &asking->request) == mwin_success,
                   "a mode asked");
         }
         if (event.type == mwin_eventRequestCompleted &&

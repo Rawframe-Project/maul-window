@@ -95,7 +95,7 @@ static void CheckConnected(Program* program, mwinContext* context)
           "a pad found, a button held then told with it");
     mwinGamepadInfo info;
     mwinGamepadId pad = program->events[0].data.gamepad;
-    CHECK(mwinGetGamepadInfo(context, pad, &info) == mwin_success && info.mapped &&
+    CHECK(mwinGamepad_GetInfo(context, pad, &info) == mwin_success && info.mapped &&
               info.battery == 66 && (info.capabilities & mwin_padRumble) != 0 &&
               info.nameLength == 17,
           "its facts and battery");

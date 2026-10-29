@@ -75,7 +75,7 @@ static bool Answered(NSModalResponse answer, mwinMessageButtons buttons)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->destroyed |= event.type == mwin_eventWindowDestroyed;
@@ -102,7 +102,7 @@ static mwinResult Ask(Program* program, mwinContext* context, mwinDialogKind kin
     def.filters = filters;
     def.filterCount = kind == mwin_dialogSave ? 2 : 0;
     program->completed = false;
-    return mwinRequestFileDialog(context, program->window, &def, &program->request);
+    return mwinWindow_RequestFileDialog(context, program->window, &def, &program->request);
 }
 
 static NSArray* TypesOf(NSArray<NSString*>* extensions)
@@ -145,8 +145,8 @@ static void CheckSaved(const Program* program, mwinContext* context)
     uint32_t count = 0;
     size_t name = strlen(program->name);
     CHECK(program->outcome == mwin_outcomeDone &&
-              mwinGetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                 &count) == mwin_success &&
+              mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
+                                         &count) == mwin_success &&
               count == 1 && length > name + 1 &&
               memcmp(paths + length - name - 1, program->name, name) == 0 && paths[0] == '/',
           "the save panel's path, in the folder asked for");
@@ -233,7 +233,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->host == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         program->host = ((NSView*)handles.handles.apple.view).window;
     }

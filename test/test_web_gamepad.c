@@ -174,7 +174,7 @@ static bool Axis(const Program* program, mwinGamepadId pad, uint8_t axis, float 
 
 static bool Named(mwinContext* context, mwinGamepadId pad, const char* name, mwinGamepadInfo* info)
 {
-    return mwinGetGamepadInfo(context, pad, info) == mwin_success &&
+    return mwinGamepad_GetInfo(context, pad, info) == mwin_success &&
            info->nameLength == strlen(name) && memcmp(info->name, name, info->nameLength) == 0;
 }
 
@@ -203,7 +203,7 @@ static void CheckFound(Program* program, mwinContext* context)
     const mwinEvent* third = Find(program, mwin_eventGamepadAdded, 2);
     program->triggers = third != nullptr ? third->data.gamepad : (mwinGamepadId){0};
     CHECK(third != nullptr &&
-              mwinGetGamepadInfo(context, program->triggers, &info) == mwin_success &&
+              mwinGamepad_GetInfo(context, program->triggers, &info) == mwin_success &&
               info.capabilities == (mwin_padRumble | mwin_padTriggerRumble),
           "a pad with trigger-rumble: trigger rumble granted");
     Move();
@@ -225,21 +225,21 @@ static void CheckMoved(Program* program, mwinContext* context)
     CHECK(Button(program, program->raw, 2, true) && Axis(program, program->raw, 0, 1.0f) &&
               Axis(program, program->raw, 1, 0.25f),
           "raw controls by number, in range");
-    CHECK(mwinSetGamepadRumble(context, pad, 1.0f, 0.5f, 200) == mwin_success &&
-              mwinSetGamepadRumble(context, pad, 0.0f, 0.0f, 0) == mwin_success &&
+    CHECK(mwinGamepad_SetRumble(context, pad, 1.0f, 0.5f, 200) == mwin_success &&
+              mwinGamepad_SetRumble(context, pad, 0.0f, 0.0f, 0) == mwin_success &&
               Played("dual-rumble 1 0.5 200;reset"),
           "dual-rumble played, then reset");
-    CHECK(mwinSetGamepadRumble(context, program->raw, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
+    CHECK(mwinGamepad_SetRumble(context, program->raw, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
           "no rumble without an actuator");
-    CHECK(mwinSetGamepadTriggerRumble(context, pad, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
+    CHECK(mwinGamepad_SetTriggerRumble(context, pad, 1.0f, 1.0f, 100) == mwin_errorUnsupported,
           "no trigger rumble without trigger-rumble");
     // The triggers outlast the grips by seconds, so a slow frame after
     // the grips' time still finds them playing.
-    CHECK(mwinSetGamepadTriggerRumble(context, program->triggers, 0.25f, 0.75f, 3000) ==
+    CHECK(mwinGamepad_SetTriggerRumble(context, program->triggers, 0.25f, 0.75f, 3000) ==
                   mwin_success &&
               LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 3000, 3000),
           "trigger rumble as trigger-rumble");
-    CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 100) == mwin_success &&
+    CHECK(mwinGamepad_SetRumble(context, program->triggers, 1.0f, 0.5f, 100) == mwin_success &&
               LastTriggers(1.0f, 0.5f, 0.25f, 0.75f, 2950, 3000),
           "the grips' rumble played with the triggers' as one effect");
     program->triggeredMs = NowMs();
@@ -266,7 +266,7 @@ static void Advance(Program* program, mwinContext* context)
         }
         CHECK(LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 2900),
               "the grips' time out, the triggers played on alone");
-        CHECK(mwinSetGamepadRumble(context, program->triggers, 1.0f, 0.5f, 0) == mwin_success &&
+        CHECK(mwinGamepad_SetRumble(context, program->triggers, 1.0f, 0.5f, 0) == mwin_success &&
                   LastTriggers(0.0f, 0.0f, 0.25f, 0.75f, 1, 2900),
               "the grips stopped, the triggers played on alone");
         break;
@@ -308,7 +308,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     program->count = 0;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

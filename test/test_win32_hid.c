@@ -388,9 +388,9 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
     mwinGamepadInfo pad;
     mwinGamepadInfo stick;
     mwinGamepadInfo wheel;
-    CHECK(added == 3 && mwinGetGamepadInfo(context, ids[0], &pad) == mwin_success &&
-              mwinGetGamepadInfo(context, ids[1], &stick) == mwin_success &&
-              mwinGetGamepadInfo(context, ids[2], &wheel) == mwin_success,
+    CHECK(added == 3 && mwinGamepad_GetInfo(context, ids[0], &pad) == mwin_success &&
+              mwinGamepad_GetInfo(context, ids[1], &stick) == mwin_success &&
+              mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success,
           "of the devices, the pad, the stick and the wheel gamepads, once");
     CHECK(!wheel.mapped && wheel.rawButtons == 0 && wheel.rawAxes == 6,
           "the wheel raw: four axes and a hat, no buttons");
@@ -407,7 +407,7 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
 static void CheckPad(const mwinContext* context, mwinGamepadId id)
 {
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, id, &state) == mwin_success &&
+    CHECK(mwinGamepad_GetState(context, id, &state) == mwin_success &&
               state.buttons ==
                   (1u << mwin_padFaceSouth | 1u << mwin_padGuide | 1u << mwin_padDpadRight),
           "the pad's buttons, and its hat as the d-pad");
@@ -424,7 +424,7 @@ static void CheckPad(const mwinContext* context, mwinGamepadId id)
 static void CheckStick(const mwinContext* context, mwinGamepadId id)
 {
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, id, &state) == mwin_success && state.buttons == 0x5u &&
+    CHECK(mwinGamepad_GetState(context, id, &state) == mwin_success && state.buttons == 0x5u &&
               Near(state.axes[0], -1.0f) && Near(state.axes[1], 1.0f) &&
               Near(state.axes[2], 0.0f) && Near(state.axes[3], 0.0f),
           "the stick's buttons in usage order, its signed axes, and its centred hat");
@@ -433,7 +433,7 @@ static void CheckStick(const mwinContext* context, mwinGamepadId id)
 static void CheckWheel(const mwinContext* context, mwinGamepadId id)
 {
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, id, &state) == mwin_success && Near(state.axes[0], 1.0f) &&
+    CHECK(mwinGamepad_GetState(context, id, &state) == mwin_success && Near(state.axes[0], 1.0f) &&
               Near(state.axes[1], -1.0f) && Near(state.axes[2], 1.0f) && Near(state.axes[3], 0.0f),
           "the wheel's X and Rz, then its slider and its dial of one value, centred");
     // 0 is the middle of the hat's range: the fifth of its eight steps,
@@ -489,7 +489,7 @@ static void Step(Program* program, mwinContext* context, int step)
     {
         mwinGamepadState state;
         CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadRemoved &&
-                  mwinGetGamepadState(context, ids[1], &state) == mwin_errorStale,
+                  mwinGamepad_GetState(context, ids[1], &state) == mwin_errorStale,
               "a removed device gone, its reports reading nothing, and reports of no size "
               "reading nothing");
         mwinWin32HidStop(&s_hid);
@@ -531,7 +531,7 @@ static void RoomStep(Program* program, mwinContext* context, int step)
         break;
     case 1:
         CHECK(added == 1 &&
-                  mwinGetGamepadInfo(context, program->events[0].data.gamepad, &info) ==
+                  mwinGamepad_GetInfo(context, program->events[0].data.gamepad, &info) ==
                       mwin_success &&
                   info.vendor == 0x054C,
               "room for one: the pad only");
@@ -547,7 +547,7 @@ static void RoomStep(Program* program, mwinContext* context, int step)
         break;
     default:
         CHECK(added == 1 &&
-                  mwinGetGamepadInfo(context, program->events[0].data.gamepad, &info) ==
+                  mwinGamepad_GetInfo(context, program->events[0].data.gamepad, &info) ==
                       mwin_success &&
                   info.vendor == 0x1234,
               "the stick turned away is added once there is room");

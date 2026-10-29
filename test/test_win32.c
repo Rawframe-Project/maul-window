@@ -135,7 +135,7 @@ static void CheckMonitors(mwinContext* context)
     (void)EnumDisplayMonitors(nullptr, nullptr, List, (LPARAM)&listed);
     mwinMonitorId monitors[4];
     size_t count = 0;
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success &&
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success &&
               (int)count == listed.count,
           "as many monitors as Windows lists");
     for (size_t i = 0; i < count; i++)
@@ -143,7 +143,7 @@ static void CheckMonitors(mwinContext* context)
         mwinMonitorInfo info;
         int found = -1;
         for (int j = 0;
-             j < listed.count && mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success;
+             j < listed.count && mwinMonitor_GetInfo(context, monitors[i], &info) == mwin_success;
              j++)
         {
             found = SameRect(info.bounds, listed.info[j].rcMonitor) ? j : found;
@@ -215,7 +215,7 @@ static Program* s_program;
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->seen |= 1ull << event.type;
         program->size = event.type == mwin_eventResized ? event.data.size : program->size;
@@ -293,7 +293,7 @@ static bool Ready(const Program* program)
 static HWND WindowOf(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -313,12 +313,12 @@ static void CheckCreated(const Program* program, mwinContext* context)
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinMonitorInfo info;
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
-              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success,
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
+              mwinMonitor_GetInfo(context, monitors[0], &info) == mwin_success,
           "the monitors");
     CheckMonitors(context);
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               state.monitor.index1 == monitors[0].index1 &&
               state.monitor.generation == monitors[0].generation,
           "the window on the primary monitor");
@@ -423,7 +423,7 @@ static void CheckDpi(const Program* program, mwinContext* context)
               program->pixels.height == (uint32_t)height,
           "the client area twice as many pixels, as Windows and the record say");
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               state.scale == scale && state.size.width == 400.0f && state.size.height == 300.0f,
           "the logical size kept at the new scale");
 }
@@ -441,7 +441,7 @@ static void CheckAnswer(const Program* program, mwinContext* context)
               program->pixels.height == (uint32_t)height,
           "the client area the answer's pixels, as Windows and the record say");
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               state.scale == scale && state.size.width == ANSWER_WIDTH &&
               state.size.height == ANSWER_HEIGHT && program->size.width == ANSWER_WIDTH &&
               program->size.height == ANSWER_HEIGHT,
@@ -495,13 +495,14 @@ static Phase AdvanceOcclusion(Program* program, mwinContext* context)
     Phase phase = program->phase;
     HWND hwnd = WindowOf(context, program->window);
     mwinWindowState state;
-    CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+    CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
               state.occluded == ((phase - phaseMinimized) % 2 == 0),
           said[phase - phaseMinimized]);
     switch (phase)
     {
     case phaseMinimized:
-        CHECK(mwinRequestMode(context, program->window, mwin_modeWindowed, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, program->window, mwin_modeWindowed, nullptr) ==
+                  mwin_success,
               "restored");
         break;
     case phaseRestored:
@@ -523,7 +524,7 @@ static Phase AdvanceOcclusion(Program* program, mwinContext* context)
         Cloak(hwnd, FALSE);
         break;
     default:
-        CHECK(mwinRequestVisible(context, program->window, false, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestVisible(context, program->window, false, nullptr) == mwin_success,
               "hiding asked for");
         break;
     }
@@ -538,33 +539,33 @@ static void Advance(Program* program, mwinContext* context)
     {
     case phaseCreate:
         CheckCreated(program, context);
-        CHECK(mwinRequestTitle(context, window, "Retitled", 8, nullptr) == mwin_success &&
-                  mwinRequestSize(context, window, (mwinSize){800.0f, 600.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestTitle(context, window, "Retitled", 8, nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){800.0f, 600.0f}, nullptr) ==
                       mwin_success,
               "a title and a size");
         break;
     case phaseResize:
-        CHECK(mwinRequestPosition(context, window, (mwinPosition){40.0f, 30.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestPosition(context, window, (mwinPosition){40.0f, 30.0f}, nullptr) ==
                   mwin_success,
               "a place");
         break;
     case phaseMove:
-        CHECK(mwinRequestMode(context, window, mwin_modeMaximized, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeMaximized, nullptr) == mwin_success,
               "maximize");
         break;
     case phaseMaximize:
-        CHECK(mwinRequestMode(context, window, mwin_modeBorderlessFullscreen, nullptr) ==
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeBorderlessFullscreen, nullptr) ==
                   mwin_success,
               "full screen");
         break;
     case phaseFullscreen:
-        CHECK(mwinRequestMode(context, window, mwin_modeWindowed, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeWindowed, nullptr) == mwin_success,
               "windowed again");
         break;
     case phaseWindowed:
         CHECK(program->size.width == 800.0f || program->size.width == 0.0f, "the size from before");
-        CHECK(mwinRequestStyle(context, window, 0, nullptr) == mwin_success &&
-                  mwinRequestSize(context, window, (mwinSize){400.0f, 300.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestStyle(context, window, 0, nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){400.0f, 300.0f}, nullptr) ==
                       mwin_success,
               "undecorated, and a smaller size");
         break;
@@ -583,13 +584,13 @@ static void Advance(Program* program, mwinContext* context)
         program->answerPixels =
             (mwinPixelSize){(uint32_t)(ANSWER_WIDTH * (float)program->dpi / 96.0f + 0.5f),
                             (uint32_t)(ANSWER_HEIGHT * (float)program->dpi / 96.0f + 0.5f)};
-        CHECK(mwinRequestSize(context, window, (mwinSize){ANSWER_WIDTH, ANSWER_HEIGHT}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestSize(context, window, (mwinSize){ANSWER_WIDTH, ANSWER_HEIGHT},
+                                     nullptr) == mwin_success,
               "another size, on the scale record");
         break;
     case phaseAnswer:
         CheckAnswer(program, context);
-        CHECK(mwinRequestMode(context, window, mwin_modeMinimized, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeMinimized, nullptr) == mwin_success,
               "minimized");
         break;
     case phaseMinimized:
@@ -610,7 +611,7 @@ static void Advance(Program* program, mwinContext* context)
         mwinWindowState state;
         CHECK(program->completion.kind == mwin_requestVisible &&
                   program->completion.outcome == mwin_outcomeDone &&
-                  mwinGetWindowState(context, window, &state) == mwin_success &&
+                  mwinWindow_GetState(context, window, &state) == mwin_success &&
                   state.visible == shown &&
                   (IsWindowVisible(WindowOf(context, window)) != 0) == shown,
               shown ? "shown again" : "hidden");
@@ -620,7 +621,7 @@ static void Advance(Program* program, mwinContext* context)
         }
         else
         {
-            CHECK(mwinRequestVisible(context, window, true, nullptr) == mwin_success,
+            CHECK(mwinWindow_RequestVisible(context, window, true, nullptr) == mwin_success,
                   "showing asked for");
         }
         break;

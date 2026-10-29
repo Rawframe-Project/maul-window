@@ -116,9 +116,9 @@ static void CheckShort(const mwinContext* context)
 {
     mwinGamepadState mapped;
     mwinGamepadState raw;
-    CHECK(mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_shortMapped),
-                              &mapped) == mwin_success &&
-              mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_shortRaw), &raw) ==
+    CHECK(mwinGamepad_GetState(context, mwinGamepadIdOf(context, (uint32_t)s_shortMapped),
+                               &mapped) == mwin_success &&
+              mwinGamepad_GetState(context, mwinGamepadIdOf(context, (uint32_t)s_shortRaw), &raw) ==
                   mwin_success,
           "states");
     CHECK(mapped.buttons == 0 && Near(mapped.axes[mwin_padStickLeftX], 0.0f),
@@ -131,7 +131,7 @@ static void CheckShort(const mwinContext* context)
 static void CheckMapped(const mwinContext* context)
 {
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_mapped), &state) ==
+    CHECK(mwinGamepad_GetState(context, mwinGamepadIdOf(context, (uint32_t)s_mapped), &state) ==
               mwin_success,
           "state");
     uint32_t expected = 1u << mwin_padDpadUp | 1u << mwin_padFaceSouth | 1u << mwin_padFaceEast;
@@ -151,7 +151,7 @@ static void CheckMapped(const mwinContext* context)
 static void CheckRaw(const mwinContext* context)
 {
     mwinGamepadState state;
-    CHECK(mwinGetGamepadState(context, mwinGamepadIdOf(context, (uint32_t)s_raw), &state) ==
+    CHECK(mwinGamepad_GetState(context, mwinGamepadIdOf(context, (uint32_t)s_raw), &state) ==
               mwin_success,
           "state");
     CHECK(state.buttons == 2u && Near(state.axes[0], 0.5f) && Near(state.axes[1], -0.25f) &&

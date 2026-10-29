@@ -79,7 +79,7 @@ static mwinAndroidPadLayout Layout(mwinContext* context, uint64_t keys, const in
 static mwinGamepadState StateOf(mwinContext* context, uint32_t slot)
 {
     mwinGamepadState state = {0};
-    (void)mwinGetGamepadState(context, mwinGamepadIdOf(context, slot), &state);
+    (void)mwinGamepad_GetState(context, mwinGamepadIdOf(context, slot), &state);
     return state;
 }
 
@@ -166,7 +166,7 @@ static void CheckRaw(Program* program, mwinContext* context)
     uint32_t slot = 0;
     mwinAndroidPadLayout layout = Layout(context, keys, axes, 3, &slot);
     mwinGamepadInfo info = {0};
-    (void)mwinGetGamepadInfo(context, mwinGamepadIdOf(context, slot), &info);
+    (void)mwinGamepad_GetInfo(context, mwinGamepadIdOf(context, slot), &info);
     CHECK(!layout.mapped && !info.mapped && info.rawButtons == 4 && info.rawAxes == 3,
           "no south face button: raw, with its buttons and axes counted");
     Drain(program, context);
@@ -228,7 +228,7 @@ static void CheckEdges(Program* program, mwinContext* context)
     uint64_t keys = ((1ull << MWIN_ANDROID_PAD_KEYS) - 1u) & ~KeyBit(KEY_BUTTON_A);
     layout = Layout(context, keys, axes, 2, &slot);
     mwinGamepadInfo info = {0};
-    (void)mwinGetGamepadInfo(context, mwinGamepadIdOf(context, slot), &info);
+    (void)mwinGamepad_GetInfo(context, mwinGamepadIdOf(context, slot), &info);
     Drain(program, context);
     mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[33], true, s_timeNs);
     mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[32], true, s_timeNs);

@@ -16,9 +16,9 @@ static bool IsRegion(const mwinHitRegion* region)
            region->kind <= mwin_hitClose;
 }
 
-mwinResult mwinRequestHitRegions(mwinContext* context, mwinWindowId window,
-                                 const mwinHitRegion* regions, uint32_t count,
-                                 mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestHitRegions(mwinContext* context, mwinWindowId window,
+                                        const mwinHitRegion* regions, uint32_t count,
+                                        mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {

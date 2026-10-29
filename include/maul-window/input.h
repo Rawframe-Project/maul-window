@@ -185,7 +185,7 @@ extern "C"
     };
 
     // Whether a chord, a key with modifiers, reaches the program
-    // (mwinGetKeyReach).
+    // (mwinContext_GetKeyReach).
     typedef uint8_t mwinKeyReach;
 
     enum
@@ -292,40 +292,44 @@ extern "C"
 
     /// Asks to show or hide the on-screen keyboard over a window, where
     /// the platform has one; others answer mwin_outcomeUnsupported.
-    /// mwin_eventVirtualKeyboardChanged reports the part it covers.
+    /// mwin_eventVirtualKeyboardChanged reports the part it covers. It
+    /// asks the platform for a state, and switches no part of the library.
     ///
     /// @param context     The context.
     /// @param window      The window.
     /// @param visible     true to show it, false to hide it.
     /// @param purpose     What the text field takes.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown purpose.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestVirtualKeyboard(mwinContext* context,
-                                                                  mwinWindowId window, bool visible,
-                                                                  mwinInputPurpose purpose,
-                                                                  mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context,
+                                                                         mwinWindowId window,
+                                                                         bool visible,
+                                                                         mwinInputPurpose purpose,
+                                                                         mwinRequestId* requestOut);
 
     /// Asks a window to accept text, or to stop: while it does, input
     /// methods compose into it and mwin_eventImePreedit reports their
     /// compositions, and the caret rectangle tells the platform where to
-    /// place the candidate window. Ask again to move the caret.
+    /// place the candidate window. Ask again to move the caret. It asks the
+    /// platform for a state of the window, which mwinWindowState's
+    /// textInput reports, and switches no part of the library.
     ///
     /// @param context     The context.
     /// @param window      The window.
     /// @param enabled     true to accept text, false to stop.
     /// @param caret       Where the caret is, in the window's logical units.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for a caret
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for a caret
     ///         that is not finite or has a negative size.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestTextInput(mwinContext* context,
-                                                            mwinWindowId window, bool enabled,
-                                                            mwinRect caret,
-                                                            mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestTextInput(mwinContext* context,
+                                                                   mwinWindowId window,
+                                                                   bool enabled, mwinRect caret,
+                                                                   mwinRequestId* requestOut);
 
     /// Asks for a cursor mode over a window.
     ///
@@ -333,14 +337,14 @@ extern "C"
     /// @param window      The window.
     /// @param mode        One of the mwin_cursor values.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown mode.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestCursorMode(mwinContext* context,
-                                                             mwinWindowId window,
-                                                             mwinCursorMode mode,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestCursorMode(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    mwinCursorMode mode,
+                                                                    mwinRequestId* requestOut);
 
     /// Asks for one of the system's cursor images over a window.
     ///
@@ -348,14 +352,14 @@ extern "C"
     /// @param window      The window.
     /// @param shape       One of the mwin_shape values.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorInvalid` for an
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorInvalid` for an
     ///         unknown shape.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestCursorShape(mwinContext* context,
-                                                              mwinWindowId window,
-                                                              mwinCursorShape shape,
-                                                              mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestCursorShape(mwinContext* context,
+                                                                     mwinWindowId window,
+                                                                     mwinCursorShape shape,
+                                                                     mwinRequestId* requestOut);
 
     /// Returns the default cursor def: no images, the hotspot at 0, 0.
     ///
@@ -365,7 +369,7 @@ extern "C"
     MWIN_API mwinCursorDef mwinDefaultCursorDef(void);
 
     /// Makes a cursor from images, to show over windows with
-    /// mwinRequestCursorImage. Each window takes the image for its scale:
+    /// mwinWindow_RequestCursorImage. Each window takes the image for its scale:
     /// the smallest at least the first image's size times the scale, else
     /// the largest, its hotspot scaled with it.
     ///
@@ -405,14 +409,14 @@ extern "C"
     /// @param window      The window.
     /// @param cursor      The cursor.
     /// @param requestOut  Receives the request's id. May be NULL.
-    /// @return As mwinRequestTitle, with `mwin_errorStale` for a cursor
+    /// @return As mwinWindow_RequestTitle, with `mwin_errorStale` for a cursor
     ///         that is not live.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestCursorImage(mwinContext* context,
-                                                              mwinWindowId window,
-                                                              mwinCursorId cursor,
-                                                              mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestCursorImage(mwinContext* context,
+                                                                     mwinWindowId window,
+                                                                     mwinCursorId cursor,
+                                                                     mwinRequestId* requestOut);
 
     /// Returns what a physical key means under the current keyboard
     /// layout, as a key record would carry it.
@@ -423,7 +427,7 @@ extern "C"
     ///         the layout gives no meaning.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_API mwinKey mwinMapKeyCode(const mwinContext* context, mwinKeyCode code);
+    MWIN_API mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code);
 
     /// Reads the name of the current keyboard layout, as the platform
     /// gives it, for showing which layout key labels come from.
@@ -438,9 +442,9 @@ extern "C"
     ///         for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyboardLayout(const mwinContext* context,
-                                                             char* buffer, size_t capacity,
-                                                             size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context,
+                                                                     char* buffer, size_t capacity,
+                                                                     size_t* lengthOut);
 
     /// Tells whether a chord reaches the program on the platform the
     /// context runs on, for a rebinding UI to refuse a chord that never
@@ -459,9 +463,10 @@ extern "C"
     ///         a code that is not a key.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetKeyReach(const mwinContext* context, mwinKeyCode code,
-                                                       mwinModifiers modifiers,
-                                                       mwinKeyReach* reachOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyReach(const mwinContext* context,
+                                                               mwinKeyCode code,
+                                                               mwinModifiers modifiers,
+                                                               mwinKeyReach* reachOut);
 
 #ifdef __cplusplus
 }

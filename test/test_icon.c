@@ -55,22 +55,22 @@ static const mwinIconImage s_images[2] = {
 
 static bool Refused(mwinContext* context, mwinWindowId window, mwinIconImage image)
 {
-    return mwinRequestIcon(context, window, &image, 1, nullptr) == mwin_errorInvalid;
+    return mwinWindow_RequestIcon(context, window, &image, 1, nullptr) == mwin_errorInvalid;
 }
 
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
 {
     mwinIconImage five[5] = {s_images[1], s_images[1], s_images[1], s_images[1], s_images[1]};
-    CHECK(mwinRequestIcon(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
-              mwinRequestIcon(nullptr, window, s_images, 1, nullptr) == mwin_errorInvalid &&
+    CHECK(mwinWindow_RequestIcon(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestIcon(nullptr, window, s_images, 1, nullptr) == mwin_errorInvalid &&
               Refused(context, window, (mwinIconImage){0, 16, 64, s_large}) &&
               Refused(context, window, (mwinIconImage){16, 0, 64, s_large}) &&
               Refused(context, window, (mwinIconImage){16, 16, 16 * 4, nullptr}) &&
               Refused(context, window, (mwinIconImage){16, 16, 16 * 4 - 1, s_large}),
           "images refused at the call");
     const mwinIconImage wide = {MWIN_MAX_ICON_SIZE + 1, 1, (MWIN_MAX_ICON_SIZE + 1) * 4, s_large};
-    CHECK(mwinRequestIcon(context, window, five, 5, nullptr) == mwin_errorLimit &&
-              mwinRequestIcon(context, window, &wide, 1, nullptr) == mwin_errorLimit,
+    CHECK(mwinWindow_RequestIcon(context, window, five, 5, nullptr) == mwin_errorLimit &&
+              mwinWindow_RequestIcon(context, window, &wide, 1, nullptr) == mwin_errorLimit,
           "more images than MWIN_MAX_ICON_IMAGES, or a side past MWIN_MAX_ICON_SIZE");
 }
 
@@ -92,8 +92,8 @@ static bool Holds(mwinContext* context, uint32_t expectedCount, uint64_t expecte
 {
     uint32_t count = 0;
     uint64_t checksum = 0;
-    return mwinTestGetIcon(context, &count, &checksum) == mwin_success && count == expectedCount &&
-           checksum == expectedChecksum;
+    return mwinContext_GetTestIcon(context, &count, &checksum) == mwin_success &&
+           count == expectedCount && checksum == expectedChecksum;
 }
 
 static void Step(Program* program, mwinContext* context, int step)
@@ -108,13 +108,15 @@ static void Step(Program* program, mwinContext* context, int step)
         break;
     case 1:
         CheckRefusals(context, window);
-        CHECK(mwinRequestIcon(context, window, s_images, 2, &program->requests[1]) == mwin_success,
+        CHECK(mwinWindow_RequestIcon(context, window, s_images, 2, &program->requests[1]) ==
+                  mwin_success,
               "two images");
         break;
     case 2:
         CHECK(Outcome(program, 1) == mwin_outcomeDone && Holds(context, 2, both),
               "two images copied without their rows' padding");
-        CHECK(mwinRequestIcon(context, window, nullptr, 0, &program->requests[2]) == mwin_success,
+        CHECK(mwinWindow_RequestIcon(context, window, nullptr, 0, &program->requests[2]) ==
+                  mwin_success,
               "none");
         break;
     case 3:
@@ -122,10 +124,10 @@ static void Step(Program* program, mwinContext* context, int step)
               "none for the platform's own");
         // Held: one icon is cancelled with its window, one never answered.
         program->windows[1] = Create(context, nullptr);
-        CHECK(mwinTestHold(context, true) == mwin_success &&
-                  mwinRequestIcon(context, window, s_images, 2, &program->requests[3]) ==
+        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+                  mwinWindow_RequestIcon(context, window, s_images, 2, &program->requests[3]) ==
                       mwin_success &&
-                  mwinRequestIcon(context, program->windows[1], s_images, 1, nullptr) ==
+                  mwinWindow_RequestIcon(context, program->windows[1], s_images, 1, nullptr) ==
                       mwin_success &&
                   mwinDestroyWindow(context, window) == mwin_success,
               "icons held, one window destroyed");

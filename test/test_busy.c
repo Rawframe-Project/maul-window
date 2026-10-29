@@ -49,13 +49,13 @@ static void Expect(mwinResult status)
 static void Reenter(void)
 {
     mwinRequestId request = {0};
-    Expect(mwinRequestTitle(s_context, s_window, "Inner", 5, &request));
-    Expect(mwinTestSetTime(s_context, 1000000000));
+    Expect(mwinWindow_RequestTitle(s_context, s_window, "Inner", 5, &request));
+    Expect(mwinContext_SetTestTime(s_context, 1000000000));
     Expect(mwinDestroyWindow(s_context, s_window));
     mwinEvent event;
-    Expect(mwinNextEvent(s_context, &event));
+    Expect(mwinContext_NextEvent(s_context, &event));
 #ifdef MWIN_TEST_GAMEPAD
-    Expect(mwinSetGamepadRumble(s_context, s_gamepad, 1.0f, 1.0f, 100));
+    Expect(mwinGamepad_SetRumble(s_context, s_gamepad, 1.0f, 1.0f, 100));
 #endif
 }
 
@@ -115,7 +115,7 @@ static bool OnClipboard(const mwinContext* context, const char* expected)
 {
     char text[16];
     size_t length = 0;
-    return mwinTestGetClipboard(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinContext_GetTestClipboard(context, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -125,17 +125,17 @@ static void ArmedWrite(Program* program, mwinContext* context, const char* text,
 {
     int calls = s_allocations + s_releases;
     int allocations = s_allocations;
-    uint64_t misuse = mwinGetContextMisuse(context);
+    uint64_t misuse = mwinContext_GetMisuse(context);
     s_armed = true;
-    mwinResult status = mwinRequestClipboardWrite(context, s_window, text, strlen(text),
-                                                  &program->requests[request]);
+    mwinResult status = mwinWindow_RequestClipboardWrite(context, s_window, text, strlen(text),
+                                                         &program->requests[request]);
     s_armed = false;
     calls = s_allocations + s_releases - calls;
     CHECK(status == mwin_success && program->requests[request].index1 != 0,
           "the outer write succeeds with its request");
     CHECK(s_allocations - allocations == 1, "the write takes its copy through the allocator");
     CHECK(s_notBusy == 0, "every call from inside the allocator refused with mwin_errorBusy");
-    CHECK(mwinGetContextMisuse(context) - misuse == (uint64_t)calls * INNER_CALLS,
+    CHECK(mwinContext_GetMisuse(context) - misuse == (uint64_t)calls * INNER_CALLS,
           "each refused call counted once as misuse");
 }
 
@@ -149,12 +149,12 @@ static void Step(Program* program, mwinContext* context, int step)
         s_window = Create(context, &program->requests[0]);
 #ifdef MWIN_TEST_GAMEPAD
         mwinGamepadInfo info = {.mapped = true, .capabilities = mwin_padRumble, .battery = -1};
-        CHECK(mwinTestAddGamepad(context, &info, &s_gamepad) == mwin_success, "a gamepad");
+        CHECK(mwinAddTestGamepad(context, &info, &s_gamepad) == mwin_success, "a gamepad");
 #endif
         break;
     case 1:
         ArmedWrite(program, context, "Maul", 1);
-        CHECK(mwinRequestTitle(context, s_window, "Outer", 5, &program->requests[2]) ==
+        CHECK(mwinWindow_RequestTitle(context, s_window, "Outer", 5, &program->requests[2]) ==
                   mwin_success,
               "the same call taken once the allocator returns");
         break;

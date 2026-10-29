@@ -47,7 +47,7 @@ static uint64_t NowNs(void)
 static int Outcome(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&
@@ -64,7 +64,7 @@ static int Outcome(mwinContext* context, mwinRequestId request)
 static int ReadIcon(const Program* program, mwinContext* context, uint32_t* values, int capacity)
 {
     mwinNativeHandles handles;
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return -1;
     }
@@ -100,13 +100,13 @@ static void Next(mwinContext* context, Program* program)
     if (program->step == 0)
     {
         mwinIconImage images[2] = {{2, 1, 8, s_wide}, {1, 1, 4, s_dot}};
-        CHECK(mwinRequestIcon(context, program->window, images, 2, &program->request) ==
+        CHECK(mwinWindow_RequestIcon(context, program->window, images, 2, &program->request) ==
                   mwin_success,
               "two images");
     }
     else if (program->step == 1)
     {
-        CHECK(mwinRequestIcon(context, program->window, nullptr, 0, &program->request) ==
+        CHECK(mwinWindow_RequestIcon(context, program->window, nullptr, 0, &program->request) ==
                   mwin_success,
               "none");
     }

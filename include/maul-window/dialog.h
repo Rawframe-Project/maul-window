@@ -6,7 +6,7 @@
 // window stays live while the dialog shows, and frames go on.
 //
 // A dialog chosen from completes with mwin_outcomeDone, and its paths
-// wait under the request's id for mwinGetDialogFiles until the next
+// wait under the request's id for mwinRequest_GetDialogFiles until the next
 // dialog completes; one the user closes completes with
 // mwin_outcomeCancelled; a choice past the dialogFiles or dialogBytes
 // limits with mwin_outcomeTooLarge. A page names no files, so the web
@@ -109,10 +109,10 @@ extern "C"
     ///         or an extension with a dot, '*' or '?'.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestFileDialog(mwinContext* context,
-                                                             mwinWindowId window,
-                                                             const mwinFileDialogDef* def,
-                                                             mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestFileDialog(mwinContext* context,
+                                                                    mwinWindowId window,
+                                                                    const mwinFileDialogDef* def,
+                                                                    mwinRequestId* requestOut);
 
     /// Copies the paths a dialog chose out: absolute, UTF-8, each ended
     /// by a NUL.
@@ -130,10 +130,11 @@ extern "C"
     ///         `mwin_errorInvalid` for a NULL context or lengthOut.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetDialogFiles(const mwinContext* context,
-                                                          mwinRequestId request, char* buffer,
-                                                          size_t capacity, size_t* lengthOut,
-                                                          uint32_t* countOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinRequest_GetDialogFiles(const mwinContext* context,
+                                                                  mwinRequestId request,
+                                                                  char* buffer, size_t capacity,
+                                                                  size_t* lengthOut,
+                                                                  uint32_t* countOut);
 
 #ifdef __cplusplus
 }

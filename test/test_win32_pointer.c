@@ -106,7 +106,7 @@ static void Dump(const Program* program)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
@@ -271,7 +271,7 @@ static void Advance(Program* program, mwinContext* context)
     if (program->phase == phaseCreate)
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
         // Nothing of the desktop's may cover the points touched.

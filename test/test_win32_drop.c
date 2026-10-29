@@ -193,7 +193,7 @@ static void Collect(Program* program, mwinContext* context)
 {
     program->count = 0;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
@@ -219,7 +219,8 @@ static bool Paths(mwinContext* context, uint32_t drop)
     char paths[64];
     size_t length = 0;
     static const char expected[] = "C:\\a.txt\0C:\\\xC3\xA9.png";
-    return mwinGetDroppedFiles(context, drop, paths, sizeof(paths), &length) == mwin_success &&
+    return mwinContext_GetDroppedFiles(context, drop, paths, sizeof(paths), &length) ==
+               mwin_success &&
            length == sizeof(expected) && memcmp(paths, expected, length) == 0;
 }
 
@@ -246,7 +247,7 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
     char text[16];
     size_t length = 0;
     CHECK(drop->fileCount == 2 && drop->truncated && Paths(context, drop->drop) &&
-              mwinGetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
+              mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
                   mwin_success &&
               length == 6 && memcmp(text, "hi\xEF\xBF\xBD!", 6) == 0,
           "the paths, one with a lone surrogate left out, and the text repaired");

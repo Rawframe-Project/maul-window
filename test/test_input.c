@@ -53,7 +53,8 @@ static void KeyStep(Program* program, mwinContext* context, int step)
                                Key(window, mwin_eventKeyUp, mwin_codeKeyA, 'a')};
         for (int i = 0; i < 3; i++)
         {
-            CHECK(mwinTestPost(context, &events[i]) == mwin_success, "a key and its text");
+            CHECK(mwinContext_PostTestEvent(context, &events[i]) == mwin_success,
+                  "a key and its text");
         }
         return;
     }
@@ -84,9 +85,11 @@ static void FullReportStep(Program* program, mwinContext* context, int step)
     memset(text, 'a', sizeof(text));
     mwinEvent full = {.type = mwin_eventTextInput, .window = program->windows[0]};
     full.data.text = (mwinTextEvent){text, 65537};
-    CHECK(mwinTestPost(context, &full) == mwin_errorCapacity, "a byte past the report text");
+    CHECK(mwinContext_PostTestEvent(context, &full) == mwin_errorCapacity,
+          "a byte past the report text");
     full.data.text.length = 65536;
-    CHECK(mwinTestPost(context, &full) == mwin_success, "the report text filled exactly");
+    CHECK(mwinContext_PostTestEvent(context, &full) == mwin_success,
+          "the report text filled exactly");
     program->done = true;
 }
 
@@ -100,7 +103,7 @@ static void TestFullReport(void)
 static mwinEvent Next(mwinContext* context)
 {
     mwinEvent event = {0};
-    CHECK(mwinNextEvent(context, &event) == mwin_success, "a record waits");
+    CHECK(mwinContext_NextEvent(context, &event) == mwin_success, "a record waits");
     return event;
 }
 
@@ -120,15 +123,15 @@ static void WrapStep(Program* program, mwinContext* context, int step)
         return;
     case 1:
         Drain(program, context);
-        CHECK(mwinTestPost(context, &a) == mwin_success &&
-                  mwinTestPost(context, &b) == mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &a) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &b) == mwin_success,
               "A and B");
         return;
     case 2:
     {
         mwinEvent first = Next(context);
         CHECK(TextIs(&first, "aaaaaa"), "A, while B waits");
-        CHECK(mwinTestPost(context, &c) == mwin_success, "C");
+        CHECK(mwinContext_PostTestEvent(context, &c) == mwin_success, "C");
         return;
     }
     case 3:
@@ -139,7 +142,7 @@ static void WrapStep(Program* program, mwinContext* context, int step)
               "B, then C whole after the wrap");
         for (int i = 0; i < 3; i++)
         {
-            CHECK(mwinTestPost(context, &a) == mwin_success, "three more");
+            CHECK(mwinContext_PostTestEvent(context, &a) == mwin_success, "three more");
         }
         return;
     }
@@ -174,7 +177,7 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
         for (int i = 0; i < 5; i++)
         {
             mwinEvent key = Key(window, mwin_eventKeyDown, (mwinKeyCode)(mwin_codeKeyA + i), 0);
-            CHECK(mwinTestPost(context, &key) == mwin_success, "five keys");
+            CHECK(mwinContext_PostTestEvent(context, &key) == mwin_success, "five keys");
         }
         for (int i = 1; i <= 6; i++)
         {
@@ -184,9 +187,9 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
             delta.data.delta = (mwinDeltaEvent){1.0f, 2.0f};
             mwinEvent wheel = {.type = mwin_eventWheel, .window = window};
             wheel.data.wheel = (mwinWheelEvent){0.0f, 0.5f};
-            CHECK(mwinTestPost(context, &move) == mwin_success &&
-                      mwinTestPost(context, &delta) == mwin_success &&
-                      mwinTestPost(context, &wheel) == mwin_success,
+            CHECK(mwinContext_PostTestEvent(context, &move) == mwin_success &&
+                      mwinContext_PostTestEvent(context, &delta) == mwin_success &&
+                      mwinContext_PostTestEvent(context, &wheel) == mwin_success,
                   "six of each continuous kind");
         }
         return;
@@ -240,10 +243,11 @@ static void PenStep(Program* program, mwinContext* context, int step)
         for (int i = 0; i < 4; i++)
         {
             mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
-            CHECK(mwinTestPost(context, &key) == mwin_success, "four keys fill the storage");
+            CHECK(mwinContext_PostTestEvent(context, &key) == mwin_success,
+                  "four keys fill the storage");
         }
         mwinEvent up = {.type = mwin_eventPenButtonUp, .window = window};
-        CHECK(mwinTestPost(context, &up) == mwin_success, "then a pen's button");
+        CHECK(mwinContext_PostTestEvent(context, &up) == mwin_success, "then a pen's button");
         return;
     }
     static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventKeyDown,
@@ -281,10 +285,10 @@ static void ReplaceStep(Program* program, mwinContext* context, int step)
         moved.data.position = (mwinPosition){5.0f, 5.0f};
         mwinEvent second = first;
         second.data.size = (mwinSize){20.0f, 20.0f};
-        CHECK(mwinTestPost(context, &first) == mwin_success &&
-                  mwinTestPost(context, &key) == mwin_success &&
-                  mwinTestPost(context, &moved) == mwin_success &&
-                  mwinTestPost(context, &second) == mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &first) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &key) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &moved) == mwin_success &&
+                  mwinContext_PostTestEvent(context, &second) == mwin_success,
               "a size, a key, a move and a new size");
         return;
     }
@@ -326,7 +330,7 @@ static void SampleStep(Program* program, mwinContext* context, int step)
         {
             mwinEvent move = {.type = mwin_eventCursorMoved, .window = window};
             move.data.pointer.position = (mwinPosition){(float)i, (float)step};
-            (void)mwinTestPost(context, &move);
+            (void)mwinContext_PostTestEvent(context, &move);
         }
         return;
     }
@@ -373,7 +377,7 @@ static void SegmentStep(Program* program, mwinContext* context, int step)
         mwinEvent preedit = {.type = mwin_eventImePreedit, .window = window};
         preedit.data.preedit = (mwinPreeditEvent){text,     MWIN_MAX_PREEDIT_SEGMENTS, -1, 0, 0,
                                                   segments, MWIN_MAX_PREEDIT_SEGMENTS};
-        CHECK(mwinTestPost(context, &preedit) == mwin_success,
+        CHECK(mwinContext_PostTestEvent(context, &preedit) == mwin_success,
               "a composition of the most segments");
         return;
     }
@@ -412,7 +416,7 @@ static void TouchStep(Program* program, mwinContext* context, int step)
         {
             mwinEvent move = {.type = mwin_eventTouchMoved, .window = window};
             move.data.touch.id = i < 2 ? 7 : 9;
-            CHECK(mwinTestPost(context, &move) == mwin_success, "touch moves");
+            CHECK(mwinContext_PostTestEvent(context, &move) == mwin_success, "touch moves");
         }
         return;
     }
@@ -435,22 +439,26 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     (void)step;
     mwinWindowId window = Create(context, nullptr);
     mwinEvent bad = Text(window, "\xE0\x80\x80");
-    CHECK(mwinTestPost(context, &bad) == mwin_errorInvalid, "text that is not UTF-8");
+    CHECK(mwinContext_PostTestEvent(context, &bad) == mwin_errorInvalid, "text that is not UTF-8");
     mwinEvent reset = {.type = mwin_eventInputStateReset, .window = window};
-    CHECK(mwinTestPost(context, &reset) == mwin_errorInvalid, "resets are the core's");
+    CHECK(mwinContext_PostTestEvent(context, &reset) == mwin_errorInvalid, "resets are the core's");
     CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
     mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
-    CHECK(mwinTestPost(context, &key) == mwin_errorStale, "no input for a stale window");
-    CHECK(mwinMapKeyCode(context, mwin_codeKeyQ) == 'q' &&
-              mwinMapKeyCode(context, mwin_codeDigit0) == '0' &&
-              mwinMapKeyCode(context, mwin_codeSlash) == '/' &&
-              mwinMapKeyCode(context, mwin_codeBackslash) == '\\' &&
-              mwinMapKeyCode(context, mwin_codeEnter) == (MWIN_KEY_NAMED | mwin_codeEnter) &&
-              mwinMapKeyCode(context, 999) == 0 && mwinMapKeyCode(nullptr, mwin_codeKeyA) == 0,
+    CHECK(mwinContext_PostTestEvent(context, &key) == mwin_errorStale,
+          "no input for a stale window");
+    CHECK(mwinContext_MapKeyCode(context, mwin_codeKeyQ) == 'q' &&
+              mwinContext_MapKeyCode(context, mwin_codeDigit0) == '0' &&
+              mwinContext_MapKeyCode(context, mwin_codeSlash) == '/' &&
+              mwinContext_MapKeyCode(context, mwin_codeBackslash) == '\\' &&
+              mwinContext_MapKeyCode(context, mwin_codeEnter) ==
+                  (MWIN_KEY_NAMED | mwin_codeEnter) &&
+              mwinContext_MapKeyCode(context, 999) == 0 &&
+              mwinContext_MapKeyCode(nullptr, mwin_codeKeyA) == 0,
           "the layout maps codes to keys");
     char name[8];
     size_t length = 0;
-    CHECK(mwinGetKeyboardLayout(context, name, sizeof(name), &length) == mwin_errorCapacity &&
+    CHECK(mwinContext_GetKeyboardLayout(context, name, sizeof(name), &length) ==
+                  mwin_errorCapacity &&
               length == 12 && memcmp(name, "English ", 8) == 0,
           "the layout's name, cut to the buffer");
     program->done = true;
@@ -473,13 +481,13 @@ static void CursorStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinRequestCursorMode(context, window, mwin_cursorCaptured, &program->requests[0]) ==
-                      mwin_success &&
-                  mwinRequestCursorShape(context, window, mwin_shapeText, &program->requests[1]) ==
-                      mwin_success,
+        CHECK(mwinWindow_RequestCursorMode(context, window, mwin_cursorCaptured,
+                                           &program->requests[0]) == mwin_success &&
+                  mwinWindow_RequestCursorShape(context, window, mwin_shapeText,
+                                                &program->requests[1]) == mwin_success,
               "cursor requests");
-        CHECK(mwinRequestCursorMode(context, window, 5, nullptr) == mwin_errorInvalid &&
-                  mwinRequestCursorShape(context, window, 12, nullptr) == mwin_errorInvalid,
+        CHECK(mwinWindow_RequestCursorMode(context, window, 5, nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestCursorShape(context, window, 12, nullptr) == mwin_errorInvalid,
               "unknown modes and shapes");
         return;
     }
@@ -488,9 +496,10 @@ static void CursorStep(Program* program, mwinContext* context, int step)
               program->events[1].data.completion.kind == mwin_requestCursorShape &&
               program->events[1].data.completion.outcome == mwin_outcomeDone,
           "each answered");
-    CHECK(mwinRequestCursorMode(context, window, mwin_cursorConfinedHidden, nullptr) ==
+    CHECK(mwinWindow_RequestCursorMode(context, window, mwin_cursorConfinedHidden, nullptr) ==
                   mwin_success &&
-              mwinRequestCursorShape(context, window, mwin_shapeProgress, nullptr) == mwin_success,
+              mwinWindow_RequestCursorShape(context, window, mwin_shapeProgress, nullptr) ==
+                  mwin_success,
           "the last mode and the last shape");
     program->done = true;
 }
@@ -504,7 +513,7 @@ static void TestCursor(void)
 static mwinKeyReach Reach(const mwinContext* context, mwinKeyCode code, mwinModifiers modifiers)
 {
     mwinKeyReach reach = 0xFF;
-    return mwinGetKeyReach(context, code, modifiers, &reach) == mwin_success ? reach : 0xFF;
+    return mwinContext_GetKeyReach(context, code, modifiers, &reach) == mwin_success ? reach : 0xFF;
 }
 
 static void KeyReachStep(Program* program, mwinContext* context, int step)
@@ -513,47 +522,48 @@ static void KeyReachStep(Program* program, mwinContext* context, int step)
     mwinKeyReach reach = 0;
     CHECK(Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachDelivered,
           "every chord delivered until a test sets one");
-    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachNever) ==
-                  mwin_success &&
+    CHECK(mwinContext_SetTestKeyReach(context, mwin_codeKeyW, mwin_modControl,
+                                      mwin_keyReachNever) == mwin_success &&
               Reach(context, mwin_codeKeyW, mwin_modControl | mwin_modCapsLock) ==
                   mwin_keyReachNever &&
               Reach(context, mwin_codeKeyW, mwin_modControl | mwin_modShift) ==
                   mwin_keyReachDelivered &&
               Reach(context, mwin_codeKeyQ, mwin_modControl) == mwin_keyReachDelivered,
           "a set chord, the locks ignored, its neighbours untouched");
-    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachShared) ==
-                  mwin_success &&
+    CHECK(mwinContext_SetTestKeyReach(context, mwin_codeKeyW, mwin_modControl,
+                                      mwin_keyReachShared) == mwin_success &&
               Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachShared,
           "set again, the chord's latest answer");
-    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyW, mwin_modControl, mwin_keyReachDelivered) ==
-                  mwin_success &&
+    CHECK(mwinContext_SetTestKeyReach(context, mwin_codeKeyW, mwin_modControl,
+                                      mwin_keyReachDelivered) == mwin_success &&
               Reach(context, mwin_codeKeyW, mwin_modControl) == mwin_keyReachDelivered,
           "delivered forgets it");
     bool filled = true;
     for (mwinKeyCode code = mwin_codeKeyA; code < mwin_codeKeyA + 32; code++)
     {
-        filled = filled && mwinTestSetKeyReach(context, code, mwin_modAlt,
-                                               mwin_keyReachUncertain) == mwin_success;
+        filled = filled && mwinContext_SetTestKeyReach(context, code, mwin_modAlt,
+                                                       mwin_keyReachUncertain) == mwin_success;
     }
     CHECK(filled &&
-              mwinTestSetKeyReach(context, mwin_codeF1, mwin_modAlt, mwin_keyReachNever) ==
+              mwinContext_SetTestKeyReach(context, mwin_codeF1, mwin_modAlt, mwin_keyReachNever) ==
                   mwin_errorCapacity &&
-              mwinTestSetKeyReach(context, mwin_codeKeyA, mwin_modAlt, mwin_keyReachNever) ==
-                  mwin_success &&
+              mwinContext_SetTestKeyReach(context, mwin_codeKeyA, mwin_modAlt,
+                                          mwin_keyReachNever) == mwin_success &&
               Reach(context, mwin_codeKeyA, mwin_modAlt) == mwin_keyReachNever,
           "32 chords, a set one changed when full");
-    CHECK(mwinGetKeyReach(context, mwin_codeMetaRight, 0, &reach) == mwin_success,
+    CHECK(mwinContext_GetKeyReach(context, mwin_codeMetaRight, 0, &reach) == mwin_success,
           "an answer for the last key");
-    CHECK(mwinGetKeyReach(context, mwin_codeUnknown, 0, &reach) == mwin_errorInvalid &&
-              mwinGetKeyReach(context, mwin_codeMetaRight + 1, 0, &reach) == mwin_errorInvalid &&
-              mwinGetKeyReach(context, mwin_codeKeyA, 0, nullptr) == mwin_errorInvalid &&
-              mwinGetKeyReach(nullptr, mwin_codeKeyA, 0, &reach) == mwin_errorInvalid,
+    CHECK(mwinContext_GetKeyReach(context, mwin_codeUnknown, 0, &reach) == mwin_errorInvalid &&
+              mwinContext_GetKeyReach(context, mwin_codeMetaRight + 1, 0, &reach) ==
+                  mwin_errorInvalid &&
+              mwinContext_GetKeyReach(context, mwin_codeKeyA, 0, nullptr) == mwin_errorInvalid &&
+              mwinContext_GetKeyReach(nullptr, mwin_codeKeyA, 0, &reach) == mwin_errorInvalid,
           "no answer for a code that is not a key or a NULL argument");
-    CHECK(mwinTestSetKeyReach(context, mwin_codeKeyA, 0, mwin_keyReachNever + 1) ==
+    CHECK(mwinContext_SetTestKeyReach(context, mwin_codeKeyA, 0, mwin_keyReachNever + 1) ==
                   mwin_errorInvalid &&
-              mwinTestSetKeyReach(context, mwin_codeUnknown, 0, mwin_keyReachNever) ==
+              mwinContext_SetTestKeyReach(context, mwin_codeUnknown, 0, mwin_keyReachNever) ==
                   mwin_errorInvalid &&
-              mwinTestSetKeyReach(nullptr, mwin_codeKeyA, 0, mwin_keyReachNever) ==
+              mwinContext_SetTestKeyReach(nullptr, mwin_codeKeyA, 0, mwin_keyReachNever) ==
                   mwin_errorInvalid,
           "no setting out of range");
     program->done = true;

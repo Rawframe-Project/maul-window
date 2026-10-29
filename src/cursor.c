@@ -135,8 +135,8 @@ void mwinReleaseCursors(mwinContext* context)
     }
 }
 
-mwinResult mwinRequestCursorImage(mwinContext* context, mwinWindowId window, mwinCursorId cursor,
-                                  mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestCursorImage(mwinContext* context, mwinWindowId window,
+                                         mwinCursorId cursor, mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {

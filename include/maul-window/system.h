@@ -54,8 +54,8 @@ extern "C"
     /// @return `mwin_success`; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetSystemFacts(const mwinContext* context,
-                                                          mwinSystemFacts* factsOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetSystemFacts(const mwinContext* context,
+                                                                  mwinSystemFacts* factsOut);
 
     /// Reads the user's preferred locales, most preferred first, as BCP 47
     /// tags separated by commas ("de-DE,en-GB"); empty where the platform
@@ -71,9 +71,10 @@ extern "C"
     ///         for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetPreferredLocales(const mwinContext* context,
-                                                               char* buffer, size_t capacity,
-                                                               size_t* lengthOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetPreferredLocales(const mwinContext* context,
+                                                                       char* buffer,
+                                                                       size_t capacity,
+                                                                       size_t* lengthOut);
 
 #ifdef __cplusplus
 }

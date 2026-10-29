@@ -74,7 +74,8 @@ static inline void Drain(Program* program, mwinContext* context)
 {
     program->eventCount = 0;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->eventCount < MAX_EVENTS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success &&
+           program->eventCount < MAX_EVENTS)
     {
         program->events[program->eventCount++] = event;
     }

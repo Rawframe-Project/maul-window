@@ -58,7 +58,7 @@ static int Outcome(mwinContext* context, Program* program)
 {
     mwinEvent event;
     int outcome = -1;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->seen |= 1ull << event.type;
         if (event.type == mwin_eventCursorMoved || event.type == mwin_eventButtonDown ||
@@ -80,7 +80,7 @@ static int Outcome(mwinContext* context, Program* program)
 static HWND Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -206,18 +206,18 @@ static void Next(mwinContext* context, Program* program)
     case 0:
         CHECK(Whole(hwnd) && (style & (WS_CAPTION | WS_THICKFRAME)) == (WS_CAPTION | WS_THICKFRAME),
               "the client area the whole window, which keeps a caption's styles");
-        CHECK(mwinGetSystemFacts(context, &facts) == mwin_success &&
+        CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success &&
                   facts.snapLayouts == SnapLayouts(),
               "snap layouts named on Windows 11 alone");
-        Ask(program,
-            mwinRequestHitRegions(context, program->window, s_regions, 5, &program->request));
+        Ask(program, mwinWindow_RequestHitRegions(context, program->window, s_regions, 5,
+                                                  &program->request));
         break;
     case 1:
         CheckHits(hwnd);
         CheckButton(context, program, hwnd);
         CheckLeaves(context, program, hwnd);
-        Ask(program,
-            mwinRequestMode(context, program->window, mwin_modeMaximized, &program->request));
+        Ask(program, mwinWindow_RequestMode(context, program->window, mwin_modeMaximized,
+                                            &program->request));
         break;
     case 2:
     {
@@ -232,20 +232,20 @@ static void Next(mwinContext* context, Program* program)
                   origin.y + client.bottom <= monitor.rcWork.bottom,
               "maximized, the client area on the monitor");
         Ask(program,
-            mwinRequestMode(context, program->window, mwin_modeWindowed, &program->request));
+            mwinWindow_RequestMode(context, program->window, mwin_modeWindowed, &program->request));
         break;
     }
     case 3:
-        Ask(program,
-            mwinRequestStyle(context, program->window, mwin_styleCustomChrome, &program->request));
+        Ask(program, mwinWindow_RequestStyle(context, program->window, mwin_styleCustomChrome,
+                                             &program->request));
         break;
     case 4:
         CHECK(Whole(hwnd) && Hit(hwnd, 2.0f, 100.0f) == HTBORDER &&
                   Hit(hwnd, 396.0f, 296.0f) == HTBORDER && Hit(hwnd, 350.0f, 10.0f) == HTCLIENT,
               "without resizing, edges borders and the maximize button the client's");
         Ask(program,
-            mwinRequestStyle(context, program->window, mwin_styleDecorated | mwin_styleResizable,
-                             &program->request));
+            mwinWindow_RequestStyle(context, program->window,
+                                    mwin_styleDecorated | mwin_styleResizable, &program->request));
         break;
     default:
     {

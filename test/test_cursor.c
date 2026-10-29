@@ -44,7 +44,7 @@ static bool Refused(mwinContext* context, mwinCursorDef def)
 
 static void CheckRefusals(mwinContext* context)
 {
-    uint64_t misuse = mwinGetContextMisuse(context);
+    uint64_t misuse = mwinContext_GetMisuse(context);
     mwinCursorDef def = Def(s_images, 2);
     mwinCursorId cursor;
     mwinIconImage five[5] = {s_images[0], s_images[0], s_images[0], s_images[0], s_images[0]};
@@ -65,7 +65,7 @@ static void CheckRefusals(mwinContext* context)
     CHECK(mwinCreateCursor(context, &many, &cursor) == mwin_errorLimit &&
               mwinCreateCursor(context, &large, &cursor) == mwin_errorLimit,
           "more images than MWIN_MAX_CURSOR_IMAGES, or a side past MWIN_MAX_CURSOR_SIZE");
-    CHECK(mwinGetContextMisuse(context) == misuse + 8, "each counted, past the bounds too");
+    CHECK(mwinContext_GetMisuse(context) == misuse + 8, "each counted, past the bounds too");
     // The most images, each wider than the one before.
     static uint8_t pixels[48 * 48 * 4];
     const mwinIconImage four[MWIN_MAX_CURSOR_IMAGES] = {
@@ -107,7 +107,7 @@ static bool Shows(mwinContext* context, mwinWindowId window, mwinCursorId cursor
 {
     mwinCursorId shown = {1, 1};
     uint32_t taken = 99;
-    return mwinTestGetCursor(context, window, &shown, &taken) == mwin_success &&
+    return mwinWindow_GetTestCursor(context, window, &shown, &taken) == mwin_success &&
            shown.index1 == cursor.index1 && shown.generation == cursor.generation &&
            (cursor.index1 == 0 || taken == image);
 }
@@ -128,7 +128,7 @@ static void Step(Program* program, mwinContext* context, int step)
         mwinCursorDef def = Def(s_images, 2);
         CHECK(mwinCreateCursor(context, &def, &s_cursor) == mwin_success && s_cursor.index1 != 0,
               "a cursor of two images");
-        CHECK(mwinRequestCursorImage(context, window, s_cursor, &program->requests[1]) ==
+        CHECK(mwinWindow_RequestCursorImage(context, window, s_cursor, &program->requests[1]) ==
                   mwin_success,
               "shown");
         break;
@@ -136,18 +136,19 @@ static void Step(Program* program, mwinContext* context, int step)
     case 2:
         CHECK(Outcome(program, 1) == mwin_outcomeDone && Shows(context, window, s_cursor, 0),
               "the first image at scale 1");
-        CHECK(mwinTestSetScale(context, 2.0f) == mwin_success &&
-                  mwinRequestCursorImage(context, window, s_cursor, nullptr) == mwin_success,
+        CHECK(mwinContext_SetTestScale(context, 2.0f) == mwin_success &&
+                  mwinWindow_RequestCursorImage(context, window, s_cursor, nullptr) == mwin_success,
               "shown at scale 2");
         break;
     case 3:
         CHECK(Shows(context, window, s_cursor, 1), "the second image at scale 2");
-        CHECK(mwinRequestCursorShape(context, window, mwin_shapeText, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestCursorShape(context, window, mwin_shapeText, nullptr) ==
+                  mwin_success,
               "a shape");
         break;
     case 4:
         CHECK(Shows(context, window, none, 0), "the shape in its place");
-        CHECK(mwinRequestCursorImage(context, window, s_cursor, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestCursorImage(context, window, s_cursor, nullptr) == mwin_success,
               "the cursor again");
         break;
     case 5:
@@ -157,9 +158,11 @@ static void Step(Program* program, mwinContext* context, int step)
                   Shows(context, window, none, 0),
               "destroyed, its window shows the default shape");
         CHECK(mwinDestroyCursor(context, s_cursor) == mwin_errorStale &&
-                  mwinRequestCursorImage(context, window, s_cursor, nullptr) == mwin_errorStale &&
+                  mwinWindow_RequestCursorImage(context, window, s_cursor, nullptr) ==
+                      mwin_errorStale &&
                   mwinDestroyCursor(nullptr, s_cursor) == mwin_errorInvalid &&
-                  mwinRequestCursorImage(nullptr, window, s_cursor, nullptr) == mwin_errorInvalid,
+                  mwinWindow_RequestCursorImage(nullptr, window, s_cursor, nullptr) ==
+                      mwin_errorInvalid,
               "its id stale");
         // The default limit, 16; these stay live until the end.
         mwinCursorDef def = Def(s_images, 1);
@@ -175,7 +178,7 @@ static void Step(Program* program, mwinContext* context, int step)
               "16 cursors, then the limit");
         CHECK(first.index1 == s_cursor.index1 && first.generation == s_cursor.generation + 1,
               "a slot reused with the next generation");
-        CHECK(mwinRequestCursorImage(context, window, first, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestCursorImage(context, window, first, nullptr) == mwin_success,
               "shown at the end");
         program->done = true;
         break;

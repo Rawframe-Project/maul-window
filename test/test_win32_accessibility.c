@@ -139,7 +139,7 @@ static int Outcome(mwinContext* context, Program* program)
 {
     mwinEvent event;
     int outcome = -1;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->asked += event.type == mwin_eventAccessibilityRequested;
         const mwinCompletion* completion = &event.data.completion;
@@ -156,7 +156,7 @@ static int Outcome(mwinContext* context, Program* program)
 static HWND Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (HWND)handles.handles.win32.hwnd
                : nullptr;
 }
@@ -211,8 +211,9 @@ static void Next(mwinContext* context, Program* program, int outcome)
         CHECK(program->asked == 1 && none == 0,
               "a UI Automation client asking tells once, and gets no root before one");
         program->provider.hwnd = hwnd;
-        CHECK(mwinRequestAccessibilityRoot(context, program->window, &program->provider.iface,
-                                           &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window,
+                                                  &program->provider.iface,
+                                                  &program->request) == mwin_success,
               "a root");
     }
     else if (program->step == 1)

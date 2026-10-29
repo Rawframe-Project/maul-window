@@ -57,7 +57,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->seen |= 1ull << event.type;
         program->size = event.type == mwin_eventResized ? event.data.size : program->size;
@@ -107,15 +107,15 @@ static void CheckCreated(const Program* program, mwinContext* context)
     }
     CHECK(program->completion.outcome == mwin_outcomeDone, "the window is made");
     mwinNativeHandles handles;
-    CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
               handles.platform == mwin_platformX11 && handles.handles.x11.connection != nullptr &&
               handles.handles.x11.window != 0,
           "the connection and the window");
     mwinMonitorId monitors[4];
     size_t count = 0;
     mwinMonitorInfo info;
-    CHECK(mwinGetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
-              mwinGetMonitorInfo(context, monitors[0], &info) == mwin_success &&
+    CHECK(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success && count >= 1 &&
+              mwinMonitor_GetInfo(context, monitors[0], &info) == mwin_success &&
               info.bounds.width > 0 && info.primary,
           "the monitors, the primary first");
 }
@@ -128,24 +128,24 @@ static void Advance(Program* program, mwinContext* context)
     {
     case phaseCreate:
         CheckCreated(program, context);
-        CHECK(mwinRequestTitle(context, window, "Retitled", 8, nullptr) == mwin_success &&
-                  mwinRequestSize(context, window, (mwinSize){800.0f, 600.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestTitle(context, window, "Retitled", 8, nullptr) == mwin_success &&
+                  mwinWindow_RequestSize(context, window, (mwinSize){800.0f, 600.0f}, nullptr) ==
                       mwin_success,
               "a title and a size");
         break;
     case phaseResize:
-        CHECK(mwinRequestPosition(context, window, (mwinPosition){40.0f, 30.0f}, nullptr) ==
+        CHECK(mwinWindow_RequestPosition(context, window, (mwinPosition){40.0f, 30.0f}, nullptr) ==
                   mwin_success,
               "a place");
         break;
     case phaseMove:
-        CHECK(mwinRequestVisible(context, window, false, nullptr) == mwin_success, "hide");
+        CHECK(mwinWindow_RequestVisible(context, window, false, nullptr) == mwin_success, "hide");
         break;
     case phaseHide:
-        CHECK(mwinRequestVisible(context, window, true, nullptr) == mwin_success, "show");
+        CHECK(mwinWindow_RequestVisible(context, window, true, nullptr) == mwin_success, "show");
         break;
     case phaseShow:
-        CHECK(mwinRequestMode(context, window, mwin_modeMaximized, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestMode(context, window, mwin_modeMaximized, nullptr) == mwin_success,
               "maximize");
         break;
     case phaseMode:

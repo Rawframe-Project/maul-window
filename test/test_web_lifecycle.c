@@ -100,7 +100,7 @@ EM_JS(void, ExitOnceEnded, (const char* selector, int status), {
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         if (event.type == mwin_eventSuspending || event.type == mwin_eventResuming)
         {
@@ -156,7 +156,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success &&
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success &&
                   handles.handles.web.selectorLength < sizeof(program->selector),
               "the canvas");
         memcpy(program->selector, handles.handles.web.selector, handles.handles.web.selectorLength);
@@ -189,7 +189,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseDetach:
     {
         mwinWindowState state;
-        CHECK(mwinGetWindowState(context, program->window, &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                   state.surfaceLost,
               "out of the document: the surface is lost");
         Detach(program->selector, false);

@@ -168,7 +168,7 @@ mwinOutcome mwinTestUseClipboard(mwinContext* context, const mwinRequest* reques
     return done ? mwin_outcomeDone : mwin_outcomeFailed;
 }
 
-mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t length)
+mwinResult mwinContext_SetTestClipboard(mwinContext* context, const char* bytes, size_t length)
 {
     if (mwinIsBusy(context))
     {
@@ -185,7 +185,8 @@ mwinResult mwinTestSetClipboard(mwinContext* context, const char* bytes, size_t 
     return SetClipboard(context, bytes, length, false) ? mwin_success : mwin_errorCapacity;
 }
 
-mwinResult mwinTestSetClipboardUtf16(mwinContext* context, const uint16_t* units, size_t length)
+mwinResult mwinContext_SetTestClipboardUtf16(mwinContext* context, const uint16_t* units,
+                                             size_t length)
 {
     if (mwinIsBusy(context))
     {
@@ -202,8 +203,8 @@ mwinResult mwinTestSetClipboardUtf16(mwinContext* context, const uint16_t* units
     return SetClipboard(context, units, length * 2, true) ? mwin_success : mwin_errorCapacity;
 }
 
-mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t capacity,
-                                size_t* lengthOut)
+mwinResult mwinContext_GetTestClipboard(const mwinContext* context, char* buffer, size_t capacity,
+                                        size_t* lengthOut)
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
     {
@@ -223,8 +224,8 @@ mwinResult mwinTestGetClipboard(const mwinContext* context, char* buffer, size_t
     return length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
-mwinResult mwinTestSetClipboardData(mwinContext* context, const char* mime, size_t mimeLength,
-                                    const void* bytes, size_t length)
+mwinResult mwinContext_SetTestClipboardData(mwinContext* context, const char* mime,
+                                            size_t mimeLength, const void* bytes, size_t length)
 {
     if (mwinIsBusy(context))
     {
@@ -263,8 +264,9 @@ mwinResult mwinTestSetClipboardData(mwinContext* context, const char* mime, size
     return done ? mwin_success : mwin_errorCapacity;
 }
 
-mwinResult mwinTestGetClipboardData(const mwinContext* context, const char* mime, size_t mimeLength,
-                                    void* buffer, size_t capacity, size_t* lengthOut)
+mwinResult mwinContext_GetTestClipboardData(const mwinContext* context, const char* mime,
+                                            size_t mimeLength, void* buffer, size_t capacity,
+                                            size_t* lengthOut)
 {
     if (context == nullptr || mime == nullptr || lengthOut == nullptr ||
         (buffer == nullptr && capacity > 0))
@@ -290,7 +292,7 @@ mwinResult mwinTestGetClipboardData(const mwinContext* context, const char* mime
     return item->length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
-mwinResult mwinTestSetPrimary(mwinContext* context, const char* bytes, size_t length)
+mwinResult mwinContext_SetTestPrimary(mwinContext* context, const char* bytes, size_t length)
 {
     if (mwinIsBusy(context))
     {
@@ -307,8 +309,8 @@ mwinResult mwinTestSetPrimary(mwinContext* context, const char* bytes, size_t le
     return SetPrimary(context, bytes, length) ? mwin_success : mwin_errorCapacity;
 }
 
-mwinResult mwinTestGetPrimary(const mwinContext* context, char* buffer, size_t capacity,
-                              size_t* lengthOut)
+mwinResult mwinContext_GetTestPrimary(const mwinContext* context, char* buffer, size_t capacity,
+                                      size_t* lengthOut)
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
     {
@@ -328,8 +330,9 @@ mwinResult mwinTestGetPrimary(const mwinContext* context, char* buffer, size_t c
     return length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
-mwinResult mwinTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
-                        const char* files, size_t filesLength, const char* text, size_t textLength)
+mwinResult mwinWindow_PostTestDrop(mwinContext* context, mwinWindowId window, mwinPosition position,
+                                   const char* files, size_t filesLength, const char* text,
+                                   size_t textLength)
 {
     if (mwinIsBusy(context))
     {
@@ -385,8 +388,8 @@ void mwinTestOpen(mwinContext* context, const mwinRequest* request)
     platform->openedLength[which] = request->value.text.length;
 }
 
-mwinResult mwinTestGetOpened(const mwinContext* context, mwinRequestKind kind, char* buffer,
-                             size_t capacity, size_t* lengthOut)
+mwinResult mwinContext_GetTestOpened(const mwinContext* context, mwinRequestKind kind, char* buffer,
+                                     size_t capacity, size_t* lengthOut)
 {
     bool known = kind == mwin_requestOpenUrl || kind == mwin_requestRevealFile;
     if (context == nullptr || lengthOut == nullptr || !known || (buffer == nullptr && capacity > 0))
@@ -408,7 +411,7 @@ mwinResult mwinTestGetOpened(const mwinContext* context, mwinRequestKind kind, c
     return length > capacity ? mwin_errorCapacity : mwin_success;
 }
 
-mwinResult mwinTestSetDialogFiles(mwinContext* context, const char* files, size_t length)
+mwinResult mwinContext_SetTestDialogFiles(mwinContext* context, const char* files, size_t length)
 {
     if (mwinIsBusy(context))
     {
@@ -467,8 +470,8 @@ mwinOutcome mwinTestAnswerDialog(mwinContext* context, uint32_t slot, uint32_t r
     return mwinSettleDialog(context, slot, request, outcome);
 }
 
-mwinResult mwinTestGetDialog(const mwinContext* context, char* buffer, size_t capacity,
-                             size_t* lengthOut)
+mwinResult mwinContext_GetTestDialog(const mwinContext* context, char* buffer, size_t capacity,
+                                     size_t* lengthOut)
 {
     if (context == nullptr || lengthOut == nullptr || (buffer == nullptr && capacity > 0))
     {
@@ -518,7 +521,8 @@ void mwinTestSetIcon(mwinContext* context, const mwinRequest* request)
     platform->iconChecksum = hash;
 }
 
-mwinResult mwinTestGetIcon(const mwinContext* context, uint32_t* countOut, uint64_t* checksumOut)
+mwinResult mwinContext_GetTestIcon(const mwinContext* context, uint32_t* countOut,
+                                   uint64_t* checksumOut)
 {
     if (context == nullptr || countOut == nullptr || checksumOut == nullptr)
     {
@@ -534,7 +538,7 @@ mwinResult mwinTestGetIcon(const mwinContext* context, uint32_t* countOut, uint6
     return mwin_success;
 }
 
-mwinResult mwinTestAskAccessibility(mwinContext* context, mwinWindowId window)
+mwinResult mwinWindow_AskTestAccessibility(mwinContext* context, mwinWindowId window)
 {
     if (mwinIsBusy(context))
     {
@@ -574,8 +578,8 @@ mwinKeyReach mwinTestKeyReachOf(const mwinContext* context, mwinKeyCode code,
     return mwin_keyReachDelivered;
 }
 
-mwinResult mwinTestSetKeyReach(mwinContext* context, mwinKeyCode code, mwinModifiers modifiers,
-                               mwinKeyReach reach)
+mwinResult mwinContext_SetTestKeyReach(mwinContext* context, mwinKeyCode code,
+                                       mwinModifiers modifiers, mwinKeyReach reach)
 {
     if (mwinIsBusy(context))
     {

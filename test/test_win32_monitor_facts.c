@@ -87,7 +87,7 @@ static bool Drained(mwinContext* context, int added, int changed, int removed)
 {
     int counts[3] = {0, 0, 0};
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         counts[0] += event.type == mwin_eventMonitorAdded;
         counts[1] += event.type == mwin_eventMonitorChanged;
@@ -100,7 +100,7 @@ static size_t Monitors(mwinContext* context)
 {
     mwinMonitorId monitors[4];
     size_t count = 0;
-    return mwinGetMonitors(context, monitors, 4, &count) == mwin_success ? count : 99;
+    return mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success ? count : 99;
 }
 
 // A refresh that sees the real monitor as it is and the test's own.
@@ -111,8 +111,8 @@ static void SeeAll(mwinContext* context, HMONITOR first, const mwinMonitorInfo* 
     mwinMonitorId real;
     size_t count = 0;
     mwinMonitorInfo realInfo;
-    (void)mwinGetMonitors(context, &real, 1, &count);
-    (void)mwinGetMonitorInfo(context, real, &realInfo);
+    (void)mwinContext_GetMonitors(context, &real, 1, &count);
+    (void)mwinMonitor_GetInfo(context, real, &realInfo);
     mwinWin32BeginMonitors(platform);
     mwinWin32SeeMonitor(platform, MonitorFromPoint((POINT){0, 0}, MONITOR_DEFAULTTOPRIMARY),
                         &realInfo);

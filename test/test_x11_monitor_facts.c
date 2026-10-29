@@ -103,8 +103,8 @@ static bool First(mwinContext* context, mwinMonitorInfo* infoOut)
 {
     mwinMonitorId ids[8];
     size_t count = 0;
-    return mwinGetMonitors(context, ids, 8, &count) == mwin_success && count > 0 &&
-           mwinGetMonitorInfo(context, ids[0], infoOut) == mwin_success;
+    return mwinContext_GetMonitors(context, ids, 8, &count) == mwin_success && count > 0 &&
+           mwinMonitor_GetInfo(context, ids[0], infoOut) == mwin_success;
 }
 
 static mwinResult Init(mwinContext* context, void* user)
@@ -119,7 +119,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->changed = program->changed || event.type == mwin_eventMonitorChanged;
     }

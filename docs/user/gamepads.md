@@ -5,9 +5,9 @@ Gamepads belong to the context, not to a window: their records arrive whichever 
 ## Connecting and reading
 
 - `mwin_eventGamepadAdded` and `mwin_eventGamepadRemoved` report hotplug; each connection gets its own id, stale once the pad is gone. `mwin_eventGamepadChanged` reports a change of its facts, such as its battery. On Android a pad's capabilities can grow a moment after it is added, as Android merges its devices, so read them again on a change.
-- `mwinGetGamepads` lists the connected pads and `mwinGetGamepadInfo` gives one's name, vendor and product, battery (percent, -1 where unknown or wired), whether it is mapped, and its capabilities.
+- `mwinContext_GetGamepads` lists the connected pads and `mwinGamepad_GetInfo` gives one's name, vendor and product, battery (percent, -1 where unknown or wired), whether it is mapped, and its capabilities.
 - `mwin_eventGamepadButtonDown`, `mwin_eventGamepadButtonUp` and `mwin_eventGamepadAxisMoved` arrive only when a control changes. Button records are never merged: when their storage is full the pad gets `mwin_eventInputStateReset`. Axis records merge into the newest waiting one of their axis.
-- `mwinGetGamepadState` reads every control as the platform last reported it, which may be ahead of the records not yet drained. A program that polls reads it each frame; a program that follows the records reads it after a reset.
+- `mwinGamepad_GetState` reads every control as the platform last reported it, which may be ahead of the records not yet drained. A program that polls reads it each frame; a program that follows the records reads it after a reset.
 
 Browsers show a page no gamepad until one of its buttons has been pressed there.
 
@@ -22,9 +22,9 @@ Any other pad is **raw**: up to 32 numbered buttons and 16 numbered axes, each h
 
 ## Rumble and motion
 
-- `mwinSetGamepadRumble` runs the grips' motors, the low-frequency (heavy) and high-frequency (light) one, for a duration; the latest call wins and a duration of 0 stops them. Pads with motors have `mwin_padRumble`; others answer `mwin_errorUnsupported`.
-- `mwinSetGamepadTriggerRumble` runs the triggers' own motors on pads with `mwin_padTriggerRumble` (Xbox pads through Windows.Gaming.Input, and browsers whose actuator has it), apart from the grips'.
-- On pads with `mwin_padMotion`, `mwinSetGamepadMotion` turns the sensors on (they start off, as they cost the pad's battery) and `mwinGetGamepadMotion` reads the latest acceleration in m/s² and rotation rate in rad/s, in SDL3's frame for a pad held in front of the player, with the angle turned about each axis since the last read. A program aiming with the gyroscope reads once a frame and loses no part of a quick turn. Motion comes from Linux's motion devices, GameController and Android 12 and later.
+- `mwinGamepad_SetRumble` runs the grips' motors, the low-frequency (heavy) and high-frequency (light) one, for a duration; the latest call wins and a duration of 0 stops them. Pads with motors have `mwin_padRumble`; others answer `mwin_errorUnsupported`.
+- `mwinGamepad_SetTriggerRumble` runs the triggers' own motors on pads with `mwin_padTriggerRumble` (Xbox pads through Windows.Gaming.Input, and browsers whose actuator has it), apart from the grips'.
+- On pads with `mwin_padMotion`, `mwinGamepad_EnableMotion` turns the sensors on (they start off, as they cost the pad's battery), `mwinGamepad_IsMotionEnabled` says whether they are on, and `mwinGamepad_GetMotion` reads the latest acceleration in m/s² and rotation rate in rad/s, in SDL3's frame for a pad held in front of the player, with the angle turned about each axis since the last read. A program aiming with the gyroscope reads once a frame and loses no part of a quick turn. Motion comes from Linux's motion devices, GameController and Android 12 and later.
 
 ## Per platform
 

@@ -64,7 +64,7 @@ static bool Same(mwinWindowId a, mwinWindowId b)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         if (event.type == mwin_eventRequestCompleted &&
             event.data.completion.outcome == mwin_outcomeDone)
@@ -88,7 +88,7 @@ static void Collect(mwinContext* context, Program* program)
 static xcb_window_t Handle(mwinContext* context, mwinWindowId window)
 {
     mwinNativeHandles handles;
-    return mwinGetNativeHandles(context, window, &handles) == mwin_success
+    return mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success
                ? (xcb_window_t)handles.handles.x11.window
                : 0;
 }
@@ -221,9 +221,10 @@ static void Next(mwinContext* context, Program* program)
         break;
     case 1:
         CheckMade(program);
-        CHECK(mwinRequestFocus(context, program->ids[3], nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestFocus(context, program->ids[3], nullptr) == mwin_success,
               "ask to focus the tooltip");
-        CHECK(mwinRequestPosition(context, owner, (mwinPosition){60, 40}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestPosition(context, owner, (mwinPosition){60, 40}, nullptr) ==
+                  mwin_success,
               "move the owner");
         break;
     case 2:
@@ -237,12 +238,12 @@ static void Next(mwinContext* context, Program* program)
         // The X server's events come in order: the menu's move with its
         // owner was read before the keyboard left it.
         CHECK(program->menuMoves == 1, "a menu following its owner keeps its place");
-        CHECK(mwinRequestPosition(context, program->ids[2], (mwinPosition){5, 6}, nullptr) ==
+        CHECK(mwinWindow_RequestPosition(context, program->ids[2], (mwinPosition){5, 6}, nullptr) ==
                   mwin_success,
               "place the menu");
         break;
     case 4:
-        CHECK(mwinGetWindowState(context, program->ids[2], &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->ids[2], &state) == mwin_success &&
                   state.position.x == 5.0f && state.position.y == 6.0f,
               "a menu placed again against its owner");
         CHECK(mwinDestroyWindow(context, owner) == mwin_success, "destroy the owner");

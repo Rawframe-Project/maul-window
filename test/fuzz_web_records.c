@@ -349,28 +349,28 @@ static void Request(mwinContext* context, mwinWindowId window, uint8_t op)
     switch ((op >> 4) % 6)
     {
     case 0:
-        result = mwinRequestClipboardRead(context, window, &id);
+        result = mwinWindow_RequestClipboardRead(context, window, &id);
         break;
     case 1:
         kind = mwin_requestClipboardWrite;
-        result = mwinRequestClipboardWrite(context, window, text, sizeof(text) - 1, &id);
+        result = mwinWindow_RequestClipboardWrite(context, window, text, sizeof(text) - 1, &id);
         break;
     case 2:
         kind = mwin_requestClipboardReadData;
-        result = mwinRequestClipboardReadData(context, window, mime, sizeof(mime) - 1, &id);
+        result = mwinWindow_RequestClipboardReadData(context, window, mime, sizeof(mime) - 1, &id);
         break;
     case 3:
         kind = mwin_requestClipboardWriteData;
-        result = mwinRequestClipboardWriteData(context, window, items, 1, &id);
+        result = mwinWindow_RequestClipboardWriteData(context, window, items, 1, &id);
         break;
     case 4:
         kind = mwin_requestCursorMode;
-        result = mwinRequestCursorMode(
+        result = mwinWindow_RequestCursorMode(
             context, window, (op & 0x40) != 0 ? mwin_cursorCaptured : mwin_cursorVisible, &id);
         break;
     default:
         kind = mwin_requestMode;
-        result = mwinRequestMode(
+        result = mwinWindow_RequestMode(
             context, window, (op & 0x40) != 0 ? mwin_modeBorderlessFullscreen : mwin_modeWindowed,
             &id);
         break;
@@ -459,12 +459,12 @@ static void CheckFound(const mwinContext* context, const mwinCompletion* complet
     mwinResult result = mwin_errorStale;
     if (completion->kind == mwin_requestClipboardRead)
     {
-        result = mwinGetClipboardText(context, completion->request, found, LIMIT, &length);
+        result = mwinRequest_GetClipboardText(context, completion->request, found, LIMIT, &length);
         Expect(result != mwin_success || IsUtf8(found, length));
     }
     else if (completion->kind == mwin_requestClipboardReadData)
     {
-        result = mwinGetClipboardData(context, completion->request, found, LIMIT, &length);
+        result = mwinRequest_GetClipboardData(context, completion->request, found, LIMIT, &length);
     }
     Expect(result != mwin_success || length <= LIMIT);
 }
@@ -476,7 +476,8 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
     Expect(Finite(drop->position));
     // A drop a later one replaced is stale: the records are drained now
     // and then.
-    mwinResult files = mwinGetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length);
+    mwinResult files =
+        mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length);
     if (files == mwin_errorStale)
     {
         return;
@@ -492,7 +493,8 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
         at += path + 1;
     }
     Expect(count == drop->fileCount && count <= FILES);
-    Expect(mwinGetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
+    Expect(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
+               mwin_success &&
            length == drop->textLength && length <= LIMIT && IsUtf8(bytes, length));
 }
 
@@ -517,11 +519,11 @@ static void CheckMonitors(const mwinContext* context)
 {
     mwinMonitorId monitors[4];
     size_t count = 0;
-    Expect(mwinGetMonitors(context, monitors, 4, &count) == mwin_success);
+    Expect(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success);
     for (size_t i = 0; i < count && i < 4; i++)
     {
         mwinMonitorInfo info;
-        Expect(mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success);
+        Expect(mwinMonitor_GetInfo(context, monitors[i], &info) == mwin_success);
         Expect(isfinite(info.scale) && info.scale > 0.0f);
     }
 }
@@ -529,7 +531,7 @@ static void CheckMonitors(const mwinContext* context)
 static void CheckFacts(const mwinContext* context)
 {
     mwinSystemFacts facts;
-    Expect(mwinGetSystemFacts(context, &facts) == mwin_success);
+    Expect(mwinContext_GetSystemFacts(context, &facts) == mwin_success);
     Expect(facts.theme <= mwin_themeDark && facts.onBattery <= mwin_yes &&
            facts.lowPower <= mwin_yes);
 }
@@ -537,7 +539,7 @@ static void CheckFacts(const mwinContext* context)
 static void Drain(mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const typeof(event.data)* data = &event.data;
         switch (event.type)

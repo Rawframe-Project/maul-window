@@ -100,8 +100,9 @@ void mwinReleaseClipboard(mwinContext* context)
     mwinReleaseClipboardExtras(context);
 }
 
-mwinResult mwinRequestClipboardWrite(mwinContext* context, mwinWindowId window, const char* text,
-                                     size_t length, mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestClipboardWrite(mwinContext* context, mwinWindowId window,
+                                            const char* text, size_t length,
+                                            mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -143,8 +144,8 @@ mwinResult mwinRequestClipboardWrite(mwinContext* context, mwinWindowId window, 
     return mwin_success;
 }
 
-mwinResult mwinRequestClipboardRead(mwinContext* context, mwinWindowId window,
-                                    mwinRequestId* requestOut)
+mwinResult mwinWindow_RequestClipboardRead(mwinContext* context, mwinWindowId window,
+                                           mwinRequestId* requestOut)
 {
     if (mwinIsBusy(context))
     {
@@ -161,8 +162,8 @@ mwinResult mwinRequestClipboardRead(mwinContext* context, mwinWindowId window,
     return status;
 }
 
-mwinResult mwinGetClipboardText(const mwinContext* context, mwinRequestId request, char* buffer,
-                                size_t capacity, size_t* lengthOut)
+mwinResult mwinRequest_GetClipboardText(const mwinContext* context, mwinRequestId request,
+                                        char* buffer, size_t capacity, size_t* lengthOut)
 {
     return mwinCopyFound(
         context, request, mwin_foundText, context != nullptr ? context->clipboardFound : nullptr,

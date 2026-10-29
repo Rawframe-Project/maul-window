@@ -37,7 +37,7 @@ static mwinEvent Key(mwinWindowId window, mwinEventType type, mwinKeyCode code, 
 
 static void Post(mwinContext* context, mwinEvent event)
 {
-    CHECK(mwinTestPost(context, &event) == mwin_success, "a report");
+    CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "a report");
 }
 
 static void ComposeStep(Program* program, mwinContext* context, int step)
@@ -53,8 +53,9 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         return;
     case 1:
         Drain(program, context);
-        CHECK(mwinRequestTextInput(context, window, true, (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                   nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, true,
+                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                          nullptr) == mwin_success,
               "accept text");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyB, 'b'));
         Post(context, Preedit(window, "\xE3\x81\x8B\xE3\x82\x93", 6, segments, 2));
@@ -80,13 +81,13 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
                   preedit->segments[1].start == 3 &&
                   preedit->segments[0].style == mwin_preeditTarget,
               "the composition, its caret and its segments");
-        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && state.textInput &&
+        CHECK(mwinWindow_GetState(context, window, &state) == mwin_success && state.textInput &&
                   state.composing,
               "accepting text and composing");
         bool enabled = false;
         mwinRect caret = {0};
-        CHECK(mwinTestGetTextInput(context, window, &enabled, &caret) == mwin_success && enabled &&
-                  caret.x == 10.0f && caret.y == 20.0f && caret.width == 1.0f &&
+        CHECK(mwinWindow_GetTestTextInput(context, window, &enabled, &caret) == mwin_success &&
+                  enabled && caret.x == 10.0f && caret.y == 20.0f && caret.width == 1.0f &&
                   caret.height == 16.0f,
               "the test platform tells the caret it was given");
         Post(context, (mwinEvent){.type = mwin_eventTextInput,
@@ -112,21 +113,23 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         return;
     case 4:
         Drain(program, context);
-        CHECK(mwinRequestTextInput(context, window, false, (mwinRect){0}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
+                  mwin_success,
               "stop accepting text mid-composition");
         return;
     default:
         Drain(program, context);
         CHECK(program->eventCount == 2 && program->events[0].type == mwin_eventImePreedit &&
                   program->events[0].data.preedit.length == 0 &&
-                  mwinGetWindowState(context, window, &state) == mwin_success && !state.textInput &&
-                  !state.composing,
+                  mwinWindow_GetState(context, window, &state) == mwin_success &&
+                  !state.textInput && !state.composing,
               "stopping ends the composition");
         bool enabled = true;
         mwinRect caret = {1.0f, 1.0f, 1.0f, 1.0f};
-        CHECK(mwinTestGetTextInput(context, window, &enabled, &caret) == mwin_success && !enabled &&
-                  caret.x == 0.0f && caret.height == 0.0f &&
-                  mwinTestGetTextInput(context, window, &enabled, nullptr) == mwin_errorInvalid,
+        CHECK(mwinWindow_GetTestTextInput(context, window, &enabled, &caret) == mwin_success &&
+                  !enabled && caret.x == 0.0f && caret.height == 0.0f &&
+                  mwinWindow_GetTestTextInput(context, window, &enabled, nullptr) ==
+                      mwin_errorInvalid,
               "and the test platform tells it stopped");
         program->done = true;
     }
@@ -143,18 +146,19 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     (void)step;
     mwinWindowId window = Create(context, nullptr);
     mwinEvent event = Preedit(window, "abc", 1, nullptr, 3);
-    CHECK(mwinTestPost(context, &event) == mwin_errorInvalid, "segments without an array");
+    CHECK(mwinContext_PostTestEvent(context, &event) == mwin_errorInvalid,
+          "segments without an array");
     static mwinPreeditSegment many[40];
     event = Preedit(window, "abc", 1, many, 40);
-    CHECK(mwinTestPost(context, &event) == mwin_errorLimit,
+    CHECK(mwinContext_PostTestEvent(context, &event) == mwin_errorLimit,
           "more segments than MWIN_MAX_PREEDIT_SEGMENTS");
-    CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
-                               nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
+                                      nullptr) == mwin_errorInvalid,
           "a negative caret");
-    CHECK(mwinRequestTextInput(context, window, true, (mwinRect){INFINITY, 0.0f, 1.0f, 1.0f},
-                               nullptr) == mwin_errorInvalid &&
-              mwinRequestTextInput(context, window, true, (mwinRect){0.0f, NAN, 1.0f, 1.0f},
-                                   nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){INFINITY, 0.0f, 1.0f, 1.0f},
+                                      nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestTextInput(context, window, true, (mwinRect){0.0f, NAN, 1.0f, 1.0f},
+                                          nullptr) == mwin_errorInvalid,
           "a caret whose place is not finite");
     // "a", U+3042 in three bytes, "b": a caret inside the character, a
     // selection backwards and past the end, a segment reaching into the
@@ -167,7 +171,8 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
                     2, segments, 3);
     event.data.preedit.selectionStart = 9;
     event.data.preedit.selectionEnd = 3;
-    CHECK(mwinTestPost(context, &event) == mwin_success, "offsets that do not fit reach the core");
+    CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success,
+          "offsets that do not fit reach the core");
     program->done = true;
 }
 
@@ -250,12 +255,13 @@ static void LostStep(Program* program, mwinContext* context, int step)
         program->windows[0] = Create(context, nullptr);
         return;
     case 1:
-        CHECK(mwinRequestTextInput(context, window, true, (mwinRect){0}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){0}, nullptr) ==
+                  mwin_success,
               "accept text");
         Post(context, Preedit(window, "ab", 2, nullptr, 0));
         return;
     case 2:
-        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && state.composing,
+        CHECK(mwinWindow_GetState(context, window, &state) == mwin_success && state.composing,
               "composing");
         Post(context, Preedit(window, tooLong, 65, nullptr, 0));
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
@@ -273,11 +279,12 @@ static void LostStep(Program* program, mwinContext* context, int step)
     case 4:
         CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventInputStateReset,
               "the reset");
-        CHECK(mwinGetWindowState(context, window, &state) == mwin_success && !state.composing,
+        CHECK(mwinWindow_GetState(context, window, &state) == mwin_success && !state.composing,
               "the reset ends the composition shown");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
         Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
-        CHECK(mwinRequestTextInput(context, window, false, (mwinRect){0}, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
+                  mwin_success,
               "stop accepting text");
         return;
     case 5:

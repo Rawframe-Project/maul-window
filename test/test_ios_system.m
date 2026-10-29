@@ -71,7 +71,7 @@ static double Since(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         program->themes += event.type == mwin_eventThemeChanged;
@@ -87,7 +87,7 @@ static void Collect(Program* program, mwinContext* context)
 static void CheckFacts(const Program* program, mwinContext* context)
 {
     mwinSystemFacts facts = {0};
-    CHECK(mwinGetSystemFacts(context, &facts) == mwin_success, "the facts");
+    CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "the facts");
     UITraitCollection* traits = program->view.traitCollection;
     mwinTheme theme =
         traits.userInterfaceStyle == UIUserInterfaceStyleDark ? mwin_themeDark : mwin_themeLight;
@@ -110,7 +110,8 @@ static void CheckFacts(const Program* program, mwinContext* context)
     char locales[256];
     size_t length = 0;
     NSString* expected = [NSLocale.preferredLanguages componentsJoinedByString:@","];
-    CHECK(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+    CHECK(mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+                  mwin_success &&
               length == strlen(expected.UTF8String) &&
               memcmp(locales, expected.UTF8String, length) == 0,
           "the preferred languages");
@@ -151,7 +152,8 @@ static void Advance(Program* program, mwinContext* context)
     case 1:
     {
         mwinSystemFacts facts = {0};
-        CHECK(mwinGetSystemFacts(context, &facts) == mwin_success && facts.theme == program->wanted,
+        CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success &&
+                  facts.theme == program->wanted,
               "the other style, posted");
         CHECK(view.accessibilityElements.count == 0, "no root, no elements");
         CHECK(!view.isAccessibilityElement, "a container, not a text area");
@@ -162,7 +164,8 @@ static void Advance(Program* program, mwinContext* context)
         (void)view.accessibilityElements;
         FakeRoot* root = [[FakeRoot alloc] initWithAccessibilityContainer:view];
         root.accessibilityLabel = @"Maul";
-        CHECK(mwinRequestAccessibilityRoot(context, program->window, root, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window, root, nullptr) ==
+                  mwin_success,
               "a root");
         // The program's own reference goes: the window holds the root.
         [root release];
@@ -178,7 +181,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 4:
         program->completions = 0;
-        CHECK(mwinRequestAccessibilityRoot(context, program->window, nullptr, nullptr) ==
+        CHECK(mwinWindow_RequestAccessibilityRoot(context, program->window, nullptr, nullptr) ==
                   mwin_success,
               "no root");
         break;
@@ -203,7 +206,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     mwinNativeHandles handles;
     if (program->view == nil &&
-        mwinGetNativeHandles(context, program->window, &handles) == mwin_success)
+        mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success)
     {
         program->view = (UIView*)handles.handles.apple.view;
     }

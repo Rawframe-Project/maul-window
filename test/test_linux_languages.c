@@ -251,7 +251,8 @@ static bool LocalesAre(mwinContext* context, const char* expected)
 {
     char locales[64];
     size_t length = 0;
-    return mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+    return mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+               mwin_success &&
            length == strlen(expected) && memcmp(locales, expected, length) == 0;
 }
 
@@ -332,7 +333,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     // came before it was taken, and its answer is not taken yet.
     FakePump(program->system);
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         // The starting list's own change comes before the first frame.
         program->changes += event.type == mwin_eventLocaleChanged && program->frames > 0;

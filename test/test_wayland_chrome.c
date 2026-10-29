@@ -94,7 +94,7 @@ static uint64_t NowNs(void)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->completions += event.type == mwin_eventRequestCompleted &&
                                 event.data.completion.outcome == mwin_outcomeDone;
@@ -138,7 +138,7 @@ static void Next(mwinContext* context, Program* program)
     switch (program->step)
     {
     case 0:
-        CHECK(mwinRequestHitRegions(context, program->window, s_regions, 3, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->window, s_regions, 3, nullptr) ==
                   mwin_success,
               "regions");
         ServerPointerEnter(&s_server, 200.0, 150.0);

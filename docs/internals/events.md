@@ -4,13 +4,13 @@ The contract promises one ordered stream, memory fixed at creation, and that no 
 
 ## Rings and order
 
-Each window has one ring per class of record: notifications, discrete input, motion, raw deltas, the wheel. The context has rings of its own for what belongs to no window (monitors, gamepads, system facts, lifecycle) and two for gamepad buttons and axes. Every record gets a sequence number from one counter, and `mwinNextEvent` hands out the oldest record of all rings. Rings per window mean one busy window cannot push out another's records; the shared counter keeps the order the platform delivered.
+Each window has one ring per class of record: notifications, discrete input, motion, raw deltas, the wheel. The context has rings of its own for what belongs to no window (monitors, gamepads, system facts, lifecycle) and two for gamepad buttons and axes. Every record gets a sequence number from one counter, and `mwinContext_NextEvent` hands out the oldest record of all rings. Rings per window mean one busy window cannot push out another's records; the shared counter keeps the order the platform delivered.
 
 Critical records (suspending, resumed, a surface lost or restored) wait in a ring of their own that the stream empties before any other, because the platform is waiting for the program to act on them ([Overview](overview.md#who-runs-the-loop)). Suspending also resets every window's input.
 
 ## Notifications coalesce
 
-A notification that reports state (size, pixel size, scale, place, mode, focus, occlusion, visibility, a close request, and the context's monitor changes and facts) replaces one of its class still waiting for the same window, and moves to the end of the stream so order stays true. A program that skipped an intermediate value reads the latest state from `mwinGetWindowState` at any time.
+A notification that reports state (size, pixel size, scale, place, mode, focus, occlusion, visibility, a close request, and the context's monitor changes and facts) replaces one of its class still waiting for the same window, and moves to the end of the stream so order stays true. A program that skipped an intermediate value reads the latest state from `mwinWindow_GetState` at any time.
 
 Because of that replacement, the records that can wait for one window are bounded: one per coalescing class, its created and destroyed records, and one completion per request slot. The context refuses a `notificationsPerWindow` below that bound, so no notification is ever dropped. The same reasoning bounds the context's own ring: a monitor can have its addition, one change and its removal waiting, a gamepad its addition, a change, a reset and its removal; `notificationsPerWindow` must cover three per monitor and four per gamepad besides the context's own classes. A slot (window, monitor, gamepad) is reused only once the record of its end is drained, so a burst of hotplug never outgrows the storage.
 

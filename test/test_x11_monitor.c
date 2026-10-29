@@ -142,13 +142,13 @@ static bool Named(const mwinContext* context, mwinMonitorId* found, mwinMonitorI
 {
     mwinMonitorId monitors[8];
     size_t count = 0;
-    if (mwinGetMonitors(context, monitors, 8, &count) != mwin_success)
+    if (mwinContext_GetMonitors(context, monitors, 8, &count) != mwin_success)
     {
         return false;
     }
     for (size_t i = 0; i < count; i++)
     {
-        if (mwinGetMonitorInfo(context, monitors[i], info) == mwin_success &&
+        if (mwinMonitor_GetInfo(context, monitors[i], info) == mwin_success &&
             info->nameLength == strlen(NAME) && memcmp(info->name, NAME, strlen(NAME)) == 0)
         {
             *found = monitors[i];
@@ -162,7 +162,7 @@ static size_t Monitors(const mwinContext* context)
 {
     mwinMonitorId monitors[8];
     size_t count = 99;
-    return mwinGetMonitors(context, monitors, 8, &count) == mwin_success ? count : 99;
+    return mwinContext_GetMonitors(context, monitors, 8, &count) == mwin_success ? count : 99;
 }
 
 // The connected monitors that are the primary one.
@@ -171,13 +171,13 @@ static int Primaries(const mwinContext* context)
     mwinMonitorId monitors[8];
     size_t count = 0;
     int primaries = 0;
-    if (mwinGetMonitors(context, monitors, 8, &count) == mwin_success)
+    if (mwinContext_GetMonitors(context, monitors, 8, &count) == mwin_success)
     {
         for (size_t i = 0; i < count; i++)
         {
             mwinMonitorInfo info;
             primaries +=
-                mwinGetMonitorInfo(context, monitors[i], &info) == mwin_success && info.primary;
+                mwinMonitor_GetInfo(context, monitors[i], &info) == mwin_success && info.primary;
         }
     }
     return primaries;
@@ -219,7 +219,7 @@ static bool Shown(const Program* program, bool onTest)
 
 static void Place(const Program* program, mwinContext* context, float x, float y)
 {
-    CHECK(mwinRequestPosition(context, program->window, (mwinPosition){x, y}, nullptr) ==
+    CHECK(mwinWindow_RequestPosition(context, program->window, (mwinPosition){x, y}, nullptr) ==
               mwin_success,
           "a place");
 }
@@ -274,19 +274,19 @@ static void Advance(Program* program, mwinContext* context)
         Redefine(program, 640, 100);
         break;
     case phaseChanged:
-        CHECK(mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+        CHECK(mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.bounds.width == 400 && info.bounds.height == 300,
               "set again, the same monitor changes");
         Redefine(program, 700, 100);
         break;
     case phaseMoved:
-        CHECK(mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+        CHECK(mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.bounds.x == 700 && info.bounds.width == 400,
               "moved alone, it changes");
         Redefine(program, 700, 120);
         break;
     case phaseMeasured:
-        CHECK(mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+        CHECK(mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.widthMm == 120 && info.bounds.x == 700,
               "with another physical width alone, it changes");
         SetNamed(program, program->other, 0, 200, 100, 50);
@@ -317,7 +317,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     default:
         CHECK(Monitors(context) == program->before &&
-                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_errorStale,
+                  mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_errorStale,
               "deleted, it is removed and its id goes stale; the server's stays");
         break;
     }
@@ -339,7 +339,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

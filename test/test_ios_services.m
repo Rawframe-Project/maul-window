@@ -48,7 +48,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (event.type == mwin_eventRequestCompleted && program->completions < 4)
@@ -65,7 +65,8 @@ static bool ClipboardIs(mwinContext* context, const char* expected)
 {
     char text[64];
     size_t length = 0;
-    return mwinGetClipboardText(context, s_read, text, sizeof(text), &length) == mwin_success &&
+    return mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
+               mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -132,9 +133,10 @@ static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime
 {
     uint8_t data[32];
     size_t found = 0;
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
+    return mwinWindow_RequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                mwin_success &&
-           mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
+           mwinRequest_GetClipboardData(context, s_read, data, sizeof(data), &found) ==
+               mwin_success &&
            found == length && memcmp(data, expected, length) == 0;
 }
 
@@ -147,13 +149,14 @@ static void CheckData(mwinContext* context, mwinWindowId window)
         {"text/plain", 10, "hi", 2},
         {"application/x-maul", 18, s_custom, sizeof(s_custom)},
     };
-    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
           "a data write");
     CHECK([UIPasteboard.generalPasteboard.string isEqual:@"hi"], "its text on the pasteboard");
     CHECK(ReadData(context, window, "image/png", s_png, sizeof(s_png)), "the image read back");
     CHECK(ReadData(context, window, "application/x-maul", s_custom, sizeof(s_custom)),
           "a type the system does not know read back");
-    CHECK(mwinRequestClipboardReadData(context, window, "image/gif", 9, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardReadData(context, window, "image/gif", 9, nullptr) ==
+              mwin_success,
           "a read of a type the pasteboard lacks");
 }
 
@@ -163,10 +166,10 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        CHECK(mwinRequestClipboardWrite(context, window, "h\xC3\xA9llo", 6, nullptr) ==
+        CHECK(mwinWindow_RequestClipboardWrite(context, window, "h\xC3\xA9llo", 6, nullptr) ==
                       mwin_success &&
-                  mwinRequestKeepAwake(context, window, true, nullptr) == mwin_success &&
-                  mwinRequestRevealFile(context, window, "/tmp", 4, nullptr) == mwin_success,
+                  mwinWindow_RequestKeepAwake(context, window, true, nullptr) == mwin_success &&
+                  mwinWindow_RequestRevealFile(context, window, "/tmp", 4, nullptr) == mwin_success,
               "a write, awake, a file shown");
         break;
     case 1:
@@ -177,15 +180,15 @@ static void Advance(Program* program, mwinContext* context)
         CHECK([UIPasteboard.generalPasteboard.string isEqual:@"héllo"], "on the pasteboard");
         CHECK(UIApplication.sharedApplication.idleTimerDisabled, "the idle timer off");
         UIPasteboard.generalPasteboard.string = @"from the test";
-        CHECK(mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
-                  mwinRequestKeepAwake(context, window, false, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardRead(context, window, &s_read) == mwin_success &&
+                  mwinWindow_RequestKeepAwake(context, window, false, nullptr) == mwin_success,
               "a read, awake no more");
         break;
     case 2:
         CHECK(program->outcomes[0] == mwin_outcomeDone && ClipboardIs(context, "from the test"),
               "another writer's text read");
         CHECK(!UIApplication.sharedApplication.idleTimerDisabled, "the idle timer on again");
-        CHECK(mwinRequestOpenUrl(context, window, "mailto:a@example.com", 20, nullptr) ==
+        CHECK(mwinWindow_RequestOpenUrl(context, window, "mailto:a@example.com", 20, nullptr) ==
                   mwin_success,
               "an address");
         break;
@@ -202,7 +205,8 @@ static void Advance(Program* program, mwinContext* context)
                   program->outcomes[2] == mwin_outcomeDone,
               "data written and read");
         CHECK(program->outcomes[3] == mwin_outcomeFailed, "a type the pasteboard lacks fails");
-        CHECK(mwinRequestPrimaryRead(context, window, nullptr) == mwin_success, "a primary read");
+        CHECK(mwinWindow_RequestPrimaryRead(context, window, nullptr) == mwin_success,
+              "a primary read");
         break;
     case 5:
         CHECK(program->outcomes[0] == mwin_outcomeUnsupported, "no primary selection");

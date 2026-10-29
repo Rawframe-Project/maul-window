@@ -30,45 +30,49 @@ static void PropertyStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinGetWindowState(context, window, &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, window, &state) == mwin_success &&
                   state.style == (mwin_styleResizable | mwin_styleDecorated) &&
                   state.opacity == 1.0f,
               "a new window's style and opacity");
         // The most equal to the least, and every style flag.
-        CHECK(mwinRequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
-                                    (mwinSize){320.0f, 200.0f}, nullptr) == mwin_success &&
-                  mwinRequestAspectRatio(context, window, 16, 9, nullptr) == mwin_success &&
-                  mwinRequestStyle(context, window, AllStyles, nullptr) == mwin_success &&
-                  mwinRequestOpacity(context, window, 0.5f, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
+                                           (mwinSize){320.0f, 200.0f}, nullptr) == mwin_success &&
+                  mwinWindow_RequestAspectRatio(context, window, 16, 9, nullptr) == mwin_success &&
+                  mwinWindow_RequestStyle(context, window, AllStyles, nullptr) == mwin_success &&
+                  mwinWindow_RequestOpacity(context, window, 0.5f, nullptr) == mwin_success,
               "property requests");
-        CHECK(mwinRequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
-                                    (mwinSize){100.0f, 0.0f}, nullptr) == mwin_errorInvalid &&
-                  mwinRequestSizeLimits(context, window, (mwinSize){-1.0f, 0.0f},
-                                        (mwinSize){0.0f, 0.0f}, nullptr) == mwin_errorInvalid &&
-                  mwinRequestSizeLimits(context, window, (mwinSize){NAN, 0.0f},
-                                        (mwinSize){0.0f, 0.0f}, nullptr) == mwin_errorInvalid &&
-                  mwinRequestAspectRatio(context, window, 16, 0, nullptr) == mwin_errorInvalid &&
-                  mwinRequestStyle(context, window, 16, nullptr) == mwin_errorInvalid &&
-                  mwinRequestOpacity(context, window, 1.5f, nullptr) == mwin_errorInvalid &&
-                  mwinRequestOpacity(context, window, NAN, nullptr) == mwin_errorInvalid,
+        CHECK(mwinWindow_RequestSizeLimits(context, window, (mwinSize){320.0f, 200.0f},
+                                           (mwinSize){100.0f, 0.0f},
+                                           nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestSizeLimits(context, window, (mwinSize){-1.0f, 0.0f},
+                                               (mwinSize){0.0f, 0.0f},
+                                               nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestSizeLimits(context, window, (mwinSize){NAN, 0.0f},
+                                               (mwinSize){0.0f, 0.0f},
+                                               nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestAspectRatio(context, window, 16, 0, nullptr) ==
+                      mwin_errorInvalid &&
+                  mwinWindow_RequestStyle(context, window, 16, nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestOpacity(context, window, 1.5f, nullptr) == mwin_errorInvalid &&
+                  mwinWindow_RequestOpacity(context, window, NAN, nullptr) == mwin_errorInvalid,
               "crossed limits, a half ratio, unknown flags, an opacity out of range");
         return;
     }
     if (step == 2)
     {
         CHECK(program->eventCount == 4 &&
-                  mwinGetWindowState(context, window, &state) == mwin_success &&
+                  mwinWindow_GetState(context, window, &state) == mwin_success &&
                   state.style == AllStyles && state.opacity == 0.5f,
               "carried out, the state follows");
-        CHECK(mwinTestSetAnswer(context, mwin_requestOpacity, mwin_outcomeUnsupported) ==
+        CHECK(mwinContext_SetTestAnswer(context, mwin_requestOpacity, mwin_outcomeUnsupported) ==
                       mwin_success &&
-                  mwinRequestOpacity(context, window, 1.0f, nullptr) == mwin_success,
+                  mwinWindow_RequestOpacity(context, window, 1.0f, nullptr) == mwin_success,
               "a platform without blending, asked for the most");
         return;
     }
     CHECK(program->eventCount == 1 &&
               program->events[0].data.completion.outcome == mwin_outcomeUnsupported &&
-              mwinGetWindowState(context, window, &state) == mwin_success && state.opacity == 0.5f,
+              mwinWindow_GetState(context, window, &state) == mwin_success && state.opacity == 0.5f,
           "a refused request leaves the state");
     program->done = true;
 }
@@ -86,34 +90,35 @@ static void HandleStep(Program* program, mwinContext* context, int step)
     if (step == 0)
     {
         program->windows[0] = Create(context, nullptr);
-        CHECK(mwinGetNativeHandles(context, program->windows[0], &handles) == mwin_errorState,
+        CHECK(mwinWindow_GetNativeHandles(context, program->windows[0], &handles) ==
+                  mwin_errorState,
               "no surface before the platform makes the window");
         return;
     }
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinGetNativeHandles(context, window, &handles) == mwin_success &&
+        CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success &&
                   handles.platform == mwin_platformTest && handles.surfaceGeneration == 1,
               "the first generation");
         mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = window};
-        CHECK(mwinTestPost(context, &lost) == mwin_success, "the surface goes");
+        CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
     if (step == 2)
     {
-        CHECK(mwinGetNativeHandles(context, window, &handles) == mwin_errorState,
+        CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_errorState,
               "no handles without a surface");
         mwinEvent restored = {.type = mwin_eventSurfaceRestored, .window = window};
-        CHECK(mwinTestPost(context, &restored) == mwin_success, "and comes back");
+        CHECK(mwinContext_PostTestEvent(context, &restored) == mwin_success, "and comes back");
         return;
     }
-    CHECK(mwinGetNativeHandles(context, window, &handles) == mwin_success &&
+    CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success &&
               handles.surfaceGeneration == 2,
           "the next generation, same window");
     CHECK(mwinDestroyWindow(context, window) == mwin_success &&
-              mwinGetNativeHandles(context, window, &handles) == mwin_errorStale &&
-              mwinGetNativeHandles(context, window, nullptr) == mwin_errorInvalid,
+              mwinWindow_GetNativeHandles(context, window, &handles) == mwin_errorStale &&
+              mwinWindow_GetNativeHandles(context, window, nullptr) == mwin_errorInvalid,
           "none for a destroyed window");
     program->done = true;
 }

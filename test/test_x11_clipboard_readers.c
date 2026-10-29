@@ -61,7 +61,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created = program->created || event.type == mwin_eventWindowCreated;
@@ -105,14 +105,14 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case phaseCreate:
-        CHECK(mwinRequestClipboardWrite(context, program->window, program->clipboard, LARGE,
-                                        &program->request) == mwin_success,
+        CHECK(mwinWindow_RequestClipboardWrite(context, program->window, program->clipboard, LARGE,
+                                               &program->request) == mwin_success,
               "a large CLIPBOARD text");
         break;
     case phaseClipboard:
         CHECK(outcome == mwin_outcomeDone &&
-                  mwinRequestPrimaryWrite(context, program->window, program->primary, LARGE,
-                                          &program->request) == mwin_success,
+                  mwinWindow_RequestPrimaryWrite(context, program->window, program->primary, LARGE,
+                                                 &program->request) == mwin_success,
               "and a large PRIMARY text");
         break;
     case phasePrimary:
@@ -128,8 +128,8 @@ static void Advance(Program* program, mwinContext* context)
         }
         break;
     case phaseServed:
-        CHECK(mwinRequestClipboardWrite(context, program->window, "new", 3, &program->request) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestClipboardWrite(context, program->window, "new", 3,
+                                               &program->request) == mwin_success,
               "a new CLIPBOARD text");
         break;
     case phaseRewrite:

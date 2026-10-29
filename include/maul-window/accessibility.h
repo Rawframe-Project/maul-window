@@ -78,9 +78,8 @@ extern "C"
     ///         context.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinRequestAccessibilityRoot(mwinContext* context,
-                                                                    mwinWindowId window, void* root,
-                                                                    mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestAccessibilityRoot(
+        mwinContext* context, mwinWindowId window, void* root, mwinRequestId* requestOut);
 
 #ifdef __cplusplus
 }

@@ -353,10 +353,10 @@ static void CheckDrop(Program* program, mwinContext* context)
     size_t length = 0;
     static const char paths[] = "/tmp/a.txt\0/tmp/\xC3\xA9.png";
     CHECK(drop->fileCount == 2 && drop->truncated &&
-              mwinGetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
+              mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
                   mwin_success &&
               length == sizeof(paths) && memcmp(bytes, paths, length) == 0 &&
-              mwinGetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
+              mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
                   mwin_success &&
               length == 6 && memcmp(bytes, "hi\xEF\xBF\xBD(", 6) == 0,
           "the paths, another scheme left out, and the text repaired");
@@ -372,8 +372,8 @@ static void CheckLimited(const Program* program, mwinContext* context)
     char bytes[LIMIT];
     size_t length = 0;
     CHECK(dropped != nullptr &&
-              mwinGetDroppedText(context, dropped->data.drop.drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+              mwinContext_GetDroppedText(context, dropped->data.drop.drop, bytes, sizeof(bytes),
+                                         &length) == mwin_success &&
               length == LIMIT && memcmp(bytes, s_limited, LIMIT) == 0,
           "a text of exactly the limit delivered whole");
 }
@@ -575,14 +575,14 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Program* program = user;
     SourcePump(program->source);
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
     mwinNativeHandles handles;
     if (program->source->target == 0 && Find(program, mwin_eventWindowCreated, 0) != nullptr)
     {
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the handles");
         program->source->target = handles.handles.x11.window;
     }

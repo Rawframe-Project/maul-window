@@ -34,7 +34,7 @@ static bool Completed(const Program* program, mwinRequestId request, mwinOutcome
 
 static bool Refused(mwinContext* context, mwinWindowId window, mwinHitRegion region)
 {
-    return mwinRequestHitRegions(context, window, &region, 1, nullptr) == mwin_errorInvalid;
+    return mwinWindow_RequestHitRegions(context, window, &region, 1, nullptr) == mwin_errorInvalid;
 }
 
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
@@ -49,16 +49,17 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     negative.rect.height = -1.0f;
     mwinHitRegion unknown = fine;
     unknown.kind = mwin_hitClose + 1;
-    CHECK(mwinRequestHitRegions(context, window, many, MWIN_MAX_HIT_REGIONS + 1, nullptr) ==
+    CHECK(mwinWindow_RequestHitRegions(context, window, many, MWIN_MAX_HIT_REGIONS + 1, nullptr) ==
               mwin_errorLimit,
           "more regions than MWIN_MAX_HIT_REGIONS");
-    CHECK(mwinRequestHitRegions(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
+    CHECK(mwinWindow_RequestHitRegions(context, window, nullptr, 1, nullptr) == mwin_errorInvalid &&
               Refused(context, window, notFinite) && Refused(context, window, nan) &&
               Refused(context, window, negative) && Refused(context, window, unknown),
           "none, not finite, of a negative size or an unknown kind refused");
-    CHECK(mwinRequestHitRegions(nullptr, window, &fine, 1, nullptr) == mwin_errorInvalid &&
-              mwinRequestHitRegions(context, (mwinWindowId){window.index1, window.generation + 1},
-                                    &fine, 1, nullptr) == mwin_errorStale,
+    CHECK(mwinWindow_RequestHitRegions(nullptr, window, &fine, 1, nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestHitRegions(context,
+                                           (mwinWindowId){window.index1, window.generation + 1},
+                                           &fine, 1, nullptr) == mwin_errorStale,
           "no context, a stale window");
 }
 
@@ -106,13 +107,13 @@ static void Step(Program* program, mwinContext* context, int step)
               "a new window has no regions");
         // The regions asked for next replace this one.
         mwinHitRegion empty = {{5.0f, 5.0f, 0.0f, 0.0f}, mwin_hitCaption};
-        CHECK(mwinRequestHitRegions(context, program->windows[0], &empty, 1, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->windows[0], &empty, 1, nullptr) ==
                   mwin_success,
               "a region of no size");
         mwinHitRegion regions[4];
         memcpy(regions, s_regions, sizeof(regions));
-        CHECK(mwinRequestHitRegions(context, program->windows[0], regions, 4,
-                                    &program->requests[0]) == mwin_success,
+        CHECK(mwinWindow_RequestHitRegions(context, program->windows[0], regions, 4,
+                                           &program->requests[0]) == mwin_success,
               "four regions");
         memset(regions, 0, sizeof(regions));
         CheckHits(window);
@@ -124,23 +125,24 @@ static void Step(Program* program, mwinContext* context, int step)
         CHECK(Completed(program, program->requests[0], mwin_outcomeDone),
               "done on the test backend");
         mwinHitRegion top = {{0.0f, 0.0f, 200.0f, 4.0f}, mwin_hitTop};
-        CHECK(mwinRequestHitRegions(context, program->windows[0], &top, 1, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->windows[0], &top, 1, nullptr) ==
                       mwin_success &&
                   mwinHitAt(window, 10.0f, 2.0f) == mwin_hitTop &&
                   mwinHitAt(window, 10.0f, 10.0f) == mwin_hitClient,
               "replaced by the next call");
-        CHECK(mwinRequestHitRegions(context, program->windows[0], nullptr, 0, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->windows[0], nullptr, 0, nullptr) ==
                       mwin_success &&
                   mwinHitAt(window, 10.0f, 2.0f) == mwin_hitClient,
               "none clears them");
         mwinWindowState state;
-        CHECK(mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->windows[0], &state) == mwin_success &&
                   state.style == (mwin_styleResizable | mwin_styleCustomChrome) &&
-                  mwinRequestStyle(context, program->windows[0], mwin_styleCustomChrome + 1,
-                                   nullptr) == mwin_success &&
-                  mwinRequestStyle(context, program->windows[0], 16, nullptr) == mwin_errorInvalid,
+                  mwinWindow_RequestStyle(context, program->windows[0], mwin_styleCustomChrome + 1,
+                                          nullptr) == mwin_success &&
+                  mwinWindow_RequestStyle(context, program->windows[0], 16, nullptr) ==
+                      mwin_errorInvalid,
               "custom chrome a style like the others");
-        CHECK(mwinRequestHitRegions(context, program->windows[0], s_regions, 4, nullptr) ==
+        CHECK(mwinWindow_RequestHitRegions(context, program->windows[0], s_regions, 4, nullptr) ==
                       mwin_success &&
                   mwinDestroyWindow(context, program->windows[0]) == mwin_success,
               "a window with regions destroyed");

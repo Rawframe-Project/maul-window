@@ -73,7 +73,7 @@ static size_t Monitors(const mwinContext* context)
 {
     mwinMonitorId monitors[4];
     size_t count = 99;
-    return mwinGetMonitors(context, monitors, 4, &count) == mwin_success ? count : 99;
+    return mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success ? count : 99;
 }
 
 static bool Same(mwinMonitorId a, mwinMonitorId b)
@@ -116,7 +116,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseAdded:
         program->monitor = Find(program, mwin_eventMonitorAdded)->data.monitor;
         CHECK(Monitors(context) == 1 &&
-                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+                  mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.nameLength == 6 && memcmp(info.name, "TEST-1", 6) == 0 &&
                   info.bounds.x == 1920 && info.bounds.y == 0 && info.bounds.width == 1280 &&
                   info.bounds.height == 720 && info.scale == 2.0f && info.widthMm == 300 &&
@@ -126,7 +126,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseChanged:
         CHECK(Same(Find(program, mwin_eventMonitorChanged)->data.monitor, program->monitor) &&
-                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+                  mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.bounds.width == 1920 && info.bounds.height == 1080 && info.scale == 1.0f,
               "a new mode and scale change the same monitor");
         OutputAdd(&program->other, program->server, "TEST-2", 0, 0, 1920, 1080, 1);
@@ -142,7 +142,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseOdd:
         CHECK(Same(Find(program, mwin_eventMonitorChanged)->data.monitor, program->monitor) &&
-                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_success &&
+                  mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_success &&
                   info.widthMm == 0 && info.heightMm == 0 && info.refreshMilliHz == 0 &&
                   info.scale == 1.0f,
               "a size and refresh below zero unknown, and a scale of zero 1");
@@ -156,7 +156,7 @@ static void Advance(Program* program, mwinContext* context)
     default:
         CHECK(Same(Find(program, mwin_eventMonitorRemoved)->data.monitor, program->monitor) &&
                   Monitors(context) == 0 &&
-                  mwinGetMonitorInfo(context, program->monitor, &info) == mwin_errorStale,
+                  mwinMonitor_GetInfo(context, program->monitor, &info) == mwin_errorStale,
               "unplugged, it is removed and its id goes stale");
         break;
     }
@@ -177,7 +177,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }

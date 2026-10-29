@@ -91,9 +91,9 @@ extern "C"
     ///         for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetMonitors(const mwinContext* context,
-                                                       mwinMonitorId* monitors, size_t capacity,
-                                                       size_t* countOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetMonitors(const mwinContext* context,
+                                                               mwinMonitorId* monitors,
+                                                               size_t capacity, size_t* countOut);
 
     /// Reads what the platform tells about a monitor.
     ///
@@ -104,9 +104,9 @@ extern "C"
     ///         connected; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGetMonitorInfo(const mwinContext* context,
-                                                          mwinMonitorId monitor,
-                                                          mwinMonitorInfo* infoOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinMonitor_GetInfo(const mwinContext* context,
+                                                           mwinMonitorId monitor,
+                                                           mwinMonitorInfo* infoOut);
 
 #ifdef __cplusplus
 }

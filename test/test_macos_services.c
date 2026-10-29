@@ -71,7 +71,7 @@ static bool Awake(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
         if (event.type == mwin_eventRequestCompleted && program->completions < 4)
@@ -93,9 +93,10 @@ static bool ReadData(mwinContext* context, mwinWindowId window, const char* mime
 {
     uint8_t data[32];
     size_t found = 0;
-    return mwinRequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
+    return mwinWindow_RequestClipboardReadData(context, window, mime, strlen(mime), &s_read) ==
                mwin_success &&
-           mwinGetClipboardData(context, s_read, data, sizeof(data), &found) == mwin_success &&
+           mwinRequest_GetClipboardData(context, s_read, data, sizeof(data), &found) ==
+               mwin_success &&
            found == length && memcmp(data, expected, length) == 0;
 }
 
@@ -107,12 +108,13 @@ static void CheckData(mwinContext* context, mwinWindowId window)
         {"text/plain", 10, "hi", 2},
         {"application/x-maul", 18, s_custom, sizeof(s_custom)},
     };
-    CHECK(mwinRequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardWriteData(context, window, items, 3, nullptr) == mwin_success,
           "a data write");
     CHECK(ReadData(context, window, "image/png", s_png, sizeof(s_png)), "the image read back");
     CHECK(ReadData(context, window, "application/x-maul", s_custom, sizeof(s_custom)),
           "a type the system does not know read back");
-    CHECK(mwinRequestClipboardReadData(context, window, "image/gif", 9, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestClipboardReadData(context, window, "image/gif", 9, nullptr) ==
+              mwin_success,
           "a read of a type the pasteboard lacks");
 }
 
@@ -123,10 +125,10 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        CHECK(mwinRequestClipboardWrite(context, window, TEXT, sizeof(TEXT) - 1, nullptr) ==
+        CHECK(mwinWindow_RequestClipboardWrite(context, window, TEXT, sizeof(TEXT) - 1, nullptr) ==
                       mwin_success &&
-                  mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
-                  mwinRequestKeepAwake(context, window, true, nullptr) == mwin_success,
+                  mwinWindow_RequestClipboardRead(context, window, &s_read) == mwin_success &&
+                  mwinWindow_RequestKeepAwake(context, window, true, nullptr) == mwin_success,
               "write, read, keep awake");
         break;
     case 1:
@@ -135,7 +137,7 @@ static void Advance(Program* program, mwinContext* context)
         size_t length = 0;
         CHECK(program->outcomes[0] == mwin_outcomeDone &&
                   program->outcomes[1] == mwin_outcomeDone &&
-                  mwinGetClipboardText(context, s_read, text, sizeof(text), &length) ==
+                  mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
                       mwin_success &&
                   length == sizeof(TEXT) - 1 && memcmp(text, TEXT, length) == 0,
               "the text written is read back whole");
@@ -143,11 +145,11 @@ static void Advance(Program* program, mwinContext* context)
               "the display kept awake while the window asks");
         static const char missing[] = "/nonexistent/maul-window";
         static const char present[] = "/System";
-        CHECK(mwinRequestKeepAwake(context, window, false, nullptr) == mwin_success &&
-                  mwinRequestRevealFile(context, window, missing, sizeof(missing) - 1, nullptr) ==
-                      mwin_success &&
-                  mwinRequestRevealFile(context, window, present, sizeof(present) - 1, nullptr) ==
-                      mwin_success,
+        CHECK(mwinWindow_RequestKeepAwake(context, window, false, nullptr) == mwin_success &&
+                  mwinWindow_RequestRevealFile(context, window, missing, sizeof(missing) - 1,
+                                               nullptr) == mwin_success &&
+                  mwinWindow_RequestRevealFile(context, window, present, sizeof(present) - 1,
+                                               nullptr) == mwin_success,
               "let go, reveal");
         break;
     }
@@ -167,12 +169,13 @@ static void Advance(Program* program, mwinContext* context)
                   program->outcomes[2] == mwin_outcomeDone,
               "data written and read");
         CHECK(program->outcomes[3] == mwin_outcomeFailed, "a type the pasteboard lacks fails");
-        CHECK(mwinRequestClipboardRead(context, window, &s_read) == mwin_success &&
-                  mwinGetClipboardText(context, s_read, text, sizeof(text), &length) ==
+        CHECK(mwinWindow_RequestClipboardRead(context, window, &s_read) == mwin_success &&
+                  mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
                       mwin_success &&
                   length == 2 && memcmp(text, "hi", 2) == 0,
               "the write's text read");
-        CHECK(mwinRequestPrimaryRead(context, window, nullptr) == mwin_success, "a primary read");
+        CHECK(mwinWindow_RequestPrimaryRead(context, window, nullptr) == mwin_success,
+              "a primary read");
         break;
     }
     case 4:

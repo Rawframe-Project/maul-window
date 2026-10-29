@@ -336,7 +336,7 @@ static bool Same(mwinWindowId a, mwinWindowId b)
 static void Collect(mwinContext* context, Program* program)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->created += event.type == mwin_eventRequestCompleted &&
                             event.data.completion.outcome == mwin_outcomeDone;
@@ -436,16 +436,16 @@ static void Next(mwinContext* context, Program* program)
         break;
     case 2:
         CheckMade(program);
-        CHECK(mwinRequestPosition(context, program->ids[2], (mwinPosition){5, 6}, nullptr) ==
+        CHECK(mwinWindow_RequestPosition(context, program->ids[2], (mwinPosition){5, 6}, nullptr) ==
                       mwin_success &&
-                  mwinRequestFocus(context, program->ids[3], nullptr) == mwin_success &&
-                  mwinRequestFocus(context, owner, nullptr) == mwin_success,
+                  mwinWindow_RequestFocus(context, program->ids[3], nullptr) == mwin_success &&
+                  mwinWindow_RequestFocus(context, owner, nullptr) == mwin_success,
               "place the menu, and focus a tooltip and the owner");
         program->denied = 0;
         program->unsupported = 0;
         break;
     case 3:
-        CHECK(mwinGetWindowState(context, program->ids[2], &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->ids[2], &state) == mwin_success &&
                   state.position.x == 6.0f && state.position.y == 6.0f && program->menuMoves == 2,
               "a menu placed again, reported where the compositor put it");
         CHECK(program->denied == 1 && program->unsupported == 1,

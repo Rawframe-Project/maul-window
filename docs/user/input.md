@@ -16,30 +16,30 @@ A key record names two things:
 - its **code**, the physical key by its USB HID usage, named as the W3C `KeyboardEvent.code` values name it. `mwin_codeKeyQ` is the key right of Tab on every layout, so bindings by code survive a change of layout.
 - its **key**, what the current layout makes of it: the code point it types with no modifier, or `MWIN_KEY_NAMED` for a key that types nothing.
 
-`mwinMapKeyCode` asks the layout what a code types, `mwinGetKeyboardLayout` gives the layout's name, and `mwin_eventKeyboardLayoutChanged` says it changed. On iOS and Android a printing key's meaning is known only once it has been pressed under the current layout.
+`mwinContext_MapKeyCode` asks the layout what a code types, `mwinContext_GetKeyboardLayout` gives the layout's name, and `mwin_eventKeyboardLayoutChanged` says it changed. On iOS and Android a printing key's meaning is known only once it has been pressed under the current layout.
 
-Some chords never reach a program: Alt+Tab and Control+Alt+Delete on Windows, Command+Tab on Apple's systems, Control+W in Chromium. `mwinGetKeyReach` answers, for a key with modifiers, whether it is delivered, shared (the records arrive and the platform acts too, as Alt+F4 on Windows), uncertain (the desktop's configurable shortcuts may take it) or never delivered, so a rebinding screen can refuse or warn. The answers come from tables of what each platform keeps; a desktop may keep more.
+Some chords never reach a program: Alt+Tab and Control+Alt+Delete on Windows, Command+Tab on Apple's systems, Control+W in Chromium. `mwinContext_GetKeyReach` answers, for a key with modifiers, whether it is delivered, shared (the records arrive and the platform acts too, as Alt+F4 on Windows), uncertain (the desktop's configurable shortcuts may take it) or never delivered, so a rebinding screen can refuse or warn. The answers come from tables of what each platform keeps; a desktop may keep more.
 
 ## Text and input methods
 
-Typed text is not keys. It arrives as `mwin_eventTextInput`, valid UTF-8, while the window accepts text: `mwinRequestTextInput` turns it on with the caret's rectangle, where the platform places the input method's candidate window. The text of a record stays valid until the frame that drained it returns.
+Typed text is not keys. It arrives as `mwin_eventTextInput`, valid UTF-8, while the window accepts text: `mwinWindow_RequestTextInput` turns it on with the caret's rectangle, where the platform places the input method's candidate window. The text of a record stays valid until the frame that drained it returns.
 
 An input method's composition arrives as `mwin_eventImePreedit` with its text, caret, selection and styled segments; a newer composition replaces one still waiting. Every offset lies on a character boundary within the text and the selection is in order, whatever the input method handed over, so the text can be sliced at any offset. While the input method composes, the keys it takes produce no key records, and no press arrives without its release. A reset ends the composition the program shows, not the input method's: the keys it takes stay left out until it ends its composition with an empty preedit (stopping text input ends it too) or the focus leaves.
 
 On X11 the input method is IBus or Fcitx 5, reached over the session bus; without either, text comes from the keymap and its compose sequences. Wayland uses text-input-v3 and Windows its input methods through IMM32, the system drawing the candidate list.
 
-`mwinRequestVirtualKeyboard` shows or hides the on-screen keyboard where there is one, with a purpose (text, number, e-mail, password, URL) that picks its layout. `MWIN_INPUT_PURPOSES` counts the purposes; a value from it on is not one, and the request fails. `mwin_eventVirtualKeyboardChanged` gives the part of the window it covers. On a Windows desktop with a hardware keyboard the request is denied, and Wayland shows its keyboard when text input is on.
+`mwinWindow_RequestVirtualKeyboard` shows or hides the on-screen keyboard where there is one, with a purpose (text, number, e-mail, password, URL) that picks its layout. `MWIN_INPUT_PURPOSES` counts the purposes; a value from it on is not one, and the request fails. `mwin_eventVirtualKeyboardChanged` gives the part of the window it covers. On a Windows desktop with a hardware keyboard the request is denied, and Wayland shows its keyboard when text input is on.
 
 ## The pointer
 
 - `mwin_eventCursorMoved` is in the window's logical units; `mwin_eventCursorEntered` and `mwin_eventCursorLeft` frame it.
 - Button records carry the count of quick clicks they complete, which follows the platform's double-click setting where it has one.
 - The wheel turns in detents, fractional for touchpads and smooth wheels, with the user's scrolling direction left as it is.
-- `mwin_eventRawPointerDelta` is the device's own motion. `mwinRequestCursorMode` hides, confines or captures the cursor; raw deltas keep coming while it is captured, as a first-person camera needs. macOS and the web cannot confine the pointer, and a page's pointer lock needs a user's gesture.
+- `mwin_eventRawPointerDelta` is the device's own motion. `mwinWindow_RequestCursorMode` hides, confines or captures the cursor; raw deltas keep coming while it is captured, as a first-person camera needs. macOS and the web cannot confine the pointer, and a page's pointer lock needs a user's gesture.
 
 ## Cursors
 
-`mwinRequestCursorShape` picks one of the system's shapes. `mwinCreateCursor` makes a cursor from one to four RGBA images (the first at scale 1, each next one wider for higher scales, at most 128 pixels a side) and a hotspot; `mwinRequestCursorImage` shows it over a window, which takes the image for its scale. A shape and an image replace each other, and destroying a cursor in use leaves its windows the default shape. iOS shows no cursor and answers unsupported, though the cursor is still made, so portable code needs no branch.
+`mwinWindow_RequestCursorShape` picks one of the system's shapes. `mwinCreateCursor` makes a cursor from one to four RGBA images (the first at scale 1, each next one wider for higher scales, at most 128 pixels a side) and a hotspot; `mwinWindow_RequestCursorImage` shows it over a window, which takes the image for its scale. A shape and an image replace each other, and destroying a cursor in use leaves its windows the default shape. iOS shows no cursor and answers unsupported, though the cursor is still made, so portable code needs no branch.
 
 ## Touch and pens
 

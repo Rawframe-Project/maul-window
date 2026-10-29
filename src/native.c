@@ -8,8 +8,8 @@
 
 #include "core.h"
 
-mwinResult mwinGetNativeHandles(const mwinContext* context, mwinWindowId window,
-                                mwinNativeHandles* handlesOut)
+mwinResult mwinWindow_GetNativeHandles(const mwinContext* context, mwinWindowId window,
+                                       mwinNativeHandles* handlesOut)
 {
     if (context == nullptr || handlesOut == nullptr)
     {

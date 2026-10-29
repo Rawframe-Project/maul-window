@@ -216,13 +216,13 @@ static void Next(mwinContext* context, Program* program)
     if (program->step == 0)
     {
         mwinIconImage images[2] = {{3, 1, 12, s_wide}, {1, 2, 4, s_dot}};
-        CHECK(mwinRequestIcon(context, program->window, images, 2, &program->request) ==
+        CHECK(mwinWindow_RequestIcon(context, program->window, images, 2, &program->request) ==
                   mwin_success,
               "two images");
     }
     else if (program->step == 1)
     {
-        CHECK(mwinRequestIcon(context, program->window, nullptr, 0, &program->request) ==
+        CHECK(mwinWindow_RequestIcon(context, program->window, nullptr, 0, &program->request) ==
                   mwin_success,
               "none");
     }
@@ -235,7 +235,7 @@ static int Outcome(mwinContext* context, mwinRequestId request)
 {
     mwinEvent event;
     int outcome = -1;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
         if (event.type == mwin_eventRequestCompleted &&

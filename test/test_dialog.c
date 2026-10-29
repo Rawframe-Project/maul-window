@@ -64,7 +64,7 @@ static mwinFileDialogDef Def(mwinDialogKind kind)
 
 static bool Refused(mwinContext* context, mwinWindowId window, const mwinFileDialogDef* def)
 {
-    return mwinRequestFileDialog(context, window, def, nullptr) == mwin_errorInvalid;
+    return mwinWindow_RequestFileDialog(context, window, def, nullptr) == mwin_errorInvalid;
 }
 
 // A def with one filter of these extensions.
@@ -100,7 +100,7 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               Refused(context, window, &kind) && Refused(context, window, &title) &&
               Refused(context, window, &folder) && Refused(context, window, &none) &&
               Refused(context, window, &unnamed) &&
-              mwinRequestFileDialog(nullptr, window, &cookie, nullptr) == mwin_errorInvalid,
+              mwinWindow_RequestFileDialog(nullptr, window, &cookie, nullptr) == mwin_errorInvalid,
           "defs refused at the call");
     // Past each named bound by one byte, or one filter.
     static char s_long[MWIN_MAX_ADDRESS_BYTES + 1];
@@ -120,11 +120,13 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
     mwinFileDialogDef extended = Def(mwin_dialogOpen);
     extended.filters = &longExtensions;
     extended.filterCount = 1;
-    CHECK(mwinRequestFileDialog(context, window, &longTitle, nullptr) == mwin_errorLimit &&
-              mwinRequestFileDialog(context, window, &longFolder, nullptr) == mwin_errorLimit &&
-              mwinRequestFileDialog(context, window, &named, nullptr) == mwin_errorLimit &&
-              mwinRequestFileDialog(context, window, &extended, nullptr) == mwin_errorLimit &&
-              mwinRequestFileDialog(context, window, &many, nullptr) == mwin_errorLimit,
+    CHECK(mwinWindow_RequestFileDialog(context, window, &longTitle, nullptr) == mwin_errorLimit &&
+              mwinWindow_RequestFileDialog(context, window, &longFolder, nullptr) ==
+                  mwin_errorLimit &&
+              mwinWindow_RequestFileDialog(context, window, &named, nullptr) == mwin_errorLimit &&
+              mwinWindow_RequestFileDialog(context, window, &extended, nullptr) ==
+                  mwin_errorLimit &&
+              mwinWindow_RequestFileDialog(context, window, &many, nullptr) == mwin_errorLimit,
           "a title, folder, filter name or extensions past their named bounds, or more filters");
     CHECK(RefusesExtensions(context, window, "") && RefusesExtensions(context, window, ".png") &&
               RefusesExtensions(context, window, "*.png") &&
@@ -152,7 +154,7 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
 #else
     CHECK(Refused(context, window, &share), "a share's path is not absolute here");
 #endif
-    CHECK(mwinRequestFileDialog(context, window, &most, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestFileDialog(context, window, &most, nullptr) == mwin_success,
           "the most filters");
 }
 
@@ -160,7 +162,7 @@ static bool Described(mwinContext* context, const char* expected)
 {
     char text[256];
     size_t length = 0;
-    return mwinTestGetDialog(context, text, sizeof(text), &length) == mwin_success &&
+    return mwinContext_GetTestDialog(context, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
@@ -170,7 +172,7 @@ static bool Chose(mwinContext* context, mwinRequestId request, const char* expec
     char paths[64];
     size_t length = 0;
     uint32_t count = 0;
-    return mwinGetDialogFiles(context, request, paths, sizeof(paths), &length, &count) ==
+    return mwinRequest_GetDialogFiles(context, request, paths, sizeof(paths), &length, &count) ==
                mwin_success &&
            length == expectedLength && count == expectedCount &&
            memcmp(paths, expected, length) == 0;
@@ -179,7 +181,8 @@ static bool Chose(mwinContext* context, mwinRequestId request, const char* expec
 static bool Stale(mwinContext* context, mwinRequestId request)
 {
     size_t length = 0;
-    return mwinGetDialogFiles(context, request, nullptr, 0, &length, nullptr) == mwin_errorStale;
+    return mwinRequest_GetDialogFiles(context, request, nullptr, 0, &length, nullptr) ==
+           mwin_errorStale;
 }
 
 static void Ask(Program* program, mwinContext* context, int request, mwinDialogKind kind)
@@ -187,8 +190,8 @@ static void Ask(Program* program, mwinContext* context, int request, mwinDialogK
     mwinFileDialogDef def = Def(kind);
     def.name = "x.txt";
     def.nameLength = 5;
-    CHECK(mwinRequestFileDialog(context, program->windows[0], &def, &program->requests[request]) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestFileDialog(context, program->windows[0], &def,
+                                       &program->requests[request]) == mwin_success,
           "ask for a dialog");
 }
 
@@ -201,12 +204,13 @@ static void CheckChosen(Program* program, mwinContext* context)
     size_t length = 0;
     char small[4];
     CHECK(Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&
-              mwinGetDialogFiles(context, program->requests[1], small, sizeof(small), &length,
-                                 nullptr) == mwin_errorCapacity &&
+              mwinRequest_GetDialogFiles(context, program->requests[1], small, sizeof(small),
+                                         &length, nullptr) == mwin_errorCapacity &&
               length == sizeof(s_chosen) && memcmp(small, s_chosen, sizeof(small)) == 0 &&
               Stale(context, program->requests[0]) && Stale(context, (mwinRequestId){0}),
           "its paths copied out under its request, stale under another");
-    CHECK(mwinTestSetAnswer(context, mwin_requestFileDialog, mwin_outcomeCancelled) == mwin_success,
+    CHECK(mwinContext_SetTestAnswer(context, mwin_requestFileDialog, mwin_outcomeCancelled) ==
+              mwin_success,
           "cancel the next");
     Ask(program, context, 2, mwin_dialogSave);
 }
@@ -222,22 +226,25 @@ static void CheckUnchosen(Program* program, mwinContext* context, int step)
               Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&
               Stale(context, program->requests[2 + at]),
           what[at]);
-    CHECK(mwinTestSetAnswer(context, mwin_requestFileDialog, mwin_outcomeDone) == mwin_success,
+    CHECK(mwinContext_SetTestAnswer(context, mwin_requestFileDialog, mwin_outcomeDone) ==
+              mwin_success,
           "answer the next");
     if (at == 0)
     {
         static const char three[] = "/a\0/b\0/c";
-        CHECK(mwinTestSetDialogFiles(context, three, sizeof(three)) == mwin_success, "three");
+        CHECK(mwinContext_SetTestDialogFiles(context, three, sizeof(three)) == mwin_success,
+              "three");
         Ask(program, context, 3, mwin_dialogOpenMany);
     }
     else if (at == 1)
     {
-        CHECK(mwinTestSetDialogFiles(context, nullptr, 0) == mwin_success, "none");
+        CHECK(mwinContext_SetTestDialogFiles(context, nullptr, 0) == mwin_success, "none");
         Ask(program, context, 4, mwin_dialogOpen);
     }
     else
     {
-        CHECK(mwinTestSetDialogFiles(context, ROOT "/tmp", sizeof(ROOT "/tmp")) == mwin_success,
+        CHECK(mwinContext_SetTestDialogFiles(context, ROOT "/tmp", sizeof(ROOT "/tmp")) ==
+                  mwin_success,
               "a folder");
         Ask(program, context, 5, mwin_dialogFolder);
     }
@@ -254,10 +261,11 @@ static void CheckFolder(Program* program, mwinContext* context)
     // Held: one dialog is cancelled with its window, one never answered.
     program->windows[1] = Create(context, nullptr);
     mwinFileDialogDef def = Def(mwin_dialogOpen);
-    CHECK(mwinTestHold(context, true) == mwin_success &&
-              mwinRequestFileDialog(context, program->windows[0], &def, &program->requests[6]) ==
+    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+              mwinWindow_RequestFileDialog(context, program->windows[0], &def,
+                                           &program->requests[6]) == mwin_success &&
+              mwinWindow_RequestFileDialog(context, program->windows[1], &def, nullptr) ==
                   mwin_success &&
-              mwinRequestFileDialog(context, program->windows[1], &def, nullptr) == mwin_success &&
               mwinDestroyWindow(context, program->windows[0]) == mwin_success,
           "dialogs held, one window destroyed");
 }
@@ -272,7 +280,7 @@ static void Step(Program* program, mwinContext* context, int step)
         break;
     case 1:
         CheckRefusals(context, program->windows[0]);
-        CHECK(mwinTestSetDialogFiles(context, s_chosen, sizeof(s_chosen)) == mwin_success,
+        CHECK(mwinContext_SetTestDialogFiles(context, s_chosen, sizeof(s_chosen)) == mwin_success,
               "the paths chosen");
         Ask(program, context, 1, mwin_dialogOpenMany);
         break;

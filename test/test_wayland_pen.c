@@ -328,7 +328,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->mouseRecords += event.type == mwin_eventCursorEntered ||
                                          event.type == mwin_eventCursorMoved ||

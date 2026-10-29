@@ -48,21 +48,21 @@ static bool Opened(mwinContext* context, mwinRequestKind kind, const char* expec
 {
     char text[64];
     size_t length = 0;
-    return mwinTestGetOpened(context, kind, text, sizeof(text), &length) == mwin_success &&
+    return mwinContext_GetTestOpened(context, kind, text, sizeof(text), &length) == mwin_success &&
            length == strlen(expected) && memcmp(text, expected, length) == 0;
 }
 
 static bool Refused(mwinContext* context, mwinWindowId window, const char* url, size_t length)
 {
-    return mwinRequestOpenUrl(context, window, url, length, nullptr) == mwin_errorInvalid;
+    return mwinWindow_RequestOpenUrl(context, window, url, length, nullptr) == mwin_errorInvalid;
 }
 
 static void CheckRefusals(mwinContext* context, mwinWindowId window)
 {
     char opened[8];
     size_t length = 99;
-    CHECK(mwinTestGetOpened(context, mwin_requestRevealFile, opened, sizeof(opened), &length) ==
-                  mwin_success &&
+    CHECK(mwinContext_GetTestOpened(context, mwin_requestRevealFile, opened, sizeof(opened),
+                                    &length) == mwin_success &&
               length == 0,
           "nothing revealed yet");
     static char s_long[MWIN_MAX_ADDRESS_BYTES + 1];
@@ -73,24 +73,30 @@ static void CheckRefusals(mwinContext* context, mwinWindowId window)
               Refused(context, window, "http://a\x01", 9) &&
               Refused(context, window, "javascript:alert(1)", 19) &&
               Refused(context, window, "http://\xC3", 8) && Refused(context, window, nullptr, 8) &&
-              mwinRequestOpenUrl(nullptr, window, "http://a", 8, nullptr) == mwin_errorInvalid,
+              mwinWindow_RequestOpenUrl(nullptr, window, "http://a", 8, nullptr) ==
+                  mwin_errorInvalid,
           "addresses this does not open refused at the call");
     static char s_longPath[MWIN_MAX_ADDRESS_BYTES + 1];
     memset(s_longPath, 'a', sizeof(s_longPath));
     s_longPath[0] = '/';
-    CHECK(mwinRequestOpenUrl(context, window, s_long, sizeof(s_long), nullptr) == mwin_errorLimit &&
-              mwinRequestRevealFile(context, window, s_longPath, sizeof(s_longPath), nullptr) ==
-                  mwin_errorLimit,
+    CHECK(mwinWindow_RequestOpenUrl(context, window, s_long, sizeof(s_long), nullptr) ==
+                  mwin_errorLimit &&
+              mwinWindow_RequestRevealFile(context, window, s_longPath, sizeof(s_longPath),
+                                           nullptr) == mwin_errorLimit,
           "an address or a path past MWIN_MAX_ADDRESS_BYTES");
-    CHECK(mwinRequestRevealFile(context, window, "a/b", 3, nullptr) == mwin_errorInvalid &&
-              mwinRequestRevealFile(context, window, PATH("/tmp/a\0b"), nullptr) ==
+    CHECK(mwinWindow_RequestRevealFile(context, window, "a/b", 3, nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestRevealFile(context, window, PATH("/tmp/a\0b"), nullptr) ==
                   mwin_errorInvalid &&
-              mwinRequestRevealFile(context, window, nullptr, 0, nullptr) == mwin_errorInvalid &&
-              mwinRequestKeepAwake(context, (mwinWindowId){0}, true, nullptr) == mwin_errorStale,
+              mwinWindow_RequestRevealFile(context, window, nullptr, 0, nullptr) ==
+                  mwin_errorInvalid &&
+              mwinWindow_RequestKeepAwake(context, (mwinWindowId){0}, true, nullptr) ==
+                  mwin_errorStale,
           "paths that are not absolute or hold a NUL refused, and a stale window");
 #ifdef _WIN32
-    CHECK(mwinRequestRevealFile(context, window, "/tmp/x", 6, nullptr) == mwin_errorInvalid &&
-              mwinRequestRevealFile(context, window, "\\\\host\\x", 8, nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestRevealFile(context, window, "/tmp/x", 6, nullptr) ==
+                  mwin_errorInvalid &&
+              mwinWindow_RequestRevealFile(context, window, "\\\\host\\x", 8, nullptr) ==
+                  mwin_success,
           "a path without its drive refused, and a share taken");
 #endif
 }
@@ -99,13 +105,14 @@ static void Ask(Program* program, mwinContext* context)
 {
     mwinWindowId window = program->windows[0];
     CheckRefusals(context, window);
-    CHECK(mwinRequestOpenUrl(context, window, "HTTPS://first", 13, &program->requests[1]) ==
+    CHECK(mwinWindow_RequestOpenUrl(context, window, "HTTPS://first", 13, &program->requests[1]) ==
                   mwin_success &&
-              mwinRequestOpenUrl(context, window, "mailto:a@b.c", 12, &program->requests[2]) ==
-                  mwin_success &&
-              mwinRequestRevealFile(context, window, PATH("/tmp/\xC3\xA9.txt"),
-                                    &program->requests[3]) == mwin_success &&
-              mwinRequestKeepAwake(context, window, true, &program->requests[4]) == mwin_success,
+              mwinWindow_RequestOpenUrl(context, window, "mailto:a@b.c", 12,
+                                        &program->requests[2]) == mwin_success &&
+              mwinWindow_RequestRevealFile(context, window, PATH("/tmp/\xC3\xA9.txt"),
+                                           &program->requests[3]) == mwin_success &&
+              mwinWindow_RequestKeepAwake(context, window, true, &program->requests[4]) ==
+                  mwin_success,
           "two addresses, a path, and awake");
 }
 
@@ -120,12 +127,13 @@ static void CheckDone(Program* program, mwinContext* context)
               Opened(context, mwin_requestRevealFile, ROOT "/tmp/\xC3\xA9.txt"),
           "the path revealed");
     CHECK(Outcome(program, 4) == mwin_outcomeDone &&
-              mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&
+              mwinWindow_GetState(context, program->windows[0], &state) == mwin_success &&
               state.awake,
           "the window keeps the display awake");
-    CHECK(mwinTestSetAnswer(context, mwin_requestKeepAwake, mwin_outcomeDenied) == mwin_success &&
-              mwinRequestKeepAwake(context, program->windows[0], false, &program->requests[5]) ==
-                  mwin_success,
+    CHECK(mwinContext_SetTestAnswer(context, mwin_requestKeepAwake, mwin_outcomeDenied) ==
+                  mwin_success &&
+              mwinWindow_RequestKeepAwake(context, program->windows[0], false,
+                                          &program->requests[5]) == mwin_success,
           "a refused change");
 }
 
@@ -133,15 +141,15 @@ static void CheckDenied(Program* program, mwinContext* context)
 {
     mwinWindowState state;
     CHECK(Outcome(program, 5) == mwin_outcomeDenied &&
-              mwinGetWindowState(context, program->windows[0], &state) == mwin_success &&
+              mwinWindow_GetState(context, program->windows[0], &state) == mwin_success &&
               state.awake,
           "a refusal leaves the window awake");
     // Held: one request is cancelled with its window, one never answered.
     program->windows[1] = Create(context, nullptr);
-    CHECK(mwinTestHold(context, true) == mwin_success &&
-              mwinRequestOpenUrl(context, program->windows[0], "http://gone", 11,
-                                 &program->requests[6]) == mwin_success &&
-              mwinRequestRevealFile(context, program->windows[1], PATH("/tmp/x"), nullptr) ==
+    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+              mwinWindow_RequestOpenUrl(context, program->windows[0], "http://gone", 11,
+                                        &program->requests[6]) == mwin_success &&
+              mwinWindow_RequestRevealFile(context, program->windows[1], PATH("/tmp/x"), nullptr) ==
                   mwin_success &&
               mwinDestroyWindow(context, program->windows[0]) == mwin_success,
           "requests held, one window destroyed");
@@ -200,9 +208,9 @@ static void StaleStep(Program* program, mwinContext* context, int step)
         CHECK(mwinDestroyWindow(context, program->windows[0]) == mwin_success, "destroyed");
         return;
     }
-    CHECK(mwinRequestOpenUrl(context, program->windows[0], "https://a", 9, nullptr) ==
+    CHECK(mwinWindow_RequestOpenUrl(context, program->windows[0], "https://a", 9, nullptr) ==
                   mwin_errorStale &&
-              mwinRequestRevealFile(context, program->windows[0], PATH("/tmp"), nullptr) ==
+              mwinWindow_RequestRevealFile(context, program->windows[0], PATH("/tmp"), nullptr) ==
                   mwin_errorStale,
           "an address and a path for a window gone");
     program->done = true;

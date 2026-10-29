@@ -18,7 +18,7 @@ A window has three sizes, each with its own notification:
 - the size in pixels it renders at (`mwin_eventPixelSizeChanged`);
 - the scale between them (`mwin_eventScaleChanged`, with the size the platform suggests for the new scale).
 
-Places and sizes are logical units, measured down and to the right from the top left. Notifications that report state coalesce: a newer size replaces one still waiting, so a program may skip intermediate values. `mwinGetWindowState` always gives the latest state the stream has delivered: sizes, place, mode, focus, occlusion, visibility, the safe area, the part the on-screen keyboard covers, the style, the opacity and the surface generation.
+Places and sizes are logical units, measured down and to the right from the top left. Notifications that report state coalesce: a newer size replaces one still waiting, so a program may skip intermediate values. `mwinWindow_GetState` always gives the latest state the stream has delivered: sizes, place, mode, focus, occlusion, visibility, the safe area, the part the on-screen keyboard covers, the style, the opacity and the surface generation.
 
 `mwin_eventOccluded` says that nothing of the window can be seen, and `mwin_eventRevealed` that some of it can again: a hint to draw less, which only some platforms give.
 
@@ -34,7 +34,7 @@ Places and sizes are logical units, measured down and to the right from the top 
 
 ## Requests
 
-`mwinRequestTitle`, `Size`, `Position`, `Mode`, `Visible`, `Focus`, `SizeLimits`, `AspectRatio`, `Style`, `Opacity` and `Icon` change a window. A later request of the same kind on the same window supersedes one in flight. What a platform cannot do it answers `mwin_outcomeUnsupported`:
+`mwinWindow_RequestTitle`, `Size`, `Position`, `Mode`, `Visible`, `Focus`, `SizeLimits`, `AspectRatio`, `Style`, `Opacity` and `Icon` change a window. A later request of the same kind on the same window supersedes one in flight. What a platform cannot do it answers `mwin_outcomeUnsupported`:
 
 - Wayland places no window and lets the compositor decide modes; a mode request is answered by the compositor's next configure. A focus request is answered done once activation was asked for; the compositor may still refuse it.
 - X11 leaves modes to the window manager; a mode request is denied when the window manager does not show the mode within half a second, and unsupported without one.
@@ -52,7 +52,7 @@ An icon is up to four RGBA images (straight alpha) of up to 256 pixels a side; t
 
 ## Custom chrome
 
-A window with `mwin_styleCustomChrome` draws its own title bar and borders. `mwinRequestHitRegions` tells the platform which rectangles of the client area are caption, edges, corners, minimize, maximize and close (up to 16; a later one lies over an earlier one, and the rest is client). Then:
+A window with `mwin_styleCustomChrome` draws its own title bar and borders. `mwinWindow_RequestHitRegions` tells the platform which rectangles of the client area are caption, edges, corners, minimize, maximize and close (up to 16; a later one lies over an earlier one, and the rest is client). Then:
 
 - a press on a caption or an edge moves or resizes the window through the platform, and the program hears neither the press nor its release;
 - a double click on a caption maximizes or restores the window;
@@ -62,13 +62,13 @@ The web has no frame to drag and answers unsupported.
 
 ## Monitors
 
-`mwinGetMonitors` and `mwinGetMonitorInfo` describe the connected monitors: name, bounds and work area in pixels, physical size, scale, refresh rate, whether each is the primary one, whether it can vary its refresh rate, and HDR facts. Variable refresh is a tristate: known on X11 where the driver gives `vrr_capable`, on macOS 12 and later, on iOS and on Android 16 and later; `mwin_unknown` on Windows, Wayland and the web, which do not tell. Hotplug and changes arrive as `mwin_eventMonitorAdded`, `mwin_eventMonitorRemoved` and `mwin_eventMonitorChanged`; a monitor connected again gets a new id.
+`mwinContext_GetMonitors` and `mwinMonitor_GetInfo` describe the connected monitors: name, bounds and work area in pixels, physical size, scale, refresh rate, whether each is the primary one, whether it can vary its refresh rate, and HDR facts. Variable refresh is a tristate: known on X11 where the driver gives `vrr_capable`, on macOS 12 and later, on iOS and on Android 16 and later; `mwin_unknown` on Windows, Wayland and the web, which do not tell. Hotplug and changes arrive as `mwin_eventMonitorAdded`, `mwin_eventMonitorRemoved` and `mwin_eventMonitorChanged`; a monitor connected again gets a new id.
 
 The HDR facts are what the platform tells, never invented: whether HDR output is on, the SDR white level and the display's luminances in nits (Windows, Android, Wayland with the color manager, X11 from the monitor's EDID), and `headroom`, the peak over SDR white, wherever it can be known (macOS and iOS give only this). Wayland names no primary monitor and reports no work area.
 
 ## Handing a window to a GPU layer
 
-`mwinGetNativeHandles` gives the window system's own handles for a window, as opaque pointers, and the library includes no graphics API header:
+`mwinWindow_GetNativeHandles` gives the window system's own handles for a window, as opaque pointers, and the library includes no graphics API header:
 
 - Win32: the `HWND` and `HINSTANCE`;
 - macOS and iOS: the `NSView` or `UIView` and its `CAMetalLayer`;
@@ -81,7 +81,7 @@ With Maul RHI the program copies the bundle into the surface source of its platf
 <!-- guide: not run: Maul RHI's types; maul-rhi's seam check runs this copy -->
 ```c
 mwinNativeHandles handles;
-if (mwinGetNativeHandles(context, window, &handles) == mwin_success &&
+if (mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success &&
     handles.platform == mwin_platformX11)
 {
     mrhiSurfaceSourceXcb source = {

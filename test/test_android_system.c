@@ -75,7 +75,7 @@ static uint64_t NowNs(void)
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success)
+    while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->themeChanged |= event.type == mwin_eventThemeChanged;
         program->powerChanged |= event.type == mwin_eventPowerChanged;
@@ -88,7 +88,7 @@ static void Collect(Program* program, mwinContext* context)
 static mwinSystemFacts FactsOf(mwinContext* context)
 {
     mwinSystemFacts facts = {0};
-    (void)mwinGetSystemFacts(context, &facts);
+    (void)mwinContext_GetSystemFacts(context, &facts);
     return facts;
 }
 
@@ -97,7 +97,7 @@ static mwinSystemFacts FactsOf(mwinContext* context)
 static void Paint(const Program* program, mwinContext* context)
 {
     mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success)
     {
         return;
     }
@@ -187,7 +187,7 @@ static bool Unplugged(Program* program)
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
-    (void)mwinGetWindowState(context, program->window, &state);
+    (void)mwinWindow_GetState(context, program->window, &state);
     mwinSystemFacts facts = FactsOf(context);
     switch (program->phase)
     {
@@ -228,7 +228,8 @@ static void CheckStart(Program* program, mwinContext* context)
     CHECK(facts.onBattery == mwin_no && facts.lowPower == mwin_no, "plugged in, no battery saver");
     char locales[256] = {0};
     size_t length = 0;
-    CHECK(mwinGetPreferredLocales(context, locales, sizeof(locales), &length) == mwin_success &&
+    CHECK(mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
+                  mwin_success &&
               length >= 2 && locales[0] >= 'a' && locales[0] <= 'z',
           "preferred locales");
     program->theme = facts.theme;
@@ -265,13 +266,13 @@ static void Advance(Program* program, mwinContext* context)
         {
             // Back is the program's: Android did not finish the activity.
             mwinWindowState state = {0};
-            (void)mwinGetWindowState(context, program->window, &state);
+            (void)mwinWindow_GetState(context, program->window, &state);
             CHECK(state.focused, "the activity still in front after Back");
         }
         {
             // The activity now: the night mode made it anew.
             mwinNativeHandles handles = {0};
-            (void)mwinGetNativeHandles(context, program->window, &handles);
+            (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
             program->activity = handles.handles.android.activity;
         }
         CHECK(program->activity != nullptr &&

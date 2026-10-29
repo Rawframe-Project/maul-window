@@ -54,7 +54,7 @@ typedef struct Program
 static void Collect(Program* program, mwinContext* context)
 {
     mwinEvent event;
-    while (mwinNextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
+    while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
         program->records[program->count++] = event;
     }
@@ -127,12 +127,13 @@ static void Advance(Program* program, mwinContext* context)
     case phaseCreate:
     {
         mwinNativeHandles handles;
-        CHECK(mwinGetNativeHandles(context, program->window, &handles) == mwin_success,
+        CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
               "the window's HWND");
         program->hwnd = handles.handles.win32.hwnd;
         CHECK(ImmGetContext(program->hwnd) == nullptr, "no input context before text is asked");
         SetForegroundWindow(program->hwnd);
-        CHECK(mwinRequestTextInput(context, program->window, true, caret, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
+                  mwin_success,
               "accept text");
         break;
     }
@@ -162,7 +163,8 @@ static void Advance(Program* program, mwinContext* context)
     }
     case phaseRecompose:
         CHECK(Composing(&preedit->data.preedit), "composing again");
-        CHECK(mwinRequestTextInput(context, program->window, false, caret, nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
+                  mwin_success,
               "stop accepting text");
         break;
     default:

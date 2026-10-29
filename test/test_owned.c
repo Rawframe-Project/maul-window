@@ -103,13 +103,13 @@ static void Step(Program* program, mwinContext* context, int step)
     case 2:
     {
         mwinWindowDef popup = Popup(program->windows[1]);
-        CHECK(mwinGetWindowState(context, program->windows[2], &state) == mwin_success &&
+        CHECK(mwinWindow_GetState(context, program->windows[2], &state) == mwin_success &&
                   state.position.x == 10.0f && state.position.y == 20.0f,
               "a popup placed against its owner, its position in its state");
-        CHECK(mwinRequestMode(context, program->windows[2], mwin_modeMaximized,
-                              &program->requests[0]) == mwin_success &&
-                  mwinRequestStyle(context, program->windows[2], mwin_styleDecorated,
-                                   &program->requests[1]) == mwin_success &&
+        CHECK(mwinWindow_RequestMode(context, program->windows[2], mwin_modeMaximized,
+                                     &program->requests[0]) == mwin_success &&
+                  mwinWindow_RequestStyle(context, program->windows[2], mwin_styleDecorated,
+                                          &program->requests[1]) == mwin_success &&
                   mwinCreateWindow(context, &popup, &program->windows[3], nullptr) == mwin_success,
               "ask a popup for a mode and a style; a popup of the dialog");
         break;
@@ -126,7 +126,7 @@ static void Step(Program* program, mwinContext* context, int step)
         int order[4];
         int count = DestroyedOrder(program, order, 4);
         CHECK(count == 4 && order[0] == 3 && order[1] == 1 && order[2] == 2 && order[3] == 0 &&
-                  mwinGetWindowState(context, program->windows[3], &state) == mwin_errorStale,
+                  mwinWindow_GetState(context, program->windows[3], &state) == mwin_errorStale,
               "destroying an owner destroys what it owns first, theirs before them");
         program->done = true;
         break;

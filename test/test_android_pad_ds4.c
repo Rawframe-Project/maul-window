@@ -24,9 +24,12 @@
 // StaleCopies.java) reports it as Android 11 can leave an app's copy of a
 // pad read while its kernel devices were being merged: a touchpad's
 // pointer with no joystick ranges. The library must add it on its first
-// record, its cross button's press, mapped by the keys the system says it
-// has, with Android's standard gamepad axes, so that its left stick moved
-// right reads right. The stand-in stands for the copy only: Android 11's
+// record, mapped by the keys the system says it has, with Android's
+// standard gamepad axes, so that its cross button held and its left stick
+// moved right both read. The pad sends the press first, then the move;
+// Android 15 under load has handed the app the move first, with the
+// press a moment after it, so the test waits for both and prints which
+// came first. The stand-in stands for the copy only: Android 11's
 // own keeping of a stale copy, a race of a few milliseconds, is not made
 // to happen, and the half second the library waits before it first reads
 // a new device is not what keeps this pad out.
@@ -119,11 +122,12 @@ typedef struct Program
     // When the input service was seen listing the pad, 0 before.
     uint64_t listedNs;
     // The stale pad: whether it was added, its id, whether its first
-    // record after that was its cross button's press, and how far right
-    // its left stick went.
+    // record after that was its cross button's press, whether that press
+    // came, and how far right its left stick went.
     bool staleAdded;
     mwinGamepadId stale;
     int staleFirst;
+    bool staleCross;
     float staleRight;
     // Whether the stand-in is in place; the ask for the stale pad, 1 once
     // done, -1 once failed, else 0; and the step of the ask that last did
@@ -448,6 +452,12 @@ static void Collect(Program* program, mwinContext* context)
                 program->staleFirst = press ? 1 : -1;
             }
         }
+        if (program->staleAdded && event.type == mwin_eventGamepadButtonDown &&
+            event.data.gamepadButton.gamepad.index1 == program->stale.index1 &&
+            event.data.gamepadButton.button == mwin_padFaceSouth)
+        {
+            program->staleCross = true;
+        }
         if (program->staleAdded && event.type == mwin_eventGamepadAxisMoved &&
             event.data.gamepadAxis.gamepad.index1 == program->stale.index1 &&
             event.data.gamepadAxis.axis == mwin_padStickLeftX &&
@@ -641,7 +651,8 @@ static bool Ready(Program* program, mwinContext* context)
             program->staleAsk = AskStale(program, context);
             return program->staleAsk < 0;
         }
-        return program->staleAsk < 0 || (program->staleFirst != 0 && program->staleRight > 0.99f);
+        return program->staleAsk < 0 ||
+               (program->staleFirst != 0 && program->staleCross && program->staleRight > 0.99f);
     default:
         return true;
     }
@@ -671,8 +682,10 @@ static void CheckMotion(Program* program, mwinContext* context)
 // X axis.
 static void CheckStale(const Program* program, mwinContext* context)
 {
-    CHECK(program->staleAdded && program->staleFirst == 1,
-          "the stale pad added by its press, its first record");
+    CHECK(program->staleAdded && program->staleFirst != 0,
+          "the stale pad added by its first record, which is told");
+    printf("  the stale pad's first record: %s\n",
+           program->staleFirst == 1 ? "its press" : "another");
     mwinGamepadInfo info = {0};
     mwinGamepadState state = {0};
     CHECK(mwinGetGamepadInfo(context, program->stale, &info) == mwin_success && info.mapped,
@@ -808,12 +821,13 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         if (program->phase == 6)
         {
             CheckAsked(program);
-            printf("  the stale pad %s, its first record %s, its left stick at most %.2f\n",
+            printf("  the stale pad %s, its first record %s, its press %s, its left stick at "
+                   "most %.2f\n",
                    program->staleAdded ? "added" : "not added",
                    program->staleFirst == 0   ? "not come"
                    : program->staleFirst == 1 ? "its press"
                                               : "another",
-                   (double)program->staleRight);
+                   program->staleCross ? "come" : "not come", (double)program->staleRight);
             CheckStale(program, context);
         }
         s_failures += 1;

@@ -32,4 +32,4 @@ The root is the program's `AccessibilityNodeProvider`, which the library's view 
 
 ## Facts
 
-The theme comes from the configuration's night mode; the text scale, reduced motion (animator scale 0), the accent (Android 12's system palette), battery saver, the battery and the locales through the Java helper. They are read when an activity starts or changes its configuration, and the power every two seconds, since Android announces it only to broadcast receivers.
+The theme comes from the configuration's night mode; the text scale, reduced motion (animator scale 0), the accent (Android 12's system palette), battery saver, the battery and the locales through the Java helper. They are read when an activity starts or changes its configuration, and the power every two seconds, since Android announces it only to broadcast receivers. The display, the one monitor, is read at the same times and every two seconds; an activity that starts turned can have its window before Android has turned the display's facts (Android 11), so while the window does not fit in the display as last read, it is read again every tenth of a second.

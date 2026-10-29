@@ -346,15 +346,18 @@ static bool WriteScript(void)
         // reports, and removes the pads only then: it is ended, which
         // removes them, once the test has its result (the file
         // ds4-done), a later run has begun or the runner has uninstalled
-        // the test.
+        // the test. The wait ends when the hid tool has ended on its own,
+        // so that the script ends only its own process.
         fprintf(script,
                 "hid=$!\n"
                 "began=$SECONDS\n"
-                "while [ $((SECONDS - began)) -lt 120 ] && mine &&\n"
+                "while [ $((SECONDS - began)) -lt 120 ] && kill -0 $hid 2> /dev/null && mine &&\n"
                 "    ! run-as " MWIN_TEST_PACKAGE " ls files/ds4-done > /dev/null 2>&1; do\n"
                 "    sleep 0.2\n"
                 "done\n"
-                "kill $hid\n");
+                "if kill -0 $hid 2> /dev/null; then\n"
+                "    kill $hid\n"
+                "fi\n");
     }
     bool closed = true;
     for (int i = 0; i < 5; i++)

@@ -5,6 +5,123 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.6.0](https://github.com/Rawframe-Project/maul-window/compare/v0.5.1...v0.6.0) (2026-10-29)
+
+The device checks on real hardware are waived by the owner for releases
+through 2026-10-29, so 0.6.0 ships on its other gates. The iOS check,
+that a window shows no flash against the launch screen before its first
+frame, runs against it in
+[#254](https://github.com/Rawframe-Project/maul-window/issues/254).
+
+### Changed
+
+- **Breaking:** Maul Window needs Maul Unicode 0.6.0, against which
+  its Android, web and Windows backends did not build. A build that
+  provides Maul Unicode itself must provide 0.6.0
+  ([#250](https://github.com/Rawframe-Project/maul-window/pull/250)).
+- **Breaking:** an argument past a fixed bound with a named constant is
+  refused with the new `mwin_errorLimit` (-9) instead of
+  `mwin_errorInvalid`, and counts one misuse. The bound is checked on
+  lengths and counts before any content is read. `mwinCreateWindow`
+  refuses a def whose title passes the `titleBytes` limit with
+  `mwin_errorCapacity`, as `mwinRequestTitle` already did. A program
+  that tests for `mwin_errorInvalid` on these refusals must test for
+  the new results
+  ([#182](https://github.com/Rawframe-Project/maul-window/pull/182)).
+- **Breaking:** the fourteen bounds refused with `mwin_errorLimit` are
+  renamed with the prefix `MWIN_MAX_`, with their values unchanged and
+  no aliases: `MWIN_ADDRESS_BYTES`, `MWIN_CANVAS_SELECTOR_BYTES`,
+  `MWIN_CLIPBOARD_ITEMS`, `MWIN_CLIPBOARD_MIME`, `MWIN_CURSOR_IMAGES`,
+  `MWIN_CURSOR_SIZE`, `MWIN_DIALOG_FILTER_BYTES`,
+  `MWIN_DIALOG_FILTERS`, `MWIN_DIALOG_TITLE_BYTES`,
+  `MWIN_HIT_REGIONS`, `MWIN_ICON_IMAGES`, `MWIN_ICON_SIZE`,
+  `MWIN_MESSAGE_BYTES` and `MWIN_MESSAGE_TITLE_BYTES` are now
+  `MWIN_MAX_ADDRESS_BYTES` and so on
+  ([#186](https://github.com/Rawframe-Project/maul-window/pull/186)).
+- **Breaking:** a call on a context from inside that context's
+  allocator, which `mwinRequestClipboardWrite`, `mwinRequestIcon` and
+  `mwinRequestFileDialog` run partway through, is refused with the new
+  `mwin_errorBusy` (-10) and counts one misuse. Every public function
+  that takes a non-const context refuses it. Such a call used to go
+  ahead, and could destroy the window, take a request slot or drain the
+  queue while the outer call was still using them
+  ([#198](https://github.com/Rawframe-Project/maul-window/pull/198)).
+
+### Added
+
+- `MWIN_INPUT_PURPOSES` counts the input purposes: every purpose is
+  below it. `mwinRequestVirtualKeyboard` refuses a purpose from it on
+  ([#228](https://github.com/Rawframe-Project/maul-window/pull/228)).
+
+### Fixed
+
+- A window's `mwin_eventInputStateReset` ends its composition:
+  `composing` goes false, and the input method's next preedit starts
+  one again. After a composition that did not fit the window's text
+  storage, or one lost to full storage, the program used to keep
+  drawing the old one, and the
+  character keys that went down were left out as a composition's keys
+  until a later preedit
+  ([#194](https://github.com/Rawframe-Project/maul-window/pull/194)).
+- After such a reset, the character keys the input method still takes
+  for its composition stay left out, and the program reads the input
+  method's empty preedit when its composition ends. They used to reach
+  the program as presses and releases until the input method's next
+  preedit
+  ([#199](https://github.com/Rawframe-Project/maul-window/pull/199)).
+- On Wayland, the input method's committed and composed text that is
+  not UTF-8 is repaired with U+FFFD. Committed text
+  used to be lost without a trace, and such a composition dropped,
+  leaving the previous one showing
+  ([#188](https://github.com/Rawframe-Project/maul-window/pull/188)).
+- On iOS, a window takes touches before it first draws: it is black
+  from its creation. Its touches used to go to the home screen behind
+  it until its first frame was presented, and always in a simulator
+  without a Metal device
+  ([#197](https://github.com/Rawframe-Project/maul-window/pull/197)).
+- On Linux, the motion samples of a device that stamps its reports
+  (`MSC_TIMESTAMP`) are timed on the records' clock, as
+  `mwinGamepadMotion.timeNs` is documented. Their time used to count
+  from the device's first stamp
+  ([#164](https://github.com/Rawframe-Project/maul-window/pull/164)).
+- On Linux, after the kernel drops a device's events, a pad and its
+  motion sensors skip what is left of the cut report and read the
+  device's state again. A motion axis whose change was lost used to
+  keep its old value until it changed again, and a pad posted its state
+  mixed with the rest of the cut report
+  ([#170](https://github.com/Rawframe-Project/maul-window/pull/170)).
+- On Linux, a pad whose buttons cannot be read again after such a drop,
+  as when the device has gone, posts nothing for it. Every button it
+  held used to be posted as released
+  ([#173](https://github.com/Rawframe-Project/maul-window/pull/173)).
+- On Linux and on Windows (a HID pad read through Raw Input), a
+  gamepad connected while every slot of `limits.gamepads` was taken is
+  added once a slot is free. It used to be added only when plugged in
+  again
+  ([#213](https://github.com/Rawframe-Project/maul-window/pull/213),
+  [#208](https://github.com/Rawframe-Project/maul-window/pull/208)).
+- On Android 12 and later, each of a gamepad's two motors runs at its
+  own strength. Both used to run at the strength of one of them.
+  Android 11's single vibrator still runs at the stronger of the two
+  ([#224](https://github.com/Rawframe-Project/maul-window/pull/224)).
+- On Android, a gamepad whose motion sensors Android finds a moment
+  after adding it gains motion, told by `mwin_eventGamepadChanged`. It
+  used to never offer motion, and `mwinSetGamepadMotion` answered
+  unsupported
+  ([#225](https://github.com/Rawframe-Project/maul-window/pull/225)).
+- On Android 11, a gamepad Android first read half merged is found: the
+  library reads a new device half a second after it is first listed,
+  and a pad still read part way is added at its first input, with
+  Android's standard gamepad axes. Such a pad used to stay invisible to
+  the program for as long as it ran
+  ([#227](https://github.com/Rawframe-Project/maul-window/pull/227)).
+- On Android, a stop of a gamepad's rumble, asked for or made as the
+  context ends, stops the motors. After Android changed the device, as
+  when it found a pad's motion sensors, the stop used to return
+  `mwin_success` and leave the motors running until the time first
+  asked for ran out
+  ([#240](https://github.com/Rawframe-Project/maul-window/pull/240)).
+
 ## [0.5.1](https://github.com/Rawframe-Project/maul-window/compare/v0.5.0...v0.5.1) (2026-10-27)
 
 ### Fixed

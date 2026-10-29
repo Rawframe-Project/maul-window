@@ -125,6 +125,13 @@ typedef struct Program
     mwinGamepadId stale;
     int staleFirst;
     float staleRight;
+    // Whether the stand-in is in place; the ask for the stale pad, 1 once
+    // done, -1 once failed, else 0; and the step of the ask that last did
+    // not work, with what it answered.
+    bool staleInstalled;
+    int staleAsk;
+    const char* staleStep;
+    const char* staleAnswer;
 } Program;
 
 static char s_read[65536];
@@ -473,28 +480,63 @@ static jclass LoadClass(JNIEnv* env, ANativeActivity* activity, const char* name
 }
 
 // Puts the stand-in for the helper's copies in place (StaleCopies.java),
-// then asks the hid script for the stale pad.
-static bool AskStale(const Program* program, mwinContext* context)
+// then asks the hid script for the stale pad: 1 once both are done; 0
+// while the window has no surface, when the library answers its handles
+// with mwin_errorState until a record brings the surface back; -1 for
+// any other failure. The step that did not work is kept with its answer.
+static int AskStale(Program* program, mwinContext* context)
 {
-    mwinNativeHandles handles = {0};
-    if (mwinGetNativeHandles(context, program->window, &handles) != mwin_success)
+    if (!program->staleInstalled)
     {
-        return false;
+        mwinNativeHandles handles = {0};
+        mwinResult result = mwinGetNativeHandles(context, program->window, &handles);
+        if (result != mwin_success)
+        {
+            program->staleStep = "the window's handles";
+            program->staleAnswer = mwinResultName(result);
+            return result == mwin_errorState ? 0 : -1;
+        }
+        ANativeActivity* activity = handles.handles.android.activity;
+        JNIEnv* env = activity->env;
+        jclass stand = LoadClass(env, activity, "maul.window.StaleCopies");
+        if (stand == nullptr)
+        {
+            program->staleStep = "the stand-in's class";
+            program->staleAnswer = "not found";
+            return -1;
+        }
+        (*env)->CallStaticVoidMethod(env, stand,
+                                     (*env)->GetStaticMethodID(env, stand, "install", "()V"));
+        program->staleInstalled = !(*env)->ExceptionCheck(env);
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, stand);
+        if (!program->staleInstalled)
+        {
+            program->staleStep = "the stand-in's install";
+            program->staleAnswer = "an exception";
+            return -1;
+        }
     }
-    ANativeActivity* activity = handles.handles.android.activity;
-    JNIEnv* env = activity->env;
-    jclass stand = LoadClass(env, activity, "maul.window.StaleCopies");
-    if (stand == nullptr)
-    {
-        return false;
-    }
-    (*env)->CallStaticVoidMethod(env, stand,
-                                 (*env)->GetStaticMethodID(env, stand, "install", "()V"));
-    bool installed = !(*env)->ExceptionCheck(env);
-    (*env)->ExceptionClear(env);
-    (*env)->DeleteLocalRef(env, stand);
     FILE* flag = fopen(FILES "ds4-stale", "w");
-    return installed && flag != nullptr && fclose(flag) == 0;
+    if (flag == nullptr || fclose(flag) != 0)
+    {
+        program->staleStep = "the flag file";
+        program->staleAnswer = "not written";
+        return -1;
+    }
+    return 1;
+}
+
+// The ask for the stale pad done, else the step that did not work.
+static void CheckAsked(const Program* program)
+{
+    CHECK(program->staleAsk == 1, "the stand-in in place and the stale pad asked for");
+    if (program->staleAsk != 1)
+    {
+        printf("  the stale pad not asked for: %s answered %s\n",
+               program->staleStep != nullptr ? program->staleStep : "no step",
+               program->staleAnswer != nullptr ? program->staleAnswer : "nothing");
+    }
 }
 
 // The names of the copies phases 2 and 3 wait for.
@@ -591,7 +633,15 @@ static bool Ready(Program* program, mwinContext* context)
                 motion.acceleration[1] != 0.0f && motion.rotationRate[1] != 0.0f);
     }
     case 6:
-        return program->staleFirst != 0 && program->staleRight > 0.99f;
+        // Asked for at each frame while the window has no surface, the one
+        // failure the library documents as passing; any other ends the
+        // phase at once.
+        if (program->staleAsk == 0)
+        {
+            program->staleAsk = AskStale(program, context);
+            return program->staleAsk < 0;
+        }
+        return program->staleAsk < 0 || (program->staleFirst != 0 && program->staleRight > 0.99f);
     default:
         return true;
     }
@@ -693,10 +743,13 @@ static void Advance(Program* program, mwinContext* context)
             CHECK(mwinSetGamepadMotion(context, program->pad, false) == mwin_success,
                   "the pad's motion turned off");
         }
-        CHECK(AskStale(program, context), "the stand-in in place and the stale pad asked for");
         break;
     case 6:
-        CheckStale(program, context);
+        CheckAsked(program);
+        if (program->staleAsk == 1)
+        {
+            CheckStale(program, context);
+        }
         break;
     default:
         break;
@@ -754,6 +807,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         }
         if (program->phase == 6)
         {
+            CheckAsked(program);
             printf("  the stale pad %s, its first record %s, its left stick at most %.2f\n",
                    program->staleAdded ? "added" : "not added",
                    program->staleFirst == 0   ? "not come"

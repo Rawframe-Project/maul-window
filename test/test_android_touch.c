@@ -117,6 +117,8 @@ typedef struct Program
     // The input records since the phase began.
     mwinEvent records[RECORDS];
     int recordCount;
+    // Whether an earlier run's devices kept this run from making its own.
+    bool blocked;
     // Where the two fingers went down, in logical units.
     mwinPosition first;
     mwinPosition second;
@@ -281,12 +283,25 @@ static bool WriteScript(void)
         // this run's, and two pens' hovering in one device stops the
         // system (its input dispatcher aborts). They go once their script
         // sees this run begun, or once the runner uninstalls the test.
-        fprintf(script, "i=0\n"
-                        "while [ $i -lt 300 ] && mine && dumpsys input | "
-                        "grep -qE '^ +[0-9]+: Maul (Touch|Pen|Mouse)( [0-9]+)?$'; do\n"
-                        "    sleep 0.1\n"
-                        "    i=$((i + 1))\n"
-                        "done\n");
+        // When they stay 15 seconds, well within the phase's deadline, this
+        // run makes none and says whose they are (the file touch-blocked).
+        fprintf(script,
+                "others() {\n"
+                "    dumpsys input | grep -E '^ +[0-9]+: Maul (Touch|Pen|Mouse)( [0-9]+)?$'\n"
+                "}\n"
+                "began=$SECONDS\n"
+                "while [ $((SECONDS - began)) -lt 15 ] && mine && others > /dev/null; do\n"
+                "    sleep 0.1\n"
+                "done\n"
+                "if ! mine; then\n"
+                "    exit 0\n"
+                "fi\n"
+                "if others > /dev/null; then\n"
+                "    others | run-as " MWIN_TEST_PACKAGE " sh -c '\n"
+                "        cat > files/touch-blocked.part && mv files/touch-blocked.part "
+                "files/touch-blocked'\n"
+                "    exit 0\n"
+                "fi\n");
         fprintf(script, "(run-as " MWIN_TEST_PACKAGE " cat files/touch-add.json\n");
         // Android reads a device's reports only once its input hub has
         // opened the device's node: until then they would be lost. Only
@@ -311,6 +326,25 @@ static bool WriteScript(void)
         closed = (files[i] == nullptr || fclose(files[i]) == 0) && closed;
     }
     return opened && closed;
+}
+
+// Says whether the script found an earlier run's devices still there
+// and made none, and prints which.
+static bool Blocked(void)
+{
+    FILE* file = fopen(FILES "touch-blocked", "r");
+    if (file == nullptr)
+    {
+        return false;
+    }
+    printf("an earlier run's devices are still there, so this run made none:\n");
+    char line[128];
+    while (fgets(line, sizeof(line), file) != nullptr)
+    {
+        printf("  %s", line);
+    }
+    (void)fclose(file);
+    return true;
 }
 
 // Puts a file the script waits for.
@@ -556,6 +590,7 @@ static mwinResult Init(mwinContext* context, void* user)
     (void)remove(FILES "touch-pen");
     (void)remove(FILES "touch-mouse");
     (void)remove(FILES "touch-done");
+    (void)remove(FILES "touch-blocked");
     s_run = (int)getpid();
     FILE* run = fopen(FILES "touch-run", "w");
     bool written = run != nullptr && fprintf(run, "%d", s_run) > 0;
@@ -576,6 +611,12 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     if (program->phase > LAST_PHASE)
     {
+        return mwin_frameStop;
+    }
+    if (program->phase == 1 && Blocked())
+    {
+        program->blocked = true;
+        s_failures += 1;
         return mwin_frameStop;
     }
     if (Ready(program))
@@ -602,7 +643,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase > LAST_PHASE, "every phase ran");
+    CHECK(program->blocked || program->phase > LAST_PHASE, "every phase ran");
     CHECK(Flag("touch-done"), "the devices let go");
     printf("result: %d failures\n", s_failures);
 }

@@ -461,7 +461,13 @@ static inline mwinResult mwinMisuse(const mwinContext* context)
 // Zeroes an output a call writes, when the caller passed one. A call on
 // the context clears every output first, before any check, so that a
 // failure leaves zero, the null id or the null request there, never a
-// value from before; the call writes it again when it succeeds.
+// value from before; the call writes it again when it succeeds. The
+// next event and a gamepad's motion are cleared after the busy check: a
+// call refused as busy, made from inside the context's allocator while
+// an outer call uses it, leaves them as they were, since they may be
+// the outer call's. The id of what a call makes, a window, a cursor, a
+// monitor, a gamepad or a request, is null on any failure, busy
+// included.
 static inline void mwinClearOut(void* out, size_t size)
 {
     if (out != nullptr && size > 0)

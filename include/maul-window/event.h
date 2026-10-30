@@ -454,7 +454,7 @@ extern "C"
     ///
     /// @param context   The context.
     /// @param eventOut  Receives the record. Zeroed on `mwin_empty` and on
-    ///                  failure.
+    ///                  failure. `mwin_errorBusy` leaves it as it was.
     /// @return `mwin_success`; `mwin_empty` when the stream is drained;
     ///         `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety

@@ -7,9 +7,13 @@
 // the context's allocator where it changes the context, and with a
 // buffer too short where it copies out text or bytes. Every byte it
 // leaves is zero, but for what the failure defines: the length a short
-// buffer needs, and the dialog's count of paths. A call clears its
-// outputs before any check, so these failures stand for the others each
-// call has (a refused argument, a full limit).
+// buffer needs, and the dialog's count of paths. A call refused as busy
+// from inside the allocator nulls the id of what it would have made, a
+// window, a cursor, a monitor, a gamepad or a request, and writes none
+// of its other outputs, the next event and a gamepad's motion, which
+// keep the pattern. A call clears its outputs before any other check,
+// so these failures stand for the others each call has (a refused
+// argument, a full limit).
 
 #include "test_program.h"
 
@@ -39,28 +43,67 @@ static const mwinClipboardItem s_item = {"image/png", 9, "png", 3};
 static const mwinHitRegion s_region = {{0.0f, 0.0f, 10.0f, 10.0f}, mwin_hitCaption};
 static int s_root;
 
-// The failure being driven, for a failed check's message.
+// The failure being driven, for a failed check's message, and whether
+// it is the busy refusal, which leaves the outputs that name nothing
+// made as they were.
 static const char* s_kind;
+static bool s_busy;
+
+// Whether every byte of an output still holds the pattern.
+static bool Untouched(const void* out, size_t size)
+{
+    const unsigned char* bytes = out;
+    for (size_t i = 0; i < size; i++)
+    {
+        if (bytes[i] != 0xA5)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Whether a call answered expected and left its output as the failure
+// asks: zero, or untouched for an output that names nothing made when
+// the call is refused as busy.
+static void Check(const char* call, mwinResult status, mwinResult expected, const void* out,
+                  size_t size, bool keptWhenBusy)
+{
+    bool kept = s_busy && keptWhenBusy;
+    bool left = kept ? Untouched(out, size) : Zeroed(out, size);
+    if (status != expected || !left)
+    {
+        printf("FAIL: %s %s: answered %d, %s\n", call, s_kind, (int)status,
+               left   ? "its outputs as they should be"
+               : kept ? "its outputs written"
+                      : "its outputs left");
+        s_failures += 1;
+    }
+}
 
 // Whether a call answered expected and left every byte of its output
 // zero.
 static void Expect(const char* call, mwinResult status, mwinResult expected, const void* out,
                    size_t size)
 {
-    if (status != expected || !Zeroed(out, size))
-    {
-        printf("FAIL: %s %s: answered %d, %s\n", call, s_kind, (int)status,
-               Zeroed(out, size) ? "its outputs zero" : "its outputs left");
-        s_failures += 1;
-    }
+    Check(call, status, expected, out, size, false);
 }
 
-// Fills out with the pattern, makes the call and checks what it left.
+// Fills out with the pattern, makes the call and checks it zero.
 #define EXPECT(expected, out, function, ...)                                                       \
     do                                                                                             \
     {                                                                                              \
         Fill(&(out), sizeof(out));                                                                 \
         Expect(#function, function(__VA_ARGS__), expected, &(out), sizeof(out));                   \
+    } while (0)
+
+// Fills out, which names nothing the call made, with the pattern, makes
+// the call and checks it zero, or untouched when refused as busy.
+#define EXPECT_KEPT(expected, out, function, ...)                                                  \
+    do                                                                                             \
+    {                                                                                              \
+        Fill(&(out), sizeof(out));                                                                 \
+        Check(#function, function(__VA_ARGS__), expected, &(out), sizeof(out), true);              \
     } while (0)
 
 // Two to four outputs a call writes, side by side with no padding, so
@@ -143,7 +186,7 @@ static void Changes(mwinContext* context, mwinWindowId window, mwinResult status
     mwinCursorId cursor;
     EXPECT(status, cursor, mwinCreateCursor, context, &cursorDef, &cursor);
     mwinEvent event;
-    EXPECT(status, event, mwinContext_NextEvent, context, &event);
+    EXPECT_KEPT(status, event, mwinContext_NextEvent, context, &event);
     mwinMonitorInfo monitorInfo = {.scale = 1.0f};
     mwinMonitorId monitor;
     EXPECT(status, monitor, mwinAddTestMonitor, context, &monitorInfo, &monitor);
@@ -152,7 +195,7 @@ static void Changes(mwinContext* context, mwinWindowId window, mwinResult status
     mwinGamepadId pad;
     EXPECT(status, pad, mwinAddTestGamepad, context, &padInfo, &pad);
     mwinGamepadMotion motion;
-    EXPECT(status, motion, mwinGamepad_GetMotion, context, (mwinGamepadId){0}, &motion);
+    EXPECT_KEPT(status, motion, mwinGamepad_GetMotion, context, (mwinGamepadId){0}, &motion);
 #endif
 }
 
@@ -361,7 +404,9 @@ static void* ArmedAllocate(size_t size, size_t alignment, void* user)
     {
         s_entered += 1;
         s_kind = "from inside the allocator";
+        s_busy = true;
         Changes(s_context, s_window, mwin_errorBusy);
+        s_busy = false;
     }
     return alignment <= alignof(max_align_t) ? malloc(size) : nullptr;
 }

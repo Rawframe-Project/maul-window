@@ -9,6 +9,7 @@
 // the place the finger lifted, with the document copied under its name
 // and the text.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/context.h"
@@ -82,13 +83,6 @@ static void Collect(Program* program, mwinContext* context)
             program->drop = event.data.drop;
         }
     }
-}
-
-static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
-{
-    mwinNativeHandles handles = {0};
-    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
-    return handles.handles.android.activity;
 }
 
 static jobject Resolver(JNIEnv* env, ANativeActivity* activity)
@@ -281,8 +275,9 @@ static bool Ready(Program* program, mwinContext* context)
     (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
+    // Focused, and with its surface: the activity is kept from here.
     case 0:
-        return state.focused;
+        return state.focused && HasSurface(context, program->window);
     case 1:
         return program->touched;
     case 2:
@@ -300,7 +295,12 @@ static void Advance(Program* program, mwinContext* context)
     {
         mwinWindowState state = {0};
         (void)mwinWindow_GetState(context, program->window, &state);
-        program->activity = ActivityOf(program, context);
+        program->activity = ActivityWithSurface(context, program->window);
+        CHECK(program->activity != nullptr, "the activity at the start");
+        if (program->activity == nullptr)
+        {
+            break;
+        }
         program->scale = state.scale;
         program->x = (int)state.pixelSize.width / 3;
         program->y = (int)state.pixelSize.height / 3;

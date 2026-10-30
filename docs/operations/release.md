@@ -9,6 +9,7 @@ Releases are made by release-please from the conventional commit titles on `main
 3. Check that the `required` CI job passed on the release pull request, including every platform cell.
 4. Mark the pull request ready and merge it. release-please tags the merge commit and publishes the GitHub release with the changelog entry as its notes. The Pages workflow publishes the documentation from `main`.
 5. The `assets` job of `.github/workflows/release.yml` attaches the source archive `maul-window-X.Y.Z.tar.gz`, its `SHA256SUMS`, an SPDX SBOM and a build provenance attestation. A user verifies a download with `sha256sum -c SHA256SUMS` and `gh attestation verify maul-window-X.Y.Z.tar.gz -R Rawframe-Project/maul-window`.
+6. When the release app cannot publish the release (it cannot create one on a commit whose workflows differ from `main`'s head), a maintainer creates the tag on the release commit and the release with the curated notes by hand, moves the release pull request's label to `autorelease: tagged`, and runs the release workflow from `main` with that tag: `gh workflow run release.yml -f tag=vX.Y.Z`. Its `assets` job refuses a tag that is not `vX.Y.Z`, one on a commit `main` does not hold, and a release that already has files, so a published file is never replaced; it builds the files from the commit it checked.
 
 ## Device checks
 

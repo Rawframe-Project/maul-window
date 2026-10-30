@@ -17,9 +17,11 @@
 # back too, and a finger the console put down is lifted. The library never ends
 # the process, so the runner stops it. Passes when the line says 0
 # failures and the system did not restart meanwhile; otherwise shows the
-# application's crashes from the log, the activity made anew or input
-# dropped, and the resources' changes, and a restart of the system with
-# Android's own abort message, apart from the test's failures.
+# application's crashes from the log, the Java exceptions the library
+# described there, what the clipboard service said, each ANR whole, the
+# activity made anew or input dropped, and the resources' changes, and a
+# restart of the system with Android's own abort message, apart from the
+# test's failures.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -117,6 +119,11 @@ if [ -z "$restarted" ] && grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
+    # A Java exception the library's helpers threw (described to the log
+    # as System.err), what the clipboard service said, and each ANR's
+    # block whole, from its header on, which the tail above can cut.
+    "$adb" logcat -d -s System.err:W ClipboardService:V | tail -80
+    "$adb" logcat -d -s ActivityManager:E | sed -n '/ANR in /,$p'
     # Whether the system made the activity anew or dropped input meant
     # for it, and the resources' changes from the start to now.
     "$adb" logcat -d -s ActivityTaskManager:I WindowManager:I InputDispatcher:W |

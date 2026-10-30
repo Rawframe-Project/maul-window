@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The clipboard and services on Android, in the emulator
-// (tools/run_android_app.sh): text written to the clipboard reads back
-// the same, as do ASCII at the limit and empty text; keeping awake sets
-// the activity window's flag and clearing it clears it; showing a file,
-// the message box, clipboard data and the primary selection
-// are unsupported; an address opens in the browser, which takes the
-// program to the background; an activity made anew while the window is
-// kept awake keeps the display awake too.
+// The services on Android, in the emulator (tools/run_android_app.sh):
+// keeping awake sets the activity window's flag and clearing it clears
+// it; showing a file, the message box, clipboard data and the primary
+// selection are unsupported; an address opens in the browser, which
+// takes the program to the background; an activity made anew while the
+// window is kept awake keeps the display awake too. The clipboard's text
+// is test_android_clipboard.c's.
 
 #include "test_harness.h"
 
@@ -27,16 +26,10 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  6
+#define LAST_PHASE  5
 
 // WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON.
 #define KEEP_SCREEN_ON 0x80
-
-// Text past ASCII, in one, two and three bytes.
-#define TEXT "H\xc3\xa9llo, \xe2\x9c\x93 w\xc3\xb6rld"
-// ASCII as long as TEXT in bytes, the clipboard's limit: as many units.
-#define LIMIT_TEXT "maul-window-limits"
-static_assert(sizeof(LIMIT_TEXT) == sizeof(TEXT), "the limit is TEXT's bytes");
 
 typedef struct Program
 {
@@ -147,42 +140,19 @@ static bool Ready(Program* program, mwinContext* context)
     // NativeActivity sets the window's flags later, on its Java side:
     // the test waits for them.
     case 1:
-        return program->completions >= 2 && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
-    case 3:
-        return program->completions >= 6 && (WindowFlags(program, context) & KEEP_SCREEN_ON) == 0;
+        return program->completions >= 1 && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
     case 2:
-        return program->completions >= 1;
+        return program->completions >= 4 && (WindowFlags(program, context) & KEEP_SCREEN_ON) == 0;
+    case 3:
+        return program->completions >= 2 && program->suspended;
     case 4:
-        return program->completions >= 4 && program->suspended;
-    case 5:
         return program->resumed && state.focused;
-    case 6:
+    case 5:
         return (state.pixelSize.width > state.pixelSize.height) == program->wasPortrait &&
                state.focused && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
     default:
         return true;
     }
-}
-
-// The last clipboard read asked, whose payload the checks copy out.
-static mwinRequestId s_read;
-
-static bool ReadBack(mwinContext* context, const char* expected)
-{
-    char text[64] = {0};
-    size_t length = 0;
-    return mwinRequest_GetClipboardText(context, s_read, text, sizeof(text), &length) ==
-               mwin_success &&
-           length == strlen(expected) && memcmp(text, expected, length) == 0;
-}
-
-// Writes text and reads it back: two requests.
-static void WriteRead(const Program* program, mwinContext* context, const char* text)
-{
-    CHECK(mwinWindow_RequestClipboardWrite(context, program->window, text, strlen(text), nullptr) ==
-                  mwin_success &&
-              mwinWindow_RequestClipboardRead(context, program->window, &s_read) == mwin_success,
-          "a write and a read asked for");
 }
 
 // Prints a phase's completions in the order they came, each its request's
@@ -205,25 +175,14 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         Paint(program, context);
-        CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, nullptr) ==
-                      mwin_success &&
-                  mwinWindow_RequestClipboardWrite(context, program->window, TEXT, strlen(TEXT),
-                                                   nullptr) == mwin_success,
-              "keeping awake and a write asked for");
+        CHECK(mwinWindow_RequestKeepAwake(context, program->window, true, nullptr) == mwin_success,
+              "keeping awake asked for");
         break;
     case 1:
-        CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeDone,
-              "keeping awake and the write done");
+        CHECK(outcomes[0] == mwin_outcomeDone, "keeping awake done");
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0 &&
                   StateOf(program, context).awake,
               "kept awake: the window's flag");
-        CHECK(mwinWindow_RequestClipboardRead(context, program->window, &s_read) == mwin_success,
-              "a read asked for");
-        break;
-    case 2:
-        CHECK(outcomes[0] == mwin_outcomeDone, "the read done");
-        CHECK(ReadBack(context, TEXT), "the clipboard's text read back the same");
-        WriteRead(program, context, LIMIT_TEXT);
         CHECK(mwinWindow_RequestKeepAwake(context, program->window, false, nullptr) ==
                       mwin_success &&
                   mwinWindow_RequestRevealFile(context, program->window, "/sdcard", 7, nullptr) ==
@@ -239,16 +198,11 @@ static void Advance(Program* program, mwinContext* context)
                   "no message box to wait for");
         }
         break;
-    case 3:
-        CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeDone &&
-                  ReadBack(context, LIMIT_TEXT),
-              "ASCII at the limit read back the same");
-        CHECK(outcomes[2] == mwin_outcomeDone && outcomes[3] == mwin_outcomeUnsupported,
+    case 2:
+        CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeUnsupported,
               "awake cleared; no file manager");
-        CHECK(outcomes[4] == mwin_outcomeUnsupported && outcomes[5] == mwin_outcomeUnsupported,
+        CHECK(outcomes[2] == mwin_outcomeUnsupported && outcomes[3] == mwin_outcomeUnsupported,
               "no clipboard data, no primary selection");
-        // Read while the program has the focus: Android refuses it later.
-        WriteRead(program, context, "");
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) == 0 &&
                   !StateOf(program, context).awake,
               "the window's flag cleared");
@@ -261,14 +215,12 @@ static void Advance(Program* program, mwinContext* context)
                   "awake again, and an address opened");
         }
         break;
-    case 4:
-        CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeDone &&
-                  ReadBack(context, ""),
-              "empty text read back empty");
-        CHECK(outcomes[3] == mwin_outcomeDone, "the address opened in the browser");
+    case 3:
+        CHECK(outcomes[0] == mwin_outcomeDone && outcomes[1] == mwin_outcomeDone,
+              "awake again, and the address opened in the browser");
         printf("adb: am start -n " MWIN_TEST_PACKAGE "/maul.window.Activity\n");
         break;
-    case 5:
+    case 4:
     {
         // Turned the other way: the activity is made anew and joins.
         mwinWindowState state = StateOf(program, context);
@@ -277,7 +229,7 @@ static void Advance(Program* program, mwinContext* context)
         printf("adb: settings put system user_rotation %d\n", program->wasPortrait ? 1 : 0);
         break;
     }
-    case 6:
+    case 5:
         CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0,
               "the activity made anew kept awake too");
         break;
@@ -340,7 +292,6 @@ mwinAppDef mwinAndroidMain(void)
         setvbuf(stdout, nullptr, _IONBF, 0);
     }
     mwinAppDef def = mwinDefaultAppDef();
-    def.context.limits.clipboardBytes = sizeof(LIMIT_TEXT) - 1;
     def.init = Init;
     def.frame = Frame;
     def.quit = Quit;

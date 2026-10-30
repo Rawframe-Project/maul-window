@@ -679,10 +679,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
                                  LABELS "${name};integration")
         endforeach()
         # Intermittent in the Android 15 emulator: battery saver not
-        # reported after a fresh boot, and an explored finger not heard.
+        # reported after a fresh boot (issue #229), and an explored finger
+        # not heard (issue #230).
         maul_quarantine(android_system android_access)
         # Intermittent in the Android 15 emulator: a swipe's moves and lift
-        # not delivered.
+        # not delivered (issue #235).
         maul_quarantine(android_input)
         # Intermittent in the Android 15 emulator: every clipboard write and
         # read failing for a whole run (issue #256).

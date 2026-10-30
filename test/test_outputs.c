@@ -194,6 +194,19 @@ static void Reads(mwinContext* context, mwinWindowId window, mwinMonitorId monit
     EXPECT(status, shown, mwinWindow_GetTestCursor, context, window, &shown.cursor, &shown.image);
     mwinMonitorInfo info;
     EXPECT(status, info, mwinMonitor_GetInfo, context, monitor, &info);
+    bool on;
+    mwinRect caret;
+    Fill(&on, sizeof(on));
+    Fill(&caret, sizeof(caret));
+    mwinResult text = mwinWindow_GetTestTextInput(context, window, &on, &caret);
+    Expect("mwinWindow_GetTestTextInput", text, status, &on, sizeof(on));
+    Expect("mwinWindow_GetTestTextInput", text, status, &caret, sizeof(caret));
+    mwinInputPurpose purpose;
+    Fill(&on, sizeof(on));
+    Fill(&purpose, sizeof(purpose));
+    mwinResult keyboard = mwinWindow_GetTestVirtualKeyboard(context, window, &on, &purpose);
+    Expect("mwinWindow_GetTestVirtualKeyboard", keyboard, status, &on, sizeof(on));
+    Expect("mwinWindow_GetTestVirtualKeyboard", keyboard, status, &purpose, sizeof(purpose));
 }
 
 // The calls that copy text or bytes out, each given a buffer and its

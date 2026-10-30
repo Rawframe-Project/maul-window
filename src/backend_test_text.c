@@ -67,6 +67,8 @@ static mwinResult FindText(const mwinContext* context, mwinWindowId window,
 mwinResult mwinWindow_GetTestVirtualKeyboard(const mwinContext* context, mwinWindowId window,
                                              bool* visibleOut, mwinInputPurpose* purposeOut)
 {
+    mwinClearOut(visibleOut, sizeof *visibleOut);
+    mwinClearOut(purposeOut, sizeof *purposeOut);
     const mwinTestText* text = nullptr;
     mwinResult found = visibleOut != nullptr && purposeOut != nullptr
                            ? FindText(context, window, &text)
@@ -82,6 +84,8 @@ mwinResult mwinWindow_GetTestVirtualKeyboard(const mwinContext* context, mwinWin
 mwinResult mwinWindow_GetTestTextInput(const mwinContext* context, mwinWindowId window,
                                        bool* enabledOut, mwinRect* caretOut)
 {
+    mwinClearOut(enabledOut, sizeof *enabledOut);
+    mwinClearOut(caretOut, sizeof *caretOut);
     const mwinTestText* text = nullptr;
     mwinResult found = enabledOut != nullptr && caretOut != nullptr
                            ? FindText(context, window, &text)

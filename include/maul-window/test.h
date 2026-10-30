@@ -592,8 +592,10 @@ extern "C"
     ///
     /// @param context     A context of the test backend.
     /// @param window      The window.
-    /// @param visibleOut  Receives whether the keyboard shows.
-    /// @param purposeOut  Receives the purpose of the text field.
+    /// @param visibleOut  Receives whether the keyboard shows. False on
+    ///                    failure.
+    /// @param purposeOut  Receives the purpose of the text field. 0 on
+    ///                    failure.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
     ///         longer exists; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL argument.
@@ -610,9 +612,10 @@ extern "C"
     ///
     /// @param context     A context of the test backend.
     /// @param window      The window.
-    /// @param enabledOut  Receives whether the window accepts text.
+    /// @param enabledOut  Receives whether the window accepts text. False
+    ///                    on failure.
     /// @param caretOut    Receives the caret, in the window's logical
-    ///                    units.
+    ///                    units. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorStale` for a window that no
     ///         longer exists; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL argument.

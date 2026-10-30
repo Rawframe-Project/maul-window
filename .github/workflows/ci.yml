@@ -33,7 +33,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       pull-requests: read
 
@@ -49,12 +49,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
         with:
           exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       contents: read
 
@@ -160,7 +160,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@89f98d8066ba5deec132332fba9f0b0347aecc01 # v0.0.40
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
     permissions:
       contents: read
     with:
@@ -187,19 +187,27 @@ jobs:
           cmake --build out/headers --config Release
 
   # Each fuzz target runs over the bytes other programs and devices hand
-  # the library, from its committed seeds: briefly on a pull request, longer
-  # on main. The nightly run is fuzz-nightly.
+  # the library, in a job of its own: briefly on a pull request, longer on
+  # main. Each starts from its committed seeds and the corpus fuzz-nightly
+  # keeps for it (that build's, else its newest), restored read-only, so a
+  # change that breaks a harness's promise fails on its own pull request.
+  # Only fuzz-nightly saves and minimizes a corpus.
   fuzz:
-    needs: changes
+    needs: [changes, fuzz-targets]
     if: needs.changes.outputs.code == 'true' && (github.event_name == 'pull_request' || github.event_name == 'push')
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.fuzz-targets.outputs.targets) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     container:
       image: ghcr.io/rawframe-project/ci-cpp:2026.10.7@sha256:08c846597243dc000c83d6c008d078a8c3fabf8633d83963d46c0e6d02c2577e
       options: --init
     permissions:
       contents: read
     env:
+      TARGET: ${{ matrix.target }}
       FUZZ_SECONDS: ${{ github.event_name == 'pull_request' && 20 || 90 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -212,40 +220,62 @@ jobs:
           key: ccache-fuzz-${{ github.sha }}
           restore-keys: ccache-fuzz-
       - name: Build
+        env:
+          INPUTS: ${{ hashFiles('src/**', 'include/**', 'protocols/**', 'cmake/**', 'CMakeLists.txt', format('test/{0}.c', matrix.target)) }}
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           ccache --zero-stats >/dev/null
           cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -D${PREFIX}_FUZZ=ON -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
-          cmake --build out/fuzz
+          cmake --build out/fuzz --target "$TARGET"
+          [ -x "out/fuzz/$TARGET" ] || { echo "::error::$TARGET was not built"; exit 1; }
           ccache --show-stats
+          # fuzz-nightly's key for this target's corpus.
+          compiler=$(clang-20 --version | head -1 | sha256sum | cut -c1-16)
+          echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
+      # One target's job saves the library's objects for the others: the
+      # jobs would race for the one key.
       - name: Save ccache
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: >-
+          github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+          matrix.target == fromJSON(needs.fuzz-targets.outputs.targets)[0]
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/ccache
           key: ccache-fuzz-${{ github.sha }}
+      - name: Restore the corpus
+        id: restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/corpus/${{ matrix.target }}
+          key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ env.CORPUS_KEY }}-
+            corpus-${{ matrix.target }}-
       - name: Run
-        # As many targets at a time as the runner has cores; each keeps its
-        # full time. tools/fuzz_target.sh reports a finding without its
-        # input, and keeps the input and the log on the runner; the reports
-        # are printed once every target has finished.
+        # tools/fuzz_target.sh reports a finding without its input, and
+        # keeps the input and the log on the runner.
+        env:
+          MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
         run: |
+          mkdir -p "out/corpus/$TARGET"
+          seeds=()
+          [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
+          case "$MATCHED" in
+          "") echo "corpus restored: none, the seeds alone" ;;
+          "$CORPUS_KEY"-*) echo "corpus restored: this build's" ;;
+          *) echo "corpus restored: an earlier build's" ;;
+          esac
           rm -rf out/fuzz-reports
           status=0
-          printf '%s\n' out/fuzz/fuzz_* | xargs -P "$(nproc)" -I {} bash -c '
-            name=$(basename "$1")
-            mkdir -p "out/corpus/$name"
-            seeds=()
-            [ -d "test/seeds/$name" ] && seeds=("test/seeds/$name")
-            tools/fuzz_target.sh "$1" -max_total_time="$FUZZ_SECONDS" -max_len=256 \
-              "out/corpus/$name" "${seeds[@]}"' _ {} || status=$?
+          tools/fuzz_target.sh "out/fuzz/$TARGET" -max_total_time="$FUZZ_SECONDS" -max_len=256 \
+            "out/corpus/$TARGET" "${seeds[@]}" || status=$?
           cat out/fuzz-reports/*.txt 2>/dev/null || true
           exit "$status"
 
-  # The fuzz targets, one per test/fuzz_*.c, for fuzz-nightly's matrix.
+  # The fuzz targets, one per test/fuzz_*.c, for the matrices of fuzz and
+  # fuzz-nightly.
   fuzz-targets:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions:
@@ -273,6 +303,7 @@ jobs:
   # inputs, and the Actions cache and artifacts are not secret.
   fuzz-nightly:
     needs: fuzz-targets
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -302,7 +333,6 @@ jobs:
           echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
       - name: Restore the corpus
         id: restore
-        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
@@ -359,7 +389,10 @@ jobs:
             echo "|---|---|---|---|---|"
             echo "| \`$TARGET\` | $restored | $seeded | $(coverage "${seeds[@]}" "out/corpus/$TARGET") | $(ls "out/corpus/$TARGET" | wc -l) |"
           } >>"$GITHUB_STEP_SUMMARY"
+      # Saved by a clean run on main only: a run dispatched on a branch
+      # fuzzes and minimizes, and keeps nothing.
       - name: Save the corpus
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}

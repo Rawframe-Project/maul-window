@@ -102,9 +102,12 @@ static void Release(mwinContext* context, uint32_t slot)
     {
         context->backend->releaseCursor(context, slot);
     }
+    // Gone, its slot emptied, before the free hook gets its images, so a
+    // getter called from the hook finds no cursor.
     mwinCursor* cursor = &context->cursors[slot];
-    mwinRelease(&context->allocator, cursor->images, cursor->images->size, alignof(max_align_t));
+    mwinIconCopy* images = cursor->images;
     *cursor = (mwinCursor){.generation = cursor->generation};
+    mwinRelease(&context->allocator, images, images->size, alignof(max_align_t));
 }
 
 mwinResult mwinDestroyCursor(mwinContext* context, mwinCursorId cursor)

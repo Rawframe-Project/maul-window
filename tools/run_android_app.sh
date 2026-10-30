@@ -118,7 +118,10 @@ status=1
 if [ -z "$restarted" ] && grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
-    "$adb" logcat -d -s AndroidRuntime:E DEBUG:F libc:F ActivityManager:W | tail -60
+    "$adb" logcat -d -s AndroidRuntime:E libc:F ActivityManager:W | tail -60
+    # Each native crash's tombstone whole, from its header on: the signal,
+    # the fault address and the top frames come first, which a tail cuts.
+    "$adb" logcat -d -s DEBUG:F | sed -n '/\*\*\* \*\*\* \*\*\*/,$p'
     # A Java exception the library's helpers threw (described to the log
     # as System.err), what the clipboard service said, and each ANR's
     # block whole, from its header on, which the tail above can cut.

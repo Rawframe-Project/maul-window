@@ -8,7 +8,7 @@ What verifies a change, locally and in CI, and the time each may take.
 
 | Tier | Runs | Budget |
 |---|---|---|
-| `changed` | The source, module, length, API documentation, snippet and test hygiene rules, the organization's documentation check, `clang-format` on the changed C and Objective-C files, the iOS runner's test when an iOS script changed, and in the `linux-clang-20-asan` preset that every test carries a label and the tests whose labels the changed files reach, integration tests left out. | under 2 minutes |
+| `changed` | The source, module, length, API documentation, snippet and test hygiene rules, the organization's documentation check, `clang-format` on the changed C and Objective-C files, clang-tidy in a Release build and a Debug build on the changed `src/*.c` files among the Linux build's sources (`src/generated/` left out, as in `pr`), the iOS runner's test when an iOS script changed, and in the `linux-clang-20-asan` preset that every test carries a label and the tests whose labels the changed files reach, integration tests left out. | under 2 minutes on built trees |
 | `pr` | Every rule on every file, the generated tables against their generators, the iOS runner against a stand-in simulator (`tools/test_run_ios_app.sh`), that the documentation site builds, clang-tidy over the Linux build's sources in a Release build and a Debug build, the whole `linux-clang-20-asan` suite with the display fixture, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also the other Linux presets (ThreadSanitizer, shared, minimal, Clang and GCC Release), each with its tests' labels checked, the virtual gamepad tests where `/dev/uinput` can be written, and 60 seconds per fuzz target. | under 20 minutes |
 

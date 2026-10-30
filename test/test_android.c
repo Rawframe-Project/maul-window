@@ -293,12 +293,35 @@ static void CheckWindow(const Program* program, mwinContext* context)
     CHECK(window != nullptr && (int32_t)state.pixelSize.width == ANativeWindow_getWidth(window) &&
               (int32_t)state.pixelSize.height == ANativeWindow_getHeight(window),
           "the native window's size in pixels");
-    CHECK(fabsf(state.scale - DensityOf(handles.handles.android.activity)) < 0.01f &&
+    // A missing activity is the failure above, not a crash here.
+    ANativeActivity* activity = handles.handles.android.activity;
+    CHECK(activity != nullptr && fabsf(state.scale - DensityOf(activity)) < 0.01f &&
               state.size.width * state.scale > state.pixelSize.width - 1.0f &&
               state.size.width * state.scale < state.pixelSize.width + 1.0f,
           "the scale the display's density, and the size in logical units");
     CHECK(program->shown && state.visible, "shown with the activity");
     CheckMonitor(&state, context);
+}
+
+// Whether the window has its surface and the activity's handles. A
+// frame between a relaunched activity's start and its surface, which
+// the start itself runs, gets no handles: the library answers
+// mwin_errorState and gives out no pointer, so a program that tests the
+// status never reads one.
+static bool HasSurface(const Program* program, mwinContext* context)
+{
+    mwinNativeHandles handles;
+    memset(&handles, 0xA5, sizeof(handles));
+    mwinResult status = mwinWindow_GetNativeHandles(context, program->window, &handles);
+    if (StateOf(program, context).surfaceLost)
+    {
+        static const mwinNativeHandles none = {0};
+        CHECK(status == mwin_errorState && memcmp(&handles, &none, sizeof(handles)) == 0,
+              "no handles while the surface is gone");
+        return false;
+    }
+    return status == mwin_success && handles.handles.android.window != nullptr &&
+           handles.handles.android.activity != nullptr;
 }
 
 static bool Ready(const Program* program, mwinContext* context)
@@ -315,7 +338,10 @@ static bool Ready(const Program* program, mwinContext* context)
     {
     case 0:
     case 6:
-        return program->created && program->shown;
+        // Shown, and showing now: a turn that relaunches the activity
+        // takes the surface away for a while, and its new start runs a
+        // frame before the surface comes back.
+        return program->created && program->shown && HasSurface(program, context);
     case 1:
         return program->completions >= 3;
     case 4:

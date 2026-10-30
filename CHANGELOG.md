@@ -5,6 +5,167 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.7.0](https://github.com/Rawframe-Project/maul-window/compare/v0.6.0...v0.7.0) (2026-10-29)
+
+### Changed
+
+- **Breaking:** Maul Window needs Maul Unicode 0.8.0. A build that
+  provides Maul Unicode itself must provide 0.8.0
+  ([#273](https://github.com/Rawframe-Project/maul-window/pull/273)).
+- **Breaking:** the public functions are named by the Maul family's
+  naming rule, with no aliases. A call on one object is
+  `mwinObject_Verb...`, the object being the kind of its first id
+  (`mwinWindow_RequestTitle`, `mwinGamepad_GetState`,
+  `mwinRequest_GetClipboardText`); a call that takes no id acts on the
+  context (`mwinContext_NextEvent`). Creation, destruction, defaults and
+  calls on no object keep `mwinVerbNoun`, and the test platform's calls
+  put `Test` after the verb. Their parameters and behavior are
+  unchanged: code that calls them changes the names and nothing else
+  ([#264](https://github.com/Rawframe-Project/maul-window/pull/264)).
+
+  | 0.6.0 | 0.7.0 |
+  |---|---|
+  | `mwinTestAddGamepad` | `mwinAddTestGamepad` |
+  | `mwinTestAddMonitor` | `mwinAddTestMonitor` |
+  | `mwinGetDroppedFiles` | `mwinContext_GetDroppedFiles` |
+  | `mwinGetDroppedText` | `mwinContext_GetDroppedText` |
+  | `mwinGetGamepads` | `mwinContext_GetGamepads` |
+  | `mwinGetKeyReach` | `mwinContext_GetKeyReach` |
+  | `mwinGetKeyboardLayout` | `mwinContext_GetKeyboardLayout` |
+  | `mwinGetContextMisuse` | `mwinContext_GetMisuse` |
+  | `mwinGetMonitors` | `mwinContext_GetMonitors` |
+  | `mwinGetPreferredLocales` | `mwinContext_GetPreferredLocales` |
+  | `mwinGetSystemFacts` | `mwinContext_GetSystemFacts` |
+  | `mwinTestGetClipboard` | `mwinContext_GetTestClipboard` |
+  | `mwinTestGetClipboardData` | `mwinContext_GetTestClipboardData` |
+  | `mwinTestGetDialog` | `mwinContext_GetTestDialog` |
+  | `mwinTestGetIcon` | `mwinContext_GetTestIcon` |
+  | `mwinTestGetOpened` | `mwinContext_GetTestOpened` |
+  | `mwinTestGetPrimary` | `mwinContext_GetTestPrimary` |
+  | `mwinTestHold` | `mwinContext_HoldTestRequests` |
+  | `mwinMapKeyCode` | `mwinContext_MapKeyCode` |
+  | `mwinNextEvent` | `mwinContext_NextEvent` |
+  | `mwinTestPost` | `mwinContext_PostTestEvent` |
+  | `mwinTestSetAnswer` | `mwinContext_SetTestAnswer` |
+  | `mwinTestSetClipboard` | `mwinContext_SetTestClipboard` |
+  | `mwinTestSetClipboardData` | `mwinContext_SetTestClipboardData` |
+  | `mwinTestSetClipboardUtf16` | `mwinContext_SetTestClipboardUtf16` |
+  | `mwinTestSetDialogFiles` | `mwinContext_SetTestDialogFiles` |
+  | `mwinTestSetKeyReach` | `mwinContext_SetTestKeyReach` |
+  | `mwinTestSetLocales` | `mwinContext_SetTestLocales` |
+  | `mwinTestSetPrimary` | `mwinContext_SetTestPrimary` |
+  | `mwinTestSetScale` | `mwinContext_SetTestScale` |
+  | `mwinTestSetSystemFacts` | `mwinContext_SetTestSystemFacts` |
+  | `mwinTestSetTime` | `mwinContext_SetTestTime` |
+  | `mwinSetGamepadMotion` | `mwinGamepad_EnableMotion` |
+  | `mwinGetGamepadInfo` | `mwinGamepad_GetInfo` |
+  | `mwinGetGamepadMotion` | `mwinGamepad_GetMotion` |
+  | `mwinGetGamepadState` | `mwinGamepad_GetState` |
+  | `mwinTestGetRumble` | `mwinGamepad_GetTestRumble` |
+  | `mwinTestGetTriggerRumble` | `mwinGamepad_GetTestTriggerRumble` |
+  | `mwinTestGetMotionOn` | `mwinGamepad_IsTestMotionEnabled` |
+  | `mwinTestGamepadMotion` | `mwinGamepad_PostTestMotion` |
+  | `mwinSetGamepadRumble` | `mwinGamepad_SetRumble` |
+  | `mwinTestGamepadAxis` | `mwinGamepad_SetTestAxis` |
+  | `mwinTestGamepadButton` | `mwinGamepad_SetTestButton` |
+  | `mwinTestChangeGamepad` | `mwinGamepad_SetTestInfo` |
+  | `mwinSetGamepadTriggerRumble` | `mwinGamepad_SetTriggerRumble` |
+  | `mwinResultName` | `mwinGetResultName` |
+  | `mwinGetMonitorInfo` | `mwinMonitor_GetInfo` |
+  | `mwinTestChangeMonitor` | `mwinMonitor_SetTestInfo` |
+  | `mwinTestRemoveGamepad` | `mwinRemoveTestGamepad` |
+  | `mwinTestRemoveMonitor` | `mwinRemoveTestMonitor` |
+  | `mwinGetClipboardData` | `mwinRequest_GetClipboardData` |
+  | `mwinGetClipboardText` | `mwinRequest_GetClipboardText` |
+  | `mwinGetDialogFiles` | `mwinRequest_GetDialogFiles` |
+  | `mwinGetPrimaryText` | `mwinRequest_GetPrimaryText` |
+  | `mwinTestAskAccessibility` | `mwinWindow_AskTestAccessibility` |
+  | `mwinGetNativeHandles` | `mwinWindow_GetNativeHandles` |
+  | `mwinGetWindowState` | `mwinWindow_GetState` |
+  | `mwinTestGetCursor` | `mwinWindow_GetTestCursor` |
+  | `mwinTestGetTextInput` | `mwinWindow_GetTestTextInput` |
+  | `mwinTestGetTitle` | `mwinWindow_GetTestTitle` |
+  | `mwinTestGetVirtualKeyboard` | `mwinWindow_GetTestVirtualKeyboard` |
+  | `mwinTestDrop` | `mwinWindow_PostTestDrop` |
+  | `mwinRequestAccessibilityRoot` | `mwinWindow_RequestAccessibilityRoot` |
+  | `mwinRequestAspectRatio` | `mwinWindow_RequestAspectRatio` |
+  | `mwinRequestClipboardRead` | `mwinWindow_RequestClipboardRead` |
+  | `mwinRequestClipboardReadData` | `mwinWindow_RequestClipboardReadData` |
+  | `mwinRequestClipboardWrite` | `mwinWindow_RequestClipboardWrite` |
+  | `mwinRequestClipboardWriteData` | `mwinWindow_RequestClipboardWriteData` |
+  | `mwinRequestCursorImage` | `mwinWindow_RequestCursorImage` |
+  | `mwinRequestCursorMode` | `mwinWindow_RequestCursorMode` |
+  | `mwinRequestCursorShape` | `mwinWindow_RequestCursorShape` |
+  | `mwinRequestFileDialog` | `mwinWindow_RequestFileDialog` |
+  | `mwinRequestFocus` | `mwinWindow_RequestFocus` |
+  | `mwinRequestHitRegions` | `mwinWindow_RequestHitRegions` |
+  | `mwinRequestIcon` | `mwinWindow_RequestIcon` |
+  | `mwinRequestKeepAwake` | `mwinWindow_RequestKeepAwake` |
+  | `mwinRequestMode` | `mwinWindow_RequestMode` |
+  | `mwinRequestOpacity` | `mwinWindow_RequestOpacity` |
+  | `mwinRequestOpenUrl` | `mwinWindow_RequestOpenUrl` |
+  | `mwinRequestPosition` | `mwinWindow_RequestPosition` |
+  | `mwinRequestPrimaryRead` | `mwinWindow_RequestPrimaryRead` |
+  | `mwinRequestPrimaryWrite` | `mwinWindow_RequestPrimaryWrite` |
+  | `mwinRequestRevealFile` | `mwinWindow_RequestRevealFile` |
+  | `mwinRequestSize` | `mwinWindow_RequestSize` |
+  | `mwinRequestSizeLimits` | `mwinWindow_RequestSizeLimits` |
+  | `mwinRequestStyle` | `mwinWindow_RequestStyle` |
+  | `mwinRequestTextInput` | `mwinWindow_RequestTextInput` |
+  | `mwinRequestTitle` | `mwinWindow_RequestTitle` |
+  | `mwinRequestVirtualKeyboard` | `mwinWindow_RequestVirtualKeyboard` |
+  | `mwinRequestVisible` | `mwinWindow_RequestVisible` |
+
+- **Breaking:** a call on the context that fails leaves no value from
+  before in its outputs: a value is zero, an id the null id and a
+  request the null request, whether the call was refused, named an
+  object that is gone, or was made from inside the context's allocator.
+  Each out-parameter's documentation says what a failure leaves
+  ([#269](https://github.com/Rawframe-Project/maul-window/pull/269)).
+- **Breaking:** the fourteen calls that copy text or bytes out
+  (`mwinRequest_GetClipboardText`, `mwinContext_GetDroppedFiles`,
+  `mwinContext_GetKeyboardLayout`, `mwinContext_GetPreferredLocales`
+  and the others) write nothing into a buffer too short: they answer
+  `mwin_errorCapacity` with the length needed, and
+  `mwinRequest_GetDialogFiles` also with the number of paths, and leave
+  the buffer zeroed. They used to copy the part that fit, which could
+  end inside a character or a path. A program that read that part must
+  ask again with a buffer of the length given
+  ([#269](https://github.com/Rawframe-Project/maul-window/pull/269)).
+- **Breaking:** `mwinContext_GetGamepads` and `mwinContext_GetMonitors`
+  answer `mwin_success` when the ids do not all fit, with the first
+  ones written and the total in `countOut`. They answered
+  `mwin_errorCapacity`; a program that tested for it compares the count
+  with its capacity instead
+  ([#269](https://github.com/Rawframe-Project/maul-window/pull/269)).
+
+### Added
+
+- `mwinGamepad_IsMotionEnabled` tells whether a gamepad's motion
+  sensors are on
+  ([#264](https://github.com/Rawframe-Project/maul-window/pull/264)).
+- A program that builds Maul Unicode itself can read the version Maul
+  Window is built and tested with, at configure time:
+  `maul-window_UNICODE_VERSION` from the installed package, set even
+  when the program's Maul Unicode is another version, and the cache
+  variable `MAUL_WINDOW_UNICODE_VERSION` when Maul Window is built from
+  source with `add_subdirectory` or FetchContent
+  ([#277](https://github.com/Rawframe-Project/maul-window/pull/277)).
+
+### Fixed
+
+- **Android:** a mouse move could be lost. Android 11 can end a
+  mouse's hovering between two of its moves and send the second as a
+  hover enter, which posted nothing while the cursor was inside; it
+  now moves the cursor
+  ([#271](https://github.com/Rawframe-Project/maul-window/pull/271)).
+- **Android:** after an activity started turned, the monitor could say
+  for up to two seconds that the display was turned the other way and
+  narrower than the window on it (Android 11). While the window does
+  not fit in the display as last read, the display is read again every
+  tenth of a second
+  ([#275](https://github.com/Rawframe-Project/maul-window/pull/275)).
+
 ## [0.6.0](https://github.com/Rawframe-Project/maul-window/compare/v0.5.1...v0.6.0) (2026-10-29)
 
 The device checks on real hardware are waived by the owner for releases

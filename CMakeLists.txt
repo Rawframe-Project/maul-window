@@ -299,6 +299,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_busy AND MAUL_WINDOW_GAMEPAD)
             target_compile_definitions(test_busy PRIVATE MWIN_TEST_GAMEPAD)
         endif()
+        # Getters called from the free hook while a payload is replaced.
+        maul_add_test(free_hook)
         # What a failed call leaves in its outputs; with the gamepad
         # component, the gamepad's calls among them.
         maul_add_test(outputs)

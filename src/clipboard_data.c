@@ -95,11 +95,11 @@ bool mwinOffersClipboardText(const mwinContext* context)
 
 void mwinReleaseClipboardData(mwinContext* context)
 {
-    if (context->clipboardData != nullptr)
+    mwinClipboardCopy* data = context->clipboardData;
+    if (data != nullptr)
     {
-        mwinRelease(&context->allocator, context->clipboardData, context->clipboardData->size,
-                    alignof(mwinClipboardCopy));
         context->clipboardData = nullptr;
+        mwinRelease(&context->allocator, data, data->size, alignof(mwinClipboardCopy));
     }
 }
 
@@ -264,9 +264,11 @@ mwinResult mwinWindow_RequestClipboardWriteData(mwinContext* context, mwinWindow
         memcpy(textCopy, items[text].bytes, textLength);
     }
     // The write replaces the clipboard's text and data alike.
-    ReleaseBytes(context, context->clipboardOffer, context->clipboardOfferLength);
+    char* last = context->clipboardOffer;
+    size_t lastLength = context->clipboardOfferLength;
     context->clipboardOffer = textCopy;
     context->clipboardOfferLength = (uint32_t)textLength;
+    ReleaseBytes(context, last, lastLength);
     mwinReleaseClipboardData(context);
     context->clipboardData = copy;
     mwinSubmitRequest(context, slot, request, requestOut);
@@ -429,11 +431,12 @@ mwinResult mwinWindow_RequestPrimaryRead(mwinContext* context, mwinWindowId wind
     return status;
 }
 
-// Holds bytes found in place of a buffer's, the old one given back: the
-// outcome.
-static mwinOutcome Hold(mwinContext* context, void** found, uint32_t* foundLength,
-                        const void* bytes, size_t length)
+mwinOutcome mwinTakeClipboardData(mwinContext* context, const void* bytes, size_t length)
 {
+    if (length > context->limits.clipboardBytes)
+    {
+        return mwin_outcomeTooLarge;
+    }
     void* copy = length > 0 ? mwinAllocate(&context->allocator, length, 1) : nullptr;
     if (length > 0 && copy == nullptr)
     {
@@ -443,26 +446,15 @@ static mwinOutcome Hold(mwinContext* context, void** found, uint32_t* foundLengt
     {
         memcpy(copy, bytes, length);
     }
-    ReleaseBytes(context, *found, *foundLength);
-    *found = copy;
-    *foundLength = (uint32_t)length;
+    // In place, with its count, before the free hook gets the last bytes,
+    // as for a read's text.
+    void* last = context->clipboardDataFound;
+    size_t lastLength = context->clipboardDataFoundLength;
+    context->clipboardDataFound = copy;
+    context->clipboardDataFoundLength = (uint32_t)length;
+    context->foundPayloads[mwin_foundData] += 1;
+    ReleaseBytes(context, last, lastLength);
     return mwin_outcomeDone;
-}
-
-mwinOutcome mwinTakeClipboardData(mwinContext* context, const void* bytes, size_t length)
-{
-    if (length > context->limits.clipboardBytes)
-    {
-        return mwin_outcomeTooLarge;
-    }
-    void* found = context->clipboardDataFound;
-    mwinOutcome outcome = Hold(context, &found, &context->clipboardDataFoundLength, bytes, length);
-    context->clipboardDataFound = found;
-    if (outcome == mwin_outcomeDone)
-    {
-        context->foundPayloads[mwin_foundData] += 1;
-    }
-    return outcome;
 }
 
 mwinOutcome mwinTakePrimaryText(mwinContext* context, const char* bytes, size_t length)
@@ -480,9 +472,11 @@ mwinOutcome mwinTakePrimaryText(mwinContext* context, const char* bytes, size_t 
         return mwin_outcomeFailed;
     }
     (void)mwinRepairUtf8(bytes, length, text);
-    ReleaseBytes(context, context->primaryFound, context->primaryFoundLength);
+    char* last = context->primaryFound;
+    size_t lastLength = context->primaryFoundLength;
     context->primaryFound = text;
     context->primaryFoundLength = (uint32_t)needed;
     context->foundPayloads[mwin_foundPrimary] += 1;
+    ReleaseBytes(context, last, lastLength);
     return mwin_outcomeDone;
 }

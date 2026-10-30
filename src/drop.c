@@ -14,14 +14,17 @@
 
 #include <string.h>
 
+// Lets go of a payload, emptied before the program's free hook gets its
+// blocks.
 static void ReleasePayload(const mwinContext* context, mwinDropPayload* payload)
 {
-    mwinListRelease(&payload->files, &context->allocator);
-    if (payload->text != nullptr)
-    {
-        mwinRelease(&context->allocator, payload->text, payload->textLength, 1);
-    }
+    mwinDropPayload held = *payload;
     *payload = (mwinDropPayload){0};
+    mwinListRelease(&held.files, &context->allocator);
+    if (held.text != nullptr)
+    {
+        mwinRelease(&context->allocator, held.text, held.textLength, 1);
+    }
 }
 
 void mwinBeginDrop(mwinContext* context)
@@ -67,12 +70,14 @@ static char* TextRoom(mwinContext* context, size_t length)
     drop->truncated = drop->truncated || (length > 0 && text == nullptr);
     if (text != nullptr)
     {
-        if (drop->text != nullptr)
-        {
-            mwinRelease(&context->allocator, drop->text, drop->textLength, 1);
-        }
+        char* last = drop->text;
+        size_t lastLength = drop->textLength;
         drop->text = text;
         drop->textLength = (uint32_t)length;
+        if (last != nullptr)
+        {
+            mwinRelease(&context->allocator, last, lastLength, 1);
+        }
     }
     return text;
 }
@@ -105,10 +110,13 @@ void mwinSetDroppedTextUtf16(mwinContext* context, const uint16_t* units, size_t
 
 void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, uint64_t timeNs)
 {
-    ReleasePayload(context, &context->dropped);
+    // The new drop and its number first: a getter called from the free
+    // hook finds the last drop stale.
+    mwinDropPayload last = context->dropped;
     context->dropped = context->dropping;
     context->dropping = (mwinDropPayload){0};
     context->dropNumber += 1;
+    ReleasePayload(context, &last);
     const mwinDropPayload* drop = &context->dropped;
     mwinEvent event = {.type = mwin_eventDropped, .timeNs = timeNs};
     event.data.drop = (mwinDropEvent){position, context->dropNumber, drop->files.count,

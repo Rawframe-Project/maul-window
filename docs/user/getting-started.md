@@ -113,7 +113,7 @@ Defs carry a cookie. Build each with its `mwinDefault...` function and change th
 
 Every limit on memory and work is a field of `mwinLimits` in the context def, with a default: 8 windows; per window 32 requests in flight, 256 notifications, 256 input records per class and 4,096 bytes of text; 16 monitors; 8 gamepads; 1 MiB of clipboard text; 256 files and 1 MiB per drop and per dialog; 16 cursors. A request past a limit is refused with `mwin_errorCapacity`.
 
-The context takes its memory when it is created, through the def's allocator; nothing is allocated on the event path. Payloads whose size the user decides (clipboard text, a drop, a dialog's paths) take a block of their own size when they arrive and give it back at the next one. The allocator calls nothing that changes the context: while it runs, every function that takes a non-const context refuses with `mwin_errorBusy`.
+The context takes its memory when it is created, through the def's allocator; nothing is allocated on the event path. Payloads whose size the user decides (clipboard text, a drop, a dialog's paths) take a block of their own size when they arrive and give it back at the next one. The allocator calls nothing that changes the context: while it runs, every function that takes a non-const context refuses with `mwin_errorBusy`. A getter may still be called from it. When the free function is given a payload's block, the payload it was is already gone: its request or drop answers `mwin_errorStale`, never the bytes being freed.
 
 ## Where to go next
 

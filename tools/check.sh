@@ -6,10 +6,12 @@
 #
 #   tools/check.sh changed   the files changed against origin/main: the
 #                            source and test hygiene rules, formatting, the
-#                            documentation checks, and in the
-#                            linux-clang-20-asan preset the tests the
-#                            changes reach, integration tests left out.
-#                            Under two minutes; run it before every push.
+#                            documentation checks, clang-tidy in Release
+#                            and in Debug on the changed library sources,
+#                            and in the linux-clang-20-asan preset the
+#                            tests the changes reach, integration tests
+#                            left out. Under two minutes on built trees;
+#                            run it before every push.
 #   tools/check.sh pr        what the pull request check runs on Linux:
 #                            every rule, the generated tables, the
 #                            documentation site, clang-tidy, the whole
@@ -120,6 +122,21 @@ ios_runner_checks() {
     tools/test_run_ios_app.sh
 }
 
+# clang-tidy as CI's checks job runs it: on a Release build, where the
+# assertions compile out, and on a Debug build, where they trap. Each
+# hides findings the other shows. Given files, only those of them that
+# are the Linux build's library sources; given none, all of those.
+tidy() { # [file ...]
+    local build
+    for build in Release Debug; do
+        step "clang-tidy on the Linux build's sources, $build"
+        cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_WINDOW_BUILD_TESTS=OFF >"$out/check-tidy-$build.log"
+        cmake --build "$out/check-tidy-$build" -j "$jobs" >>"$out/check-tidy-$build.log"
+        JOBS=$jobs tools/run_tidy.sh "$out/check-tidy-$build" "$@"
+    done
+}
+
 # Every C file of the project but those kept as published.
 all_c_files() {
     git ls-files 'include/*.h' 'src/*.[chm]' 'test/*.[chm]' 'tools/*.[ch]' 'bench/*.[ch]' \
@@ -148,6 +165,11 @@ if [ "$tier" = changed ]; then
     if [ ${#present[@]} -gt 0 ]; then
         step "clang-format on ${#present[@]} changed files"
         clang-format --dry-run -Werror "${present[@]}"
+    fi
+    sources=()
+    for f in "${present[@]+"${present[@]}"}"; do [[ $f == src/*.c ]] && sources+=("$f"); done
+    if [ ${#sources[@]} -gt 0 ]; then
+        tidy "${sources[@]}"
     fi
     labels=""
     for f in "${changed[@]}"; do labels="$labels $(labels_for "$f")"; done
@@ -197,16 +219,7 @@ ios_runner_checks
 step "the documentation site builds"
 python3 tools/build_docs.py >"$out/site.log"
 
-# As CI's checks job: on a Release build, where the assertions compile
-# out, and on a Debug build, where they trap. Each hides findings the
-# other shows.
-for build in Release Debug; do
-    step "clang-tidy on the Linux build's sources, $build"
-    cmake --preset linux-clang-20 -B "$out/check-tidy-$build" -DCMAKE_BUILD_TYPE=$build \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DMAUL_WINDOW_BUILD_TESTS=OFF >"$out/check-tidy-$build.log"
-    cmake --build "$out/check-tidy-$build" -j "$jobs" >>"$out/check-tidy-$build.log"
-    JOBS=$jobs tools/run_tidy.sh "$out/check-tidy-$build"
-done
+tidy
 
 preset linux-clang-20-asan
 

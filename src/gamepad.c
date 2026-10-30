@@ -187,11 +187,11 @@ mwinResult mwinGamepad_IsMotionEnabled(const mwinContext* context, mwinGamepadId
 mwinResult mwinGamepad_GetMotion(mwinContext* context, mwinGamepadId gamepad,
                                  mwinGamepadMotion* motionOut)
 {
-    mwinClearOut(motionOut, sizeof *motionOut);
     if (mwinIsBusy(context))
     {
         return mwinBusy(context);
     }
+    mwinClearOut(motionOut, sizeof *motionOut);
     if (context == nullptr || motionOut == nullptr)
     {
         return mwinMisuse(context);

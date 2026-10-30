@@ -289,6 +289,7 @@ extern "C"
     /// @param context    The context.
     /// @param gamepad    The gamepad.
     /// @param motionOut  Receives its motion. Zeroed on failure.
+    ///                   `mwin_errorBusy` leaves it as it was.
     /// @return `mwin_success`; `mwin_errorUnsupported` for a gamepad
     ///         without mwin_padMotion; `mwin_errorStale` for a gamepad no
     ///         longer connected; `mwin_errorInvalid` for a NULL argument.

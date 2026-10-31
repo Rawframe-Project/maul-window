@@ -254,7 +254,9 @@ jobs:
           mkdir -p "out/corpus/$TARGET"
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
-          echo "corpus restored: ${MATCHED:+run ${MATCHED##*-}'s}${MATCHED:-none, the seeds alone}"
+          restored="none, the seeds alone"
+          [ -n "$MATCHED" ] && restored="run ${MATCHED##*-}'s"
+          echo "corpus restored: $restored"
           rm -rf out/fuzz-reports
           status=0
           tools/fuzz_target.sh "out/fuzz/$TARGET" -max_total_time="$FUZZ_SECONDS" -max_len=256 \

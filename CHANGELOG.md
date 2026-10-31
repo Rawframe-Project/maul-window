@@ -5,6 +5,25 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.8.0](https://github.com/Rawframe-Project/maul-window/compare/v0.7.0...v0.8.0) (2026-10-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** the kind typedefs are int32_t and the flag typedefs uint32_t, which changes the layout of the event, info and def structs; mwinPointerEvent.clicks, mwinEvent.samples and mwinGamepadInfo.rawButtons and rawAxes are renamed clickCount, sampleCount, rawButtonCount and rawAxisCount.
+* **core:** a getter that fills a caller's buffer or list (the sixteen above) no longer zeroes it past the bytes or ids it reports when it succeeds; it leaves them as they were. It still zeroes the whole capacity when it fails.
+* **core:** mwinContext_NextEvent and mwinGamepad_GetMotion refused with mwin_errorBusy no longer zero their output; they leave it as it was.
+
+### Fixed
+
+* **core:** clear a caller's array only when the call fails ([#313](https://github.com/Rawframe-Project/maul-window/issues/313)) ([439df43](https://github.com/Rawframe-Project/maul-window/commit/439df43e3abeadb0dd688f76ea757dd709cccc49)), closes [#301](https://github.com/Rawframe-Project/maul-window/issues/301)
+* **core:** free a replaced payload only once no getter reaches it ([#303](https://github.com/Rawframe-Project/maul-window/issues/303)) ([ac6fec0](https://github.com/Rawframe-Project/maul-window/commit/ac6fec018c48809a03ef41a5a82c748fa391dbfa)), closes [#297](https://github.com/Rawframe-Project/maul-window/issues/297)
+* **core:** leave a busy call's event and motion outputs as they were ([#290](https://github.com/Rawframe-Project/maul-window/issues/290)) ([cc6d013](https://github.com/Rawframe-Project/maul-window/commit/cc6d0137c01c6878cb08ba14cc876728fc150855)), closes [#289](https://github.com/Rawframe-Project/maul-window/issues/289)
+* **core:** make a window or cursor stale before its destroy frees ([#309](https://github.com/Rawframe-Project/maul-window/issues/309)) ([1e120cb](https://github.com/Rawframe-Project/maul-window/commit/1e120cbeb7de3b9ae107f29f1e46234366f8112a)), closes [#302](https://github.com/Rawframe-Project/maul-window/issues/302)
+* **core:** make windows and cursors stale before a run's teardown frees ([#318](https://github.com/Rawframe-Project/maul-window/issues/318)) ([ca4fde6](https://github.com/Rawframe-Project/maul-window/commit/ca4fde650f24e50e51df2bb99041b714cf3e6807)), closes [#310](https://github.com/Rawframe-Project/maul-window/issues/310)
+* **core:** widen kinds to int32_t and flags to uint32_t, name counts ([#315](https://github.com/Rawframe-Project/maul-window/issues/315)) ([b62f423](https://github.com/Rawframe-Project/maul-window/commit/b62f4237e8492bb98d7ab8d26701d3fd770f41e4)), closes [#299](https://github.com/Rawframe-Project/maul-window/issues/299) [#300](https://github.com/Rawframe-Project/maul-window/issues/300)
+* **test-backend:** clear the text input getters' outputs on a failure ([#283](https://github.com/Rawframe-Project/maul-window/issues/283)) ([d87d047](https://github.com/Rawframe-Project/maul-window/commit/d87d047fe32e26ab60a724ca1d8d7a39b8bcafce)), closes [#282](https://github.com/Rawframe-Project/maul-window/issues/282)
+
 ## [0.7.0](https://github.com/Rawframe-Project/maul-window/compare/v0.6.0...v0.7.0) (2026-10-29)
 
 ### Changed

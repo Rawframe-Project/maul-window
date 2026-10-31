@@ -187,8 +187,8 @@ static bool Found(mwinWebPads* pads, uint32_t index, const PadState* state, uint
         .vendor = (uint16_t)(ids[0] >> 16),
         .product = (uint16_t)ids[0],
         .mapped = state->standard != 0,
-        .rawButtons = state->standard != 0 ? 0 : (uint8_t)state->buttons,
-        .rawAxes = state->standard != 0 ? 0 : (uint8_t)state->axes,
+        .rawButtonCount = state->standard != 0 ? 0 : (uint8_t)state->buttons,
+        .rawAxisCount = state->standard != 0 ? 0 : (uint8_t)state->axes,
         .capabilities = (mwinGamepadCapabilities)(((ids[1] & 1u) != 0 ? mwin_padRumble : 0) |
                                                   ((ids[1] & 2u) != 0 ? mwin_padTriggerRumble : 0)),
         .battery = -1,

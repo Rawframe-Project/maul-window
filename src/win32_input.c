@@ -176,8 +176,8 @@ static void PostPointer(mwinWin32Window* window, mwinEventType type, mwinPositio
     mwinEvent event = {0};
     event.type = type;
     event.timeNs = TimeOf(window);
-    event.data.pointer =
-        (mwinPointerEvent){position, Modifiers(), window->buttons, button, window->clicks.clicks};
+    event.data.pointer = (mwinPointerEvent){position, Modifiers(), window->buttons, button,
+                                            window->clickCounter.clickCount};
     Post(window, &event);
 }
 
@@ -271,7 +271,7 @@ static void OnButton(mwinWin32Window* window, UINT message, WPARAM wParam, LPARA
         }
         window->buttons |= bit;
         float scale = mwinWin32Scale(window->dpi);
-        (void)mwinCountClickWithin(&window->clicks, button, position, TimeOf(window),
+        (void)mwinCountClickWithin(&window->clickCounter, button, position, TimeOf(window),
                                    (uint64_t)GetDoubleClickTime() * 1000000u,
                                    (float)GetSystemMetrics(SM_CXDOUBLECLK) / 2.0f / scale);
     }

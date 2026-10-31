@@ -209,12 +209,12 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
         deltaX += event->type == mwin_eventRawPointerDelta ? event->data.delta.x : 0.0f;
         wheelY += event->type == mwin_eventWheel ? event->data.wheel.y : 0.0f;
         lastMove = event->type == mwin_eventCursorMoved ? event : lastMove;
-        moveSamples += event->type == mwin_eventCursorMoved ? event->samples : 0;
+        moveSamples += event->type == mwin_eventCursorMoved ? event->sampleCount : 0;
     }
     CHECK(keys == 4 && resets == 1, "the fifth key is lost to a reset");
     CHECK(deltaX == 6.0f && wheelY == 3.0f, "deltas and wheel turns add up when merged");
     CHECK(lastMove != nullptr && lastMove->data.pointer.position.x == 6.0f &&
-              lastMove->samples == 3 && moveSamples == 6,
+              lastMove->sampleCount == 3 && moveSamples == 6,
           "merged motion ends at the newest position and counts its samples");
     program->done = true;
 }
@@ -342,7 +342,7 @@ static void SampleStep(Program* program, mwinContext* context, int step)
         moves += program->events[i].type == mwin_eventCursorMoved;
         last = program->events[i].type == mwin_eventCursorMoved ? &program->events[i] : last;
     }
-    CHECK(moves == 4 && last != nullptr && last->samples == UINT16_MAX &&
+    CHECK(moves == 4 && last != nullptr && last->sampleCount == UINT16_MAX &&
               last->data.pointer.position.y == (float)SampleSteps,
           "the newest position, its samples counted up to the most");
     program->done = true;

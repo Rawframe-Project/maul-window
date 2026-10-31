@@ -197,7 +197,7 @@ static void CheckFound(Program* program, mwinContext* context)
     CHECK(Axis(program, program->standard, mwin_padTriggerLeft, 0.25f),
           "its trigger held from the start, posted as it is found");
     CHECK(Named(context, program->raw, "Wireless Controller", &info) && !info.mapped &&
-              info.rawButtons == 3 && info.rawAxes == 2 && info.vendor == 0x054c &&
+              info.rawButtonCount == 3 && info.rawAxisCount == 2 && info.vendor == 0x054c &&
               info.product == 0x09cc && info.capabilities == 0,
           "the raw pad: Firefox's id, its buttons and axes");
     const mwinEvent* third = Find(program, mwin_eventGamepadAdded, 2);

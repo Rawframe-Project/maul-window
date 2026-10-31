@@ -76,7 +76,7 @@ static mwinKey CharacterOf(NSString* characters)
 
 mwinKey mwinIOSMapKeyCode(const mwinIOSPlatform* platform, mwinKeyCode code)
 {
-    if (code >= MWIN_IOS_KEY_CODES)
+    if ((uint32_t)code >= MWIN_IOS_KEY_CODES)
     {
         return 0;
     }

@@ -288,9 +288,9 @@ static void CheckMouse(const Program* program)
 {
     size_t at = 0;
     const Record* down = Find(program, &at, mwin_eventButtonDown);
-    CHECK(down != nullptr && down->pointer.button == mwin_buttonLeft && down->pointer.clicks == 1 &&
-              down->pointer.buttons == 1 && down->pointer.position.x == 50.0f &&
-              down->pointer.position.y == 40.0f,
+    CHECK(down != nullptr && down->pointer.button == mwin_buttonLeft &&
+              down->pointer.clickCount == 1 && down->pointer.buttons == 1 &&
+              down->pointer.position.x == 50.0f && down->pointer.position.y == 40.0f,
           "a press at its place, from the top left");
     const Record* moved = Find(program, &at, mwin_eventCursorMoved);
     CHECK(moved != nullptr && moved->pointer.buttons == 1 && moved->pointer.position.x == 60.0f &&
@@ -299,7 +299,7 @@ static void CheckMouse(const Program* program)
     const Record* up = Find(program, &at, mwin_eventButtonUp);
     CHECK(up != nullptr && up->pointer.buttons == 0, "the release");
     const Record* second = Find(program, &at, mwin_eventButtonDown);
-    CHECK(second != nullptr && second->pointer.clicks == 2, "a double click's second press");
+    CHECK(second != nullptr && second->pointer.clickCount == 2, "a double click's second press");
     size_t wheelAt = 0;
     const Record* wheel = Find(program, &wheelAt, mwin_eventWheel);
     CHECK(wheel != nullptr && wheel->wheel.y == 3.0f && wheel->wheel.x == -2.0f,

@@ -21,6 +21,7 @@
 // display's facts to agree with it, less than a second. quit writes the
 // closing line the runner waits for.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/context.h"
@@ -303,27 +304,6 @@ static void CheckWindow(const Program* program, mwinContext* context)
     CheckMonitor(&state, context);
 }
 
-// Whether the window has its surface and the activity's handles. A
-// frame between a relaunched activity's start and its surface, which
-// the start itself runs, gets no handles: the library answers
-// mwin_errorState and gives out no pointer, so a program that tests the
-// status never reads one.
-static bool HasSurface(const Program* program, mwinContext* context)
-{
-    mwinNativeHandles handles;
-    memset(&handles, 0xA5, sizeof(handles));
-    mwinResult status = mwinWindow_GetNativeHandles(context, program->window, &handles);
-    if (StateOf(program, context).surfaceLost)
-    {
-        static const mwinNativeHandles none = {0};
-        CHECK(status == mwin_errorState && memcmp(&handles, &none, sizeof(handles)) == 0,
-              "no handles while the surface is gone");
-        return false;
-    }
-    return status == mwin_success && handles.handles.android.window != nullptr &&
-           handles.handles.android.activity != nullptr;
-}
-
 static bool Ready(const Program* program, mwinContext* context)
 {
     // A suspended record still waiting when the application resumes
@@ -341,7 +321,7 @@ static bool Ready(const Program* program, mwinContext* context)
         // Shown, and showing now: a turn that relaunches the activity
         // takes the surface away for a while, and its new start runs a
         // frame before the surface comes back.
-        return program->created && program->shown && HasSurface(program, context);
+        return program->created && program->shown && HasSurface(context, program->window);
     case 1:
         return program->completions >= 3;
     case 4:

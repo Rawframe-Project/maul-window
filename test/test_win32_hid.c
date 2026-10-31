@@ -392,15 +392,15 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
               mwinGamepad_GetInfo(context, ids[1], &stick) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success,
           "of the devices, the pad, the stick and the wheel gamepads, once");
-    CHECK(!wheel.mapped && wheel.rawButtons == 0 && wheel.rawAxes == 6,
+    CHECK(!wheel.mapped && wheel.rawButtonCount == 0 && wheel.rawAxisCount == 6,
           "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");
     CHECK(pad.mapped && pad.vendor == 0x054C && pad.product == 0x05C4 && pad.nameLength == 22 &&
               memcmp(pad.name, "Wireless Controller \xC3\xA9", 22) == 0 && pad.battery == -1 &&
               pad.capabilities == 0,
           "the pad mapped, named by its product string, without rumble or battery");
-    CHECK(!stick.mapped && stick.rawButtons == 3 && stick.rawAxes == 4 && stick.nameLength == 11 &&
-              memcmp(stick.name, "HID gamepad", 11) == 0,
+    CHECK(!stick.mapped && stick.rawButtonCount == 3 && stick.rawAxisCount == 4 &&
+              stick.nameLength == 11 && memcmp(stick.name, "HID gamepad", 11) == 0,
           "the stick raw, with a plain name");
 }
 

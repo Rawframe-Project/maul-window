@@ -148,7 +148,7 @@ static void CheckButton(mwinContext* context, Program* program, HWND hwnd)
     SendMessageW(hwnd, WM_NCLBUTTONDBLCLK, HTMAXBUTTON, Screen(hwnd, 355.0f, 15.0f));
     (void)Outcome(context, program);
     bool again =
-        (program->seen & (1ull << mwin_eventButtonDown)) != 0 && program->pointer.clicks == 2;
+        (program->seen & (1ull << mwin_eventButtonDown)) != 0 && program->pointer.clickCount == 2;
     SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
     CHECK(pressed && again && !IsZoomed(hwnd),
           "presses of a maximize button, the second a double click, the program's, not Windows'");

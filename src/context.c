@@ -46,7 +46,7 @@ static bool IsDefValid(const mwinAppDef* def)
            limits->notificationsPerWindow >=
                3 * limits->monitors + GAMEPAD_RECORDS * limits->gamepads + GLOBAL_CLASSES &&
            limits->notificationsPerWindow >= limits->requestsPerWindow + FIXED_RECORDS &&
-           context->backend <= mwin_backendTest;
+           (uint32_t)context->backend <= mwin_backendTest;
 }
 
 // Every part of the context's block aligns as the block does.

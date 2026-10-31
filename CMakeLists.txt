@@ -299,11 +299,19 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_busy AND MAUL_WINDOW_GAMEPAD)
             target_compile_definitions(test_busy PRIVATE MWIN_TEST_GAMEPAD)
         endif()
+        # Getters called from the free hook while a payload is replaced.
+        maul_add_test(free_hook)
         # What a failed call leaves in its outputs; with the gamepad
         # component, the gamepad's calls among them.
         maul_add_test(outputs)
         if(TARGET test_outputs AND MAUL_WINDOW_GAMEPAD)
             target_compile_definitions(test_outputs PRIVATE MWIN_TEST_GAMEPAD)
+        endif()
+        # Kinds below their range; with the gamepad component, a test
+        # gamepad's button and axis among them.
+        maul_add_test(kinds)
+        if(TARGET test_kinds AND MAUL_WINDOW_GAMEPAD)
+            target_compile_definitions(test_kinds PRIVATE MWIN_TEST_GAMEPAD)
         endif()
         maul_add_test(monitor)
         maul_add_test(system)
@@ -685,10 +693,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
                                  LABELS "${name};integration")
         endforeach()
         # Intermittent in the Android 15 emulator: battery saver not
-        # reported after a fresh boot, and an explored finger not heard.
+        # reported after a fresh boot (issue #229), and an explored finger
+        # not heard (issue #230).
         maul_quarantine(android_system android_access)
         # Intermittent in the Android 15 emulator: a swipe's moves and lift
-        # not delivered.
+        # not delivered (issue #235).
         maul_quarantine(android_input)
         # Intermittent in the Android 15 emulator: every clipboard write and
         # read failing for a whole run (issue #256).

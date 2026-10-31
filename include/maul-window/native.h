@@ -19,7 +19,7 @@ extern "C"
 #endif
 
     // Which window system a bundle's handles belong to.
-    typedef uint8_t mwinPlatform;
+    typedef int32_t mwinPlatform;
 
     enum
     {

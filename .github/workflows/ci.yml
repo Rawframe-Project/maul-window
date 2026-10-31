@@ -33,7 +33,7 @@ env:
 jobs:
   # Whether anything beyond documentation changed; the builds skip when not.
   changes:
-    uses: Rawframe-Project/.github/.github/workflows/changes.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
+    uses: Rawframe-Project/.github/.github/workflows/changes.yml@8414d388d2116b581c5c5d8f6641e1da4d863244 # v0.0.42
     permissions:
       pull-requests: read
 
@@ -49,12 +49,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: Rawframe-Project/.github/.github/actions/docs-check@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
+      - uses: Rawframe-Project/.github/.github/actions/docs-check@8414d388d2116b581c5c5d8f6641e1da4d863244 # v0.0.42
         with:
           exclude: protocols tools/gamepaddb tools/androidkeys
 
   zizmor:
-    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
+    uses: Rawframe-Project/.github/.github/workflows/zizmor.yml@8414d388d2116b581c5c5d8f6641e1da4d863244 # v0.0.42
     permissions:
       contents: read
 
@@ -160,7 +160,7 @@ jobs:
           - { preset: linux-minimal }
           - { preset: macos-clang, runner: macos-15 }
           - { preset: windows-clang-cl, runner: windows-2025 }
-    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@3044ba71d36f3e3eb370b8915ca1b02f337fda8c # v0.0.41
+    uses: Rawframe-Project/.github/.github/workflows/cpp.yml@8414d388d2116b581c5c5d8f6641e1da4d863244 # v0.0.42
     permissions:
       contents: read
     with:
@@ -189,8 +189,8 @@ jobs:
   # Each fuzz target runs over the bytes other programs and devices hand
   # the library, in a job of its own: briefly on a pull request, longer on
   # main. Each starts from its committed seeds and the corpus fuzz-nightly
-  # keeps for it (that build's, else its newest), restored read-only, so a
-  # change that breaks a harness's promise fails on its own pull request.
+  # last saved for it, restored read-only, so a change that breaks a
+  # harness's promise fails on its own pull request.
   # Only fuzz-nightly saves and minimizes a corpus.
   fuzz:
     needs: [changes, fuzz-targets]
@@ -220,8 +220,6 @@ jobs:
           key: ccache-fuzz-${{ github.sha }}
           restore-keys: ccache-fuzz-
       - name: Build
-        env:
-          INPUTS: ${{ hashFiles('src/**', 'include/**', 'protocols/**', 'cmake/**', 'CMakeLists.txt', format('test/{0}.c', matrix.target)) }}
         run: |
           export CCACHE_DIR="$GITHUB_WORKSPACE/.cache/ccache" CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           ccache --zero-stats >/dev/null
@@ -230,9 +228,6 @@ jobs:
           cmake --build out/fuzz --target "$TARGET"
           [ -x "out/fuzz/$TARGET" ] || { echo "::error::$TARGET was not built"; exit 1; }
           ccache --show-stats
-          # fuzz-nightly's key for this target's corpus.
-          compiler=$(clang-20 --version | head -1 | sha256sum | cut -c1-16)
-          echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
       # One target's job saves the library's objects for the others: the
       # jobs would race for the one key.
       - name: Save ccache
@@ -248,10 +243,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
-          key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
-          restore-keys: |
-            ${{ env.CORPUS_KEY }}-
-            corpus-${{ matrix.target }}-
+          key: corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: corpus-${{ matrix.target }}-
       - name: Run
         # tools/fuzz_target.sh reports a finding without its input, and
         # keeps the input and the log on the runner.
@@ -261,11 +254,9 @@ jobs:
           mkdir -p "out/corpus/$TARGET"
           seeds=()
           [ -d "test/seeds/$TARGET" ] && seeds=("test/seeds/$TARGET")
-          case "$MATCHED" in
-          "") echo "corpus restored: none, the seeds alone" ;;
-          "$CORPUS_KEY"-*) echo "corpus restored: this build's" ;;
-          *) echo "corpus restored: an earlier build's" ;;
-          esac
+          restored="none, the seeds alone"
+          [ -n "$MATCHED" ] && restored="run ${MATCHED##*-}'s"
+          echo "corpus restored: $restored"
           rm -rf out/fuzz-reports
           status=0
           tools/fuzz_target.sh "out/fuzz/$TARGET" -max_total_time="$FUZZ_SECONDS" -max_len=256 \
@@ -291,16 +282,15 @@ jobs:
 
   # Every night each target fuzzes ten minutes from its corpus of the nights
   # before, carried in an Actions cache, in a job of its own so that every
-  # target runs at once. The cache is keyed by the target and by the fuzz
-  # build's inputs (the library, its CMake, the target and the compiler), so
-  # an unchanged build restores its own corpus exactly. A target whose build
-  # changed restores its latest corpus of an earlier build: a corpus is only
-  # inputs, which stay valid against a new binary. After the run the
-  # fuzzer's merge minimizes the seeds and the corpus together against this
-  # binary, and the result is saved for the next night, only by a run that
-  # found nothing. The summary compares the seeds' coverage with the
-  # corpus's. Nothing is uploaded: a finding, a log and a corpus hold
-  # inputs, and the Actions cache and artifacts are not secret.
+  # target runs at once. The cache is keyed by the target and the run that
+  # saved it, and each night restores the target's newest, whichever build
+  # saved it: a corpus is only inputs, which stay valid against a new
+  # binary. After the run the fuzzer's merge minimizes the seeds and the
+  # corpus together against this binary, and the result is saved for the
+  # next night, only by a run that found nothing. The summary compares the
+  # seeds' coverage with the corpus's. Nothing is uploaded: a finding, a log
+  # and a corpus hold inputs, and the Actions cache and artifacts are not
+  # secret.
   fuzz-nightly:
     needs: fuzz-targets
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -322,26 +312,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Build
-        env:
-          INPUTS: ${{ hashFiles('src/**', 'include/**', 'protocols/**', 'cmake/**', 'CMakeLists.txt', format('test/{0}.c', matrix.target)) }}
         run: |
           cmake -B out/fuzz -G Ninja -DCMAKE_C_COMPILER=clang-20 -D${PREFIX}_FUZZ=ON \
             -D${PREFIX}_TEST_BACKEND=ON -D${PREFIX}_BUILD_TESTS=OFF -D${PREFIX}_WERROR=ON
           cmake --build out/fuzz --target "$TARGET"
           [ -x "out/fuzz/$TARGET" ] || { echo "::error::$TARGET was not built"; exit 1; }
-          compiler=$(clang-20 --version | head -1 | sha256sum | cut -c1-16)
-          echo "CORPUS_KEY=corpus-$TARGET-$INPUTS-$compiler" >>"$GITHUB_ENV"
       - name: Restore the corpus
         id: restore
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
-          key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
-          # This build's corpus, else the target's from an earlier build:
-          # its inputs stay valid, and the merge re-scores them.
-          restore-keys: |
-            ${{ env.CORPUS_KEY }}-
-            corpus-${{ matrix.target }}-
+          key: corpus-${{ matrix.target }}-${{ github.run_id }}
+          # The target's last saved corpus, from whichever build: its
+          # inputs stay valid, and the merge re-scores them.
+          restore-keys: corpus-${{ matrix.target }}-
       - name: Fuzz
         # tools/fuzz_target.sh reports a finding without its input, and
         # keeps the input and the log on the runner.
@@ -379,11 +363,8 @@ jobs:
           coverage() { "out/fuzz/$TARGET" -runs=0 "$@" 2>&1 | sed -n 's/.*INITED cov: \([0-9]*\).*/\1/p'; }
           seeded=none
           [ ${#seeds[@]} -gt 0 ] && seeded=$(coverage "${seeds[@]}")
-          case "$MATCHED" in
-          "") restored="none: the seeds alone" ;;
-          "$CORPUS_KEY"-*) restored="this build's" ;;
-          *) restored="an earlier build's" ;;
-          esac
+          restored="none: the seeds alone"
+          [ -n "$MATCHED" ] && restored="run ${MATCHED##*-}'s"
           {
             echo "| Target | Corpus restored | Seeds' coverage | Corpus's coverage | Corpus files |"
             echo "|---|---|---|---|---|"
@@ -396,7 +377,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/corpus/${{ matrix.target }}
-          key: ${{ env.CORPUS_KEY }}-${{ github.run_id }}
+          key: corpus-${{ matrix.target }}-${{ github.run_id }}
 
   # The quarantined tests (docs/operations/checks.md#quarantine), which the
   # test presets leave out, of the desktop cells: Linux under AddressSanitizer
@@ -882,12 +863,22 @@ jobs:
             echo "test_window.$kind  $with bytes, the web backend $((with - without))"
           done
 
+  # On main, after every job that saves a cache: deletes the entries a
+  # newer save of the same key replaced, so the 10 GB keep one entry per
+  # cache and least recently used eviction never reaches the corpus.
+  prune-caches:
+    needs: [checks, build, fuzz, fuzz-nightly, ios-simulator, android-emulator, web-wasi]
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    uses: Rawframe-Project/.github/.github/workflows/cache-prune.yml@8414d388d2116b581c5c5d8f6641e1da4d863244 # v0.0.42
+    permissions:
+      actions: write
+
   # The one check the ruleset requires: it passes when every job above
   # passed or was skipped for a documentation-only change, so adding or
   # renaming a job never touches the ruleset.
   required:
     if: always()
-    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz-targets, fuzz, quarantine, ios-simulator, android-emulator, web-wasi, web-emscripten]
+    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz-targets, fuzz, quarantine, ios-simulator, android-emulator, web-wasi, web-emscripten, prune-caches]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

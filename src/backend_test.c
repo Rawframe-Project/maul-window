@@ -505,8 +505,8 @@ mwinResult mwinContext_SetTestAnswer(mwinContext* context, mwinRequestKind kind,
         return mwinBusy(context);
     }
     bool cancelled = outcome == mwin_outcomeCancelled && kind != mwin_requestFileDialog;
-    if (context == nullptr || kind >= MWIN_TEST_KINDS || outcome == mwin_outcomeSuperseded ||
-        cancelled || outcome > mwin_outcomeFailed)
+    if (context == nullptr || (uint32_t)kind >= MWIN_TEST_KINDS ||
+        outcome == mwin_outcomeSuperseded || cancelled || (uint32_t)outcome > mwin_outcomeFailed)
     {
         return mwinMisuse(context);
     }
@@ -545,7 +545,7 @@ static bool IsReportable(mwinEventType type)
     return type != mwin_eventNone && type != mwin_eventWindowCreated &&
            type != mwin_eventWindowDestroyed && type != mwin_eventRequestCompleted &&
            type != mwin_eventInputStateReset &&
-           (type <= mwin_eventImePreedit ||
+           ((uint32_t)type <= mwin_eventImePreedit ||
             (type >= mwin_eventDragEntered && type <= mwin_eventDragLeft)) &&
            !(type >= mwin_eventMonitorAdded && type <= mwin_eventMonitorChanged) &&
            !(type >= mwin_eventThemeChanged && type <= mwin_eventLocaleChanged);
@@ -619,7 +619,9 @@ mwinResult mwinContext_PostTestEvent(mwinContext* context, const mwinEvent* even
     {
         return mwinBusy(context);
     }
-    if (context == nullptr || event == nullptr || !IsReportable(event->type))
+    if (context == nullptr || event == nullptr || !IsReportable(event->type) ||
+        ((event->type == mwin_eventKeyDown || event->type == mwin_eventKeyUp) &&
+         (uint32_t)event->data.key.code > mwin_codeMetaRight))
     {
         return mwinMisuse(context);
     }

@@ -167,12 +167,12 @@ static void Step(Program* program, mwinContext* context, int step)
     {
     case 0:
         s_mapped = mwinAddGamepad(context, &info, 1);
-        info = (mwinGamepadInfo){.rawButtons = 3, .rawAxes = 4};
+        info = (mwinGamepadInfo){.rawButtonCount = 3, .rawAxisCount = 4};
         s_raw = mwinAddGamepad(context, &info, 1);
         CHECK(s_mapped >= 0 && s_raw >= 0, "two gamepads");
         info = (mwinGamepadInfo){.mapped = true};
         s_shortMapped = mwinAddGamepad(context, &info, 1);
-        info = (mwinGamepadInfo){.rawButtons = 4, .rawAxes = 6};
+        info = (mwinGamepadInfo){.rawButtonCount = 4, .rawAxisCount = 6};
         s_shortRaw = mwinAddGamepad(context, &info, 1);
         CHECK(s_shortMapped >= 0 && s_shortRaw >= 0, "two more");
         PostMapped(context);

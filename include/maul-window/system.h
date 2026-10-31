@@ -19,7 +19,7 @@ extern "C"
 #endif
 
     // The system's light or dark look.
-    typedef uint8_t mwinTheme;
+    typedef int32_t mwinTheme;
 
     enum
     {

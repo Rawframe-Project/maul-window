@@ -308,8 +308,8 @@ static void AdvancePointer(Program* program)
                                               {mwin_eventButtonDown, mwin_buttonLeft, 0x01},
                                               {mwin_eventButtonUp, mwin_buttonLeft, 0x00}};
         CHECK(Buttons(program, clicks, 4) &&
-                  Find(program, mwin_eventButtonDown, 0)->data.pointer.clicks == 1 &&
-                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2,
+                  Find(program, mwin_eventButtonDown, 0)->data.pointer.clickCount == 1 &&
+                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clickCount == 2,
               "a quick second click is a double click");
         CHECK(GetCapture() == nullptr, "the mouse let go once the button is up");
         // Buttons that wait in the queue, as the late key.

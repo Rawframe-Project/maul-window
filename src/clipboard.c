@@ -29,17 +29,22 @@ static void Release(const mwinContext* context, char* text, size_t length)
 }
 
 // Makes room for a read's text of a length, the last one's given back;
-// NULL, with the last one kept, when the allocator has none.
+// NULL, with the last one kept, when the allocator has none. The new
+// text and its count are in place before the program's free hook gets
+// the last one, so that a getter called from the hook finds the last
+// read stale rather than reading the block it frees.
 static char* Found(mwinContext* context, size_t length, bool* failedOut)
 {
     char* text = Allocate(context, length);
     *failedOut = length > 0 && text == nullptr;
     if (!*failedOut)
     {
-        Release(context, context->clipboardFound, context->clipboardFoundLength);
+        char* last = context->clipboardFound;
+        size_t lastLength = context->clipboardFoundLength;
         context->clipboardFound = text;
         context->clipboardFoundLength = (uint32_t)length;
         context->foundPayloads[mwin_foundText] += 1;
+        Release(context, last, lastLength);
     }
     return text;
 }
@@ -137,9 +142,11 @@ mwinResult mwinWindow_RequestClipboardWrite(mwinContext* context, mwinWindowId w
         memcpy(copy, text, length);
     }
     // Text alone: the data written before goes.
-    Release(context, context->clipboardOffer, context->clipboardOfferLength);
+    char* last = context->clipboardOffer;
+    size_t lastLength = context->clipboardOfferLength;
     context->clipboardOffer = copy;
     context->clipboardOfferLength = (uint32_t)length;
+    Release(context, last, lastLength);
     mwinReleaseClipboardData(context);
     mwinSubmitRequest(context, slot, request, requestOut);
     return mwin_success;

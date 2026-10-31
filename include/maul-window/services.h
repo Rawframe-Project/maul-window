@@ -93,7 +93,7 @@ extern "C"
                                                                    mwinRequestId* requestOut);
 
     // How a message box looks.
-    typedef uint8_t mwinMessageKind;
+    typedef int32_t mwinMessageKind;
 
     enum
     {
@@ -103,7 +103,7 @@ extern "C"
     };
 
     // The buttons a message box offers.
-    typedef uint8_t mwinMessageButtons;
+    typedef int32_t mwinMessageButtons;
 
     enum
     {

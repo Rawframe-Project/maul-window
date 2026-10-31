@@ -307,8 +307,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
         break;
     }
     case phaseClicks:
-        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.clicks == 1 &&
-                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clicks == 2 &&
+        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.clickCount == 1 &&
+                  Find(program, mwin_eventButtonDown, 1)->data.pointer.clickCount == 2 &&
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonLeft,
               "a quick second click is a double click");
         CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons == 1 &&

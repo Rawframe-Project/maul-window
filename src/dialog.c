@@ -64,7 +64,7 @@ static bool IsAbsolute(const char* path, size_t length)
 // named bounds, mwin_errorInvalid for anything else wrong.
 static mwinResult CheckDef(const mwinFileDialogDef* def)
 {
-    if (def->cookie != DIALOG_COOKIE || def->kind > mwin_dialogFolder ||
+    if (def->cookie != DIALOG_COOKIE || (uint32_t)def->kind > mwin_dialogFolder ||
         (def->filters == nullptr && def->filterCount != 0))
     {
         return mwin_errorInvalid;
@@ -244,10 +244,13 @@ mwinOutcome mwinSettleDialog(mwinContext* context, uint32_t slot, uint32_t reque
     }
     if (outcome == mwin_outcomeDone)
     {
-        mwinListRelease(&context->dialogFiles, &context->allocator);
+        // The new files and their request first: a getter called from the
+        // free hook finds the last dialog stale.
+        mwinFileList last = context->dialogFiles;
         context->dialogFiles = context->dialogGathering;
         context->dialogGathering = (mwinFileList){0};
         context->dialogRequest = mwinRequestIdOf(context, slot, request);
+        mwinListRelease(&last, &context->allocator);
     }
     mwinListRelease(&context->dialogGathering, &context->allocator);
     return outcome;

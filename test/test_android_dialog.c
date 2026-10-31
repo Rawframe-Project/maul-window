@@ -408,7 +408,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 5:
     {
-        // The activity kept in phase 2, which phase 2 checked.
+        // The activity kept once the first picker closed, checked there.
         if (program->activity == nullptr)
         {
             break;

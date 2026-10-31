@@ -664,6 +664,14 @@ jobs:
             sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+          # The emulator refuses to start when the disk has less room than
+          # its userdata partition (over 7 GB), which neither the AVD's
+          # config.ini nor -partition-size shrinks, and a hosted runner may
+          # have less free. This job uses none of these toolchains.
+          df -h "$HOME"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /opt/hostedtoolcache/CodeQL
+          df -h "$HOME"
           tools="$ANDROID_HOME/cmdline-tools/latest/bin"
           yes | "$tools/sdkmanager" --licenses >/dev/null 2>&1 || true
           mkdir -p "$ANDROID_AVD_HOME"
@@ -683,6 +691,7 @@ jobs:
             sleep 5
           done
           "$adb" shell getprop sys.boot_completed | grep -q 1 || { tail -50 emulator.log; exit 1; }
+          "$adb" shell df -h /data
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
       - name: Install ccache
         # The runner has none: the release's static binary, checked against

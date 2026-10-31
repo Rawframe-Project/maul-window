@@ -316,6 +316,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(dialog)
         maul_add_test(icon WHITEBOX)
         maul_add_test(cursor WHITEBOX)
+        # Destroys read back from the free hook; the cursor through its
+        # slot, which no public getter reads.
+        maul_add_test(destroy_hook WHITEBOX)
         maul_add_test(owned)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)

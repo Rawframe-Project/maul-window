@@ -6,7 +6,7 @@
 
 The def (`mwinDefaultWindowDef`) gives the title, the logical size, the mode (windowed, borderless full screen, minimized, maximized), visibility and the style bits: resizable, decorated, always on top and custom chrome. On the web it may also name an existing canvas by a CSS selector (`canvas`, `canvasLength`); otherwise the library makes one.
 
-`mwinDestroyWindow` is immediate: the id is stale at once, the window's requests in flight complete as cancelled, its waiting notifications are dropped, and `mwin_eventWindowDestroyed` follows. Destroying a window destroys the windows it owns first.
+`mwinDestroyWindow` is immediate: the id is stale at once, before the window's blocks reach the allocator's free function, so a getter called from there answers `mwin_errorStale`; the window's requests in flight complete as cancelled, its waiting notifications are dropped, and `mwin_eventWindowDestroyed` follows. Destroying a window destroys the windows it owns first.
 
 Nothing closes a window by itself. The close button sends `mwin_eventCloseRequested`, and the program destroys the window or does not. On Android the Back key and gesture send the same record, so a program goes back a screen or ends.
 

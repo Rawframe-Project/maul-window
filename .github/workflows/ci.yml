@@ -280,16 +280,15 @@ jobs:
 
   # Every night each target fuzzes ten minutes from its corpus of the nights
   # before, carried in an Actions cache, in a job of its own so that every
-  # target runs at once. The cache is keyed by the target and by the fuzz
-  # build's inputs (the library, its CMake, the target and the compiler), so
-  # an unchanged build restores its own corpus exactly. A target whose build
-  # changed restores its latest corpus of an earlier build: a corpus is only
-  # inputs, which stay valid against a new binary. After the run the
-  # fuzzer's merge minimizes the seeds and the corpus together against this
-  # binary, and the result is saved for the next night, only by a run that
-  # found nothing. The summary compares the seeds' coverage with the
-  # corpus's. Nothing is uploaded: a finding, a log and a corpus hold
-  # inputs, and the Actions cache and artifacts are not secret.
+  # target runs at once. The cache is keyed by the target and the run that
+  # saved it, and each night restores the target's newest, whichever build
+  # saved it: a corpus is only inputs, which stay valid against a new
+  # binary. After the run the fuzzer's merge minimizes the seeds and the
+  # corpus together against this binary, and the result is saved for the
+  # next night, only by a run that found nothing. The summary compares the
+  # seeds' coverage with the corpus's. Nothing is uploaded: a finding, a log
+  # and a corpus hold inputs, and the Actions cache and artifacts are not
+  # secret.
   fuzz-nightly:
     needs: fuzz-targets
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

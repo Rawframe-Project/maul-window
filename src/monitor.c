@@ -115,11 +115,11 @@ void mwinReleaseMonitor(mwinContext* context, mwinMonitorId monitor)
 mwinResult mwinContext_GetMonitors(const mwinContext* context, mwinMonitorId* monitorsOut,
                                    size_t capacity, size_t* countOut)
 {
-    mwinClearArray(monitorsOut, capacity, sizeof *monitorsOut);
     mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || countOut == nullptr || (monitorsOut == nullptr && capacity != 0))
     {
-        return mwinMisuse(context);
+        return mwinClearItemsOnFailure(mwinMisuse(context), monitorsOut, capacity,
+                                       sizeof *monitorsOut);
     }
     size_t count = 0;
     // The primary first, then the others in slot order.

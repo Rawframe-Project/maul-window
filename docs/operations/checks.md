@@ -45,9 +45,14 @@ A test never sleeps, reads the wall clock, tries again or skips without saying w
 | `web-wasi` | The web backend built by Clang for wasm32-wasi in the CI image, every test a module in headless Chrome with the generated JavaScript imports. |
 | `web-emscripten` | The web backend built by Emscripten, its tests in headless Chrome through puppeteer, and what the backend adds to a program's size. |
 | `gamepads` | Every night: the virtual gamepad tests, in the CI image run by `docker` with the runner's `/dev/uinput` passed in. A skipped test fails it. |
+| `prune-caches` | On `main` only, after every job that saves a cache: the organization's `cache-prune.yml` deletes the cache entries a newer save of the same key replaced ([caches](#caches)). |
 | `quarantine` | Every night: the quarantined tests of `linux-clang-20-asan` (the virtual pads aside), `macos-clang` and `windows-clang-cl` through `tools/run_quarantine.sh`, with the test presets' timeout. |
 
 Every job that compiles on a pull request restores a ccache of its own, as `cpp.yml` does for its cells, and only `main` saves one, so a pull request reads the latest `main` cache and never writes. The CI image carries ccache; `android-emulator` and `ios-simulator` take a pinned release binary checked against its hash. `web-emscripten` has none: its build time is linking (`wasm-opt` on each test), which ccache does not cache. Each build prints ccache's hits and misses. `android-emulator` also restores its pinned NDK, which the runner image does not carry, from a cache keyed by the NDK's version: the SDK manager installs it only on a miss, and only `main` saves it.
+
+### Caches
+
+A ccache is saved under a key that ends in the commit, and a corpus under one that ends in the run, so each save adds an entry, and the repository's 10 GB would fill within a day. GitHub then evicts the least recently used entries, which can be a corpus only the next night restores. `prune-caches` runs after every job that saves a cache, on `main` only: it deletes each entry of `main` whose key, up to that commit or run, a newer entry shares, and keeps every other entry and every entry of another branch.
 
 `pr-title.yml` checks that the pull request title is a conventional commit with a scope from `AGENTS.md`, and `pr-gate.yml` closes a pull request from outside the organization unless it closes an issue labeled `accepted`. `codeql.yml` runs CodeQL in the CI image on every pull request and on `main`. `scorecard.yml` grades the repository's security practices weekly, and Dependabot proposes updates of the pinned actions once a week.
 
@@ -57,9 +62,9 @@ The fuzz targets (`test/fuzz_<area>.c`, built with `-DMAUL_WINDOW_FUZZ=ON` and C
 
 Each target starts from its committed seeds (`test/seeds/<target>/`), inputs that reach what random bytes rarely would. The nightly run also carries a corpus per target from night to night in an Actions cache, which every run restores, a pull request's included; only a clean nightly run on `main` saves it:
 
-- The cache key names the target and hashes the fuzz build's inputs (`src/`, `include/`, `protocols/`, `cmake/`, `CMakeLists.txt`, the target's source) and the compiler's version, so an unchanged build restores its own corpus exactly. A target whose build changed restores its latest corpus of an earlier build: a corpus is only inputs, which stay valid against a new binary.
+- The cache key is the target and the run that saved it (`corpus-<target>-<run id>`), and every run restores the target's newest. The key names no build: a corpus is only inputs, which stay valid against a new binary, and the merge re-scores them. A key per build would also leave an older build's corpus where `prune-caches` never deletes it.
 - After its 600 seconds, the fuzzer's merge step minimizes the seeds and the corpus together, keeping the files that still reach every feature either reaches (some of them seeds), and that is saved for the next night. The merge runs through `tools/fuzz_target.sh --merge`, which prints one line and fails when an input crashes, reporting the finding as a run does without its input. A run or a merge that found something saves nothing.
-- The run's summary says which corpus was restored (this build's, an earlier build's, or none) and gives the seeds' coverage beside the corpus's. Where the corpus reaches more, the inputs worth keeping are found locally and committed as seeds ([Development](development.md#a-fuzz-finding)).
+- The run's summary says which corpus was restored (the run that saved it, or none) and gives the seeds' coverage beside the corpus's. Where the corpus reaches more, the inputs worth keeping are found locally and committed as seeds ([Development](development.md#a-fuzz-finding)).
 - Every run, on a pull request, on main and at night, goes through `tools/fuzz_target.sh`. A finding is reported by its kind and its sanitizer report, never by its input, its seed or its file name, and the finding and the target's log stay on the runner. No job uploads a finding, a fuzz log or a corpus. `fuzz` restores the target's corpus as `fuzz-nightly` does, and prints which one it got, but never saves or minimizes it.
 
 ## Budgets

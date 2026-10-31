@@ -119,9 +119,10 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param request    The dialog's request, done.
-    /// @param bufferOut  Receives the paths. May be NULL when capacity is
-    ///                   0. Zeroed over capacity on failure, so a buffer
-    ///                   too short holds none of it.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it. On success, the bytes past
+    ///                   those it reports are left as they were.
     /// @param capacity   Its bytes.
     /// @param lengthOut  Receives the bytes of the paths. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any

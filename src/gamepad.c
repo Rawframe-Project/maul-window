@@ -13,11 +13,11 @@
 mwinResult mwinContext_GetGamepads(const mwinContext* context, mwinGamepadId* gamepadsOut,
                                    size_t capacity, size_t* countOut)
 {
-    mwinClearArray(gamepadsOut, capacity, sizeof *gamepadsOut);
     mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || countOut == nullptr || (gamepadsOut == nullptr && capacity != 0))
     {
-        return mwinMisuse(context);
+        return mwinClearItemsOnFailure(mwinMisuse(context), gamepadsOut, capacity,
+                                       sizeof *gamepadsOut);
     }
     // In the order they came: each round takes the earliest after the last.
     size_t count = 0;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// What a failed call on the context leaves in its outputs, on the test
+// What a call on the context leaves in its outputs, on the test
 // backend: every output filled with a pattern first, then each call made
 // to fail with no context, with an id whose object is gone, from inside
 // the context's allocator where it changes the context, and with a
@@ -13,7 +13,9 @@
 // of its other outputs, the next event and a gamepad's motion, which
 // keep the pattern. A call clears its outputs before any other check,
 // so these failures stand for the others each call has (a refused
-// argument, a full limit).
+// argument, a full limit). A call that fills a caller's buffer or list
+// clears it only when it fails: given more room than it needs, it
+// writes what it reports and leaves the rest as the caller filled it.
 
 #include "test_program.h"
 
@@ -391,6 +393,86 @@ static void Shorts(Program* program, mwinContext* context, uint32_t drop)
           "a dialog's paths: their bytes and count kept, none of them in a buffer too short");
 }
 
+// A buffer longer than what a call has, filled with the pattern: it must
+// succeed with the length it has, and leave every byte past it as the
+// caller left it.
+static void Long(const char* call, mwinResult status, const char* buffer, size_t capacity,
+                 size_t length, size_t needed)
+{
+    if (status != mwin_success || length != needed || length > capacity ||
+        !Untouched(buffer + length, capacity - length))
+    {
+        printf("FAIL: %s with a buffer to spare: answered %d, length %zu of %zu, %s\n", call,
+               (int)status, length, needed,
+               length <= capacity && Untouched(buffer + length, capacity - length)
+                   ? "the rest kept"
+                   : "the rest written");
+        s_failures += 1;
+    }
+}
+
+#define LONG(needed, function, ...)                                                                \
+    do                                                                                             \
+    {                                                                                              \
+        char bytes[(needed) + 8];                                                                  \
+        size_t given = 0xA5A5;                                                                     \
+        Fill(bytes, sizeof(bytes));                                                                \
+        mwinResult answered = function(__VA_ARGS__, bytes, sizeof(bytes), &given);                 \
+        Long(#function, answered, bytes, sizeof(bytes), given, needed);                            \
+    } while (0)
+
+// Each call that fills a caller's array, given more room than it needs:
+// it writes what it reports and leaves the rest.
+static void Longs(Program* program, mwinContext* context, uint32_t drop)
+{
+    LONG(9, mwinRequest_GetClipboardText, context, program->requests[1]);
+    LONG(3, mwinRequest_GetClipboardData, context, program->requests[2]);
+    LONG(7, mwinRequest_GetPrimaryText, context, program->requests[3]);
+    LONG(4, mwinContext_GetDroppedFiles, context, drop);
+    LONG(4, mwinContext_GetDroppedText, context, drop);
+    LONG(12, mwinContext_GetKeyboardLayout, context);
+    LONG(11, mwinContext_GetPreferredLocales, context);
+    LONG(4, mwinWindow_GetTestTitle, context, program->windows[0]);
+    LONG(9, mwinContext_GetTestClipboard, context);
+    LONG(7, mwinContext_GetTestPrimary, context);
+    LONG(9, mwinContext_GetTestOpened, context, mwin_requestOpenUrl);
+    char dialog[256];
+    size_t length = 0;
+    Fill(dialog, sizeof(dialog));
+    mwinResult status = mwinContext_GetTestDialog(context, dialog, sizeof(dialog), &length);
+    CHECK(status == mwin_success && length < sizeof(dialog) &&
+              Untouched(dialog + length, sizeof(dialog) - length),
+          "the dialog the test platform was asked for, the rest of the buffer kept");
+    char paths[sizeof(s_chosen) + 8];
+    uint32_t count = 0;
+    Fill(paths, sizeof(paths));
+    status = mwinRequest_GetDialogFiles(context, program->requests[4], paths, sizeof(paths),
+                                        &length, &count);
+    CHECK(status == mwin_success && length == sizeof(s_chosen) && count == 2 &&
+              Untouched(paths + length, sizeof(paths) - length),
+          "a dialog's paths, the rest of the buffer kept");
+    mwinMonitorId monitors[4];
+    size_t monitorCount = 0;
+    Fill(monitors, sizeof(monitors));
+    status = mwinContext_GetMonitors(context, monitors, 4, &monitorCount);
+    CHECK(status == mwin_success && monitorCount < 4 &&
+              Untouched(monitors + monitorCount, (4 - monitorCount) * sizeof(monitors[0])),
+          "the monitors, the rest of the list kept");
+#ifdef MWIN_TEST_GAMEPAD
+    mwinGamepadId pads[4];
+    size_t padCount = 0;
+    Fill(pads, sizeof(pads));
+    status = mwinContext_GetGamepads(context, pads, 4, &padCount);
+    CHECK(status == mwin_success && padCount < 4 &&
+              Untouched(pads + padCount, (4 - padCount) * sizeof(pads[0])),
+          "the gamepads, the rest of the list kept");
+#endif
+    // Last: data on the platform's clipboard takes the place of its text.
+    CHECK(mwinContext_SetTestClipboardData(context, "image/x-maul", 12, "abc", 3) == mwin_success,
+          "data on the test platform's clipboard");
+    LONG(3, mwinContext_GetTestClipboardData, context, "image/x-maul", 12);
+}
+
 // The calls the allocator makes when armed, and how often it did.
 static mwinContext* s_context;
 static mwinWindowId s_window;
@@ -506,6 +588,7 @@ static void Step(Program* program, mwinContext* context, int step)
     case 2:
     {
         Shorts(program, context, s_drop);
+        Longs(program, context, s_drop);
         s_context = context;
         s_window = program->windows[0];
         s_armed = true;

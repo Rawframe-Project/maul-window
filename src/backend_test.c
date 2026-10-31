@@ -619,7 +619,9 @@ mwinResult mwinContext_PostTestEvent(mwinContext* context, const mwinEvent* even
     {
         return mwinBusy(context);
     }
-    if (context == nullptr || event == nullptr || !IsReportable(event->type))
+    if (context == nullptr || event == nullptr || !IsReportable(event->type) ||
+        ((event->type == mwin_eventKeyDown || event->type == mwin_eventKeyUp) &&
+         (uint32_t)event->data.key.code > mwin_codeMetaRight))
     {
         return mwinMisuse(context);
     }

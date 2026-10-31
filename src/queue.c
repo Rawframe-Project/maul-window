@@ -372,7 +372,7 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 static bool Consumed(mwinWindow* window, const mwinEvent* record)
 {
     if ((record->type != mwin_eventKeyDown && record->type != mwin_eventKeyUp) ||
-        record->data.key.code >= 256)
+        (uint32_t)record->data.key.code >= 8 * sizeof(window->consumedKeys))
     {
         return false;
     }

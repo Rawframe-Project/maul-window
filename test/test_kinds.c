@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // Kinds below their range, on the test backend: every enumeration a call
-// takes by value or a def holds is an int32_t, so -1 and INT32_MIN are
-// values a program can pass. Each call refuses both with
+// takes by value, a def holds or a test report carries (a key's code) is
+// an int32_t, so -1 and INT32_MIN are values a program can pass. Each
+// call refuses both with
 // mwin_errorInvalid and counts one misuse on a live context (none
 // without one); mwinContext_MapKeyCode, which answers a key, answers
 // none. The sets of flags are uint32_t, so all bits set stands for a
@@ -69,6 +70,12 @@ static void Arguments(mwinContext* context, mwinWindowId window, mwinGamepadId g
                 mwinContext_GetTestOpened(context, v, bytes, sizeof(bytes), &length));
         mwinEvent event = {.type = v, .window = window};
         REFUSED("a test report's type", v, mwinContext_PostTestEvent(context, &event));
+        mwinEvent down = {.type = mwin_eventKeyDown, .window = window};
+        down.data.key.code = v;
+        REFUSED("a key press's code", v, mwinContext_PostTestEvent(context, &down));
+        mwinEvent up = {.type = mwin_eventKeyUp, .window = window};
+        up.data.key.code = v;
+        REFUSED("a key release's code", v, mwinContext_PostTestEvent(context, &up));
 #ifdef MWIN_TEST_GAMEPAD
         REFUSED("a test gamepad's button", v, mwinGamepad_SetTestButton(context, gamepad, v, true));
         REFUSED("a test gamepad's axis", v, mwinGamepad_SetTestAxis(context, gamepad, v, 1.0f));
@@ -78,6 +85,10 @@ static void Arguments(mwinContext* context, mwinWindowId window, mwinGamepadId g
     }
     REFUSED("a window style past every flag", -1,
             mwinWindow_RequestStyle(context, window, UINT32_MAX, nullptr));
+    mwinEvent past = {.type = mwin_eventKeyUp, .window = window};
+    past.data.key.code = mwin_codeMetaRight + 1;
+    REFUSED("a key release's code past the last", past.data.key.code,
+            mwinContext_PostTestEvent(context, &past));
 }
 
 // The defs that hold a kind.
@@ -137,6 +148,10 @@ static void Step(Program* program, mwinContext* context, int step)
     case 1:
         Arguments(context, program->windows[0], s_gamepad);
         Defs(context, program->windows[0]);
+        break;
+    case 2:
+        // A frame after the refused reports: none of them reaches the
+        // queue.
         program->done = true;
         break;
     default:

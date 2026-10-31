@@ -22,7 +22,7 @@
 // composition is shown. Motion,
 // raw deltas and the wheel are delivered sample by sample while there is
 // room, and merged into the newest waiting record of their kind when
-// there is not; samples says how many a record stands for.
+// there is not; sampleCount says how many a record stands for.
 //
 // Text in a record stays valid until the frame that drained it returns.
 //

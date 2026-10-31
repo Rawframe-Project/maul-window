@@ -71,7 +71,8 @@ extern "C"
     ///         for a context of another backend; `mwin_errorLimit` for a
     ///         composition of more than MWIN_MAX_PREEDIT_SEGMENTS
     ///         segments; `mwin_errorInvalid` for a NULL argument, a record
-    ///         type only the core makes, or text that is not UTF-8.
+    ///         type only the core makes, a key's record of an unknown key
+    ///         code, or text that is not UTF-8.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_PostTestEvent(mwinContext* context,

@@ -105,9 +105,11 @@ extern "C"
     ///
     /// @param context    A context of the test backend.
     /// @param window     The window.
-    /// @param bufferOut  Receives the title, not NUL-terminated. May be
-    ///                   NULL when capacity is 0. Zeroed over capacity on
-    ///                   failure, so a buffer too short holds none of it.
+    /// @param bufferOut  Receives the title, not NUL-terminated. May be NULL
+    ///                   when capacity is 0. Zeroed over capacity on failure,
+    ///                   so a buffer too short holds none of it. On success,
+    ///                   the bytes past those it reports are left as they
+    ///                   were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the title's length in bytes. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
@@ -385,9 +387,10 @@ extern "C"
     /// wrote, or what mwinContext_SetTestClipboard put there.
     ///
     /// @param context    A context of the test backend.
-    /// @param bufferOut  Receives the bytes. May be NULL when capacity is
-    ///                   0. Zeroed over capacity on failure, so a buffer
-    ///                   too short holds none of it.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it. On success, the bytes past
+    ///                   those it reports are left as they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives their number. On `mwin_errorCapacity`,
     ///                   the bytes needed; 0 on any other failure.
@@ -426,9 +429,10 @@ extern "C"
     /// @param context     A context of the test backend.
     /// @param mime        The type, as written.
     /// @param mimeLength  Its bytes.
-    /// @param bufferOut   Receives the bytes. May be NULL when capacity is
-    ///                    0. Zeroed over capacity on failure, so a buffer
-    ///                    too short holds none of it.
+    /// @param bufferOut   Receives the bytes. May be NULL when capacity is 0.
+    ///                    Zeroed over capacity on failure, so a buffer too
+    ///                    short holds none of it. On success, the bytes past
+    ///                    those it reports are left as they were.
     /// @param capacity    The bytes bufferOut holds.
     /// @param lengthOut   Receives their number. On `mwin_errorCapacity`,
     ///                    the bytes needed; 0 on any other failure.
@@ -455,9 +459,10 @@ extern "C"
     /// Reads the test platform's primary selection as bytes.
     ///
     /// @param context    A context of the test backend.
-    /// @param bufferOut  Receives the bytes. May be NULL when capacity is
-    ///                   0. Zeroed over capacity on failure, so a buffer
-    ///                   too short holds none of it.
+    /// @param bufferOut  Receives the bytes. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it. On success, the bytes past
+    ///                   those it reports are left as they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives their number. On `mwin_errorCapacity`,
     ///                   the bytes needed; 0 on any other failure.
@@ -499,9 +504,10 @@ extern "C"
     ///
     /// @param context    A context of the test backend.
     /// @param kind       mwin_requestOpenUrl or mwin_requestRevealFile.
-    /// @param bufferOut  Receives it. May be NULL when capacity is 0.
-    ///                   Zeroed over capacity on failure, so a buffer too
-    ///                   short holds none of it.
+    /// @param bufferOut  Receives it. May be NULL when capacity is 0. Zeroed
+    ///                   over capacity on failure, so a buffer too short holds
+    ///                   none of it. On success, the bytes past those it
+    ///                   reports are left as they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives its length in bytes, 0 before any. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
@@ -536,9 +542,10 @@ extern "C"
     /// filter as its name, ':' and its extensions.
     ///
     /// @param context    A context of the test backend.
-    /// @param bufferOut  Receives it. May be NULL when capacity is 0.
-    ///                   Zeroed over capacity on failure, so a buffer too
-    ///                   short holds none of it.
+    /// @param bufferOut  Receives it. May be NULL when capacity is 0. Zeroed
+    ///                   over capacity on failure, so a buffer too short holds
+    ///                   none of it. On success, the bytes past those it
+    ///                   reports are left as they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives its length in bytes, 0 before any. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any

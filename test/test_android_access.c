@@ -15,6 +15,7 @@
 // implements Explorer, and once with one that only has its method, as a
 // provider of another library does.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/accessibility.h"
@@ -295,10 +296,17 @@ static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
     (void)mwinWindow_GetState(context, program->window, &state);
+    // Every later phase reads the activity the start kept; without one,
+    // which the start reported, the test waits out its time.
+    if (program->phase > 0 && program->activity == nullptr)
+    {
+        return false;
+    }
     switch (program->phase)
     {
+    // Focused, and with its surface: the start keeps the activity.
     case 0:
-        return state.focused;
+        return state.focused && HasSurface(context, program->window);
     case 1:
         return program->completions >= 1 && Exploring(program);
     case 2:
@@ -358,6 +366,11 @@ static void Start(Program* program, mwinContext* context)
     mwinNativeHandles handles = {0};
     (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
     program->activity = handles.handles.android.activity;
+    CHECK(program->activity != nullptr, "the activity at the start");
+    if (program->activity == nullptr)
+    {
+        return;
+    }
     mwinWindowState state = {0};
     (void)mwinWindow_GetState(context, program->window, &state);
     program->size = state.pixelSize;

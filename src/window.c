@@ -42,8 +42,10 @@ mwinWindow* mwinFindWindow(const mwinContext* context, mwinWindowId window)
         return nullptr;
     }
     mwinWindow* found = &context->windows[window.index1 - 1];
-    return found->status == mwin_slotLive && found->generation == window.generation ? found
-                                                                                    : nullptr;
+    return found->status == mwin_slotLive && !found->closing &&
+                   found->generation == window.generation
+               ? found
+               : nullptr;
 }
 
 static bool IsPositive(mwinSize size)
@@ -273,6 +275,7 @@ mwinResult mwinCreateWindow(mwinContext* context, const mwinWindowDef* def, mwin
     }
     mwinWindow* window = &context->windows[slot];
     window->status = mwin_slotLive;
+    window->closing = false;
     window->generation += 1;
     window->state = (mwinWindowState){0};
     window->regionCount = 0;
@@ -316,6 +319,8 @@ mwinResult mwinDestroyWindow(mwinContext* context, mwinWindowId window)
         return mwin_errorStale;
     }
     uint32_t slot = window.index1 - 1;
+    // Gone to the program before any of its blocks reaches the free hook.
+    found->closing = true;
     // What it owns goes first; the owner's slot is live meanwhile, so no
     // new window can take it.
     for (uint32_t i = 0; i < context->limits.windows; i++)

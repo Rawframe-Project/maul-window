@@ -21,6 +21,7 @@
 // display's facts to agree with it, less than a second. quit writes the
 // closing line the runner waits for.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/context.h"
@@ -293,7 +294,9 @@ static void CheckWindow(const Program* program, mwinContext* context)
     CHECK(window != nullptr && (int32_t)state.pixelSize.width == ANativeWindow_getWidth(window) &&
               (int32_t)state.pixelSize.height == ANativeWindow_getHeight(window),
           "the native window's size in pixels");
-    CHECK(fabsf(state.scale - DensityOf(handles.handles.android.activity)) < 0.01f &&
+    // A missing activity is the failure above, not a crash here.
+    ANativeActivity* activity = handles.handles.android.activity;
+    CHECK(activity != nullptr && fabsf(state.scale - DensityOf(activity)) < 0.01f &&
               state.size.width * state.scale > state.pixelSize.width - 1.0f &&
               state.size.width * state.scale < state.pixelSize.width + 1.0f,
           "the scale the display's density, and the size in logical units");
@@ -315,7 +318,10 @@ static bool Ready(const Program* program, mwinContext* context)
     {
     case 0:
     case 6:
-        return program->created && program->shown;
+        // Shown, and showing now: a turn that relaunches the activity
+        // takes the surface away for a while, and its new start runs a
+        // frame before the surface comes back.
+        return program->created && program->shown && HasSurface(context, program->window);
     case 1:
         return program->completions >= 3;
     case 4:

@@ -266,22 +266,23 @@ mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId 
                                       char* bufferOut, size_t capacity, size_t* lengthOut,
                                       uint32_t* countOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
     mwinClearOut(countOut, sizeof *countOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity > 0))
     {
-        return mwinMisuse(context);
+        return mwinClearOnFailure(mwinMisuse(context), bufferOut, capacity);
     }
     const mwinFileList* files = &context->dialogFiles;
     if (request.index1 == 0 || request.index1 != context->dialogRequest.index1 ||
         request.generation != context->dialogRequest.generation)
     {
-        return mwin_errorStale;
+        return mwinClearOnFailure(mwin_errorStale, bufferOut, capacity);
     }
     if (countOut != nullptr)
     {
         *countOut = files->count;
     }
-    return mwinGiveBytes(files->bytes, files->length, bufferOut, capacity, lengthOut);
+    return mwinClearOnFailure(
+        mwinGiveBytes(files->bytes, files->length, bufferOut, capacity, lengthOut), bufferOut,
+        capacity);
 }

@@ -174,9 +174,10 @@ mwinResult mwinWindow_RequestClipboardRead(mwinContext* context, mwinWindowId wi
 mwinResult mwinRequest_GetClipboardText(const mwinContext* context, mwinRequestId request,
                                         char* bufferOut, size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
-    return mwinCopyFound(
-        context, request, mwin_foundText, context != nullptr ? context->clipboardFound : nullptr,
-        context != nullptr ? context->clipboardFoundLength : 0, bufferOut, capacity, lengthOut);
+    return mwinClearOnFailure(mwinCopyFound(context, request, mwin_foundText,
+                                            context != nullptr ? context->clipboardFound : nullptr,
+                                            context != nullptr ? context->clipboardFoundLength : 0,
+                                            bufferOut, capacity, lengthOut),
+                              bufferOut, capacity);
 }

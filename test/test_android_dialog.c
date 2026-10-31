@@ -12,6 +12,7 @@
 // gives, read back the same, a large one copied over several frames; and
 // a picker's OK with no document in it fails.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/context.h"
@@ -85,13 +86,6 @@ static void Collect(Program* program, mwinContext* context)
         program->suspended |= event.type == mwin_eventSuspending;
         program->resumed |= event.type == mwin_eventResumed;
     }
-}
-
-static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
-{
-    mwinNativeHandles handles = {0};
-    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
-    return handles.handles.android.activity;
 }
 
 static jobject Resolver(JNIEnv* env, ANativeActivity* activity)
@@ -200,6 +194,11 @@ static void DeleteDocument(JNIEnv* env, ANativeActivity* activity, jobject addre
 // Hands the activity a picker's result, as Android does.
 static void Result(const Program* program, jint request, jint code, jobject intent)
 {
+    CHECK(program->activity != nullptr, "an activity to hand the result");
+    if (program->activity == nullptr)
+    {
+        return;
+    }
     JNIEnv* env = program->activity->env;
     jclass activities = (*env)->GetObjectClass(env, program->activity->clazz);
     (*env)->CallVoidMethod(
@@ -215,6 +214,11 @@ static void Result(const Program* program, jint request, jint code, jobject inte
 static void Choose(const Program* program)
 {
     ANativeActivity* activity = program->activity;
+    CHECK(activity != nullptr, "an activity to hand the documents");
+    if (activity == nullptr)
+    {
+        return;
+    }
     JNIEnv* env = activity->env;
     jclass clips = (*env)->FindClass(env, "android/content/ClipData");
     jclass items = (*env)->FindClass(env, "android/content/ClipData$Item");
@@ -311,12 +315,15 @@ static bool Ready(Program* program, mwinContext* context)
     (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
+    // The phases that keep the activity wait for the surface too: Back
+    // can give the activity the focus before its surface is back.
     case 0:
-        return state.focused;
+        return state.focused && HasSurface(context, program->window);
     case 1:
         return program->completions >= 2 && program->suspended;
     case 2:
-        return program->completions >= 1 && program->resumed && state.focused;
+        return program->completions >= 1 && program->resumed && state.focused &&
+               HasSurface(context, program->window);
     case 3:
         return program->suspended;
     case 4:
@@ -341,7 +348,7 @@ static bool Ready(Program* program, mwinContext* context)
 
 static void Advance(Program* program, mwinContext* context)
 {
-    ANativeActivity* activity = ActivityOf(program, context);
+    ANativeActivity* activity = ActivityWithSurface(context, program->window);
     switch (program->phase)
     {
     case 0:
@@ -350,6 +357,11 @@ static void Advance(Program* program, mwinContext* context)
         (void)snprintf(program->names[1], sizeof(program->names[1]), "maul-b-%d.bin",
                        (int)getpid());
         program->activity = activity;
+        CHECK(activity != nullptr, "the activity at the start");
+        if (activity == nullptr)
+        {
+            break;
+        }
         program->documents[0] = MakeDocument(activity->env, activity, program->names[0], false);
         program->documents[1] = MakeDocument(activity->env, activity, program->names[1], true);
         CHECK(program->documents[0] != nullptr && program->documents[1] != nullptr,
@@ -375,6 +387,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(program->outcomes[0] == mwin_outcomeCancelled, "Back cancels the second");
         program->suspended = false;
         program->activity = activity;
+        CHECK(activity != nullptr, "the activity back");
         CHECK(Ask(program, context, mwin_dialogOpenMany) == mwin_success, "opening again");
         break;
     case 3:
@@ -386,7 +399,7 @@ static void Advance(Program* program, mwinContext* context)
     case 4:
         CHECK(program->outcomes[0] == mwin_outcomeDone, "the documents chosen");
         CheckCopies(program, context);
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 2 && program->activity != nullptr; i++)
         {
             DeleteDocument(program->activity->env, program->activity, program->documents[i]);
         }
@@ -395,6 +408,11 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 5:
     {
+        // The activity kept once the first picker closed, checked there.
+        if (program->activity == nullptr)
+        {
+            break;
+        }
         JNIEnv* env = program->activity->env;
         jclass intents = (*env)->FindClass(env, "android/content/Intent");
         jobject intent =

@@ -352,22 +352,24 @@ mwinResult mwinCopyFound(const mwinContext* context, mwinRequestId request, uint
 mwinResult mwinRequest_GetClipboardData(const mwinContext* context, mwinRequestId request,
                                         void* bufferOut, size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
-    return mwinCopyFound(context, request, mwin_foundData,
-                         context != nullptr ? context->clipboardDataFound : nullptr,
-                         context != nullptr ? context->clipboardDataFoundLength : 0, bufferOut,
-                         capacity, lengthOut);
+    return mwinClearOnFailure(
+        mwinCopyFound(context, request, mwin_foundData,
+                      context != nullptr ? context->clipboardDataFound : nullptr,
+                      context != nullptr ? context->clipboardDataFoundLength : 0, bufferOut,
+                      capacity, lengthOut),
+        bufferOut, capacity);
 }
 
 mwinResult mwinRequest_GetPrimaryText(const mwinContext* context, mwinRequestId request,
                                       char* bufferOut, size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
-    return mwinCopyFound(
-        context, request, mwin_foundPrimary, context != nullptr ? context->primaryFound : nullptr,
-        context != nullptr ? context->primaryFoundLength : 0, bufferOut, capacity, lengthOut);
+    return mwinClearOnFailure(mwinCopyFound(context, request, mwin_foundPrimary,
+                                            context != nullptr ? context->primaryFound : nullptr,
+                                            context != nullptr ? context->primaryFoundLength : 0,
+                                            bufferOut, capacity, lengthOut),
+                              bufferOut, capacity);
 }
 
 mwinResult mwinWindow_RequestPrimaryWrite(mwinContext* context, mwinWindowId window,

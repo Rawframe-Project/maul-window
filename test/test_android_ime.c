@@ -15,6 +15,7 @@
 // each purpose's input type, nothing corrected or completed. Insets told
 // again alike change neither the safe area nor the keyboard.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/context.h"
@@ -144,13 +145,6 @@ static mwinWindowState StateOf(const Program* program, mwinContext* context)
     mwinWindowState state = {0};
     (void)mwinWindow_GetState(context, program->window, &state);
     return state;
-}
-
-static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
-{
-    mwinNativeHandles handles = {0};
-    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
-    return handles.handles.android.activity;
 }
 
 // Calls a method of an object by name; an object result as a local
@@ -349,7 +343,12 @@ static void CheckKeys(const Program* program)
 
 static void CheckType(const Program* program, mwinContext* context, jint expected, const char* what)
 {
-    ANativeActivity* activity = ActivityOf(program, context);
+    ANativeActivity* activity = ActivityWithSurface(context, program->window);
+    CHECK(activity != nullptr, "the activity, to ask its connection");
+    if (activity == nullptr)
+    {
+        return;
+    }
     JNIEnv* env = activity->env;
     jint type = 0;
     jobject connection = Connection(env, activity, &type);
@@ -361,6 +360,11 @@ static void CheckType(const Program* program, mwinContext* context, jint expecte
 // keyboard of the test's own.
 static void TellInsets(Program* program, const ANativeActivity* activity)
 {
+    CHECK(activity != nullptr, "the activity, to tell its insets");
+    if (activity == nullptr)
+    {
+        return;
+    }
     JNIEnv* env = activity->env;
     program->safeAreas = 0;
     program->keyboards = 0;
@@ -379,7 +383,7 @@ static void TellInsets(Program* program, const ANativeActivity* activity)
 // waiting, so the test makes one composition call a frame.
 static void Advance(Program* program, mwinContext* context)
 {
-    ANativeActivity* activity = ActivityOf(program, context);
+    ANativeActivity* activity = ActivityWithSurface(context, program->window);
     JNIEnv* env = activity != nullptr ? activity->env : nullptr;
     jint type = 0;
     jobject connection = env != nullptr ? Connection(env, activity, &type) : nullptr;

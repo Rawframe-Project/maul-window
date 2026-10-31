@@ -9,6 +9,7 @@
 // window is kept awake keeps the display awake too. The clipboard's text
 // is test_android_clipboard.c's.
 
+#include "test_android_app.h"
 #include "test_harness.h"
 
 #include "maul-window/clipboard.h"
@@ -73,13 +74,6 @@ static mwinWindowState StateOf(const Program* program, mwinContext* context)
     return state;
 }
 
-static ANativeActivity* ActivityOf(const Program* program, mwinContext* context)
-{
-    mwinNativeHandles handles = {0};
-    (void)mwinWindow_GetNativeHandles(context, program->window, &handles);
-    return handles.handles.android.activity;
-}
-
 // Calls a method of an object by name; an object result as a local
 // reference.
 static jobject CallObject(JNIEnv* env, jobject object, const char* name, const char* signature)
@@ -91,20 +85,34 @@ static jobject CallObject(JNIEnv* env, jobject object, const char* name, const c
     return result;
 }
 
-// The activity's window's flags (WindowManager.LayoutParams.flags).
-static jint WindowFlags(const Program* program, mwinContext* context)
+// The activity's window's flags (WindowManager.LayoutParams.flags) into
+// flagsOut; false, and no flags, while the window has no surface.
+static bool WindowFlags(const Program* program, mwinContext* context, jint* flagsOut)
 {
-    ANativeActivity* activity = ActivityOf(program, context);
+    *flagsOut = 0;
+    ANativeActivity* activity = ActivityWithSurface(context, program->window);
+    if (activity == nullptr)
+    {
+        return false;
+    }
     JNIEnv* env = activity->env;
     jobject window = CallObject(env, activity->clazz, "getWindow", "()Landroid/view/Window;");
     jobject attributes =
         CallObject(env, window, "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
     jclass type = (*env)->GetObjectClass(env, attributes);
-    jint flags = (*env)->GetIntField(env, attributes, (*env)->GetFieldID(env, type, "flags", "I"));
+    *flagsOut = (*env)->GetIntField(env, attributes, (*env)->GetFieldID(env, type, "flags", "I"));
     (*env)->DeleteLocalRef(env, type);
     (*env)->DeleteLocalRef(env, attributes);
     (*env)->DeleteLocalRef(env, window);
-    return flags;
+    return true;
+}
+
+// Whether the activity's window keeps the screen on, or off when on is
+// false; never while the window has no surface to read it from.
+static bool Kept(const Program* program, mwinContext* context, bool on)
+{
+    jint flags = 0;
+    return WindowFlags(program, context, &flags) && ((flags & KEEP_SCREEN_ON) != 0) == on;
 }
 
 // Shows a frame, drawn on the CPU: Android 14 and later send nothing to
@@ -140,16 +148,16 @@ static bool Ready(Program* program, mwinContext* context)
     // NativeActivity sets the window's flags later, on its Java side:
     // the test waits for them.
     case 1:
-        return program->completions >= 1 && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
+        return program->completions >= 1 && Kept(program, context, true);
     case 2:
-        return program->completions >= 4 && (WindowFlags(program, context) & KEEP_SCREEN_ON) == 0;
+        return program->completions >= 4 && Kept(program, context, false);
     case 3:
         return program->completions >= 2 && program->suspended;
     case 4:
         return program->resumed && state.focused;
     case 5:
         return (state.pixelSize.width > state.pixelSize.height) == program->wasPortrait &&
-               state.focused && (WindowFlags(program, context) & KEEP_SCREEN_ON) != 0;
+               state.focused && Kept(program, context, true);
     default:
         return true;
     }
@@ -180,8 +188,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 1:
         CHECK(outcomes[0] == mwin_outcomeDone, "keeping awake done");
-        CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0 &&
-                  StateOf(program, context).awake,
+        CHECK(Kept(program, context, true) && StateOf(program, context).awake,
               "kept awake: the window's flag");
         CHECK(mwinWindow_RequestKeepAwake(context, program->window, false, nullptr) ==
                       mwin_success &&
@@ -203,8 +210,7 @@ static void Advance(Program* program, mwinContext* context)
               "awake cleared; no file manager");
         CHECK(outcomes[2] == mwin_outcomeUnsupported && outcomes[3] == mwin_outcomeUnsupported,
               "no clipboard data, no primary selection");
-        CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) == 0 &&
-                  !StateOf(program, context).awake,
+        CHECK(Kept(program, context, false) && !StateOf(program, context).awake,
               "the window's flag cleared");
         {
             const char url[] = "https://example.com/maul";
@@ -230,8 +236,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     case 5:
-        CHECK((WindowFlags(program, context) & KEEP_SCREEN_ON) != 0,
-              "the activity made anew kept awake too");
+        CHECK(Kept(program, context, true), "the activity made anew kept awake too");
         break;
     default:
         break;

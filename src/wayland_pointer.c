@@ -50,8 +50,9 @@ static void PostPointer(mwinWaylandPlatform* platform, mwinEventType type, mwinM
     mwinEvent event = {0};
     event.type = type;
     event.timeNs = timeNs;
-    event.data.pointer = (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers,
-                                            pointer->buttons, button, pointer->clicks.clicks};
+    event.data.pointer =
+        (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers, pointer->buttons,
+                           button, pointer->clickCounter.clickCount};
     mwinPost(platform->context, (uint32_t)pointer->focus, &event);
 }
 
@@ -209,7 +210,7 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (state == WL_POINTER_BUTTON_STATE_PRESSED)
     {
-        uint8_t clicks = mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        uint8_t clicks = mwinCountClick(&pointer->clickCounter, button, pointer->position, timeNs);
         if (mwinWaylandPressChrome(platform, (uint32_t)pointer->focus, serial, evdev,
                                    pointer->position, clicks))
         {

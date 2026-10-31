@@ -28,7 +28,7 @@ extern "C"
     typedef struct mwinContext mwinContext;
 
     // Which backend a context talks to.
-    typedef uint8_t mwinBackendKind;
+    typedef int32_t mwinBackendKind;
 
     enum
     {
@@ -87,7 +87,7 @@ extern "C"
     } mwinContextDef;
 
     // What a frame asks of the loop.
-    typedef uint8_t mwinFrameResult;
+    typedef int32_t mwinFrameResult;
 
     enum
     {

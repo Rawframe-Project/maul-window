@@ -25,8 +25,8 @@ static mwinGamepadInfo Info(const char* name, bool mapped)
     info.vendor = 0x045E;
     info.product = 0x0B12;
     info.mapped = mapped;
-    info.rawButtons = mapped ? 0 : 40;
-    info.rawAxes = mapped ? 0 : 3;
+    info.rawButtonCount = mapped ? 0 : 40;
+    info.rawAxisCount = mapped ? 0 : 3;
     info.capabilities = mapped ? mwin_padRumble | mwin_padTriggerRumble | mwin_padMotion : 0;
     info.battery = -1;
     return info;
@@ -71,11 +71,11 @@ static void CheckAdded(Program* program, mwinContext* context)
     mwinGamepadInfo info;
     CHECK(mwinGamepad_GetInfo(context, s_pads[0], &info) == mwin_success && info.mapped &&
               info.nameLength == 7 && memcmp(info.name, "Pad \xE2\x9C\x93", 7) == 0 &&
-              info.vendor == 0x045E && info.rawButtons == 0 &&
+              info.vendor == 0x045E && info.rawButtonCount == 0 &&
               (info.capabilities & mwin_padRumble) != 0,
           "a mapped gamepad's facts");
     CHECK(mwinGamepad_GetInfo(context, s_pads[1], &info) == mwin_success && !info.mapped &&
-              info.rawButtons == MWIN_GAMEPAD_RAW_BUTTONS && info.rawAxes == 3,
+              info.rawButtonCount == MWIN_GAMEPAD_RAW_BUTTONS && info.rawAxisCount == 3,
           "a raw gamepad's counts, kept to what the state holds");
 }
 

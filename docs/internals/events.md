@@ -18,7 +18,7 @@ Because of that replacement, the records that can wait for one window are bounde
 
 Discrete input is never merged, since a merged key press is a wrong program state. When a discrete record finds its ring full, or its text does not fit the window's text storage, it is lost and `mwin_eventInputStateReset` takes its place in order. A program then knows exactly where its picture of held keys and buttons stopped being true. Every loss of focus posts a reset too, because the platform will not report the releases that happen elsewhere.
 
-Continuous input merges into the newest waiting record of its kind when the ring is full: positions take the newer value, deltas and wheel turns add, and `samples` counts the platform records a record stands for. A touch merges only with its own id. A burst of motion therefore costs no more than the limit and loses no distance.
+Continuous input merges into the newest waiting record of its kind when the ring is full: positions take the newer value, deltas and wheel turns add, and `sampleCount` counts the platform records a record stands for. A touch merges only with its own id. A burst of motion therefore costs no more than the limit and loses no distance.
 
 Gamepad buttons follow the discrete rule (a lost one resets that pad), axes the continuous one per axis.
 

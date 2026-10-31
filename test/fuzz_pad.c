@@ -41,7 +41,7 @@ static void Check(const mwinContext* context, uint32_t slot, const mwinPadContro
 {
     const mwinGamepadState* state = &context->gamepads[slot].state;
     uint32_t buttons = controls->mapping != nullptr ? MWIN_GAMEPAD_BUTTONS
-                                                    : context->gamepads[slot].info.rawButtons;
+                                                    : context->gamepads[slot].info.rawButtonCount;
     Expect(buttons == 32 || (state->buttons >> buttons) == 0);
     for (int i = 0; i < MWIN_GAMEPAD_RAW_AXES; i++)
     {
@@ -95,8 +95,8 @@ static mwinResult Init(mwinContext* context, void* user)
     int raw = controls.axisCount + 2 * controls.hatCount;
     mwinGamepadInfo info = {
         .mapped = mapped,
-        .rawButtons = controls.buttonCount,
-        .rawAxes = (uint8_t)(raw < MWIN_GAMEPAD_RAW_AXES ? raw : MWIN_GAMEPAD_RAW_AXES),
+        .rawButtonCount = controls.buttonCount,
+        .rawAxisCount = (uint8_t)(raw < MWIN_GAMEPAD_RAW_AXES ? raw : MWIN_GAMEPAD_RAW_AXES),
         .battery = -1};
     int32_t slot = mwinAddGamepad(context, &info, 0);
     Expect(slot >= 0);

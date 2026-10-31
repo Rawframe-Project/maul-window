@@ -32,7 +32,7 @@ extern "C"
 #define MWIN_MAX_DIALOG_FILTER_BYTES 256
 
     // What a dialog chooses.
-    typedef uint8_t mwinDialogKind;
+    typedef int32_t mwinDialogKind;
 
     enum
     {

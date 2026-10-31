@@ -577,8 +577,8 @@ mwinResult mwinContext_SetTestKeyReach(mwinContext* context, mwinKeyCode code,
     {
         return mwinBusy(context);
     }
-    if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight ||
-        reach > mwin_keyReachNever)
+    if (context == nullptr || code == mwin_codeUnknown || (uint32_t)code > mwin_codeMetaRight ||
+        (uint32_t)reach > mwin_keyReachNever)
     {
         return mwinMisuse(context);
     }

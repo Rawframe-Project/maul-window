@@ -192,7 +192,7 @@ typedef struct mwinWaylandPointer
     double distance[2];
     uint8_t axisKinds[2];
     // The last press, for counting quick clicks.
-    mwinClickCounter clicks;
+    mwinClickCounter clickCounter;
     // The pointer's cursor shape device and relative motion, where the
     // compositor has them.
     struct wp_cursor_shape_device_v1* shapeDevice;

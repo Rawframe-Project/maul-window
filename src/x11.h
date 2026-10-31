@@ -144,7 +144,7 @@ typedef struct mwinX11Pointer
     int32_t focus;
     mwinPosition position;
     uint8_t buttons;
-    mwinClickCounter clicks;
+    mwinClickCounter clickCounter;
     uint16_t device;
 } mwinX11Pointer;
 

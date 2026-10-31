@@ -64,7 +64,7 @@ static bool IsAbsolute(const char* path, size_t length)
 // named bounds, mwin_errorInvalid for anything else wrong.
 static mwinResult CheckDef(const mwinFileDialogDef* def)
 {
-    if (def->cookie != DIALOG_COOKIE || def->kind > mwin_dialogFolder ||
+    if (def->cookie != DIALOG_COOKIE || (uint32_t)def->kind > mwin_dialogFolder ||
         (def->filters == nullptr && def->filterCount != 0))
     {
         return mwin_errorInvalid;

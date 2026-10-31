@@ -344,7 +344,7 @@ static bool PointerIs(const mwinEvent* event, mwinMouseButton button, uint8_t bu
                       uint8_t clicks)
 {
     return event != nullptr && event->data.pointer.button == button &&
-           event->data.pointer.buttons == buttons && event->data.pointer.clicks == clicks &&
+           event->data.pointer.buttons == buttons && event->data.pointer.clickCount == clicks &&
            event->data.pointer.modifiers == mwin_modShift;
 }
 

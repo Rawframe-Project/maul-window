@@ -334,7 +334,7 @@ bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* ke
 {
     mwinKeyCode code = CodeOf(key);
     if (platform->slot < 0 || !platform->window.created || IsSystemKey(key->keyCode) ||
-        code == mwin_codeUnknown || code >= MWIN_ANDROID_KEY_CODES ||
+        code == mwin_codeUnknown || (uint32_t)code >= MWIN_ANDROID_KEY_CODES ||
         key->action == AKEY_EVENT_ACTION_MULTIPLE)
     {
         return false;
@@ -428,7 +428,7 @@ bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event)
 
 mwinKey mwinAndroidMapKeyCode(const mwinAndroidPlatform* platform, mwinKeyCode code)
 {
-    if (code >= MWIN_ANDROID_KEY_CODES)
+    if ((uint32_t)code >= MWIN_ANDROID_KEY_CODES)
     {
         return 0;
     }

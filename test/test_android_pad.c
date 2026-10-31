@@ -220,7 +220,7 @@ static void Added(Program* program, mwinContext* context, mwinGamepadId id)
         CHECK(info.vendor == s_vendors[i] && info.product == s_products[i],
               "a gamepad's vendor and product");
         CHECK(info.mapped == (i < 2), "the gamepads mapped, the joystick raw");
-        CHECK(i < 2 || (info.rawButtons == 8 && info.rawAxes == 2),
+        CHECK(i < 2 || (info.rawButtonCount == 8 && info.rawAxisCount == 2),
               "the joystick's eight buttons and two axes");
         CHECK(info.capabilities == 0 && info.battery == -1, "no motors, sensors or battery");
         CHECK(mwinGamepad_SetRumble(context, id, 0.5f, 0.5f, 100) == mwin_errorUnsupported &&

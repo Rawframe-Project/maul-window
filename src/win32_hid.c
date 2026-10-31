@@ -241,9 +241,10 @@ void mwinWin32HidArrive(mwinWin32Hid* hid, HANDLE device, uint64_t timeNs)
         .vendor = (uint16_t)facts->dwVendorId,
         .product = (uint16_t)facts->dwProductId,
         .mapped = mapping != nullptr,
-        .rawButtons = controls->buttonCount < MWIN_GAMEPAD_RAW_BUTTONS ? controls->buttonCount
-                                                                       : MWIN_GAMEPAD_RAW_BUTTONS,
-        .rawAxes = (uint8_t)(raw < MWIN_GAMEPAD_RAW_AXES ? raw : MWIN_GAMEPAD_RAW_AXES),
+        .rawButtonCount = controls->buttonCount < MWIN_GAMEPAD_RAW_BUTTONS
+                              ? controls->buttonCount
+                              : MWIN_GAMEPAD_RAW_BUTTONS,
+        .rawAxisCount = (uint8_t)(raw < MWIN_GAMEPAD_RAW_AXES ? raw : MWIN_GAMEPAD_RAW_AXES),
         .battery = -1};
     NameOf(hid, path, &info);
     int32_t slot = mwinAddGamepad(hid->context, &info, timeNs);

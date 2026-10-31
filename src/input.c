@@ -146,7 +146,7 @@ mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* buffe
     }
     if (context->finishing)
     {
-        return mwin_errorState;
+        return mwinClearOnFailure(mwin_errorState, bufferOut, capacity);
     }
     mwinResult status = context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
     // A backend may have written part of the name before it failed: the

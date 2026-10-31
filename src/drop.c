@@ -126,6 +126,9 @@ void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, 
 
 void mwinReleaseDrops(mwinContext* context)
 {
+    // A number no drop was delivered with: the last drop's is stale
+    // before its payload goes back.
+    context->dropNumber += 1;
     ReleasePayload(context, &context->dropping);
     ReleasePayload(context, &context->dropped);
 }
@@ -138,7 +141,7 @@ static mwinResult CopyOut(const mwinContext* context, uint32_t drop, const char*
     {
         return mwinMisuse(context);
     }
-    if (drop == 0 || drop != context->dropNumber)
+    if (drop == 0 || drop != context->dropNumber || context->finishing)
     {
         return mwin_errorStale;
     }

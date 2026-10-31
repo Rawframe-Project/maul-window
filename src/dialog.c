@@ -195,8 +195,8 @@ void mwinReleaseDialogCopy(const mwinContext* context, mwinRequest* request)
     if (request->kind == mwin_requestFileDialog && request->value.dialog != nullptr)
     {
         mwinDialogCopy* copy = request->value.dialog;
-        mwinRelease(&context->allocator, copy, copy->size, alignof(mwinDialogCopy));
         request->value.dialog = nullptr;
+        mwinRelease(&context->allocator, copy, copy->size, alignof(mwinDialogCopy));
     }
 }
 
@@ -258,6 +258,8 @@ mwinOutcome mwinSettleDialog(mwinContext* context, uint32_t slot, uint32_t reque
 
 void mwinReleaseDialogs(mwinContext* context)
 {
+    // The last dialog's request is stale before its paths go back.
+    context->dialogRequest = (mwinRequestId){0};
     mwinListRelease(&context->dialogGathering, &context->allocator);
     mwinListRelease(&context->dialogFiles, &context->allocator);
 }
@@ -274,7 +276,7 @@ mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId 
     }
     const mwinFileList* files = &context->dialogFiles;
     if (request.index1 == 0 || request.index1 != context->dialogRequest.index1 ||
-        request.generation != context->dialogRequest.generation)
+        request.generation != context->dialogRequest.generation || context->finishing)
     {
         return mwinClearOnFailure(mwin_errorStale, bufferOut, capacity);
     }

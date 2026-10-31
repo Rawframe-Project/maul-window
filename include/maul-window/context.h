@@ -111,10 +111,11 @@ extern "C"
         mwinFrameResult (*frame)(mwinContext* context, void* user);
         // Called once at the end, with init's failure or mwin_success;
         // the context and its windows still exist. Once it returns, every
-        // window and cursor id is stale while the context's blocks go
-        // back to the allocator, and mwinContext_GetKeyReach and
-        // mwinContext_GetKeyboardLayout answer mwin_errorState
-        // (mwinContext_MapKeyCode no key). May be NULL.
+        // window, cursor and request id and every drop number is stale
+        // while the context's blocks go back to the allocator, and
+        // mwinContext_GetKeyReach and mwinContext_GetKeyboardLayout
+        // answer mwin_errorState (mwinContext_MapKeyCode no key). May be
+        // NULL.
         void (*quit)(mwinContext* context, mwinResult status, void* user);
         void* user;
     } mwinAppDef;

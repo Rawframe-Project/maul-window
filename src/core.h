@@ -164,6 +164,10 @@ typedef struct mwinWindow
 {
     uint32_t generation;
     uint8_t status;
+    // Set while mwinDestroyWindow runs: the window still takes records,
+    // its completions among them, but its id finds nothing, so a getter
+    // called from the free hook during the destroy answers stale.
+    bool closing;
     mwinWindowState state;
     // What the program asked for at creation, for the backend.
     mwinWindowDef def;

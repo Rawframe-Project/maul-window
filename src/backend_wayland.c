@@ -354,8 +354,8 @@ static void Stop(mwinContext* context)
 #ifdef MAUL_WINDOW_GAMEPAD
     mwinLinuxPadsStop(&platform->pads);
 #endif
-    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
 }
 
 static mwinResult Start(mwinContext* context)

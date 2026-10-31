@@ -87,7 +87,7 @@ mwinResult mwinCreateCursor(mwinContext* context, const mwinCursorDef* def, mwin
 
 mwinCursor* mwinFindCursor(const mwinContext* context, mwinCursorId cursor)
 {
-    if (cursor.index1 == 0 || cursor.index1 > context->limits.cursors)
+    if (cursor.index1 == 0 || cursor.index1 > context->limits.cursors || context->finishing)
     {
         return nullptr;
     }

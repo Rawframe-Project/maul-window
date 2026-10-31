@@ -37,7 +37,7 @@ mwinWindowId mwinWindowIdOf(const mwinContext* context, uint32_t slot)
 
 mwinWindow* mwinFindWindow(const mwinContext* context, mwinWindowId window)
 {
-    if (window.index1 == 0 || window.index1 > context->limits.windows)
+    if (window.index1 == 0 || window.index1 > context->limits.windows || context->finishing)
     {
         return nullptr;
     }

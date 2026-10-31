@@ -63,8 +63,10 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param bufferOut  Receives the list, not NUL-terminated. May be NULL
-    ///                   when capacity is 0. Zeroed over capacity on
-    ///                   failure, so a buffer too short holds none of it.
+    ///                   when capacity is 0. Zeroed over capacity on failure,
+    ///                   so a buffer too short holds none of it. On success,
+    ///                   the bytes past those it reports are left as they
+    ///                   were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the list's length in bytes. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any

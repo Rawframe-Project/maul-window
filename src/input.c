@@ -134,21 +134,17 @@ mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
 mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* bufferOut,
                                          size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
-        return mwinMisuse(context);
+        return mwinClearOnFailure(mwinMisuse(context), bufferOut, capacity);
     }
     mwinResult status = context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
-    if (status != mwin_success)
+    // A backend may have written part of the name before it failed: the
+    // buffer is cleared, and the length kept only as the one needed.
+    if (status != mwin_success && status != mwin_errorCapacity)
     {
-        // A backend may have written part of the name before it failed.
-        mwinClearOut(bufferOut, capacity);
-        if (status != mwin_errorCapacity)
-        {
-            *lengthOut = 0;
-        }
+        *lengthOut = 0;
     }
-    return status;
+    return mwinClearOnFailure(status, bufferOut, capacity);
 }

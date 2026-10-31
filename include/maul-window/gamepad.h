@@ -167,7 +167,9 @@ extern "C"
     ///
     /// @param context      The context.
     /// @param gamepadsOut  Receives up to capacity ids. May be NULL when
-    ///                     capacity is 0. Zeroed over capacity on failure.
+    ///                     capacity is 0. Zeroed over capacity on failure. On
+    ///                     success, the ids past those it reports are left as
+    ///                     they were.
     /// @param capacity     The ids gamepadsOut holds.
     /// @param countOut     Receives the number connected, which may exceed
     ///                     capacity. 0 on failure.

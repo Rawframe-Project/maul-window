@@ -73,12 +73,13 @@ mwinResult mwinContext_GetSystemFacts(const mwinContext* context, mwinSystemFact
 mwinResult mwinContext_GetPreferredLocales(const mwinContext* context, char* bufferOut,
                                            size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
-        return mwinMisuse(context);
+        return mwinClearOnFailure(mwinMisuse(context), bufferOut, capacity);
     }
     size_t length = context->localeLength;
-    return mwinGiveBytes(context->locales, length, bufferOut, capacity, lengthOut);
+    return mwinClearOnFailure(
+        mwinGiveBytes(context->locales, length, bufferOut, capacity, lengthOut), bufferOut,
+        capacity);
 }

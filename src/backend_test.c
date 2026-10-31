@@ -683,23 +683,23 @@ mwinResult mwinContext_SetTestScale(mwinContext* context, float scale)
 mwinResult mwinWindow_GetTestTitle(const mwinContext* context, mwinWindowId window, char* bufferOut,
                                    size_t capacity, size_t* lengthOut)
 {
-    mwinClearOut(bufferOut, capacity);
     mwinClearOut(lengthOut, sizeof *lengthOut);
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
-        return mwinMisuse(context);
+        return mwinClearOnFailure(mwinMisuse(context), bufferOut, capacity);
     }
     if (mwinTestPlatformOf(context) == nullptr)
     {
-        return mwin_errorUnsupported;
+        return mwinClearOnFailure(mwin_errorUnsupported, bufferOut, capacity);
     }
     const mwinWindow* found = mwinFindWindow(context, window);
     if (found == nullptr)
     {
-        return mwin_errorStale;
+        return mwinClearOnFailure(mwin_errorStale, bufferOut, capacity);
     }
     size_t length = found->titleLength;
-    return mwinGiveBytes(found->title, length, bufferOut, capacity, lengthOut);
+    return mwinClearOnFailure(mwinGiveBytes(found->title, length, bufferOut, capacity, lengthOut),
+                              bufferOut, capacity);
 }
 
 mwinResult mwinAddTestMonitor(mwinContext* context, const mwinMonitorInfo* info,

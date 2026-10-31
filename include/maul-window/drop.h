@@ -35,9 +35,10 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
-    /// @param bufferOut  Receives the paths. May be NULL when capacity is
-    ///                   0. Zeroed over capacity on failure, so a buffer
-    ///                   too short holds none of it.
+    /// @param bufferOut  Receives the paths. May be NULL when capacity is 0.
+    ///                   Zeroed over capacity on failure, so a buffer too
+    ///                   short holds none of it. On success, the bytes past
+    ///                   those it reports are left as they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the paths' length in bytes, NULs
     ///                   included. On `mwin_errorCapacity`, the bytes
@@ -56,10 +57,11 @@ extern "C"
     ///
     /// @param context    The context.
     /// @param drop       The drop's number, from its record.
-    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated.
-    ///                   May be NULL when capacity is 0. Zeroed over
-    ///                   capacity on failure, so a buffer too short holds
-    ///                   none of it.
+    /// @param bufferOut  Receives the text in UTF-8, not NUL-terminated. May
+    ///                   be NULL when capacity is 0. Zeroed over capacity on
+    ///                   failure, so a buffer too short holds none of it. On
+    ///                   success, the bytes past those it reports are left as
+    ///                   they were.
     /// @param capacity   The bytes bufferOut holds.
     /// @param lengthOut  Receives the text's length in bytes. On
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any

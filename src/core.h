@@ -459,7 +459,10 @@ static inline mwinResult mwinMisuse(const mwinContext* context)
 }
 
 // Zeroes an output a call writes, when the caller passed one. A call on
-// the context clears every output first, before any check, so that a
+// the context clears every output first, before any check, but for a
+// caller's array (a buffer of bytes, a list of ids), which it clears
+// over its capacity only when it fails (mwinClearOnFailure), so that a
+// success writes only the items it reports. Clearing first means that a
 // failure leaves zero, the null id or the null request there, never a
 // value from before; the call writes it again when it succeeds. The
 // next event and a gamepad's motion are cleared after the busy check: a
@@ -487,9 +490,34 @@ static inline void mwinClearArray(void* out, size_t count, size_t itemSize)
     }
 }
 
+// Answers a call's status, and clears the caller's buffer over its
+// capacity when the call failed. A failure that defines none of the
+// buffer's bytes leaves none of them; a success has written only the
+// bytes it reports, and leaves the rest of the buffer as it was.
+static inline mwinResult mwinClearOnFailure(mwinResult status, void* buffer, size_t capacity)
+{
+    if (status != mwin_success)
+    {
+        mwinClearOut(buffer, capacity);
+    }
+    return status;
+}
+
+// As mwinClearOnFailure, for an array of capacity items of a size.
+static inline mwinResult mwinClearItemsOnFailure(mwinResult status, void* items, size_t capacity,
+                                                 size_t itemSize)
+{
+    if (status != mwin_success)
+    {
+        mwinClearArray(items, capacity, itemSize);
+    }
+    return status;
+}
+
 // Gives bytes to a caller's buffer: their length, and the bytes only
 // when they all fit. A short buffer gets none of them, so it holds no
-// text cut inside a character; the call cleared it on entry.
+// text cut inside a character; the call clears it as it fails
+// (mwinClearOnFailure).
 static inline mwinResult mwinGiveBytes(const void* bytes, size_t length, void* buffer,
                                        size_t capacity, size_t* lengthOut)
 {

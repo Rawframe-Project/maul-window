@@ -887,7 +887,7 @@ jobs:
   # renaming a job never touches the ruleset.
   required:
     if: always()
-    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz, quarantine, ios-simulator, android-emulator, web-wasi, web-emscripten]
+    needs: [changes, docs, zizmor, checks, build, msvc-headers, fuzz-targets, fuzz, quarantine, ios-simulator, android-emulator, web-wasi, web-emscripten]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     permissions: {}

@@ -293,7 +293,8 @@ static void OnMouse(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecor
     else if (pressed)
     {
         window->buttons |= (uint8_t)(1u << (button - 1));
-        (void)mwinCountClick(&window->clicks, button, position, mwinWebNanoseconds(record->timeMs));
+        (void)mwinCountClick(&window->clickCounter, button, position,
+                             mwinWebNanoseconds(record->timeMs));
     }
     else
     {
@@ -305,8 +306,8 @@ static void OnMouse(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecor
     }
     mwinEvent event = {.type = types[record->code]};
     mwinModifiers modifiers = (mwinModifiers)(record->extra & MWIN_WEB_MODIFIERS);
-    event.data.pointer =
-        (mwinPointerEvent){position, modifiers, window->buttons, button, window->clicks.clicks};
+    event.data.pointer = (mwinPointerEvent){position, modifiers, window->buttons, button,
+                                            window->clickCounter.clickCount};
     Post(platform, slot, &event, record->timeMs);
 }
 

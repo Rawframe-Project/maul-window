@@ -239,7 +239,7 @@ static void Press(mwinContext* context, uint32_t slot, mwinAndroidPointers* poin
     }
     pointers->buttons |= bit;
     uint8_t clicks =
-        mwinCountClickWithin(&pointers->clicks, button, motion->pointers[0].position,
+        mwinCountClickWithin(&pointers->clickCounter, button, motion->pointers[0].position,
                              motion->timeNs, pointers->doubleClickNs, MWIN_DOUBLE_CLICK_DISTANCE);
     PostCursor(context, slot, pointers, motion, mwin_eventButtonDown, button, clicks);
 }

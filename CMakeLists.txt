@@ -305,6 +305,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_outputs AND MAUL_WINDOW_GAMEPAD)
             target_compile_definitions(test_outputs PRIVATE MWIN_TEST_GAMEPAD)
         endif()
+        # Kinds below their range; with the gamepad component, a test
+        # gamepad's button and axis among them.
+        maul_add_test(kinds)
+        if(TARGET test_kinds AND MAUL_WINDOW_GAMEPAD)
+            target_compile_definitions(test_kinds PRIVATE MWIN_TEST_GAMEPAD)
+        endif()
         maul_add_test(monitor)
         maul_add_test(system)
         maul_add_test(ime)

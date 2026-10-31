@@ -157,10 +157,12 @@ static void CheckCursor(Program* program, mwinContext* context)
         return;
     }
     const mwinEvent* events = program->events;
-    CHECK(events[2].data.pointer.button == mwin_buttonLeft && events[2].data.pointer.clicks == 1 &&
-              events[2].data.pointer.buttons == 1 && events[3].data.pointer.buttons == 1,
+    CHECK(events[2].data.pointer.button == mwin_buttonLeft &&
+              events[2].data.pointer.clickCount == 1 && events[2].data.pointer.buttons == 1 &&
+              events[3].data.pointer.buttons == 1,
           "the left button held, one click");
-    CHECK(events[5].data.pointer.button == mwin_buttonLeft && events[5].data.pointer.clicks == 2 &&
+    CHECK(events[5].data.pointer.button == mwin_buttonLeft &&
+              events[5].data.pointer.clickCount == 2 &&
               events[6].data.pointer.button == mwin_buttonRight &&
               events[6].data.pointer.buttons == 3,
           "a second click within the double tap's time; both buttons");
@@ -183,7 +185,7 @@ static void CheckCursor(Program* program, mwinContext* context)
     static const mwinEventType later[] = {mwin_eventButtonDown, mwin_eventButtonUp,
                                           mwin_eventWheel};
     CHECK(Types(program, later, 3) && program->events[0].data.pointer.button == mwin_buttonLeft &&
-              program->events[0].data.pointer.clicks == 1 &&
+              program->events[0].data.pointer.clickCount == 1 &&
               program->events[2].data.wheel.x == -0.5f && program->events[2].data.wheel.y == 1.0f,
           "a press without a state the left button; a late one a single click; the wheel");
 }

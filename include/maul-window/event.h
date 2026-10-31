@@ -54,7 +54,7 @@ extern "C"
 #endif
 
     // What a record reports.
-    typedef uint16_t mwinEventType;
+    typedef int32_t mwinEventType;
 
     enum
     {
@@ -182,7 +182,7 @@ extern "C"
     };
 
     // The kind of a request.
-    typedef uint8_t mwinRequestKind;
+    typedef int32_t mwinRequestKind;
 
     enum
     {
@@ -218,7 +218,7 @@ extern "C"
     };
 
     // How a request ended.
-    typedef uint8_t mwinOutcome;
+    typedef int32_t mwinOutcome;
 
     enum
     {
@@ -279,7 +279,7 @@ extern "C"
 #define MWIN_MAX_PREEDIT_SEGMENTS 32
 
     // How a segment of a composition is shown.
-    typedef uint8_t mwinPreeditStyle;
+    typedef int32_t mwinPreeditStyle;
 
     enum
     {
@@ -326,7 +326,7 @@ extern "C"
         // Bit b - 1 is set while button b is held.
         uint8_t buttons;
         mwinMouseButton button;
-        uint8_t clicks;
+        uint8_t clickCount;
     } mwinPointerEvent;
 
     // Wheel turns in detents, fractional for smooth wheels and touchpads;
@@ -355,7 +355,7 @@ extern "C"
     } mwinTouchEvent;
 
     // The pen's state.
-    typedef uint8_t mwinPenFlags;
+    typedef uint32_t mwinPenFlags;
 
     enum
     {
@@ -382,7 +382,7 @@ extern "C"
     } mwinPenEvent;
 
     // What a drag carries.
-    typedef uint8_t mwinDragContents;
+    typedef uint32_t mwinDragContents;
 
     enum
     {
@@ -417,7 +417,7 @@ extern "C"
         mwinEventType type;
         // How many platform samples the record stands for: 1, or more for
         // motion merged when its storage was full.
-        uint16_t samples;
+        uint16_t sampleCount;
         // The window it is about.
         mwinWindowId window;
         // Nanoseconds on a monotonic clock, from the platform's own event

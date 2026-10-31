@@ -241,12 +241,14 @@ extern "C"
     /// @param gamepad  The gamepad.
     /// @param button   An mwinGamepadButton, or a raw button's number.
     /// @param down     true to press it.
-    /// @return As mwinRemoveTestGamepad.
+    /// @return As mwinRemoveTestGamepad; `mwin_errorInvalid` for a button
+    ///         below 0 or past 255.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_SetTestButton(mwinContext* context,
                                                                  mwinGamepadId gamepad,
-                                                                 uint8_t button, bool down);
+                                                                 mwinGamepadButton button,
+                                                                 bool down);
 
     /// Moves a gamepad's axis, at once; a value it has already posts
     /// nothing.
@@ -255,12 +257,13 @@ extern "C"
     /// @param gamepad  The gamepad.
     /// @param axis     An mwinGamepadAxis, or a raw axis's number.
     /// @param value    Where it is.
-    /// @return As mwinRemoveTestGamepad.
+    /// @return As mwinRemoveTestGamepad; `mwin_errorInvalid` for an axis
+    ///         below 0 or past 255.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_SetTestAxis(mwinContext* context,
-                                                               mwinGamepadId gamepad, uint8_t axis,
-                                                               float value);
+                                                               mwinGamepadId gamepad,
+                                                               mwinGamepadAxis axis, float value);
 
     /// Reads the last rumble a gamepad of the test platform was given.
     ///

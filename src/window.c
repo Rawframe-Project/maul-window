@@ -224,8 +224,8 @@ static mwinResult CheckDef(const mwinContext* context, const mwinWindowDef* def)
 {
     bool popup = def->kind != mwin_windowNormal;
     bool valid = def->cookie == WINDOW_DEF_COOKIE && IsPositive(def->size) &&
-                 def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
-                 def->kind <= mwin_windowTooltip &&
+                 (uint32_t)def->mode <= mwin_modeMaximized && def->style <= ALL_STYLES &&
+                 (uint32_t)def->kind <= mwin_windowTooltip &&
                  (!popup || (def->owner.index1 != 0 && def->mode == mwin_modeWindowed &&
                              isfinite(def->position.x) && isfinite(def->position.y)));
     if (!valid)
@@ -458,7 +458,7 @@ mwinResult mwinWindow_RequestMode(mwinContext* context, mwinWindowId window, mwi
     {
         return mwinBusy(context);
     }
-    if (mode > mwin_modeMaximized)
+    if ((uint32_t)mode > mwin_modeMaximized)
     {
         return mwinMisuse(context);
     }

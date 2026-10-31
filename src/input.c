@@ -19,7 +19,7 @@ mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context, mwinWindowId 
     {
         return mwinBusy(context);
     }
-    if (purpose >= MWIN_INPUT_PURPOSES)
+    if ((uint32_t)purpose >= MWIN_INPUT_PURPOSES)
     {
         return mwinMisuse(context);
     }
@@ -71,7 +71,7 @@ mwinResult mwinWindow_RequestCursorMode(mwinContext* context, mwinWindowId windo
     {
         return mwinBusy(context);
     }
-    if (mode > mwin_cursorConfinedHidden)
+    if ((uint32_t)mode > mwin_cursorConfinedHidden)
     {
         return mwinMisuse(context);
     }
@@ -94,7 +94,7 @@ mwinResult mwinWindow_RequestCursorShape(mwinContext* context, mwinWindowId wind
     {
         return mwinBusy(context);
     }
-    if (shape > mwin_shapeProgress)
+    if ((uint32_t)shape > mwin_shapeProgress)
     {
         return mwinMisuse(context);
     }
@@ -111,7 +111,7 @@ mwinResult mwinWindow_RequestCursorShape(mwinContext* context, mwinWindowId wind
 
 mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    if (context == nullptr || code == mwin_codeUnknown || code > mwin_codeMetaRight)
+    if (context == nullptr || code == mwin_codeUnknown || (uint32_t)code > mwin_codeMetaRight)
     {
         return 0;
     }
@@ -123,7 +123,7 @@ mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
 {
     mwinClearOut(reachOut, sizeof *reachOut);
     if (context == nullptr || reachOut == nullptr || code == mwin_codeUnknown ||
-        code > mwin_codeMetaRight)
+        (uint32_t)code > mwin_codeMetaRight)
     {
         return mwinMisuse(context);
     }

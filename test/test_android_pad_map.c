@@ -167,7 +167,7 @@ static void CheckRaw(Program* program, mwinContext* context)
     mwinAndroidPadLayout layout = Layout(context, keys, axes, 3, &slot);
     mwinGamepadInfo info = {0};
     (void)mwinGamepad_GetInfo(context, mwinGamepadIdOf(context, slot), &info);
-    CHECK(!layout.mapped && !info.mapped && info.rawButtons == 4 && info.rawAxes == 3,
+    CHECK(!layout.mapped && !info.mapped && info.rawButtonCount == 4 && info.rawAxisCount == 3,
           "no south face button: raw, with its buttons and axes counted");
     Drain(program, context);
     mwinAndroidPadKey(context, slot, &layout, KEY_BUTTON_1 + 5, true, s_timeNs);
@@ -233,7 +233,7 @@ static void CheckEdges(Program* program, mwinContext* context)
     mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[33], true, s_timeNs);
     mwinAndroidPadKey(context, slot, &layout, mwinAndroidPadKeys[32], true, s_timeNs);
     Drain(program, context);
-    CHECK(info.rawButtons == MWIN_GAMEPAD_RAW_BUTTONS && program->eventCount == 1 &&
+    CHECK(info.rawButtonCount == MWIN_GAMEPAD_RAW_BUTTONS && program->eventCount == 1 &&
               program->events[0].data.gamepadButton.button == MWIN_GAMEPAD_RAW_BUTTONS - 1,
           "a raw gamepad's 32nd key its last button, the 33rd left out");
 }

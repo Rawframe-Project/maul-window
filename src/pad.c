@@ -37,11 +37,12 @@ static void Store(mwinGamepad* gamepad, const mwinGamepadInfo* info)
         info->nameLength < MWIN_GAMEPAD_NAME_BYTES ? info->nameLength : MWIN_GAMEPAD_NAME_BYTES;
     muniTextResult valid = muniValidateUtf8(info->name, length);
     gamepad->info.nameLength = valid.status == muni_success ? length : (uint32_t)valid.offset;
-    uint8_t buttons =
-        info->rawButtons < MWIN_GAMEPAD_RAW_BUTTONS ? info->rawButtons : MWIN_GAMEPAD_RAW_BUTTONS;
-    uint8_t axes = info->rawAxes < MWIN_GAMEPAD_RAW_AXES ? info->rawAxes : MWIN_GAMEPAD_RAW_AXES;
-    gamepad->info.rawButtons = info->mapped ? 0 : buttons;
-    gamepad->info.rawAxes = info->mapped ? 0 : axes;
+    uint8_t buttons = info->rawButtonCount < MWIN_GAMEPAD_RAW_BUTTONS ? info->rawButtonCount
+                                                                      : MWIN_GAMEPAD_RAW_BUTTONS;
+    uint8_t axes =
+        info->rawAxisCount < MWIN_GAMEPAD_RAW_AXES ? info->rawAxisCount : MWIN_GAMEPAD_RAW_AXES;
+    gamepad->info.rawButtonCount = info->mapped ? 0 : buttons;
+    gamepad->info.rawAxisCount = info->mapped ? 0 : axes;
 }
 
 static void PostGlobal(mwinContext* context, uint32_t slot, mwinEventType type, uint64_t timeNs)
@@ -98,7 +99,7 @@ void mwinPostGamepadButton(mwinContext* context, uint32_t slot, uint8_t button, 
                            uint64_t timeNs)
 {
     mwinGamepad* gamepad = &context->gamepads[slot];
-    uint8_t count = gamepad->info.mapped ? MWIN_GAMEPAD_BUTTONS : gamepad->info.rawButtons;
+    uint8_t count = gamepad->info.mapped ? MWIN_GAMEPAD_BUTTONS : gamepad->info.rawButtonCount;
     uint32_t bit = 1u << (button & 31u);
     if (button >= count || ((gamepad->state.buttons & bit) != 0) == down)
     {
@@ -116,7 +117,7 @@ void mwinPostGamepadAxis(mwinContext* context, uint32_t slot, uint8_t axis, floa
                          uint64_t timeNs)
 {
     mwinGamepad* gamepad = &context->gamepads[slot];
-    uint8_t count = gamepad->info.mapped ? MWIN_GAMEPAD_AXES : gamepad->info.rawAxes;
+    uint8_t count = gamepad->info.mapped ? MWIN_GAMEPAD_AXES : gamepad->info.rawAxisCount;
     if (axis >= count || gamepad->state.axes[axis] == value)
     {
         return;

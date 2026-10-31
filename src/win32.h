@@ -99,7 +99,7 @@ struct mwinWin32Window
     bool tracking;
     bool trackingFrame;
     uint8_t buttons;
-    mwinClickCounter clicks;
+    mwinClickCounter clickCounter;
     // The first half of a character outside the BMP, 0 for none.
     WCHAR highSurrogate;
     // The pen's flags at its last record.

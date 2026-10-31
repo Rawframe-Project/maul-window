@@ -44,7 +44,7 @@ extern "C"
     } mwinGamepadId;
 
     // The controls of a mapped gamepad, by where they are.
-    typedef uint8_t mwinGamepadButton;
+    typedef int32_t mwinGamepadButton;
 
     enum
     {
@@ -68,7 +68,7 @@ extern "C"
 
 #define MWIN_GAMEPAD_BUTTONS 15
 
-    typedef uint8_t mwinGamepadAxis;
+    typedef int32_t mwinGamepadAxis;
 
     enum
     {
@@ -83,7 +83,7 @@ extern "C"
 #define MWIN_GAMEPAD_AXES 6
 
     // What a gamepad can do beyond its controls.
-    typedef uint8_t mwinGamepadCapabilities;
+    typedef uint32_t mwinGamepadCapabilities;
 
     enum
     {
@@ -108,8 +108,8 @@ extern "C"
         uint16_t product;
         // Its controls come mapped; otherwise raw, as many as these.
         bool mapped;
-        uint8_t rawButtons;
-        uint8_t rawAxes;
+        uint8_t rawButtonCount;
+        uint8_t rawAxisCount;
         mwinGamepadCapabilities capabilities;
         // The battery's charge in percent, -1 where unknown or wired.
         int8_t battery;
@@ -149,7 +149,7 @@ extern "C"
     {
         mwinGamepadId gamepad;
         // An mwinGamepadButton, or the raw button's number.
-        uint8_t button;
+        mwinGamepadButton button;
         bool raw;
     } mwinGamepadButtonEvent;
 
@@ -158,7 +158,7 @@ extern "C"
     {
         mwinGamepadId gamepad;
         // An mwinGamepadAxis, or the raw axis's number.
-        uint8_t axis;
+        mwinGamepadAxis axis;
         bool raw;
         float value;
     } mwinGamepadAxisEvent;

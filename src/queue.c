@@ -187,7 +187,7 @@ static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
     MWIN_ASSERT(ring->count == 0 || ring->sequences[At(ring, ring->count - 1)] < context->sequence);
     uint32_t slot = At(ring, ring->count);
     ring->events[slot] = *event;
-    ring->events[slot].samples = 1;
+    ring->events[slot].sampleCount = 1;
     ring->sequences[slot] = context->sequence++;
     ring->count += 1;
     return true;
@@ -275,7 +275,7 @@ static bool Merge(mwinRing* ring, const mwinEvent* event)
         {
             continue;
         }
-        uint16_t samples = waiting->samples;
+        uint16_t samples = waiting->sampleCount;
         mwinEvent merged = *event;
         if (event->type == mwin_eventRawPointerDelta)
         {
@@ -288,7 +288,7 @@ static bool Merge(mwinRing* ring, const mwinEvent* event)
             merged.data.wheel.y += waiting->data.wheel.y;
         }
         *waiting = merged;
-        waiting->samples = samples < UINT16_MAX ? (uint16_t)(samples + 1) : samples;
+        waiting->sampleCount = samples < UINT16_MAX ? (uint16_t)(samples + 1) : samples;
         return true;
     }
     return false;

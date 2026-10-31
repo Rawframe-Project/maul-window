@@ -289,7 +289,8 @@ static void CheckAdded(Program* program, mwinContext* context, int index, bool m
     }
     if (index == 2)
     {
-        CHECK(info.rawButtons == 2 && info.rawAxes == 4, "raw: two buttons, two axes and a hat");
+        CHECK(info.rawButtonCount == 2 && info.rawAxisCount == 4,
+              "raw: two buttons, two axes and a hat");
     }
 }
 

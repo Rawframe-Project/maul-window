@@ -179,8 +179,9 @@ static void PostPointer(mwinX11Platform* platform, uint32_t slot, mwinEventType 
     mwinEvent event = {0};
     event.type = type;
     event.timeNs = timeNs;
-    event.data.pointer = (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers,
-                                            pointer->buttons, button, pointer->clicks.clicks};
+    event.data.pointer =
+        (mwinPointerEvent){pointer->position, platform->keyboard.xkb.modifiers, pointer->buttons,
+                           button, pointer->clickCounter.clickCount};
     mwinPost(platform->context, slot, &event);
 }
 
@@ -230,7 +231,7 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (pressed)
     {
-        uint8_t clicks = mwinCountClick(&pointer->clicks, button, pointer->position, timeNs);
+        uint8_t clicks = mwinCountClick(&pointer->clickCounter, button, pointer->position, timeNs);
         if (button == mwin_buttonLeft &&
             mwinX11PressChrome(platform, (uint32_t)slot, event, pointer->position, clicks))
         {

@@ -119,7 +119,7 @@ extern "C"
     };
 
     // A yes or no the platform may not know.
-    typedef uint8_t mwinTristate;
+    typedef int32_t mwinTristate;
 
     enum
     {

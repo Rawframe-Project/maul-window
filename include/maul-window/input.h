@@ -25,7 +25,7 @@ extern "C"
 
     // A physical key: its USB HID keyboard usage, named as the W3C
     // KeyboardEvent.code values name it.
-    typedef uint16_t mwinKeyCode;
+    typedef int32_t mwinKeyCode;
 
     enum
     {
@@ -171,7 +171,7 @@ extern "C"
 #define MWIN_KEY_NAMED 0x40000000u
 
     // The modifier keys held, and the lock keys on.
-    typedef uint16_t mwinModifiers;
+    typedef uint32_t mwinModifiers;
 
     enum
     {
@@ -186,7 +186,7 @@ extern "C"
 
     // Whether a chord, a key with modifiers, reaches the program
     // (mwinContext_GetKeyReach).
-    typedef uint8_t mwinKeyReach;
+    typedef int32_t mwinKeyReach;
 
     enum
     {
@@ -204,7 +204,7 @@ extern "C"
     };
 
     // A mouse button.
-    typedef uint8_t mwinMouseButton;
+    typedef int32_t mwinMouseButton;
 
     enum
     {
@@ -216,7 +216,7 @@ extern "C"
     };
 
     // How the cursor behaves over a window.
-    typedef uint8_t mwinCursorMode;
+    typedef int32_t mwinCursorMode;
 
     enum
     {
@@ -230,7 +230,7 @@ extern "C"
     };
 
     // The system's cursor images.
-    typedef uint8_t mwinCursorShape;
+    typedef int32_t mwinCursorShape;
 
     enum
     {
@@ -275,7 +275,7 @@ extern "C"
     } mwinCursorDef;
 
     // What a text field takes, which picks an on-screen keyboard's layout.
-    typedef uint8_t mwinInputPurpose;
+    typedef int32_t mwinInputPurpose;
 
     enum
     {

@@ -89,7 +89,7 @@ int main(void)
 }
 ```
 
-`mwinRun` creates the context, calls `init` once, calls `frame` once per frame until it returns `mwin_frameStop`, calls `quit` if the def has one, and destroys the context. Who runs the loop depends on the platform: the library pumps Win32, Wayland and X11 itself, while AppKit, UIKit, Android and the browser call the frames. A program cannot tell the difference, with one exception: on iOS and the web `mwinRun` may never return, so cleanup belongs in `quit`. [Platforms](platforms.md) has the details.
+`mwinRun` creates the context, calls `init` once, calls `frame` once per frame until it returns `mwin_frameStop`, calls `quit` if the def has one, and destroys the context. Once `quit` returns, every window, cursor and request id and every drop number is stale. A call from the allocator's free function while the context's blocks go back finds them stale. `mwinContext_GetKeyReach` and `mwinContext_GetKeyboardLayout`, which would ask the platform, answer `mwin_errorState` there, and `mwinContext_MapKeyCode` answers no key. Who runs the loop depends on the platform: the library pumps Win32, Wayland and X11 itself, while AppKit, UIKit, Android and the browser call the frames. A program cannot tell the difference, with one exception: on iOS and the web `mwinRun` may never return, so cleanup belongs in `quit`. [Platforms](platforms.md) has the details.
 
 Three rules hold everywhere:
 

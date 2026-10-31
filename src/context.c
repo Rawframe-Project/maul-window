@@ -316,9 +316,7 @@ mwinResult mwinRunLaunched(const mwinAppDef* def, void* launch)
             {
                 return status;
             }
-            mwinReleaseCursors(context);
-            backends[i]->stop(context);
-            DestroyContext(context);
+            mwinFinishRun(context);
             return status;
         }
         DestroyContext(context);
@@ -392,6 +390,9 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
 
 void mwinFinishRun(mwinContext* context)
 {
+    // Every window and cursor gone before the first block reaches the
+    // free hook.
+    context->finishing = true;
     mwinReleaseCursors(context);
     context->backend->stop(context);
     DestroyContext(context);

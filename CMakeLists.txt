@@ -327,6 +327,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Destroys read back from the free hook; the cursor through its
         # slot, which no public getter reads.
         maul_add_test(destroy_hook WHITEBOX)
+        # A run's teardown read back from the free hook, the cursor
+        # through its slot.
+        maul_add_test(teardown_hook WHITEBOX)
         maul_add_test(owned)
         maul_add_test(chrome WHITEBOX)
         maul_add_test(accessibility WHITEBOX)

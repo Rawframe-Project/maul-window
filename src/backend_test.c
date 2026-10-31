@@ -84,9 +84,9 @@ static mwinResult Start(mwinContext* context)
 static void Stop(mwinContext* context)
 {
     mwinTestReleaseClipboard(context, mwinTestPlatformOf(context));
-    mwinRelease(&context->allocator, context->backendData, PlatformBytes(context),
-                alignof(max_align_t));
+    void* platform = context->backendData;
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
 }
 
 static uint64_t Now(const mwinContext* context)

@@ -199,8 +199,8 @@ static void Stop(mwinContext* context)
 {
     mwinWebPlatform* platform = PlatformOf(context);
     mwinWebDetach(context);
-    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
 }
 
 static mwinResult Start(mwinContext* context)

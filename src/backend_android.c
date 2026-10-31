@@ -532,8 +532,8 @@ static void Stop(mwinContext* context)
 #endif
     AConfiguration_delete(platform->configuration);
     (*platform->java.env)->DeleteGlobalRef(platform->java.env, platform->java.activityClass);
-    mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
 }
 
 static mwinResult Start(mwinContext* context)

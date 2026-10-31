@@ -191,8 +191,8 @@ static void Stop(mwinContext* context)
     mwinWin32StopTouchKeyboard(platform);
     mwinWin32StopOcclusion(platform);
     mwinWin32StopOle(platform);
-    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
 }
 
 static mwinResult Start(mwinContext* context)

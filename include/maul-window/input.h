@@ -428,8 +428,9 @@ extern "C"
     ///
     /// @param context  The context.
     /// @param code     A physical key.
-    /// @return The key; 0 for a NULL context, an unknown code or a key
-    ///         the layout gives no meaning.
+    /// @return The key; 0 for a NULL context, an unknown code, a key the
+    ///         layout gives no meaning, or a call from the free hook once
+    ///         quit has returned.
     /// @par Thread safety
     /// Main thread only.
     MWIN_API mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code);
@@ -448,7 +449,8 @@ extern "C"
     ///                   `mwin_errorCapacity`, the bytes needed; 0 on any
     ///                   other failure.
     /// @return `mwin_success`; `mwin_errorCapacity` when the name does not
-    ///         fit; `mwin_errorInvalid` for a NULL argument.
+    ///         fit; `mwin_errorInvalid` for a NULL argument;
+    ///         `mwin_errorState` from the free hook once quit has returned.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context,
@@ -470,7 +472,8 @@ extern "C"
     ///                   ignored.
     /// @param reachOut   Receives the answer. Zeroed on failure.
     /// @return `mwin_success`; `mwin_errorInvalid` for a NULL argument or
-    ///         a code that is not a key.
+    ///         a code that is not a key; `mwin_errorState` from the free
+    ///         hook once quit has returned.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetKeyReach(const mwinContext* context,

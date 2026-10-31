@@ -111,7 +111,8 @@ mwinResult mwinWindow_RequestCursorShape(mwinContext* context, mwinWindowId wind
 
 mwinKey mwinContext_MapKeyCode(const mwinContext* context, mwinKeyCode code)
 {
-    if (context == nullptr || code == mwin_codeUnknown || (uint32_t)code > mwin_codeMetaRight)
+    if (context == nullptr || code == mwin_codeUnknown || (uint32_t)code > mwin_codeMetaRight ||
+        context->finishing)
     {
         return 0;
     }
@@ -127,6 +128,10 @@ mwinResult mwinContext_GetKeyReach(const mwinContext* context, mwinKeyCode code,
     {
         return mwinMisuse(context);
     }
+    if (context->finishing)
+    {
+        return mwin_errorState;
+    }
     *reachOut = context->backend->keyReach(context, code, modifiers);
     return mwin_success;
 }
@@ -138,6 +143,10 @@ mwinResult mwinContext_GetKeyboardLayout(const mwinContext* context, char* buffe
     if (context == nullptr || lengthOut == nullptr || (bufferOut == nullptr && capacity != 0))
     {
         return mwinClearOnFailure(mwinMisuse(context), bufferOut, capacity);
+    }
+    if (context->finishing)
+    {
+        return mwinClearOnFailure(mwin_errorState, bufferOut, capacity);
     }
     mwinResult status = context->backend->keyboardLayout(context, bufferOut, capacity, lengthOut);
     // A backend may have written part of the name before it failed: the

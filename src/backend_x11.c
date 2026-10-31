@@ -275,8 +275,8 @@ static void Stop(mwinContext* context)
     mwinLinuxPadsStop(&platform->pads);
 #endif
     mwinUnloadX11(&platform->api);
-    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
     context->backendData = nullptr;
+    mwinRelease(&context->allocator, platform, PlatformBytes(context), alignof(max_align_t));
 }
 
 static mwinResult Start(mwinContext* context)

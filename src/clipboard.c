@@ -96,12 +96,19 @@ mwinOutcome mwinTakeClipboardUtf16(mwinContext* context, const uint16_t* units, 
 
 void mwinReleaseClipboard(mwinContext* context)
 {
-    Release(context, context->clipboardOffer, context->clipboardOfferLength);
-    Release(context, context->clipboardFound, context->clipboardFoundLength);
+    // No read's text is found, and no field holds a block, before the
+    // free hook gets them.
+    char* offer = context->clipboardOffer;
+    size_t offerLength = context->clipboardOfferLength;
+    char* found = context->clipboardFound;
+    size_t foundLength = context->clipboardFoundLength;
+    context->foundPayloads[mwin_foundText] += 1;
     context->clipboardOffer = nullptr;
     context->clipboardOfferLength = 0;
     context->clipboardFound = nullptr;
     context->clipboardFoundLength = 0;
+    Release(context, offer, offerLength);
+    Release(context, found, foundLength);
     mwinReleaseClipboardExtras(context);
 }
 

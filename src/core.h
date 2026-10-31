@@ -310,6 +310,11 @@ struct mwinContext
     bool running;
     // A frame asked to stop.
     bool stopping;
+    // The run's teardown, after quit: no window, cursor, read, dialog or
+    // drop is found, and the calls that would ask the backend without an
+    // id answer mwin_errorState, while its blocks go back to the free
+    // hook.
+    bool finishing;
     // The program's functions are running; a critical frame waits.
     bool inProgram;
     // The platform's loop runs the program's frames after the backend's

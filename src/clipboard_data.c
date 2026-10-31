@@ -114,15 +114,25 @@ static void ReleaseBytes(const mwinContext* context, void* bytes, size_t length)
 void mwinReleaseClipboardExtras(mwinContext* context)
 {
     mwinReleaseClipboardData(context);
-    ReleaseBytes(context, context->clipboardDataFound, context->clipboardDataFoundLength);
-    ReleaseBytes(context, context->primaryOffer, context->primaryOfferLength);
-    ReleaseBytes(context, context->primaryFound, context->primaryFoundLength);
+    // No read's payload is found, and no field holds a block, before the
+    // free hook gets them.
+    void* dataFound = context->clipboardDataFound;
+    size_t dataFoundLength = context->clipboardDataFoundLength;
+    char* primaryOffer = context->primaryOffer;
+    size_t primaryOfferLength = context->primaryOfferLength;
+    char* primaryFound = context->primaryFound;
+    size_t primaryFoundLength = context->primaryFoundLength;
+    context->foundPayloads[mwin_foundData] += 1;
+    context->foundPayloads[mwin_foundPrimary] += 1;
     context->clipboardDataFound = nullptr;
     context->clipboardDataFoundLength = 0;
     context->primaryOffer = nullptr;
     context->primaryOfferLength = 0;
     context->primaryFound = nullptr;
     context->primaryFoundLength = 0;
+    ReleaseBytes(context, dataFound, dataFoundLength);
+    ReleaseBytes(context, primaryOffer, primaryOfferLength);
+    ReleaseBytes(context, primaryFound, primaryFoundLength);
 }
 
 // Checks a write's items: their types, each once, a text one UTF-8; the
@@ -323,7 +333,8 @@ mwinResult mwinWindow_RequestClipboardReadData(mwinContext* context, mwinWindowI
 bool mwinIsFoundBy(const mwinContext* context, mwinRequestId request, uint32_t kind)
 {
     uint32_t perWindow = context->limits.requestsPerWindow;
-    if (request.index1 == 0 || (request.index1 - 1) / perWindow >= context->limits.windows)
+    if (request.index1 == 0 || (request.index1 - 1) / perWindow >= context->limits.windows ||
+        context->finishing)
     {
         return false;
     }

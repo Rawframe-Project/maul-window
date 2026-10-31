@@ -17,37 +17,47 @@
 #include <string.h>
 
 // Lets go of the platform's text, or its data.
+// Each is emptied before the program's free hook gets its block, so that
+// a getter called from the hook reads none of it.
 static void ReleaseText(const mwinContext* context, mwinTestPlatform* platform)
 {
-    if (platform->clipboard != nullptr)
-    {
-        mwinRelease(&context->allocator, platform->clipboard, platform->clipboardBytes,
-                    alignof(uint16_t));
-    }
+    void* text = platform->clipboard;
+    size_t bytes = platform->clipboardBytes;
     platform->clipboard = nullptr;
     platform->clipboardBytes = 0;
+    if (text != nullptr)
+    {
+        mwinRelease(&context->allocator, text, bytes, alignof(uint16_t));
+    }
 }
 
 static void ReleaseData(const mwinContext* context, mwinTestPlatform* platform)
 {
-    if (platform->data != nullptr)
-    {
-        mwinRelease(&context->allocator, platform->data, platform->data->size,
-                    alignof(mwinClipboardCopy));
-    }
+    mwinClipboardCopy* data = platform->data;
     platform->data = nullptr;
+    if (data != nullptr)
+    {
+        mwinRelease(&context->allocator, data, data->size, alignof(mwinClipboardCopy));
+    }
+}
+
+static void ReleasePrimary(const mwinContext* context, mwinTestPlatform* platform)
+{
+    char* primary = platform->primary;
+    size_t bytes = platform->primaryBytes;
+    platform->primary = nullptr;
+    platform->primaryBytes = 0;
+    if (primary != nullptr)
+    {
+        mwinRelease(&context->allocator, primary, bytes, 1);
+    }
 }
 
 void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* platform)
 {
     ReleaseText(context, platform);
     ReleaseData(context, platform);
-    if (platform->primary != nullptr)
-    {
-        mwinRelease(&context->allocator, platform->primary, platform->primaryBytes, 1);
-    }
-    platform->primary = nullptr;
-    platform->primaryBytes = 0;
+    ReleasePrimary(context, platform);
 }
 
 // Puts bytes on the platform's clipboard; false when there is no room.
@@ -103,10 +113,7 @@ static bool SetPrimary(const mwinContext* context, const char* bytes, size_t len
     {
         memcpy(copy, bytes, length);
     }
-    if (platform->primary != nullptr)
-    {
-        mwinRelease(&context->allocator, platform->primary, platform->primaryBytes, 1);
-    }
+    ReleasePrimary(context, platform);
     platform->primary = copy;
     platform->primaryBytes = length;
     return true;

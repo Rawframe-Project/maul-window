@@ -244,10 +244,13 @@ mwinOutcome mwinSettleDialog(mwinContext* context, uint32_t slot, uint32_t reque
     }
     if (outcome == mwin_outcomeDone)
     {
-        mwinListRelease(&context->dialogFiles, &context->allocator);
+        // The new files and their request first: a getter called from the
+        // free hook finds the last dialog stale.
+        mwinFileList last = context->dialogFiles;
         context->dialogFiles = context->dialogGathering;
         context->dialogGathering = (mwinFileList){0};
         context->dialogRequest = mwinRequestIdOf(context, slot, request);
+        mwinListRelease(&last, &context->allocator);
     }
     mwinListRelease(&context->dialogGathering, &context->allocator);
     return outcome;

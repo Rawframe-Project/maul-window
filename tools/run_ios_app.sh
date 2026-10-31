@@ -11,7 +11,10 @@
 # "idb: <arguments>" is run once as "idb <arguments> --udid <device>", for
 # what only idb can do: a touch through the simulator's own input. Passes
 # when the line says 0 failures; otherwise shows the application's
-# errors, and where it is stuck or why it ended.
+# errors, and where it is stuck or why it ended. A launch simctl refuses,
+# or answers without a process, fails the run at once with simctl's
+# words, after one more install and launch when FrontBoard did not know
+# the application.
 #
 # Bringing the application back is the simulator's to do, and on a cold
 # runner it sometimes leaves the application in the background although
@@ -35,14 +38,38 @@ name=$(basename "$app" .app)
 id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
 out=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-out.XXXXXX")
 err=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-err.XXXXXX")
+said=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-launch.XXXXXX")
 start=$(date +%s)
-xcrun simctl install "$device" "$app"
-echo "installed $id in $(($(date +%s) - start)) s"
+# Installs the bundle and launches it: pid is the application's, empty
+# when simctl failed or named none, and said holds what simctl wrote.
 # simctl says "<id>: <pid>"; the simulator's processes are the host's.
 # The application writes its output where MWIN_TEST_OUT names, simctl's
 # own redirection giving nothing on a CI runner.
-pid=$(SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-process \
-    --stderr="$err" "$device" "$id" | sed 's/.*: //')
+launch() {
+    xcrun simctl install "$device" "$app"
+    echo "installed $id in $(($(date +%s) - start)) s"
+    pid=
+    if SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-process \
+        --stderr="$err" "$device" "$id" >"$said" 2>&1; then
+        pid=$(sed -n 's/^.*: \([0-9][0-9]*\)$/\1/p' "$said" | tail -1)
+    fi
+}
+launch
+# On a cold runner the simulator sometimes installs the application
+# without FrontBoard knowing it, and refuses its launch before any of
+# the test runs: installing it again and launching once more is a retry
+# of the simulator, not of the test.
+if [ -z "$pid" ] && grep -q 'is unknown to FrontBoard' "$said"; then
+    cat "$said"
+    echo "the launch was refused, the application unknown to FrontBoard: installing it again"
+    launch
+fi
+if [ -z "$pid" ]; then
+    cat "$said"
+    echo "the launch failed after $(($(date +%s) - start)) s, before the test ran"
+    rm -f "$out" "$err" "$said"
+    exit 1
+fi
 echo "launched as $pid in $(($(date +%s) - start)) s"
 launched=$(date +%s)
 ran=0
@@ -120,5 +147,5 @@ else
     fi
 fi
 xcrun simctl terminate "$device" "$id" >/dev/null 2>&1 || true
-rm -f "$out" "$err"
+rm -f "$out" "$err" "$said"
 exit $status

@@ -6,7 +6,9 @@
 # pass with that many sent again, 3 fail with the runner's line saying
 # so, and an application that never ends is ended by the runner's limit.
 # An application that asks for a touch gets it from idb, given the
-# booted device's UDID.
+# booted device's UDID. A launch FrontBoard refuses once is installed and
+# launched again; refused twice, or refused for another reason, or
+# answered without a pid, the run fails at once.
 # Run by tools/check.sh and CI's checks job, in seconds, so that a slip
 # in the runner fails here rather than after a simulator's boot.
 #
@@ -34,8 +36,11 @@ cat >"$work/bin/sleep" <<'EOF'
 exec python3 -c 'import sys, time; time.sleep(float(sys.argv[1]) / 50)' "$1"
 EOF
 
-# simctl: the first launch of the application starts it; a later one is
-# a launch back, which the application counts; terminate ends it.
+# simctl: the first launch of the application starts it, unless
+# FAKE_REFUSE says to refuse it (a count of FrontBoard refusals, "other"
+# for another error, "nopid" for a launch that names no process); a
+# later one is a launch back, which the application counts; terminate
+# ends it. Each install is counted.
 cat >"$work/bin/xcrun" <<'EOF'
 #!/bin/sh
 state=$FAKE_STATE
@@ -45,10 +50,21 @@ shift
 for last; do :; done
 case "$verb $last" in
 "list booted") echo "    iPhone 16 (0A1B2C3D-0000-4000-8000-00000000ABCD) (Booted)" ;;
+"install "*) echo install >>"$state/installs" ;;
 "launch com.apple.Preferences") touch "$state/settings" ;;
 "launch org.test.app")
     if [ -f "$state/pid" ]; then
         echo back >>"$state/backs"
+    elif [ "$FAKE_REFUSE" = other ]; then
+        echo "An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=3):" >&2
+        exit 3
+    elif [ "$FAKE_REFUSE" = nopid ]; then
+        exit 0
+    elif [ "$(wc -l <"$state/refused")" -lt "$FAKE_REFUSE" ]; then
+        echo refused >>"$state/refused"
+        echo "The request was denied by service delegate (SBMainWorkspace) for reason: NotFound" \
+            "(\"Application \"org.test.app\" is unknown to FrontBoard\")." >&2
+        exit 1
     else
         MWIN_TEST_OUT=$SIMCTL_CHILD_MWIN_TEST_OUT sh "$FAKE_APP" </dev/null >/dev/null 2>&1 &
         echo $! >"$state/pid"
@@ -93,17 +109,21 @@ EOF
 
 chmod +x "$work/bin/"*
 failures=0
+# How the stand-in simulator answers the application's first launch.
+refuse=0
 # Drops, then the exit status and patterns of lines the runner must
-# print (extended regular expressions, whole lines).
+# print (extended regular expressions, whole lines), "installs: N"
+# among them for the installs it made.
 check() {
     drops=$1
     want_status=$2
     shift 2
     rm -rf "$work/state"
     mkdir "$work/state"
+    touch "$work/state/installs" "$work/state/refused"
     status=0
     PATH="$work/bin:$PATH" FAKE_T0=$(python3 -c 'import time; print(time.time())') \
-        FAKE_STATE="$work/state" FAKE_APP="$work/app.sh" FAKE_DROPS=$drops \
+        FAKE_STATE="$work/state" FAKE_APP="$work/app.sh" FAKE_DROPS=$drops FAKE_REFUSE=$refuse \
         sh "$work/run.sh" "$work/app.app" >"$work/log" 2>&1 &
     runner=$!
     # A runner that never ends fails here within a minute, and the
@@ -122,15 +142,16 @@ check() {
     if [ -f "$work/state/pid" ]; then
         kill "$(cat "$work/state/pid")" 2>/dev/null || true
     fi
+    echo "installs: $(wc -l <"$work/state/installs" | tr -d ' ')" >>"$work/log"
     ok=true
     [ "$status" -eq "$want_status" ] || ok=false
     for line; do
         grep -qxE "$line" "$work/log" || ok=false
     done
     if $ok; then
-        echo "passed: drops $drops"
+        echo "passed: drops $drops, refuse $refuse"
     else
-        echo "FAILED: drops $drops: exit $status, want $want_status and:"
+        echo "FAILED: drops $drops, refuse $refuse: exit $status, want $want_status and:"
         printf '  %s\n' "$@"
         sed 's/^/  | /' "$work/log"
         failures=$((failures + 1))
@@ -144,4 +165,15 @@ check 3 1 "waited until [0-9]+ s, the launch back sent again: 2" \
     "still in the background 20 s after the launch back was sent again twice"
 check never 1 "ended by the runner's 180 s limit, before the test's closing line"
 check touch 0 "running: idb: ui tap 10 20" "result: 0 failures"
+refuse=1
+check 0 0 "the launch was refused, the application unknown to FrontBoard: installing it again" \
+    "launched as [0-9]+ in [0-9]+ s" "result: 0 failures" "installs: 2"
+refuse=2
+check 0 1 ".*is unknown to FrontBoard.*" "the launch failed after [0-9]+ s, before the test ran" \
+    "installs: 2"
+refuse=other
+check 0 1 "An error was encountered .*code=3\):" \
+    "the launch failed after [0-9]+ s, before the test ran" "installs: 1"
+refuse=nopid
+check 0 1 "the launch failed after [0-9]+ s, before the test ran" "installs: 1"
 [ "$failures" -eq 0 ]

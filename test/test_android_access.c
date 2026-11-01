@@ -143,7 +143,8 @@ static jboolean Exploring(const Program* program)
 }
 
 // The texts of the nodes hovers entered, in order ("entered"), or of the
-// last one left ("exited"), as the client heard them; empty for none, and
+// last one left ("exited"), as the client heard them, or what touch
+// exploration did ("explored"); empty for none, and
 // without the activity, which a timeout before the start or a start that
 // found none leaves out.
 static void Said(const Program* program, const char* field, char* out, size_t size)
@@ -493,11 +494,16 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         char entered[64];
         char exited[64];
+        char explored[192];
         Said(program, "entered", entered, sizeof(entered));
         Said(program, "exited", exited, sizeof(exited));
+        Said(program, "explored", explored, sizeof(explored));
         // A reader may be writing its texts: its last finished answer.
         printf("timed out in phase %d (texts \"%s\", entered \"%s\", exited \"%s\")\n",
                program->phase, program->answer, entered, exited);
+        // Whether the system took the finger, and where its hovers went.
+        printf("exploring %d, explored \"%s\", touches of the program's %d\n",
+               program->activity != nullptr && Exploring(program), explored, program->touches);
         s_failures += 1;
         return mwin_frameStop;
     }

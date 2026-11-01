@@ -143,9 +143,16 @@ static jboolean Exploring(const Program* program)
 }
 
 // The texts of the nodes hovers entered, in order ("entered"), or of the
-// last one left ("exited"), as the client heard them; empty for none.
+// last one left ("exited"), as the client heard them; empty for none, and
+// without the activity, which a timeout before the start or a start that
+// found none leaves out.
 static void Said(const Program* program, const char* field, char* out, size_t size)
 {
+    if (program->activity == nullptr)
+    {
+        out[0] = '\0';
+        return;
+    }
     JNIEnv* env = program->activity->env;
     jclass clients = LoadClass(env, program->activity, "maul.window.tests.Client");
     jstring text =

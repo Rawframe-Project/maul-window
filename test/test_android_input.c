@@ -5,17 +5,16 @@
 // (tools/run_android_app.sh): what the system's own input command
 // injects, which the test asks the runner for, after a frame shown, as
 // Android 14 and later send no touch to a window whose surface never
-// showed one. A tap and a swipe on the touch screen as one touch each,
-// in logical units; a mouse's tap as the left button's click; a
-// stylus's tap as the pen touching (where the command marks it a
-// stylus); the A key as its key, its meaning and its text; typed text
-// through the virtual keyboard's keys, Shift's press named; Escape
-// taken by the program, so that the activity stays, and Menu, which
-// Android counts a system key, left to it; and, from Android 13, whose
-// command can scroll, a mouse's wheel; then, on the emulator's keyboard,
-// a dead key (Alt and E, a combining acute accent) and A, typing an a
-// with an acute accent. quit writes the closing line the runner waits
-// for.
+// showed one, and with the screen turned upright, where the window
+// starts at the screen's corner (in landscape Android 11 moves it past
+// the cutout, and the command's places are the screen's). A tap and a swipe on the touch screen as
+// one touch each, in logical units; a mouse's tap as the left button's click; a stylus's tap as the
+// pen touching (where the command marks it a stylus); the A key as its key, its meaning and its
+// text; typed text through the virtual keyboard's keys, Shift's press named; Escape taken by the
+// program, so that the activity stays, and Menu, which Android counts a system key, left to it;
+// and, from Android 13, whose command can scroll, a mouse's wheel; then, on the emulator's
+// keyboard, a dead key (Alt and E, a combining acute accent) and A, typing an a with an acute
+// accent. quit writes the closing line the runner waits for.
 
 #include "test_harness.h"
 
@@ -131,12 +130,14 @@ static bool Near(mwinPosition position, float x, float y)
     return fabsf(position.x - x) < 1.0f && fabsf(position.y - y) < 1.0f;
 }
 
-static bool Ready(const Program* program)
+static bool Ready(const Program* program, mwinContext* context)
 {
+    mwinWindowState state = {0};
+    (void)mwinWindow_GetState(context, program->window, &state);
     switch (program->phase)
     {
     case 0:
-        return program->shown;
+        return program->shown && state.pixelSize.height > state.pixelSize.width;
     case 1:
     case 2:
         return Find(program, mwin_eventTouchUp) != nullptr;
@@ -346,6 +347,10 @@ static mwinResult Init(mwinContext* context, void* user)
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
     program->startNs = NowNs();
+    // Upright, whatever the test before left; the runner puts the
+    // rotation back.
+    printf("adb: settings put system accelerometer_rotation 0\n");
+    printf("adb: settings put system user_rotation 0\n");
     return mwinCreateWindow(context, &def, &program->window, nullptr);
 }
 
@@ -357,7 +362,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         return mwin_frameStop;
     }
-    if (Ready(program))
+    if (Ready(program, context))
     {
         printf("phase %d\n", program->phase);
         Advance(program, context);

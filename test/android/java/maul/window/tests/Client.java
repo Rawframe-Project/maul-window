@@ -14,7 +14,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
  * it reads the active window's tree through the system, as a screen
  * reader does, keeps the texts of the nodes hovers entered, in order, and of
  * the last one left, and
- * counts the content changes its own application announces.
+ * counts the content changes its own application announces; and, for a
+ * failed phase, what touch exploration did with the touches it took.
  */
 public final class Client extends AccessibilityService {
     private static volatile Client running;
@@ -24,6 +25,13 @@ public final class Client extends AccessibilityService {
     public static volatile String exited;
     /** The content changes heard from the test's application. */
     public static volatile int changes;
+    /**
+     * The touches touch exploration took and the last hover it sent, into
+     * any window: "N touches, last hover PACKAGE CLASS TEXT".
+     */
+    public static volatile String explored = "0 touches, no hover";
+    private static int touches;
+    private static String hover = "no hover";
 
     @Override
     protected void onServiceConnected() {
@@ -39,6 +47,15 @@ public final class Client extends AccessibilityService {
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_EXIT
                 && !event.getText().isEmpty()) {
             exited = event.getText().get(0).toString();
+        }
+        if (event.getEventType() == AccessibilityEvent.TYPE_TOUCH_INTERACTION_START) {
+            touches++;
+            explored = touches + " touches, " + hover;
+        }
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_HOVER_ENTER) {
+            hover = "last hover " + event.getPackageName() + " " + event.getClassName() + " "
+                    + event.getText();
+            explored = touches + " touches, " + hover;
         }
         if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
                 && getPackageName().contentEquals(event.getPackageName())) {

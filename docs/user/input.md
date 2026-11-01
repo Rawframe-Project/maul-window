@@ -28,7 +28,7 @@ An input method's composition arrives as `mwin_eventImePreedit` with its text, c
 
 On X11 the input method is IBus or Fcitx 5, reached over the session bus; without either, text comes from the keymap and its compose sequences. Wayland uses text-input-v3 and Windows its input methods through IMM32, the system drawing the candidate list.
 
-`mwinWindow_RequestVirtualKeyboard` shows or hides the on-screen keyboard where there is one, with a purpose (text, number, e-mail, password, URL) that picks its layout. `MWIN_INPUT_PURPOSES` counts the purposes; a value from it on is not one, and the request fails. `mwin_eventVirtualKeyboardChanged` gives the part of the window it covers. On a Windows desktop with a hardware keyboard the request is denied, and Wayland shows its keyboard when text input is on.
+`mwinWindow_RequestVirtualKeyboard` shows or hides the on-screen keyboard where there is one, with a purpose (text, number, e-mail, password, URL) that picks its layout. `MWIN_INPUT_PURPOSES` counts the purposes; a value from it on is not one, and the request fails. `mwin_eventVirtualKeyboardChanged` gives the part of the window it covers. On a Windows desktop with a hardware keyboard the request is denied, and Wayland shows its keyboard when text input is on. Android shows it only for this request, never by itself when the window gains the focus.
 
 ## The pointer
 

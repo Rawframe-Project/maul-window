@@ -47,6 +47,9 @@ typedef struct Program
     int recordCount;
     char text[64];
     size_t textLength;
+    // An on-screen keyboard covered part of the window, which the program
+    // never asks for.
+    bool keyboard;
     // The window's middle in pixels, and its scale.
     int x;
     int y;
@@ -71,6 +74,8 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.type == mwin_eventShown;
+        program->keyboard |=
+            event.type == mwin_eventVirtualKeyboardChanged && event.data.rect.height > 0.0f;
         if (event.type == mwin_eventTextInput &&
             program->textLength + event.data.text.length < sizeof(program->text))
         {
@@ -370,7 +375,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                 printf("(%d)", (int)record->data.key.code);
             }
         }
-        printf("\n");
+        // What text arrived, which names where it came from.
+        printf(", text \"%.*s\"\n", (int)program->textLength, program->text);
         s_failures += 1;
         return mwin_frameStop;
     }
@@ -383,6 +389,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
     CHECK(program->phase > LAST_PHASE, "every phase ran");
+    CHECK(!program->keyboard, "no on-screen keyboard the program did not ask for");
     printf("result: %d failures\n", s_failures);
 }
 

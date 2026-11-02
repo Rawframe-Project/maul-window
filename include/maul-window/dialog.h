@@ -141,7 +141,7 @@ extern "C"
                                                                   mwinRequestId request,
                                                                   char* bufferOut, size_t capacity,
                                                                   size_t* lengthOut,
-                                                                  uint32_t* countOut);
+                                                                  size_t* countOut);
 
 #ifdef __cplusplus
 }

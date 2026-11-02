@@ -171,7 +171,7 @@ static bool Chose(mwinContext* context, mwinRequestId request, const char* expec
 {
     char paths[64];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     return mwinRequest_GetDialogFiles(context, request, paths, sizeof(paths), &length, &count) ==
                mwin_success &&
            length == expectedLength && count == expectedCount &&
@@ -202,7 +202,7 @@ static void CheckChosen(Program* program, mwinContext* context)
                                  "ffnen\n" ROOT "/tmp\nx.txt\nImages:png;jpg\nText:txt\n"),
           "a dialog's def copied as asked");
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     char small[4];
     Fill(small, sizeof(small));
     CHECK(Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&

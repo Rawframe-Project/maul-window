@@ -75,7 +75,7 @@ static void ReadBack(void)
 {
     char bytes[16];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     mwinResult status = mwin_errorState;
     switch (s_case)
     {

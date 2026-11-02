@@ -214,7 +214,7 @@ static bool Chose(mwinContext* context, const Program* program, const char* cons
 {
     char paths[MAX_PATH * 6];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     bool got = mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
                                           &count) == mwin_success;
     bool same = got && count == wanted;

@@ -282,10 +282,10 @@ static void Copies(mwinContext* context, mwinWindowId window, mwinRequestId requ
     struct
     {
         size_t length;
-        uint32_t count;
-        char bytes[4];
+        size_t count;
+        char bytes[8];
     } paths;
-    static_assert(sizeof(paths) == sizeof(size_t) + 8, "no padding");
+    static_assert(sizeof(paths) == 2 * sizeof(size_t) + 8, "no padding");
     EXPECT(status, paths, mwinRequest_GetDialogFiles, context, request, paths.bytes,
            sizeof(paths.bytes), &paths.length, &paths.count);
 }
@@ -333,7 +333,7 @@ static void Context(void)
     EXPECT(mwin_errorInvalid, facts, mwinContext_GetSystemFacts, nullptr, &facts);
     bool hold;
     EXPECT(mwin_errorInvalid, hold, mwinContext_IsTestHoldEnabled, nullptr, &hold);
-    uint32_t count;
+    size_t count;
     uint64_t checksum;
     Fill(&count, sizeof(count));
     Fill(&checksum, sizeof(checksum));
@@ -387,7 +387,7 @@ static void Shorts(Program* program, mwinContext* context, mwinDropId drop)
     CHECK(status == mwin_errorCapacity && length > sizeof(dialog) && Zeroed(dialog, sizeof(dialog)),
           "the dialog the test platform was asked for, zero in a buffer too short");
     char paths[4];
-    uint32_t count = 0;
+    size_t count = 0;
     Fill(paths, sizeof(paths));
     status = mwinRequest_GetDialogFiles(context, program->requests[4], paths, sizeof(paths),
                                         &length, &count);
@@ -447,7 +447,7 @@ static void Longs(Program* program, mwinContext* context, mwinDropId drop)
               Untouched(dialog + length, sizeof(dialog) - length),
           "the dialog the test platform was asked for, the rest of the buffer kept");
     char paths[sizeof(s_chosen) + 8];
-    uint32_t count = 0;
+    size_t count = 0;
     Fill(paths, sizeof(paths));
     status = mwinRequest_GetDialogFiles(context, program->requests[4], paths, sizeof(paths),
                                         &length, &count);

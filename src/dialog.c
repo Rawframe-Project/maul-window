@@ -269,7 +269,7 @@ void mwinReleaseDialogs(mwinContext* context)
 
 mwinResult mwinRequest_GetDialogFiles(const mwinContext* context, mwinRequestId request,
                                       char* bufferOut, size_t capacity, size_t* lengthOut,
-                                      uint32_t* countOut)
+                                      size_t* countOut)
 {
     mwinClearOut(lengthOut, sizeof *lengthOut);
     mwinClearOut(countOut, sizeof *countOut);

@@ -142,7 +142,7 @@ static void CheckSaved(const Program* program, mwinContext* context)
 {
     char paths[1024];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     size_t name = strlen(program->name);
     CHECK(program->outcome == mwin_outcomeDone &&
               mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,

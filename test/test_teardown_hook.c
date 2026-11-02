@@ -53,7 +53,7 @@ static int Payloads(bool live)
 {
     char bytes[16];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     mwinResult want = live ? mwin_success : mwin_errorStale;
     int wrong = 0;
     wrong += mwinRequest_GetClipboardText(s_context, s_text, bytes, sizeof(bytes), &length) != want;

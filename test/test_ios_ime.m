@@ -49,7 +49,7 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
-static void Copy(char* to, const char* from, uint32_t length)
+static void Copy(char* to, const char* from, size_t length)
 {
     length = length < 31 ? length : 31;
     memcpy(to, from, length);

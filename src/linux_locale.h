@@ -14,7 +14,8 @@
 
 // The locales LANGUAGE and the messages locale name (either may be
 // NULL), as BCP 47 tags with commas between them, without repeats; the
-// tags that do not fit capacity are left out. Returns the length.
+// first tag that does not fit capacity ends the list. Returns the
+// length.
 size_t mwinLinuxLocalesOf(const char* language, const char* messages, char* out, size_t capacity);
 
 // The same, from the environment.
@@ -22,14 +23,16 @@ size_t mwinLinuxLocales(char* out, size_t capacity);
 
 // Adds the tags of names separated by colons, namesLength bytes, to the
 // length bytes of tags in out, as mwinLinuxLocalesOf does: names that
-// are no language's, repeats and tags that do not fit are left out.
+// are no language's and repeats are left out, and the first tag that
+// does not fit ends the list, setting *full. A full list takes no more.
 // Returns the new length.
 size_t mwinLinuxAddLocales(const char* names, size_t namesLength, char* out, size_t length,
-                           size_t capacity);
+                           size_t capacity, bool* full);
 
 // The tags of KDE Plasma's plasma-localerc, length bytes of it: its
 // [Translations] LANGUAGE, names separated by colons, the last one where
-// there are several. False for a text with a NUL in it, which is no
+// there are several, up to the first tag that does not fit. False for a
+// text with a NUL in it, which is no
 // configuration; *lengthOut is 0 where the key is missing or no name in
 // it is a language's.
 bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out, size_t capacity,

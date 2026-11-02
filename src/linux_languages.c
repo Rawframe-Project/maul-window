@@ -64,6 +64,8 @@ static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* 
     size_t fromOne = 0;
     bool list = false;
     bool one = false;
+    bool listFull = false;
+    bool oneFull = false;
     for (; api->argType(properties) == mwin_dbusTypeDictEntry; (void)api->next(properties))
     {
         mwinDBusIter entry;
@@ -84,12 +86,13 @@ static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* 
             int type = api->argType(&names);
             list = list || type == mwin_dbusTypeString || type == 0;
             fromList = 0;
+            listFull = false;
             for (; api->argType(&names) == mwin_dbusTypeString; (void)api->next(&names))
             {
                 const char* text = nullptr;
                 api->getBasic(&names, (void*)&text);
-                fromList =
-                    mwinLinuxAddLocales(text, strlen(text), out, fromList, languages->capacity);
+                fromList = mwinLinuxAddLocales(text, strlen(text), out, fromList,
+                                               languages->capacity, &listFull);
             }
         }
         else if (strcmp(name, "Language") == 0 && api->argType(&value) == mwin_dbusTypeString)
@@ -97,7 +100,9 @@ static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* 
             const char* text = nullptr;
             api->getBasic(&value, (void*)&text);
             one = true;
-            fromOne = mwinLinuxAddLocales(text, strlen(text), single, 0, languages->capacity);
+            oneFull = false;
+            fromOne =
+                mwinLinuxAddLocales(text, strlen(text), single, 0, languages->capacity, &oneFull);
         }
     }
     if (list && fromList > 0)

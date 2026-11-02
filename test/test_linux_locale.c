@@ -7,7 +7,8 @@
 // - codesets dropped; @latin, @cyrillic and @valencia kept as script
 //   and variant, other modifiers dropped; UN M.49 territories kept;
 // - names of no language left out;
-// - tags that do not fit left out whole;
+// - the first tag that does not fit ends the list: a later, shorter one
+//   is left out too, in LANGUAGE and after it in the messages locale;
 // - the messages locale taken from LC_ALL, else LC_MESSAGES, else LANG.
 // plasma-localerc's [Translations] LANGUAGE:
 // - found among other groups and keys, with blanks and CR LF line ends;
@@ -70,10 +71,15 @@ int main(void)
     CHECK(Gives("x:e1:english:de_D:de_DEU:de_12::de", "de_DE", 64, "de,de-DE"),
           "names of no language left out");
     CHECK(Gives("de_DE:fr_FR:it", "en_US", 12, "de-DE,fr-FR") &&
-              Gives("de_DE:it", "en_US", 4, "it") && Gives("de_DE:it", "en_US", 8, "de-DE,it") &&
+              Gives("de_DE:it", "en_US", 4, "") && Gives("de_DE:it", "en_US", 8, "de-DE,it") &&
               Gives("de_DE:it", "en_US", 1, "") && Gives("de_DE:it", "en_US", 7, "de-DE") &&
               Gives("de_DE:it", "en_US", 5, "de-DE"),
           "tags that do not fit left out whole, a first that just fits kept");
+    CHECK(Gives("de_DE:ca_ES@valencia:it", "en_US", 12, "de-DE") &&
+              Gives("de_DE:ca_ES@valencia", "it", 12, "de-DE") &&
+              Gives("de_DE:x1:de_DE:it", "en_US", 9, "de-DE,it"),
+          "a long second tag ends the list, the short third left out, in LANGUAGE or after it; "
+          "a name of no language or a repeat does not");
     CHECK(PLASMA("[Formats]\nLANG=de_DE.UTF-8\nLANGUAGE=it\n\n[Translations]\nLANGUAGES=es\n"
                  "LANGUAGE=fr:en_GB:de\n[Other]\nLANGUAGE=pt\n",
                  32, "fr,en-GB,de"),
@@ -88,8 +94,8 @@ int main(void)
               PLASMA("[Formats]\nLANG=de_DE\n", 32, "") && PLASMA("", 32, "") &&
               PLASMA("[Translations]\nLANGUAGEX=de\nLANGUAGE de\n", 32, ""),
           "no language where the key is missing, empty or names none");
-    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9, "de-DE,it"),
-          "tags that do not fit left out whole");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9, "de-DE"),
+          "the first tag that does not fit ends the list");
     CHECK(PLASMA("[Translations]\nLANGUAGE=de\0\n", 32, "!"), "a NUL refused");
     char out[64];
     (void)unsetenv("LC_ALL");

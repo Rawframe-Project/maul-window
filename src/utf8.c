@@ -54,3 +54,26 @@ mwinResult mwinCheckText(const char* text, size_t length, size_t limit, mwinResu
                                  (nul || memchr(text, '\0', length) == nullptr));
     return valid ? mwin_success : mwin_errorInvalid;
 }
+
+size_t mwinCutUtf16(const uint16_t* units, size_t count, char* out, size_t capacity)
+{
+    // The units of the characters that fit, with what each takes in UTF-8.
+    size_t taken = 0;
+    size_t bytes = 0;
+    while (taken < count)
+    {
+        uint16_t unit = units[taken];
+        bool pair = unit >= 0xD800 && unit <= 0xDBFF && taken + 1 < count &&
+                    units[taken + 1] >= 0xDC00 && units[taken + 1] <= 0xDFFF;
+        size_t size = pair ? 4 : unit < 0x80 ? 1 : unit < 0x800 ? 2 : 3;
+        if (size > capacity - bytes)
+        {
+            break;
+        }
+        bytes += size;
+        taken += pair ? 2 : 1;
+    }
+    size_t written = 0;
+    (void)muniConvertUtf16ToUtf8(units, taken, muni_convertReplace, out, bytes, &written);
+    return written;
+}

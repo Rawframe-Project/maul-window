@@ -8,8 +8,9 @@
 //   wheel are gamepads; XInput's pad, a keyboard, a vendor's device and
 //   a gamepad without controls are not, and a device found again is one;
 // - the pad is mapped by the database's Windows entry, its product
-//   string its name, its axes numbered by usage, not by the order its
-//   descriptor gives them;
+//   string its name, longer than 31 units and cut to the whole
+//   characters within 64 bytes, its axes numbered by usage, not by the
+//   order its descriptor gives them;
 // - its report: buttons, sticks, triggers from whole axes, and the hat
 //   as the d-pad;
 // - the stick is raw: its buttons in usage order, a signed axis, and a
@@ -28,6 +29,9 @@
 
 #include <string.h>
 #include <wchar.h>
+
+// The product string's first 63 bytes: the 'é' after them does not fit.
+#define NAME_CUT "Wireless Controller \xC3\xA9 for PlayStation 4, jet black, light bar "
 
 #define PAD      ((HANDLE)0x11)
 #define STICK    ((HANDLE)0x22)
@@ -333,7 +337,9 @@ static BOOL WINAPI CloseFile(HANDLE file)
 
 static BOOLEAN NTAPI ProductString(HANDLE file, PVOID buffer, ULONG length)
 {
-    static const wchar_t name[] = L"Wireless Controller é";
+    // 66 units, 68 bytes of UTF-8, the last 'é' across byte 64.
+    static const wchar_t name[] = L"Wireless Controller é for PlayStation 4, jet black, "
+                                  L"light bar é on";
     if (file != PAD || length < sizeof(name))
     {
         return FALSE;
@@ -395,10 +401,10 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
     CHECK(!wheel.mapped && wheel.rawButtonCount == 0 && wheel.rawAxisCount == 6,
           "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");
-    CHECK(pad.mapped && pad.vendor == 0x054C && pad.product == 0x05C4 && pad.nameLength == 22 &&
-              memcmp(pad.name, "Wireless Controller \xC3\xA9", 22) == 0 && pad.battery == -1 &&
-              pad.capabilities == 0,
-          "the pad mapped, named by its product string, without rumble or battery");
+    CHECK(pad.mapped && pad.vendor == 0x054C && pad.product == 0x05C4 && pad.nameLength == 63 &&
+              memcmp(pad.name, NAME_CUT, 63) == 0 && pad.battery == -1 && pad.capabilities == 0,
+          "the pad mapped, named by its product string cut to whole characters, without rumble "
+          "or battery");
     CHECK(!stick.mapped && stick.rawButtonCount == 3 && stick.rawAxisCount == 4 &&
               stick.nameLength == 11 && memcmp(stick.name, "HID gamepad", 11) == 0,
           "the stick raw, with a plain name");

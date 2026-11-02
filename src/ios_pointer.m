@@ -21,6 +21,7 @@
 //   takes scroll events only, ten points to a detent, the sign as on
 //   macOS.
 
+#include "clicks.h"
 #include "ios.h"
 
 #include <math.h>
@@ -123,14 +124,15 @@ static void OnPointer(mwinIOSPlatform* platform, uint32_t slot, UITouch* touch, 
     mwinIOSWindow* window = &platform->windows[slot];
     mwinPosition position = PlaceOf(touch, window->view);
     UIKeyModifierFlags flags = event.modifierFlags;
-    uint8_t held = phase == mwin_iosTouchCancelled ? 0 : (uint8_t)(event.buttonMask & 0x1F);
+    mwinMouseButtons held =
+        phase == mwin_iosTouchCancelled ? 0 : (mwinMouseButtons)(event.buttonMask & 0x1F);
     if (phase == mwin_iosTouchMoved)
     {
         PostPointer(platform, slot, mwin_eventCursorMoved, position, flags, 0, 0);
     }
     for (mwinMouseButton button = mwin_buttonLeft; button <= mwin_buttonForward; button++)
     {
-        uint8_t bit = (uint8_t)(1u << (button - 1));
+        mwinMouseButtons bit = mwinMouseBit(button);
         if ((held & bit) == (window->buttons & bit))
         {
             continue;

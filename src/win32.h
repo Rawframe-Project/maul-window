@@ -98,7 +98,7 @@ struct mwinWin32Window
     // buttons held, and the last press.
     bool tracking;
     bool trackingFrame;
-    uint8_t buttons;
+    mwinMouseButtons buttons;
     mwinClickCounter clickCounter;
     // The first half of a character outside the BMP, 0 for none.
     WCHAR highSurrogate;

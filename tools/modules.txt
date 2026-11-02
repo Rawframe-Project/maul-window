@@ -61,7 +61,7 @@ ios_drop: apple_text core ios
 ios_keys: allocator apple_text core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
-ios_pointer: core ios
+ios_pointer: clicks core ios
 ios_services: answer apple_clipboard apple_text clipboard_data core ios
 ios_system: apple_locale core ios
 ios_text: allocator apple_text core ios
@@ -98,7 +98,7 @@ macos_pen: core macos
 macos_services: apple_clipboard apple_text clipboard_data core macos
 macos_system: apple_locale core macos
 macos_text: allocator apple_text core macos
-macos_view: accessibility core macos
+macos_view: accessibility clicks core macos
 macos_window: core macos
 message_box: utf8
 monitor: core

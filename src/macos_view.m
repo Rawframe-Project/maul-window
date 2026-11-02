@@ -16,6 +16,7 @@
 // direction makes it, as on the other platforms.
 
 #include "accessibility.h"
+#include "clicks.h"
 #include "macos.h"
 
 // Precise scrolling's points per detent.
@@ -123,8 +124,8 @@ static void OnButton(const MwinMacView* view, NSEvent* event, bool down)
         return;
     }
     mwinMacWindow* window = WindowOf(view);
-    uint8_t bit = (uint8_t)(1u << (button - 1));
-    window->buttons = down ? (uint8_t)(window->buttons | bit) : (uint8_t)(window->buttons & ~bit);
+    mwinMouseButtons bit = mwinMouseBit(button);
+    window->buttons = down ? window->buttons | bit : window->buttons & ~bit;
     NSInteger clicks = event.clickCount;
     PostPointer(view, down ? mwin_eventButtonDown : mwin_eventButtonUp, event, button,
                 (uint8_t)(clicks < 0           ? 0

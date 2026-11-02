@@ -232,12 +232,11 @@ static void PostCursor(mwinContext* context, uint32_t slot, const mwinAndroidPoi
 static void Press(mwinContext* context, uint32_t slot, mwinAndroidPointers* pointers,
                   const mwinAndroidMotion* motion, mwinMouseButton button)
 {
-    uint8_t bit = (uint8_t)(1u << (button - 1));
-    if (button == 0 || (pointers->buttons & bit) != 0)
+    if (button == 0 || (pointers->buttons & mwinMouseBit(button)) != 0)
     {
         return;
     }
-    pointers->buttons |= bit;
+    pointers->buttons |= mwinMouseBit(button);
     uint8_t clicks =
         mwinCountClickWithin(&pointers->clickCounter, button, motion->pointers[0].position,
                              motion->timeNs, pointers->doubleClickNs, MWIN_DOUBLE_CLICK_DISTANCE);
@@ -247,12 +246,11 @@ static void Press(mwinContext* context, uint32_t slot, mwinAndroidPointers* poin
 static void Release(mwinContext* context, uint32_t slot, mwinAndroidPointers* pointers,
                     const mwinAndroidMotion* motion, mwinMouseButton button)
 {
-    uint8_t bit = (uint8_t)(1u << (button - 1));
-    if (button == 0 || (pointers->buttons & bit) == 0)
+    if (button == 0 || (pointers->buttons & mwinMouseBit(button)) == 0)
     {
         return;
     }
-    pointers->buttons &= (uint8_t)~bit;
+    pointers->buttons &= ~mwinMouseBit(button);
     PostCursor(context, slot, pointers, motion, mwin_eventButtonUp, button, 0);
 }
 

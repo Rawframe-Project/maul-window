@@ -27,14 +27,14 @@ void mwinFitPreedit(mwinPreeditEvent* preedit, mwinPreeditSegment* segments);
 
 // The bytes well-formed UTF-8 text keeps once its control characters
 // (U+0000 to U+001F and U+007F to U+009F), which are not text, go.
-uint32_t mwinKeptTextBytes(const char* text, uint32_t length);
+size_t mwinKeptTextBytes(const char* text, size_t length);
 
 // Copies well-formed UTF-8 text without its control characters to out,
 // which holds what mwinKeptTextBytes counts. With a composition (else
 // null), moves its caret, selection and segments, writable at segments,
 // with the bytes: an offset in or past a character that goes falls
 // where it was.
-void mwinCopyKeptText(char* out, const char* text, uint32_t length, mwinPreeditEvent* preedit,
+void mwinCopyKeptText(char* out, const char* text, size_t length, mwinPreeditEvent* preedit,
                       mwinPreeditSegment* segments);
 
 #endif // MAUL_WINDOW_SRC_PREEDIT_FIT_H

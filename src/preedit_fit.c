@@ -7,16 +7,16 @@
 #include "preedit_fit.h"
 
 // Whether a byte continues a character of UTF-8.
-static bool Continues(const char* text, uint32_t at)
+static bool Continues(const char* text, size_t at)
 {
     return ((unsigned char)text[at] & 0xC0u) == 0x80u;
 }
 
 // An offset within the text, moved back to the start of the character
 // it falls in.
-static uint32_t Floor(const char* text, uint32_t length, uint32_t offset)
+static size_t Floor(const char* text, size_t length, size_t offset)
 {
-    uint32_t at = offset < length ? offset : length;
+    size_t at = offset < length ? offset : length;
     while (at > 0 && at < length && Continues(text, at))
     {
         at--;
@@ -25,9 +25,9 @@ static uint32_t Floor(const char* text, uint32_t length, uint32_t offset)
 }
 
 // An offset within the text, moved on past the character it falls in.
-static uint32_t Ceiling(const char* text, uint32_t length, uint32_t offset)
+static size_t Ceiling(const char* text, size_t length, size_t offset)
 {
-    uint32_t at = offset < length ? offset : length;
+    size_t at = offset < length ? offset : length;
     while (at < length && Continues(text, at))
     {
         at++;
@@ -37,7 +37,7 @@ static uint32_t Ceiling(const char* text, uint32_t length, uint32_t offset)
 
 // The bytes of a control character at a byte of well-formed UTF-8: one
 // for C0 and DEL, two for C1 (0xC2 then 0x80 to 0x9F), else 0.
-static uint32_t ControlAt(const char* text, uint32_t length, uint32_t at)
+static size_t ControlAt(const char* text, size_t length, size_t at)
 {
     unsigned char byte = (unsigned char)text[at];
     if (byte < 0x20u || byte == 0x7Fu)
@@ -48,12 +48,12 @@ static uint32_t ControlAt(const char* text, uint32_t length, uint32_t at)
 }
 
 // Where an offset of the text falls once its control characters go.
-static uint32_t Kept(const char* text, uint32_t length, uint32_t offset)
+static size_t Kept(const char* text, size_t length, size_t offset)
 {
-    uint32_t gone = 0;
-    for (uint32_t at = 0; at < length && at < offset;)
+    size_t gone = 0;
+    for (size_t at = 0; at < length && at < offset;)
     {
-        uint32_t control = ControlAt(text, length, at);
+        size_t control = ControlAt(text, length, at);
         if (control == 0)
         {
             at++;
@@ -65,25 +65,25 @@ static uint32_t Kept(const char* text, uint32_t length, uint32_t offset)
     return offset - gone;
 }
 
-uint32_t mwinKeptTextBytes(const char* text, uint32_t length)
+size_t mwinKeptTextBytes(const char* text, size_t length)
 {
-    uint32_t kept = length;
-    for (uint32_t at = 0; at < length;)
+    size_t kept = length;
+    for (size_t at = 0; at < length;)
     {
-        uint32_t control = ControlAt(text, length, at);
+        size_t control = ControlAt(text, length, at);
         kept -= control;
         at += control > 0 ? control : 1;
     }
     return kept;
 }
 
-void mwinCopyKeptText(char* out, const char* text, uint32_t length, mwinPreeditEvent* preedit,
+void mwinCopyKeptText(char* out, const char* text, size_t length, mwinPreeditEvent* preedit,
                       mwinPreeditSegment* segments)
 {
-    uint32_t kept = 0;
-    for (uint32_t at = 0; at < length;)
+    size_t kept = 0;
+    for (size_t at = 0; at < length;)
     {
-        uint32_t control = ControlAt(text, length, at);
+        size_t control = ControlAt(text, length, at);
         if (control == 0)
         {
             out[kept++] = text[at];
@@ -96,17 +96,16 @@ void mwinCopyKeptText(char* out, const char* text, uint32_t length, mwinPreeditE
     }
     if (preedit->caret > 0)
     {
-        preedit->caret = (int32_t)Kept(text, length, (uint32_t)preedit->caret);
+        preedit->caret = (ptrdiff_t)Kept(text, length, (size_t)preedit->caret);
     }
     preedit->selectionStart = Kept(text, length, preedit->selectionStart);
     preedit->selectionEnd = Kept(text, length, preedit->selectionEnd);
     for (uint32_t i = 0; i < preedit->segmentCount; i++)
     {
         mwinPreeditSegment* segment = &segments[i];
-        uint32_t past = segment->length < UINT32_MAX - segment->start
-                            ? segment->start + segment->length
-                            : UINT32_MAX;
-        uint32_t from = Kept(text, length, segment->start);
+        size_t past = segment->length < SIZE_MAX - segment->start ? segment->start + segment->length
+                                                                  : SIZE_MAX;
+        size_t from = Kept(text, length, segment->start);
         segment->length = Kept(text, length, past) - from;
         segment->start = from;
     }
@@ -115,27 +114,27 @@ void mwinCopyKeptText(char* out, const char* text, uint32_t length, mwinPreeditE
 void mwinFitPreedit(mwinPreeditEvent* preedit, mwinPreeditSegment* segments)
 {
     const char* text = preedit->text;
-    uint32_t length = preedit->length;
+    size_t length = preedit->length;
     if (preedit->caret >= 0)
     {
-        preedit->caret = (int32_t)Floor(text, length, (uint32_t)preedit->caret);
+        preedit->caret = (ptrdiff_t)Floor(text, length, (size_t)preedit->caret);
     }
     else
     {
         preedit->caret = -1;
     }
-    uint32_t start = preedit->selectionStart;
-    uint32_t end = preedit->selectionEnd;
+    size_t start = preedit->selectionStart;
+    size_t end = preedit->selectionEnd;
     preedit->selectionStart = Floor(text, length, start < end ? start : end);
     preedit->selectionEnd = Ceiling(text, length, start < end ? end : start);
     uint32_t kept = 0;
     for (uint32_t i = 0; i < preedit->segmentCount; i++)
     {
         mwinPreeditSegment segment = segments[i];
-        uint32_t from = Floor(text, length, segment.start);
-        uint32_t past = segment.start < length && length - segment.start > segment.length
-                            ? segment.start + segment.length
-                            : length;
+        size_t from = Floor(text, length, segment.start);
+        size_t past = segment.start < length && length - segment.start > segment.length
+                          ? segment.start + segment.length
+                          : length;
         past = Ceiling(text, length, past);
         if (past > from)
         {

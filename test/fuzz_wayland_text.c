@@ -363,7 +363,7 @@ static void Done(const mwinContext* context)
     Listener()->done(&s_platform, TextInput(), Byte());
 }
 
-static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
+static bool OnBoundary(const char* text, size_t length, size_t at)
 {
     return at <= length && (at == length || ((unsigned char)text[at] & 0xC0) != 0x80);
 }
@@ -373,7 +373,7 @@ static void CheckComposition(const mwinPreeditEvent* preedit)
     Expect(muniValidateUtf8(preedit->text, preedit->length).status == muni_success);
     Expect(preedit->caret == -1 ||
            (preedit->caret >= 0 &&
-            OnBoundary(preedit->text, preedit->length, (uint32_t)preedit->caret)));
+            OnBoundary(preedit->text, preedit->length, (size_t)preedit->caret)));
     Expect(preedit->selectionStart <= preedit->selectionEnd &&
            OnBoundary(preedit->text, preedit->length, preedit->selectionStart) &&
            OnBoundary(preedit->text, preedit->length, preedit->selectionEnd));
@@ -420,7 +420,7 @@ static void Drain(mwinContext* context)
         uint32_t slot = event.window.index1 - 1;
         if (s_trace)
         {
-            (void)fprintf(stderr, "read slot %u type %d length %u\n", slot, (int)event.kind,
+            (void)fprintf(stderr, "read slot %u type %d length %zu\n", slot, (int)event.kind,
                           event.data.text.length);
         }
         bool live = false;

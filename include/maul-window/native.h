@@ -84,9 +84,9 @@ extern "C"
             struct
             {
                 const char* selector;
-                uint32_t selectorLength;
+                size_t selectorLength;
                 const char* accessibility;
-                uint32_t accessibilityLength;
+                size_t accessibilityLength;
             } web;
         } handles;
     } mwinNativeHandles;

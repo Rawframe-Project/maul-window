@@ -273,7 +273,7 @@ extern "C"
     typedef struct mwinTextEvent
     {
         const char* text;
-        uint32_t length;
+        size_t length;
     } mwinTextEvent;
 
     // The most segments a composition may have.
@@ -296,24 +296,25 @@ extern "C"
     // A styled part of a composition, in bytes of its text.
     typedef struct mwinPreeditSegment
     {
-        uint32_t start;
-        uint32_t length;
+        size_t start;
+        size_t length;
         mwinPreeditStyle style;
     } mwinPreeditSegment;
 
     // An input method's composition. The text, its segments and the
     // offsets are in bytes, each on a character boundary within the text,
     // the selection in order and no segment empty; the caret is -1 where
-    // the method hides it. The library fits what the platform hands it
-    // (an offset inside a character, past the end, a selection backwards)
-    // to that. Valid until the frame that drained it returns.
+    // the method hides it, which is why it alone is signed. The library
+    // fits what the platform hands it (an offset inside a character, past
+    // the end, a selection backwards) to that. Valid until the frame that
+    // drained it returns.
     typedef struct mwinPreeditEvent
     {
         const char* text;
-        uint32_t length;
-        int32_t caret;
-        uint32_t selectionStart;
-        uint32_t selectionEnd;
+        size_t length;
+        ptrdiff_t caret;
+        size_t selectionStart;
+        size_t selectionEnd;
         const mwinPreeditSegment* segments;
         uint32_t segmentCount;
     } mwinPreeditEvent;

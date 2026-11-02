@@ -85,8 +85,8 @@ typedef struct Program
     char text[64];
     uint32_t textLength;
     char preedit[64];
-    uint32_t preeditLength;
-    int32_t preeditCaret;
+    size_t preeditLength;
+    ptrdiff_t preeditCaret;
     uint32_t segments;
     mwinPreeditStyle style;
     int preedits;

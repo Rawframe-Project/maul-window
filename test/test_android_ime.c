@@ -53,9 +53,9 @@ typedef struct Record
     mwinKeyCode code;
     mwinModifiers modifiers;
     char text[32];
-    int32_t caret;
-    uint32_t selectionStart;
-    uint32_t selectionEnd;
+    ptrdiff_t caret;
+    size_t selectionStart;
+    size_t selectionEnd;
     uint32_t segments;
 } Record;
 
@@ -93,7 +93,7 @@ static void Keep(Program* program, const mwinEvent* event)
     Record* record = &program->records[program->recordCount++];
     *record = (Record){.type = event->kind};
     const char* text = nullptr;
-    uint32_t length = 0;
+    size_t length = 0;
     if (event->kind == mwin_eventKeyDown || event->kind == mwin_eventKeyUp)
     {
         record->code = event->data.key.code;

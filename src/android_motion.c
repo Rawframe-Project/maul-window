@@ -100,7 +100,7 @@ static void CancelTouches(mwinContext* context, uint32_t slot, mwinAndroidPointe
 
 static void PostPen(mwinContext* context, uint32_t slot, const mwinAndroidPointers* pointers,
                     const mwinAndroidMotion* motion, const mwinAndroidPointer* pointer,
-                    mwinEventKind type, uint8_t button)
+                    mwinEventKind type, mwinPenButton button)
 {
     // As Chromium turns Android's tilt and orientation into tilts toward
     // x and y.
@@ -129,14 +129,14 @@ static void Pen(mwinContext* context, uint32_t slot, mwinAndroidPointers* pointe
     {
         pointers->penBarrel = barrel;
         PostPen(context, slot, pointers, motion, pointer,
-                barrel ? mwin_eventPenButtonDown : mwin_eventPenButtonUp, 1);
+                barrel ? mwin_eventPenButtonDown : mwin_eventPenButtonUp, mwin_penButtonBarrel);
     }
     switch (motion->action)
     {
     case mwin_androidDown:
     case mwin_androidPointerDown:
         pointers->penContact = true;
-        PostPen(context, slot, pointers, motion, pointer, mwin_eventPenDown, 0);
+        PostPen(context, slot, pointers, motion, pointer, mwin_eventPenDown, mwin_penButtonNone);
         break;
     case mwin_androidUp:
     case mwin_androidPointerUp:
@@ -144,13 +144,13 @@ static void Pen(mwinContext* context, uint32_t slot, mwinAndroidPointers* pointe
         if (pointers->penContact)
         {
             pointers->penContact = false;
-            PostPen(context, slot, pointers, motion, pointer, mwin_eventPenUp, 0);
+            PostPen(context, slot, pointers, motion, pointer, mwin_eventPenUp, mwin_penButtonNone);
         }
         break;
     case mwin_androidMove:
     case mwin_androidHoverEnter:
     case mwin_androidHoverMove:
-        PostPen(context, slot, pointers, motion, pointer, mwin_eventPenMoved, 0);
+        PostPen(context, slot, pointers, motion, pointer, mwin_eventPenMoved, mwin_penButtonNone);
         break;
     default:
         break;

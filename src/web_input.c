@@ -343,9 +343,9 @@ static void OnPen(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecord*
     {
         event.kind =
             (flags & mwin_penBarrel) != 0 ? mwin_eventPenButtonDown : mwin_eventPenButtonUp;
-        event.data.pen.button = 1;
+        event.data.pen.button = mwin_penButtonBarrel;
         Post(platform, slot, &event, record->timeMs);
-        event.data.pen.button = 0;
+        event.data.pen.button = mwin_penButtonNone;
     }
     mwinPenFlags touched = (flags ^ window->penFlags) & mwin_penContact;
     window->penFlags = flags;

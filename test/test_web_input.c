@@ -378,7 +378,7 @@ static void AdvanceContacts(Program* program)
     const mwinEvent* pressed = Find(program, mwin_eventPenButtonDown, 0);
     const mwinEvent* down = Find(program, mwin_eventPenDown, 0);
     const mwinEvent* released = Find(program, mwin_eventPenButtonUp, 0);
-    CHECK(pressed != nullptr && pressed->data.pen.button == 1 &&
+    CHECK(pressed != nullptr && pressed->data.pen.button == mwin_penButtonBarrel &&
               (pressed->data.pen.flags & mwin_penContact) == 0 &&
               (pressed->data.pen.flags & mwin_penBarrel) != 0,
           "the barrel button, the pen hovering");

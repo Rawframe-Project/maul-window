@@ -148,7 +148,7 @@ int mwinX11PenRecordOf(mwinX11Pen* pen, mwinX11PenInput input, uint32_t button,
     ReadAxes(pen, mask, words, values, count);
     bool pressed = input == mwin_x11PenPress;
     mwinEventKind type = mwin_eventPenMoved;
-    uint8_t number = 0;
+    mwinPenButton number = mwin_penButtonNone;
     if (input != mwin_x11PenMotion)
     {
         mwinPenFlags flag = button == 1 ? mwin_penContact : button == 2 ? mwin_penBarrel : 0;
@@ -164,7 +164,7 @@ int mwinX11PenRecordOf(mwinX11Pen* pen, mwinX11PenInput input, uint32_t button,
         else
         {
             type = pressed ? mwin_eventPenButtonDown : mwin_eventPenButtonUp;
-            number = 1;
+            number = mwin_penButtonBarrel;
         }
     }
     *recordOut = (mwinEvent){.kind = type};

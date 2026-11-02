@@ -133,10 +133,11 @@ static void CheckPen(const Program* program)
               Near(program->records[2].pen.pressure, 0.75f),
           "a drag moves it touching");
     CHECK(Is(program, 3, mwin_eventPenButtonDown, touching | mwin_penBarrel) &&
-              program->records[3].pen.button == 1 &&
+              program->records[3].pen.button == mwin_penButtonBarrel &&
               Is(program, 4, mwin_eventPenMoved, touching | mwin_penBarrel),
           "the barrel pressed, then the move");
-    CHECK(Is(program, 5, mwin_eventPenButtonUp, touching) && program->records[5].pen.button == 1 &&
+    CHECK(Is(program, 5, mwin_eventPenButtonUp, touching) &&
+              program->records[5].pen.button == mwin_penButtonBarrel &&
               Is(program, 6, mwin_eventPenMoved, touching),
           "the barrel released");
     CHECK(Is(program, 7, mwin_eventPenUp, 0), "lifted");

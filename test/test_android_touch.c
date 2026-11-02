@@ -505,8 +505,8 @@ static void CheckPen(const Program* program)
           "the pen touching, with half its pressure");
     CHECK(fabsf(between.x - 0.5f) < 0.02f && fabsf(between.y - 0.5f) < 0.02f,
           "the pen halfway between the fingers");
-    CHECK(barrel > down && program->records[barrel].data.pen.button == 1 && barrelUp > barrel &&
-              up > barrelUp,
+    CHECK(barrel > down && program->records[barrel].data.pen.button == mwin_penButtonBarrel &&
+              barrelUp > barrel && up > barrelUp,
           "its barrel button held and let go while it touches");
     CHECK(up > down && (program->records[up].data.pen.flags & mwin_penContact) == 0,
           "the pen lifted");

@@ -184,8 +184,8 @@ mwinResult mwinGamepad_IsMotionEnabled(const mwinContext* context, mwinGamepadId
     return mwin_success;
 }
 
-mwinResult mwinGamepad_GetMotion(mwinContext* context, mwinGamepadId gamepad,
-                                 mwinGamepadMotion* motionOut)
+mwinResult mwinGamepad_TakeMotion(mwinContext* context, mwinGamepadId gamepad,
+                                  mwinGamepadMotion* motionOut)
 {
     if (mwinIsBusy(context))
     {

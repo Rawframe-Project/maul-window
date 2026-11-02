@@ -197,7 +197,7 @@ static void Changes(mwinContext* context, mwinWindowId window, mwinResult status
     mwinGamepadId pad;
     EXPECT(status, pad, mwinAddTestGamepad, context, &padInfo, &pad);
     mwinGamepadMotion motion;
-    EXPECT_KEPT(status, motion, mwinGamepad_GetMotion, context, (mwinGamepadId){0}, &motion);
+    EXPECT_KEPT(status, motion, mwinGamepad_TakeMotion, context, (mwinGamepadId){0}, &motion);
 #endif
 }
 
@@ -212,7 +212,7 @@ static void Gamepad(mwinContext* context, mwinGamepadId gamepad, mwinResult stat
     bool enabled;
     EXPECT(status, enabled, mwinGamepad_IsMotionEnabled, context, gamepad, &enabled);
     mwinGamepadMotion motion;
-    EXPECT(status, motion, mwinGamepad_GetMotion, context, gamepad, &motion);
+    EXPECT(status, motion, mwinGamepad_TakeMotion, context, gamepad, &motion);
     Rumble rumble;
     EXPECT(status, rumble, mwinGamepad_GetTestRumble, context, gamepad, &rumble.low, &rumble.high,
            &rumble.durationMs, &rumble.count);

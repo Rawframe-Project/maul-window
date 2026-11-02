@@ -92,7 +92,7 @@ extern "C"
         // Motors in the triggers (mwinGamepad_SetTriggerRumble).
         mwin_padTriggerRumble = 2,
         // Motion sensors (mwinGamepad_EnableMotion, mwinGamepad_IsMotionEnabled,
-        // mwinGamepad_GetMotion).
+        // mwinGamepad_TakeMotion).
         mwin_padMotion = 4,
     };
 
@@ -136,7 +136,7 @@ extern "C"
         // The latest rotation rate in radians per second about each axis,
         // counter-clockwise positive.
         float rotationRate[3];
-        // The angle turned about each axis since the last read, in
+        // The angle turned about each axis since it was last taken, in
         // radians: every sample's rate over its time, summed.
         float rotation[3];
         // When the latest sample was taken, on the records' clock; 0
@@ -283,10 +283,10 @@ extern "C"
                                                                    mwinGamepadId gamepad,
                                                                    bool* enabledOut);
 
-    /// Reads a gamepad's motion and starts the angle turned anew: the
+    /// Takes a gamepad's motion, starting the angle turned anew: the
     /// latest acceleration and rotation rate, and the angle turned since
-    /// the last read. All zero while its sensors are off or before their
-    /// first sample.
+    /// it was last taken. All zero while its sensors are off or before
+    /// their first sample.
     ///
     /// @param context    The context.
     /// @param gamepad    The gamepad.
@@ -297,9 +297,9 @@ extern "C"
     ///         longer connected; `mwin_errorInvalid` for a NULL argument.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_GetMotion(mwinContext* context,
-                                                             mwinGamepadId gamepad,
-                                                             mwinGamepadMotion* motionOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_TakeMotion(mwinContext* context,
+                                                              mwinGamepadId gamepad,
+                                                              mwinGamepadMotion* motionOut);
 
 #ifdef __cplusplus
 }

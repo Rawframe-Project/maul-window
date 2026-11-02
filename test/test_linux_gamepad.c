@@ -367,7 +367,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseUnstamped:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_TakeMotion(context, program->pads[1], &motion) == mwin_success &&
                   motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
               "a report without a stamp at its event time");
         // Turned off and on, its motion starts anew.
@@ -384,7 +384,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseMotion:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_TakeMotion(context, program->pads[1], &motion) == mwin_success &&
                   fabsf(motion.acceleration[1] - 9.80665f) < 1e-4f &&
                   motion.acceleration[0] == 0.0f &&
                   fabsf(motion.rotationRate[0] - 1.5707964f) < 1e-4f &&
@@ -404,7 +404,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseUnstampedAfter:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_TakeMotion(context, program->pads[1], &motion) == mwin_success &&
                   motion.timeNs >= program->sentNs && motion.timeNs <= NowNs(),
               "a report without a stamp after stamped ones at its own event time");
         // A report the kernel drops, then the reports that overflow.
@@ -416,7 +416,7 @@ static void AdvanceOthers(Program* program, mwinContext* context)
     case phaseMotionDrop:
     {
         mwinGamepadMotion motion;
-        CHECK(mwinGamepad_GetMotion(context, program->pads[1], &motion) == mwin_success &&
+        CHECK(mwinGamepad_TakeMotion(context, program->pads[1], &motion) == mwin_success &&
                   fabsf(motion.acceleration[2] - 9.80665f) < 1e-4f &&
                   fabsf(motion.acceleration[0] - 9.80665f) < 1e-4f,
               "an axis the kernel dropped, read again from the device");

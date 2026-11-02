@@ -746,7 +746,7 @@ static bool Ready(Program* program, mwinContext* context)
         // Each sensor's samples come on their own: both must have come.
         mwinGamepadMotion motion = {0};
         return android_get_device_api_level() < 31 ||
-               (mwinGamepad_GetMotion(context, program->pad, &motion) == mwin_success &&
+               (mwinGamepad_TakeMotion(context, program->pad, &motion) == mwin_success &&
                 motion.acceleration[1] != 0.0f && motion.rotationRate[1] != 0.0f);
     }
     case 6:
@@ -772,7 +772,7 @@ static bool Ready(Program* program, mwinContext* context)
 static void CheckMotion(Program* program, mwinContext* context)
 {
     mwinGamepadMotion motion = {0};
-    CHECK(mwinGamepad_GetMotion(context, program->pad, &motion) == mwin_success &&
+    CHECK(mwinGamepad_TakeMotion(context, program->pad, &motion) == mwin_success &&
               fabsf(motion.acceleration[0]) < 0.1f && fabsf(motion.acceleration[1] + 9.8f) < 1.0f &&
               fabsf(motion.acceleration[2]) < 0.1f,
           "one g down y");

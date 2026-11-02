@@ -174,7 +174,7 @@ static void Motion(mwinContext* context)
     bool on = true;
     bool enabled = true;
     CHECK(mwinGamepad_PostTestMotion(context, s_pads[0], still, turning, 1000) == mwin_success &&
-              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
+              mwinGamepad_TakeMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.timeNs == 0 && motion.rotation[1] == 0.0f &&
               mwinGamepad_IsTestMotionEnabled(context, s_pads[0], &on) == mwin_success && !on &&
               mwinGamepad_IsMotionEnabled(context, s_pads[0], &enabled) == mwin_success && !enabled,
@@ -190,7 +190,7 @@ static void Motion(mwinContext* context)
                                          5000000 + i * 10000000) == mwin_success,
               "a sample");
     }
-    CHECK(mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
+    CHECK(mwinGamepad_TakeMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.acceleration[1] == 9.80665f && motion.rotationRate[1] == -2.0f &&
               Near(motion.rotation[0], 0.03f) && Near(motion.rotation[1], -0.06f) &&
               Near(motion.rotation[2], 0.015f) && motion.timeNs == 35000000,
@@ -198,18 +198,18 @@ static void Motion(mwinContext* context)
     // A second later: a gap, which turns the pad by 100 ms of rate only.
     CHECK(mwinGamepad_PostTestMotion(context, s_pads[0], still, turning, 1035000000) ==
                   mwin_success &&
-              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
+              mwinGamepad_TakeMotion(context, s_pads[0], &motion) == mwin_success &&
               Near(motion.rotation[0], 0.1f) && motion.timeNs == 1035000000,
           "each read starts the angle anew; a gap counts 100 ms");
     CHECK(mwinGamepad_EnableMotion(context, s_pads[0], false) == mwin_success &&
-              mwinGamepad_GetMotion(context, s_pads[0], &motion) == mwin_success &&
+              mwinGamepad_TakeMotion(context, s_pads[0], &motion) == mwin_success &&
               motion.timeNs == 0 && motion.acceleration[1] == 0.0f &&
               mwinGamepad_IsTestMotionEnabled(context, s_pads[0], &on) == mwin_success && !on &&
               mwinGamepad_IsMotionEnabled(context, s_pads[0], &enabled) == mwin_success && !enabled,
           "turned off: all zero");
     CHECK(mwinGamepad_EnableMotion(context, s_pads[1], true) == mwin_errorUnsupported &&
-              mwinGamepad_GetMotion(context, s_pads[1], &motion) == mwin_errorUnsupported &&
-              mwinGamepad_GetMotion(context, s_pads[0], nullptr) == mwin_errorInvalid &&
+              mwinGamepad_TakeMotion(context, s_pads[1], &motion) == mwin_errorUnsupported &&
+              mwinGamepad_TakeMotion(context, s_pads[0], nullptr) == mwin_errorInvalid &&
               mwinGamepad_EnableMotion(nullptr, s_pads[0], true) == mwin_errorInvalid &&
               mwinGamepad_IsMotionEnabled(context, s_pads[1], &enabled) == mwin_success &&
               !enabled &&

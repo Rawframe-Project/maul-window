@@ -272,7 +272,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context, view);
         }
         // A request's step waits for its answer.
-        if (phase == 0 || phase == 12)
+        if (phase == 0 || phase == 13)
         {
             program->phase += 1;
             program->completions = 0;

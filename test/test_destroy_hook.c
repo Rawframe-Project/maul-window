@@ -89,7 +89,7 @@ static void Step(Program* program, mwinContext* context, int step)
         program->windows[0] = Create(context, &program->requests[0]);
         break;
     case 1:
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
                   mwinWindow_RequestIcon(context, program->windows[0], &s_image, 1,
                                          &program->requests[1]) == mwin_success,
               "an icon request held");
@@ -102,7 +102,7 @@ static void Step(Program* program, mwinContext* context, int step)
         CHECK(s_releases > 0, "the destroy gives the icon's copy back through the free hook");
         CHECK(s_found == 0, "the window is gone in the free hook");
         s_window = (mwinWindowId){0};
-        CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "answer again");
+        CHECK(mwinContext_EnableTestHold(context, false) == mwin_success, "answer again");
         break;
     case 3:
     {

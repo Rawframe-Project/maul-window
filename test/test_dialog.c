@@ -264,7 +264,7 @@ static void CheckFolder(Program* program, mwinContext* context)
     // Held: one dialog is cancelled with its window, one never answered.
     program->windows[1] = Create(context, nullptr);
     mwinFileDialogDef def = Def(mwin_dialogOpen);
-    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+    CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
               mwinWindow_RequestFileDialog(context, program->windows[0], &def,
                                            &program->requests[6]) == mwin_success &&
               mwinWindow_RequestFileDialog(context, program->windows[1], &def, nullptr) ==

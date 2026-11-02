@@ -39,17 +39,31 @@ extern "C"
                                                                  mwinRequestKind kind,
                                                                  mwinOutcome outcome);
 
-    /// Holds requests: while held, none is answered.
+    /// Turns the test platform's hold on or off: while it is on, no
+    /// request is answered; once it is off, they are answered again from
+    /// the next pump.
     ///
     /// @param context  A context of the test backend.
-    /// @param hold     true to hold, false to answer again from the next
-    ///                 pump.
+    /// @param enabled  true to hold requests.
     /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
     ///         another backend; `mwin_errorInvalid` for a NULL context.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinContext_HoldTestRequests(mwinContext* context,
-                                                                    bool hold);
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_EnableTestHold(mwinContext* context,
+                                                                  bool enabled);
+
+    /// Reads whether the test platform holds requests: turned on with
+    /// mwinContext_EnableTestHold and not off since.
+    ///
+    /// @param context     A context of the test backend.
+    /// @param enabledOut  Receives true while it holds them. False on
+    ///                    failure.
+    /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL argument.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinContext_IsTestHoldEnabled(const mwinContext* context,
+                                                                     bool* enabledOut);
 
     /// Reports what the platform would: the user resized or closed a
     /// window, focus moved, the scale changed, a key went down, text was

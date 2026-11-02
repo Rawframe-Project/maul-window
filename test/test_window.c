@@ -112,7 +112,10 @@ static void SupersedeStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
+        bool held = false;
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
+                  mwinContext_IsTestHoldEnabled(context, &held) == mwin_success && held,
+              "hold, read back");
         CHECK(mwinWindow_RequestSize(context, window, (mwinSize){100.0f, 100.0f},
                                      &program->requests[0]) == mwin_success &&
                   mwinWindow_RequestSize(context, window, (mwinSize){200.0f, 100.0f},
@@ -126,7 +129,11 @@ static void SupersedeStep(Program* program, mwinContext* context, int step)
                   program->events[0].data.completion.outcome == mwin_outcomeSuperseded &&
                   SameId(program->events[0].data.completion.request, program->requests[0]),
               "the first is superseded at once");
-        CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
+        bool held = true;
+        CHECK(mwinContext_EnableTestHold(context, false) == mwin_success &&
+                  mwinContext_IsTestHoldEnabled(context, &held) == mwin_success && !held &&
+                  mwinContext_IsTestHoldEnabled(context, nullptr) == mwin_errorInvalid,
+              "release, read back");
         return;
     }
     static const mwinEventKind expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
@@ -202,7 +209,7 @@ static void CloseStep(Program* program, mwinContext* context, int step)
         CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventCloseRequested &&
                   mwinWindow_GetState(context, window, &state) == mwin_success,
               "a close request closes nothing");
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success, "hold");
         CHECK(mwinWindow_RequestMode(context, window, mwin_modeMaximized, &program->requests[0]) ==
                   mwin_success,
               "a request in flight");
@@ -221,7 +228,7 @@ static void CloseStep(Program* program, mwinContext* context, int step)
         CHECK(Types(program, expected, 2) &&
                   program->events[0].data.completion.outcome == mwin_outcomeCancelled,
               "its request is cancelled, then it is destroyed");
-        CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
+        CHECK(mwinContext_EnableTestHold(context, false) == mwin_success, "release");
         return;
     }
     CHECK(program->eventCount == 0, "nothing answers a destroyed window's requests");
@@ -301,7 +308,7 @@ static void DropStep(Program* program, mwinContext* context, int step)
         mwinEvent resized = {.kind = mwin_eventResized, .window = window};
         resized.data.size = (mwinSize){30.0f, 30.0f};
         CHECK(mwinContext_PostTestEvent(context, &resized) == mwin_success &&
-                  mwinContext_HoldTestRequests(context, true) == mwin_success &&
+                  mwinContext_EnableTestHold(context, true) == mwin_success &&
                   mwinWindow_RequestMode(context, window, mwin_modeMaximized,
                                          &program->requests[0]) == mwin_success,
               "a size waits, a request in flight");
@@ -313,7 +320,7 @@ static void DropStep(Program* program, mwinContext* context, int step)
     CHECK(Types(program, expected, 2) &&
               program->events[0].data.completion.outcome == mwin_outcomeCancelled,
           "the size goes, the cancelled request stays");
-    CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
+    CHECK(mwinContext_EnableTestHold(context, false) == mwin_success, "release");
     program->done = true;
 }
 
@@ -401,13 +408,13 @@ static void NeighbourStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
                   mwinWindow_RequestSize(context, program->windows[0], (mwinSize){10.0f, 10.0f},
                                          nullptr) == mwin_success &&
                   mwinWindow_RequestSize(context, program->windows[1], (mwinSize){20.0f, 20.0f},
                                          &program->requests[0]) == mwin_success &&
                   mwinDestroyWindow(context, program->windows[0]) == mwin_success &&
-                  mwinContext_HoldTestRequests(context, false) == mwin_success,
+                  mwinContext_EnableTestHold(context, false) == mwin_success,
               "a request each, then the first window goes");
         return;
     }
@@ -519,7 +526,7 @@ static void LimitStep(Program* program, mwinContext* context, int step)
         CHECK(mwinCreateWindow(context, &def, &program->windows[0], nullptr) == mwin_success,
               "the slot is free once drained");
         mwinWindowId window = program->windows[1];
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success, "hold");
         for (int i = 0; i < 32; i++)
         {
             CHECK(mwinWindow_RequestSize(context, window, (mwinSize){10.0f + (float)i, 10.0f},

@@ -124,7 +124,7 @@ static void Step(Program* program, mwinContext* context, int step)
               "none for the platform's own");
         // Held: one icon is cancelled with its window, one never answered.
         program->windows[1] = Create(context, nullptr);
-        CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+        CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
                   mwinWindow_RequestIcon(context, window, s_images, 2, &program->requests[3]) ==
                       mwin_success &&
                   mwinWindow_RequestIcon(context, program->windows[1], s_images, 1, nullptr) ==

@@ -519,7 +519,7 @@ mwinResult mwinContext_SetTestAnswer(mwinContext* context, mwinRequestKind kind,
     return mwin_success;
 }
 
-mwinResult mwinContext_HoldTestRequests(mwinContext* context, bool hold)
+mwinResult mwinContext_EnableTestHold(mwinContext* context, bool enabled)
 {
     if (mwinIsBusy(context))
     {
@@ -534,7 +534,23 @@ mwinResult mwinContext_HoldTestRequests(mwinContext* context, bool hold)
     {
         return mwin_errorUnsupported;
     }
-    platform->hold = hold;
+    platform->hold = enabled;
+    return mwin_success;
+}
+
+mwinResult mwinContext_IsTestHoldEnabled(const mwinContext* context, bool* enabledOut)
+{
+    mwinClearOut(enabledOut, sizeof *enabledOut);
+    if (context == nullptr || enabledOut == nullptr)
+    {
+        return mwinMisuse(context);
+    }
+    const mwinTestPlatform* platform = mwinTestPlatformOf(context);
+    if (platform == nullptr)
+    {
+        return mwin_errorUnsupported;
+    }
+    *enabledOut = platform->hold;
     return mwin_success;
 }
 

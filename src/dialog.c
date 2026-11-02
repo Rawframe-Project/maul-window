@@ -240,7 +240,10 @@ mwinOutcome mwinSettleDialog(mwinContext* context, uint32_t slot, uint32_t reque
 {
     if (outcome == mwin_outcomeDone)
     {
-        outcome = context->dialogGathering.count > 0 ? context->dialogAnswer : mwin_outcomeFailed;
+        // A choice of nothing failed, unless a path went past the limits.
+        outcome = context->dialogGathering.count > 0 || context->dialogAnswer != mwin_outcomeDone
+                      ? context->dialogAnswer
+                      : mwin_outcomeFailed;
     }
     if (outcome == mwin_outcomeDone)
     {

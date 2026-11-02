@@ -12,9 +12,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// The most of the preferred locales kept, in bytes.
-#define MWIN_LINUX_LOCALE_BYTES 256
-
 // The locales LANGUAGE and the messages locale name (either may be
 // NULL), as BCP 47 tags with commas between them, without repeats; the
 // tags that do not fit capacity are left out. Returns the length.

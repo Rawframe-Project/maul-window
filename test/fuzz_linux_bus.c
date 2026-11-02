@@ -1087,8 +1087,8 @@ static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
         return;
     }
     mwinEvent key = {0};
-    key.type = (op & 16) != 0 ? mwin_eventKeyUp : mwin_eventKeyDown;
-    s_keys[s_keyCount] = (typeof(s_keys[0])){window, key.type};
+    key.kind = (op & 16) != 0 ? mwin_eventKeyUp : mwin_eventKeyDown;
+    s_keys[s_keyCount] = (typeof(s_keys[0])){window, key.kind};
     key.timeNs = ++s_keyCount;
     key.data.key.code = (mwinKeyCode)(1 + (op >> 5));
     const char* text = key.kind == mwin_eventKeyDown ? texts[Byte() & 3] : "";

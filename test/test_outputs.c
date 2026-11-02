@@ -330,6 +330,8 @@ static void Context(void)
     EXPECT(mwin_errorInvalid, reach, mwinContext_GetKeyReach, nullptr, mwin_codeKeyA, 0, &reach);
     mwinSystemFacts facts;
     EXPECT(mwin_errorInvalid, facts, mwinContext_GetSystemFacts, nullptr, &facts);
+    bool hold;
+    EXPECT(mwin_errorInvalid, hold, mwinContext_IsTestHoldEnabled, nullptr, &hold);
     uint32_t count;
     uint64_t checksum;
     Fill(&count, sizeof(count));

@@ -146,7 +146,7 @@ static void CheckDenied(Program* program, mwinContext* context)
           "a refusal leaves the window awake");
     // Held: one request is cancelled with its window, one never answered.
     program->windows[1] = Create(context, nullptr);
-    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+    CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
               mwinWindow_RequestOpenUrl(context, program->windows[0], "http://gone", 11,
                                         &program->requests[6]) == mwin_success &&
               mwinWindow_RequestRevealFile(context, program->windows[1], PATH("/tmp/x"), nullptr) ==

@@ -4,7 +4,7 @@ A program's window logic can be tested on any machine, without a window system, 
 
 ## How it behaves
 
-- It answers each request at the next pump, as a platform's messages arrive. `mwinContext_SetTestAnswer` sets the outcome for a kind of request (denied, unsupported, failed and so on), and `mwinContext_HoldTestRequests` keeps every request unanswered until it is released.
+- It answers each request at the next pump, as a platform's messages arrive. `mwinContext_SetTestAnswer` sets the outcome for a kind of request (denied, unsupported, failed and so on), and `mwinContext_EnableTestHold` keeps every request unanswered until it is turned off (`mwinContext_IsTestHoldEnabled` reads it).
 - It takes what a platform would report through the functions of `maul-window/test.h`, which go through the same path a real backend's reports take, limits, merging and resets included:
   - `mwinContext_PostTestEvent` reports input and notifications for a window;
   - `mwinAddTestMonitor`, `mwinMonitor_SetTestInfo`, `mwinRemoveTestMonitor` and `mwinContext_SetTestScale` play the displays;

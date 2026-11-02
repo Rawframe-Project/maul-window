@@ -48,7 +48,7 @@ static void ReadStep(Program* program, mwinContext* context, int step)
     }
     // Held, the platform answers nothing; the backend's loop starts the
     // reads, here the first request slot's.
-    CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success &&
+    CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
               mwinWindow_RequestPrimaryRead(context, program->windows[0], &program->requests[0]) ==
                   mwin_success &&
               program->requests[0].index1 == 1,
@@ -75,7 +75,7 @@ static void ReadStep(Program* program, mwinContext* context, int step)
               SameId(program->events[0].data.completion.request, program->requests[1]) &&
               program->events[0].data.completion.outcome == mwin_outcomeFailed,
           "a finished read answers the request for its type, whatever the case");
-    CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
+    CHECK(mwinContext_EnableTestHold(context, false) == mwin_success, "release");
 }
 
 static void TestStartAndFinish(void)

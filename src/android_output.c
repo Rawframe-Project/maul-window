@@ -211,7 +211,7 @@ void mwinAndroidPostDisplay(mwinAndroidPlatform* platform)
         return;
     }
     window->displayTold = true;
-    mwinEvent event = {.type = mwin_eventDisplayChanged, .timeNs = mwinAndroidNow()};
+    mwinEvent event = {.kind = mwin_eventDisplayChanged, .timeNs = mwinAndroidNow()};
     event.data.monitor = mwinMonitorIdOf(platform->context, (uint32_t)monitor);
     mwinPost(platform->context, (uint32_t)platform->slot, &event);
 }

@@ -55,12 +55,12 @@ static void Drain(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->seen |= 1ull << event.type;
-        if (event.type == mwin_eventResized)
+        program->seen |= 1ull << event.kind;
+        if (event.kind == mwin_eventResized)
         {
             program->size = event.data.size;
         }
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             event.data.completion.request.index1 == program->waiting.index1 &&
             event.data.completion.request.generation == program->waiting.generation)
         {
@@ -95,7 +95,7 @@ static mwinResult Init(mwinContext* context, void* user)
 static void CheckCreated(Program* program, mwinContext* context)
 {
     CHECK(program->completion.outcome == mwin_outcomeDone, "the window is made");
-    static const mwinEventType expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
+    static const mwinEventKind expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
                                              mwin_eventResized,       mwin_eventPixelSizeChanged,
                                              mwin_eventModeChanged,   mwin_eventShown};
     for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)

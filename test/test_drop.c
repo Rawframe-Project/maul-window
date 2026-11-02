@@ -21,16 +21,16 @@
 #define FILES 3
 #define BYTES 32
 
-static void Drag(mwinContext* context, mwinWindowId window, mwinEventType type, float x, float y)
+static void Drag(mwinContext* context, mwinWindowId window, mwinEventKind type, float x, float y)
 {
-    mwinEvent event = {.type = type, .window = window};
+    mwinEvent event = {.kind = type, .window = window};
     event.data.drag = (mwinDragEvent){{x, y}, mwin_dragFiles | mwin_dragText};
     CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "a drag report");
 }
 
-static bool DragAt(const mwinEvent* event, mwinEventType type, float x, float y)
+static bool DragAt(const mwinEvent* event, mwinEventKind type, float x, float y)
 {
-    return event->type == type && event->data.drag.position.x == x &&
+    return event->kind == type && event->data.drag.position.x == x &&
            event->data.drag.position.y == y &&
            event->data.drag.contents == (mwin_dragFiles | mwin_dragText);
 }
@@ -52,7 +52,7 @@ static void CheckDrop(Program* program, mwinContext* context)
               DragAt(&program->events[0], mwin_eventDragEntered, 10.0f, 20.0f) &&
               DragAt(&program->events[1], mwin_eventDragMoved, 30.0f, 40.0f) &&
               DragAt(&program->events[2], mwin_eventDragMoved, 50.0f, 60.0f) &&
-              program->events[3].type == mwin_eventDropped,
+              program->events[3].kind == mwin_eventDropped,
           "the drag's records in order, then the drop");
     const mwinDropEvent* drop = &program->events[3].data.drop;
     CHECK(drop->position.x == 50.0f && drop->fileCount == 2 && drop->textLength == 6 &&
@@ -80,8 +80,8 @@ static void CheckDrop(Program* program, mwinContext* context)
 
 static void CheckLeft(Program* program, mwinContext* context)
 {
-    CHECK(program->eventCount == 2 && program->events[0].type == mwin_eventDragEntered &&
-              program->events[1].type == mwin_eventDragLeft,
+    CHECK(program->eventCount == 2 && program->events[0].kind == mwin_eventDragEntered &&
+              program->events[1].kind == mwin_eventDragLeft,
           "a drag that leaves");
     static const char files[] = "/f1\0/f2\0/f3\0/f4\0";
     CHECK(mwinWindow_PostTestDrop(context, program->windows[0], (mwinPosition){1.0f, 2.0f}, files,

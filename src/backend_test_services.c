@@ -356,7 +356,7 @@ mwinResult mwinWindow_PostTestDrop(mwinContext* context, mwinWindowId window, mw
     {
         return mwin_errorState;
     }
-    mwinEvent report = {.type = mwin_eventDropped, .window = window, .timeNs = platform->timeNs};
+    mwinEvent report = {.kind = mwin_eventDropped, .window = window, .timeNs = platform->timeNs};
     report.data.drop.position = position;
     mwinResult status = mwinTestQueueReport(platform, &report);
     if (status != mwin_success)

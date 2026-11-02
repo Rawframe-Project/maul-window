@@ -66,21 +66,21 @@ static void Collect(mwinContext* context, Program* program)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             event.data.completion.outcome == mwin_outcomeDone)
         {
             program->created += 1;
         }
         program->tooltipDenied =
-            program->tooltipDenied || (event.type == mwin_eventRequestCompleted &&
+            program->tooltipDenied || (event.kind == mwin_eventRequestCompleted &&
                                        event.data.completion.outcome == mwin_outcomeDenied &&
                                        Same(event.window, program->ids[3]));
-        if (event.type == mwin_eventMoved && Same(event.window, program->ids[2]))
+        if (event.kind == mwin_eventMoved && Same(event.window, program->ids[2]))
         {
             program->menuMoves += 1;
             program->menuPlace = event.data.position;
         }
-        program->menuClose = program->menuClose || (event.type == mwin_eventCloseRequested &&
+        program->menuClose = program->menuClose || (event.kind == mwin_eventCloseRequested &&
                                                     Same(event.window, program->ids[2]));
     }
 }

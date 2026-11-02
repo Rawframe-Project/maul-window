@@ -254,11 +254,11 @@ static POINTL Screen(HWND hwnd, LONG x, LONG y)
     return (POINTL){point.x, point.y};
 }
 
-static bool At(const mwinEvent* event, mwinEventType type, float scale, LONG x, LONG y)
+static bool At(const mwinEvent* event, mwinEventKind type, float scale, LONG x, LONG y)
 {
     mwinPosition position =
         type == mwin_eventDropped ? event->data.drop.position : event->data.drag.position;
-    return event->type == type && position.x == (float)x / scale && position.y == (float)y / scale;
+    return event->kind == type && position.x == (float)x / scale && position.y == (float)y / scale;
 }
 
 static bool Paths(mwinContext* context, uint32_t drop)
@@ -318,14 +318,14 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
     target->lpVtbl->DragEnter(target, &files.object, 0, Screen(hwnd, 5, 5), &effect);
     target->lpVtbl->DragLeave(target);
     Collect(program, context);
-    CHECK(program->count == 2 && program->records[0].type == mwin_eventDragEntered &&
+    CHECK(program->count == 2 && program->records[0].kind == mwin_eventDragEntered &&
               program->records[0].data.drag.contents == mwin_dragFiles &&
-              program->records[1].type == mwin_eventDragLeft,
+              program->records[1].kind == mwin_eventDragLeft,
           "a drag of neither not reported, and one that leaves");
     target->lpVtbl->DragEnter(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
     target->lpVtbl->Drop(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
     Collect(program, context);
-    CHECK(program->count == 2 && program->records[1].type == mwin_eventDropped &&
+    CHECK(program->count == 2 && program->records[1].kind == mwin_eventDropped &&
               program->records[1].data.drop.textLength == 0 &&
               program->records[1].data.drop.truncated && s_answered.releases == 1,
           "a stream where global memory was asked let go unread, and the drop truncated");
@@ -334,9 +334,9 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
     target->lpVtbl->DragEnter(target, &sameStream.object, 0, Screen(hwnd, 5, 5), &effect);
     target->lpVtbl->Drop(target, &sameStream.object, 0, Screen(hwnd, 5, 5), &effect);
     Collect(program, context);
-    CHECK(program->count == 4 && program->records[1].type == mwin_eventDropped &&
+    CHECK(program->count == 4 && program->records[1].kind == mwin_eventDropped &&
               program->records[1].data.drop.textLength == 6 &&
-              program->records[3].type == mwin_eventDropped && s_answered.releases == 2,
+              program->records[3].kind == mwin_eventDropped && s_answered.releases == 2,
           "a success other than S_OK taken: its text read, its stream let go");
     CHECK(sameText.lent != nullptr && (GlobalFlags(sameText.lent) & GMEM_LOCKCOUNT) == 0,
           "that text's memory left unlocked");
@@ -354,7 +354,7 @@ static mwinDropEvent Send(Program* program, mwinContext* context, HWND hwnd, con
     GlobalUnlock(memory);
     SendMessageW(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
     Collect(program, context);
-    return program->count == 1 && program->records[0].type == mwin_eventDropped
+    return program->count == 1 && program->records[0].kind == mwin_eventDropped
                ? program->records[0].data.drop
                : (mwinDropEvent){0};
 }
@@ -455,7 +455,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     Collect(program, context);
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == mwin_eventWindowCreated)
+        if (program->records[i].kind == mwin_eventWindowCreated)
         {
             Check(program, context);
             program->done = true;

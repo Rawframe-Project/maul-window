@@ -95,7 +95,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
@@ -106,11 +106,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -124,7 +124,7 @@ static int CountRepeats(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         repeats +=
-            program->records[i].type == mwin_eventKeyDown && program->records[i].data.key.repeat;
+            program->records[i].kind == mwin_eventKeyDown && program->records[i].data.key.repeat;
     }
     return repeats;
 }

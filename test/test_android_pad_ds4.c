@@ -479,24 +479,24 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventGamepadAdded || event.type == mwin_eventGamepadChanged ||
-            event.type == mwin_eventGamepadRemoved)
+        if (event.kind == mwin_eventGamepadAdded || event.kind == mwin_eventGamepadChanged ||
+            event.kind == mwin_eventGamepadRemoved)
         {
             // For a timeout's report: what came, when.
             mwinGamepadInfo info = {0};
             (void)mwinGamepad_GetInfo(context, event.data.gamepad, &info);
             printf("  %.2f s: gamepad %s: %.*s, capabilities %u\n",
                    (double)(NowNs() - program->beganNs) / 1e9,
-                   event.type == mwin_eventGamepadAdded     ? "added"
-                   : event.type == mwin_eventGamepadChanged ? "changed"
+                   event.kind == mwin_eventGamepadAdded     ? "added"
+                   : event.kind == mwin_eventGamepadChanged ? "changed"
                                                             : "removed",
                    (int)info.nameLength, info.name, info.capabilities);
         }
-        if (event.type == mwin_eventGamepadAdded && !program->added)
+        if (event.kind == mwin_eventGamepadAdded && !program->added)
         {
             Added(program, context, event.data.gamepad);
         }
-        else if (event.type == mwin_eventGamepadChanged && program->added &&
+        else if (event.kind == mwin_eventGamepadChanged && program->added &&
                  event.data.gamepad.index1 == program->pad.index1 &&
                  event.data.gamepad.generation == program->pad.generation)
         {
@@ -505,7 +505,7 @@ static void Collect(Program* program, mwinContext* context)
             program->motion = (info.capabilities & mwin_padMotion) != 0;
             Battery(program, info.battery);
         }
-        else if (event.type == mwin_eventGamepadAdded && !program->staleAdded)
+        else if (event.kind == mwin_eventGamepadAdded && !program->staleAdded)
         {
             mwinGamepadInfo info = {0};
             program->staleAdded =
@@ -514,28 +514,28 @@ static void Collect(Program* program, mwinContext* context)
             program->stale = event.data.gamepad;
         }
         else if (program->staleAdded && program->staleFirst == 0 &&
-                 (event.type == mwin_eventGamepadButtonDown ||
-                  event.type == mwin_eventGamepadButtonUp ||
-                  event.type == mwin_eventGamepadAxisMoved))
+                 (event.kind == mwin_eventGamepadButtonDown ||
+                  event.kind == mwin_eventGamepadButtonUp ||
+                  event.kind == mwin_eventGamepadAxisMoved))
         {
             // The pad's first record: its press, 1, or anything else, -1.
-            mwinGamepadId id = event.type == mwin_eventGamepadAxisMoved
+            mwinGamepadId id = event.kind == mwin_eventGamepadAxisMoved
                                    ? event.data.gamepadAxis.gamepad
                                    : event.data.gamepadButton.gamepad;
-            bool press = event.type == mwin_eventGamepadButtonDown &&
+            bool press = event.kind == mwin_eventGamepadButtonDown &&
                          event.data.gamepadButton.button == mwin_padFaceSouth;
             if (id.index1 == program->stale.index1 && id.generation == program->stale.generation)
             {
                 program->staleFirst = press ? 1 : -1;
             }
         }
-        if (program->staleAdded && event.type == mwin_eventGamepadButtonDown &&
+        if (program->staleAdded && event.kind == mwin_eventGamepadButtonDown &&
             event.data.gamepadButton.gamepad.index1 == program->stale.index1 &&
             event.data.gamepadButton.button == mwin_padFaceSouth)
         {
             program->staleCross = true;
         }
-        if (program->staleAdded && event.type == mwin_eventGamepadAxisMoved &&
+        if (program->staleAdded && event.kind == mwin_eventGamepadAxisMoved &&
             event.data.gamepadAxis.gamepad.index1 == program->stale.index1 &&
             event.data.gamepadAxis.axis == mwin_padStickLeftX &&
             event.data.gamepadAxis.value > program->staleRight)

@@ -83,7 +83,7 @@ static void PostText(mwinAndroidPlatform* platform, const char* bytes, size_t le
 {
     if (length > 0)
     {
-        mwinEvent event = {.type = mwin_eventTextInput};
+        mwinEvent event = {.kind = mwin_eventTextInput};
         event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
         PostEvent(platform, &event);
     }
@@ -124,7 +124,7 @@ static void EndPreedit(mwinAndroidPlatform* platform)
     {
         return;
     }
-    mwinEvent end = {.type = mwin_eventImePreedit};
+    mwinEvent end = {.kind = mwin_eventImePreedit};
     end.data.preedit.caret = -1;
     PostEvent(platform, &end);
 }
@@ -147,7 +147,7 @@ static void JNICALL Compose(JNIEnv* env, jclass type, jlong program, jstring tex
         return;
     }
     mwinPreeditSegment segment = {0, (uint32_t)size, mwin_preeditUnderline};
-    mwinEvent event = {.type = mwin_eventImePreedit};
+    mwinEvent event = {.kind = mwin_eventImePreedit};
     event.data.preedit = (mwinPreeditEvent){
         .text = bytes,
         .length = (uint32_t)size,
@@ -208,14 +208,14 @@ void mwinAndroidPostInsets(mwinAndroidPlatform* platform)
     if (!SameInsets(safe, window->safeArea))
     {
         window->safeArea = safe;
-        mwinEvent event = {.type = mwin_eventSafeAreaChanged};
+        mwinEvent event = {.kind = mwin_eventSafeAreaChanged};
         event.data.insets = safe;
         PostEvent(platform, &event);
     }
     if (!SameRect(covered, window->covered))
     {
         window->covered = covered;
-        mwinEvent event = {.type = mwin_eventVirtualKeyboardChanged};
+        mwinEvent event = {.kind = mwin_eventVirtualKeyboardChanged};
         event.data.rect = covered;
         PostEvent(platform, &event);
     }

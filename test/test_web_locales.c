@@ -58,7 +58,7 @@ static bool Changed(const Program* program)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == mwin_eventLocaleChanged)
+        if (program->records[i].kind == mwin_eventLocaleChanged)
         {
             return true;
         }

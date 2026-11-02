@@ -197,11 +197,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -216,7 +216,7 @@ static float AxisValue(const Program* program, uint8_t axis, bool raw)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventGamepadAxisMoved && event->data.gamepadAxis.axis == axis &&
+        if (event->kind == mwin_eventGamepadAxisMoved && event->data.gamepadAxis.axis == axis &&
             event->data.gamepadAxis.raw == raw)
         {
             value = event->data.gamepadAxis.value;
@@ -230,7 +230,7 @@ static bool Pressed(const Program* program, uint8_t button, bool raw)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventGamepadButtonDown &&
+        if (event->kind == mwin_eventGamepadButtonDown &&
             event->data.gamepadButton.button == button && event->data.gamepadButton.raw == raw)
         {
             return true;

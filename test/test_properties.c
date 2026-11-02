@@ -101,7 +101,7 @@ static void HandleStep(Program* program, mwinContext* context, int step)
         CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_success &&
                   handles.platform == mwin_platformTest && handles.surfaceGeneration == 1,
               "the first generation");
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = window};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
@@ -109,7 +109,7 @@ static void HandleStep(Program* program, mwinContext* context, int step)
     {
         CHECK(mwinWindow_GetNativeHandles(context, window, &handles) == mwin_errorState,
               "no handles without a surface");
-        mwinEvent restored = {.type = mwin_eventSurfaceRestored, .window = window};
+        mwinEvent restored = {.kind = mwin_eventSurfaceRestored, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &restored) == mwin_success, "and comes back");
         return;
     }

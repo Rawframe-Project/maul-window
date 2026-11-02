@@ -67,10 +67,10 @@ static mwinPosition PositionOf(UIView* view, id<UIDropSession> session)
     return (mwinPosition){(float)point.x, (float)point.y};
 }
 
-static void PostDrag(mwinIOSPlatform* platform, uint32_t slot, mwinEventType type)
+static void PostDrag(mwinIOSPlatform* platform, uint32_t slot, mwinEventKind type)
 {
     mwinIOSWindow* window = &platform->windows[slot];
-    mwinEvent event = {.type = type, .timeNs = mwinIOSNow()};
+    mwinEvent event = {.kind = type, .timeNs = mwinIOSNow()};
     event.data.drag = (mwinDragEvent){window->dragPosition, window->dragContents};
     mwinPost(platform->context, slot, &event);
 }

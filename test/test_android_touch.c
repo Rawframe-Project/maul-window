@@ -361,7 +361,7 @@ static bool Flag(const char* name)
     return file != nullptr && fclose(file) == 0;
 }
 
-static bool IsInput(mwinEventType type)
+static bool IsInput(mwinEventKind type)
 {
     return (type >= mwin_eventKeyDown && type <= mwin_eventPenButtonUp);
 }
@@ -371,9 +371,9 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->restored |= event.type == mwin_eventSurfaceRestored;
-        if (IsInput(event.type) && program->recordCount < RECORDS)
+        program->shown |= event.kind == mwin_eventShown;
+        program->restored |= event.kind == mwin_eventSurfaceRestored;
+        if (IsInput(event.kind) && program->recordCount < RECORDS)
         {
             program->records[program->recordCount++] = event;
         }
@@ -382,14 +382,14 @@ static void Collect(Program* program, mwinContext* context)
 
 // The index of the first record of a type at or after an index, of a
 // pen with the flags given (any record when the type is no pen's), or -1.
-static int FindFrom(const Program* program, int from, mwinEventType type, mwinPenFlags mask,
+static int FindFrom(const Program* program, int from, mwinEventKind type, mwinPenFlags mask,
                     mwinPenFlags flags)
 {
     bool pen = type >= mwin_eventPenMoved && type <= mwin_eventPenButtonUp;
     for (int i = from < 0 ? 0 : from; i < program->recordCount; i++)
     {
         const mwinEvent* record = &program->records[i];
-        if (record->type == type && (!pen || (record->data.pen.flags & mask) == flags))
+        if (record->kind == type && (!pen || (record->data.pen.flags & mask) == flags))
         {
             return i;
         }
@@ -397,27 +397,27 @@ static int FindFrom(const Program* program, int from, mwinEventType type, mwinPe
     return -1;
 }
 
-static int Find(const Program* program, mwinEventType type)
+static int Find(const Program* program, mwinEventKind type)
 {
     return FindFrom(program, 0, type, 0, 0);
 }
 
-static int Count(const Program* program, mwinEventType type)
+static int Count(const Program* program, mwinEventKind type)
 {
     int count = 0;
     for (int i = 0; i < program->recordCount; i++)
     {
-        count += program->records[i].type == type;
+        count += program->records[i].kind == type;
     }
     return count;
 }
 
 // The index of a touch's record of a type, or -1.
-static int TouchOf(const Program* program, mwinEventType type, uint64_t id)
+static int TouchOf(const Program* program, mwinEventKind type, uint64_t id)
 {
     for (int i = 0; i < program->recordCount; i++)
     {
-        if (program->records[i].type == type && program->records[i].data.touch.id == id)
+        if (program->records[i].kind == type && program->records[i].data.touch.id == id)
         {
             return i;
         }
@@ -526,7 +526,7 @@ static int Placed(const Program* program, int before)
     int placed = -1;
     for (int i = 0; i < before; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         if (type == mwin_eventCursorEntered || type == mwin_eventCursorMoved)
         {
             placed = i;
@@ -585,7 +585,7 @@ static void PrintRecords(const Program* program)
     printf("phase %d's %d records:", program->phase, program->recordCount);
     for (int i = 0; i < program->recordCount; i++)
     {
-        printf(" %d", (int)program->records[i].type);
+        printf(" %d", (int)program->records[i].kind);
     }
     printf("\n");
 }
@@ -673,7 +673,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         printf("timed out in phase %d after %d records:", program->phase, program->recordCount);
         for (int i = 0; i < program->recordCount; i++)
         {
-            printf(" %d", (int)program->records[i].type);
+            printf(" %d", (int)program->records[i].kind);
         }
         printf("\n");
         s_failures += 1;

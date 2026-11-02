@@ -120,8 +120,8 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        bool drag = event.type >= mwin_eventDragEntered && event.type <= mwin_eventDropped;
+        program->shown |= event.kind == mwin_eventShown;
+        bool drag = event.kind >= mwin_eventDragEntered && event.kind <= mwin_eventDropped;
         if (drag && program->count < 8)
         {
             program->records[program->count++] = event;
@@ -184,9 +184,9 @@ static void Drag(Program* program)
     [dropper dropInteraction:none performDrop:session];
 }
 
-static bool DragIs(const mwinEvent* event, mwinEventType type, float x, float y)
+static bool DragIs(const mwinEvent* event, mwinEventKind type, float x, float y)
 {
-    return event->type == type && event->data.drag.position.x == x &&
+    return event->kind == type && event->data.drag.position.x == x &&
            event->data.drag.position.y == y &&
            event->data.drag.contents == (mwin_dragFiles | mwin_dragText);
 }
@@ -205,7 +205,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
               DragIs(&r[3], mwin_eventDragEntered, 20.0f, 30.0f),
           "entered, moved, left, entered again, each at its place");
     const mwinDropEvent* drop = &r[4].data.drop;
-    CHECK(r[4].type == mwin_eventDropped && drop->position.x == 40.0f &&
+    CHECK(r[4].kind == mwin_eventDropped && drop->position.x == 40.0f &&
               drop->position.y == 50.0f && drop->fileCount == 1 && drop->textLength == 12,
           "dropped where it was let go, a file and text");
     char files[1024];

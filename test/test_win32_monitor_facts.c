@@ -89,9 +89,9 @@ static bool Drained(mwinContext* context, int added, int changed, int removed)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        counts[0] += event.type == mwin_eventMonitorAdded;
-        counts[1] += event.type == mwin_eventMonitorChanged;
-        counts[2] += event.type == mwin_eventMonitorRemoved;
+        counts[0] += event.kind == mwin_eventMonitorAdded;
+        counts[1] += event.kind == mwin_eventMonitorChanged;
+        counts[2] += event.kind == mwin_eventMonitorRemoved;
     }
     return counts[0] == added && counts[1] == changed && counts[2] == removed;
 }

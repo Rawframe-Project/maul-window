@@ -272,11 +272,11 @@ static void SourcePump(Source* source)
     xcb_flush(source->connection);
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -291,7 +291,7 @@ static int DragRecords(const Program* program)
     int count = 0;
     for (int i = 0; i < program->count; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
     }
     return count;
@@ -309,10 +309,10 @@ static bool LeftThenEntered(const Program* program)
     int seen = 0;
     for (int i = 0; i < program->count; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         if (type >= mwin_eventDragEntered && type <= mwin_eventDropped)
         {
-            mwinEventType expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
+            mwinEventKind expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
             if (seen < 2 && type != expected)
             {
                 return false;

@@ -84,14 +84,14 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
-        if (event.type == mwin_eventImePreedit && event.data.preedit.length > 0)
+        if (event.kind == mwin_eventImePreedit && event.data.preedit.length > 0)
         {
             // The composition's text, kept past the frame.
             memcpy(program->text, event.data.preedit.text, event.data.preedit.length);
@@ -101,11 +101,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -247,7 +247,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
         {
-            (void)printf("  record %d\n", (int)program->records[i].type);
+            (void)printf("  record %d\n", (int)program->records[i].kind);
         }
         program->timedOut = true;
         return mwin_frameStop;

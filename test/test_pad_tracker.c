@@ -125,7 +125,7 @@ static void Connect(Program* program, mwinContext* context)
 
 static void CheckConnected(Program* program, mwinContext* context)
 {
-    CHECK(program->eventCount >= 1 && program->events[0].type == mwin_eventGamepadAdded,
+    CHECK(program->eventCount >= 1 && program->events[0].kind == mwin_eventGamepadAdded,
           "a pad found");
     mwinGamepadInfo info;
     mwinGamepadId pad = program->events[0].data.gamepad;
@@ -145,14 +145,14 @@ static void CheckConnected(Program* program, mwinContext* context)
     mwinPadTrackerPump(&s_xbox, 1010 * MS);
 }
 
-static bool Has(const Program* program, mwinEventType type, uint8_t control, float value)
+static bool Has(const Program* program, mwinEventKind type, uint8_t control, float value)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        bool button = event->type == type && type == mwin_eventGamepadButtonDown &&
+        bool button = event->kind == type && type == mwin_eventGamepadButtonDown &&
                       event->data.gamepadButton.button == control;
-        bool axis = event->type == type && type == mwin_eventGamepadAxisMoved &&
+        bool axis = event->kind == type && type == mwin_eventGamepadAxisMoved &&
                     event->data.gamepadAxis.axis == control &&
                     event->data.gamepadAxis.value == value;
         if (button || axis)
@@ -231,12 +231,12 @@ static void CheckSearch(Program* program)
     mwinPadTrackerPump(&s_xbox, 1700 * MS);
 }
 
-static int Count(const Program* program, mwinEventType type)
+static int Count(const Program* program, mwinEventKind type)
 {
     int count = 0;
     for (int i = 0; i < program->eventCount; i++)
     {
-        count += program->events[i].type == type;
+        count += program->events[i].kind == type;
     }
     return count;
 }

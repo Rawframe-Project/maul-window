@@ -57,13 +57,13 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventRequestCompleted && program->completions < 8)
+        if (event.kind == mwin_eventRequestCompleted && program->completions < 8)
         {
             program->kinds[program->completions] = event.data.completion.kind;
             program->outcomes[program->completions++] = event.data.completion.outcome;
         }
-        program->suspended |= event.type == mwin_eventSuspending;
-        program->resumed |= event.type == mwin_eventResumed;
+        program->suspended |= event.kind == mwin_eventSuspending;
+        program->resumed |= event.kind == mwin_eventResumed;
     }
 }
 

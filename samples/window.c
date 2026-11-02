@@ -71,7 +71,7 @@ static void OnKey(Sample* sample, mwinContext* context, const mwinKeyEvent* key)
 // Prints a notification; false when the program should end.
 static bool Show(Sample* sample, mwinContext* context, const mwinEvent* event)
 {
-    switch (event->type)
+    switch (event->kind)
     {
     case mwin_eventResized:
         printf("size %.0f x %.0f\n", (double)event->data.size.width,
@@ -85,7 +85,7 @@ static bool Show(Sample* sample, mwinContext* context, const mwinEvent* event)
         break;
     case mwin_eventFocusGained:
     case mwin_eventFocusLost:
-        printf("focus %s\n", event->type == mwin_eventFocusGained ? "gained" : "lost");
+        printf("focus %s\n", event->kind == mwin_eventFocusGained ? "gained" : "lost");
         break;
     case mwin_eventTextInput:
         printf("text \"%.*s\"\n", (int)event->data.text.length, event->data.text.text);

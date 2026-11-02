@@ -28,7 +28,7 @@
 
 typedef struct Record
 {
-    mwinEventType type;
+    mwinEventKind kind;
     mwinPenEvent pen;
 } Record;
 
@@ -56,12 +56,12 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->mouse |= event.type >= mwin_eventCursorMoved && event.type <= mwin_eventWheel;
-        bool pen = event.type >= mwin_eventPenMoved && event.type <= mwin_eventPenButtonUp;
+        program->shown |= event.kind == mwin_eventShown;
+        program->mouse |= event.kind >= mwin_eventCursorMoved && event.kind <= mwin_eventWheel;
+        bool pen = event.kind >= mwin_eventPenMoved && event.kind <= mwin_eventPenButtonUp;
         if (pen && program->count < MAX_RECORDS)
         {
-            program->records[program->count++] = (Record){event.type, event.data.pen};
+            program->records[program->count++] = (Record){event.kind, event.data.pen};
         }
     }
 }
@@ -113,9 +113,9 @@ static bool Near(float value, float expected)
     return fabsf(value - expected) < 0.01f;
 }
 
-static bool Is(const Program* program, size_t index, mwinEventType type, mwinPenFlags flags)
+static bool Is(const Program* program, size_t index, mwinEventKind type, mwinPenFlags flags)
 {
-    return index < program->count && program->records[index].type == type &&
+    return index < program->count && program->records[index].kind == type &&
            program->records[index].pen.flags == flags;
 }
 

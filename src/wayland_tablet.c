@@ -17,11 +17,11 @@ static mwinWaylandTool* ToolOf(void* data)
     return data;
 }
 
-static void PostPen(const mwinWaylandTool* tool, mwinEventType type, uint8_t button,
+static void PostPen(const mwinWaylandTool* tool, mwinEventKind type, uint8_t button,
                     uint64_t timeNs)
 {
     mwinEvent event = {0};
-    event.type = type;
+    event.kind = type;
     event.timeNs = timeNs;
     event.data.pen = tool->pen;
     event.data.pen.button = button;

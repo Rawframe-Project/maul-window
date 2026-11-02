@@ -49,7 +49,7 @@
 // A record kept past its frame, with its text copied.
 typedef struct Record
 {
-    mwinEventType type;
+    mwinEventKind type;
     mwinKeyCode code;
     mwinModifiers modifiers;
     char text[32];
@@ -91,15 +91,15 @@ static void Keep(Program* program, const mwinEvent* event)
         return;
     }
     Record* record = &program->records[program->recordCount++];
-    *record = (Record){.type = event->type};
+    *record = (Record){.type = event->kind};
     const char* text = nullptr;
     uint32_t length = 0;
-    if (event->type == mwin_eventKeyDown || event->type == mwin_eventKeyUp)
+    if (event->kind == mwin_eventKeyDown || event->kind == mwin_eventKeyUp)
     {
         record->code = event->data.key.code;
         record->modifiers = event->data.key.modifiers;
     }
-    else if (event->type == mwin_eventTextInput)
+    else if (event->kind == mwin_eventTextInput)
     {
         text = event->data.text.text;
         length = event->data.text.length;
@@ -125,17 +125,17 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->completions += event.type == mwin_eventRequestCompleted;
-        program->safeAreas += event.type == mwin_eventSafeAreaChanged;
-        program->keyboards += event.type == mwin_eventVirtualKeyboardChanged;
-        if (event.type == mwin_eventSafeAreaChanged ||
-            event.type == mwin_eventVirtualKeyboardChanged)
+        program->shown |= event.kind == mwin_eventShown;
+        program->completions += event.kind == mwin_eventRequestCompleted;
+        program->safeAreas += event.kind == mwin_eventSafeAreaChanged;
+        program->keyboards += event.kind == mwin_eventVirtualKeyboardChanged;
+        if (event.kind == mwin_eventSafeAreaChanged ||
+            event.kind == mwin_eventVirtualKeyboardChanged)
         {
             program->insetsNs = NowNs();
         }
-        if (event.type == mwin_eventKeyDown || event.type == mwin_eventKeyUp ||
-            event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit)
+        if (event.kind == mwin_eventKeyDown || event.kind == mwin_eventKeyUp ||
+            event.kind == mwin_eventTextInput || event.kind == mwin_eventImePreedit)
         {
             Keep(program, &event);
         }
@@ -250,7 +250,7 @@ static bool IsPreedit(const Record* record, const char* text, int32_t caret)
            record->caret == caret;
 }
 
-static bool IsKey(const Record* record, mwinEventType type, mwinKeyCode code)
+static bool IsKey(const Record* record, mwinEventKind type, mwinKeyCode code)
 {
     return record->type == type && record->code == code;
 }

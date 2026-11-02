@@ -126,7 +126,7 @@ static bool Unit(float value)
 // Whether a record is within the contract.
 static bool Right(const mwinEvent* event)
 {
-    switch (event->type)
+    switch (event->kind)
     {
     case mwin_eventKeyDown:
     case mwin_eventKeyUp:
@@ -207,15 +207,15 @@ static void Collect(Program* program, mwinContext* context)
     {
         if (!Right(&event))
         {
-            (void)printf("a record out of the contract: type %d\n", (int)event.type);
+            (void)printf("a record out of the contract: type %d\n", (int)event.kind);
             program->wrong += 1;
         }
         program->completed = program->completed ||
-                             (event.type == mwin_eventRequestCompleted &&
+                             (event.kind == mwin_eventRequestCompleted &&
                               event.data.completion.request.index1 == program->read.index1 &&
                               event.data.completion.request.generation == program->read.generation);
         program->sentinel = program->sentinel ||
-                            (event.type == mwin_eventKeyDown &&
+                            (event.kind == mwin_eventKeyDown &&
                              event.data.key.code == mwin_codeKeyA && event.data.key.key == 'a');
     }
 }

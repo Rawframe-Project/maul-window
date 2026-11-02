@@ -118,7 +118,7 @@ void mwinFinishDrop(mwinContext* context, uint32_t slot, mwinPosition position, 
     context->dropNumber += 1;
     ReleasePayload(context, &last);
     const mwinDropPayload* drop = &context->dropped;
-    mwinEvent event = {.type = mwin_eventDropped, .timeNs = timeNs};
+    mwinEvent event = {.kind = mwin_eventDropped, .timeNs = timeNs};
     event.data.drop = (mwinDropEvent){position, context->dropNumber, drop->files.count,
                                       drop->textLength, drop->truncated};
     mwinPost(context, slot, &event);

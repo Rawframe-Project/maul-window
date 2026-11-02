@@ -71,7 +71,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventCloseRequested)
+        if (event.kind == mwin_eventCloseRequested)
         {
             return mwin_frameStop;
         }

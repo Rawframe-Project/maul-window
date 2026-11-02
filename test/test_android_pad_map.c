@@ -180,7 +180,7 @@ static void CheckRaw(Program* program, mwinContext* context)
     bool raw = true;
     for (int i = 0; i < 3; i++)
     {
-        raw = raw && program->events[i].type == mwin_eventGamepadButtonDown &&
+        raw = raw && program->events[i].kind == mwin_eventGamepadButtonDown &&
               program->events[i].data.gamepadButton.raw;
     }
     CHECK(program->eventCount == 6 && raw && program->events[0].data.gamepadButton.button == 3 &&

@@ -73,7 +73,7 @@ static void Collect(Program* program, mwinContext* context)
 }
 
 // The nth record of a type, of a window or of any (a null id).
-static const mwinEvent* Find(const Program* program, mwinEventType type, mwinWindowId window,
+static const mwinEvent* Find(const Program* program, mwinEventKind type, mwinWindowId window,
                              int nth)
 {
     for (int i = 0; i < program->count; i++)
@@ -81,7 +81,7 @@ static const mwinEvent* Find(const Program* program, mwinEventType type, mwinWin
         const mwinEvent* event = &program->records[i];
         bool mine = window.index1 == 0 || (event->window.index1 == window.index1 &&
                                            event->window.generation == window.generation);
-        if (event->type == type && mine && nth-- == 0)
+        if (event->kind == type && mine && nth-- == 0)
         {
             return event;
         }
@@ -89,7 +89,7 @@ static const mwinEvent* Find(const Program* program, mwinEventType type, mwinWin
     return nullptr;
 }
 
-static const mwinEvent* Last(const Program* program, mwinEventType type, mwinWindowId window)
+static const mwinEvent* Last(const Program* program, mwinEventKind type, mwinWindowId window)
 {
     const mwinEvent* found = nullptr;
     for (int nth = 0; Find(program, type, window, nth) != nullptr; nth++)
@@ -445,7 +445,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
         {
-            (void)printf("  record %d of window %u\n", (int)program->records[i].type,
+            (void)printf("  record %d of window %u\n", (int)program->records[i].kind,
                          program->records[i].window.index1);
         }
         program->timedOut = true;

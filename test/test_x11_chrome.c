@@ -83,12 +83,12 @@ static void Collect(mwinContext* context, Program* program)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        bool done = event.type == mwin_eventRequestCompleted &&
+        bool done = event.kind == mwin_eventRequestCompleted &&
                     event.data.completion.outcome == mwin_outcomeDone;
         program->regions = program->regions || (done && program->created);
         program->created = program->created || done;
-        program->downs += event.type == mwin_eventButtonDown;
-        program->ups += event.type == mwin_eventButtonUp;
+        program->downs += event.kind == mwin_eventButtonDown;
+        program->ups += event.kind == mwin_eventButtonUp;
     }
     xcb_generic_event_t* got;
     while ((got = xcb_poll_for_event(program->connection)) != nullptr)

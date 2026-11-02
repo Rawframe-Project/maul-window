@@ -63,7 +63,7 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
-static bool IsInput(mwinEventType type)
+static bool IsInput(mwinEventKind type)
 {
     return (type >= mwin_eventKeyDown && type <= mwin_eventPenButtonUp);
 }
@@ -73,17 +73,17 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
+        program->shown |= event.kind == mwin_eventShown;
         program->keyboard |=
-            event.type == mwin_eventVirtualKeyboardChanged && event.data.rect.height > 0.0f;
-        if (event.type == mwin_eventTextInput &&
+            event.kind == mwin_eventVirtualKeyboardChanged && event.data.rect.height > 0.0f;
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length < sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
-        if (IsInput(event.type) && program->recordCount < RECORDS)
+        if (IsInput(event.kind) && program->recordCount < RECORDS)
         {
             program->records[program->recordCount++] = event;
         }
@@ -91,11 +91,11 @@ static void Collect(Program* program, mwinContext* context)
 }
 
 // The first record of a type since the phase began, or null.
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->recordCount; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }
@@ -103,12 +103,12 @@ static const mwinEvent* Find(const Program* program, mwinEventType type)
     return nullptr;
 }
 
-static int Count(const Program* program, mwinEventType type)
+static int Count(const Program* program, mwinEventKind type)
 {
     int count = 0;
     for (int i = 0; i < program->recordCount; i++)
     {
-        count += program->records[i].type == type;
+        count += program->records[i].kind == type;
     }
     return count;
 }
@@ -117,7 +117,7 @@ static const mwinEvent* KeyUpOf(const Program* program, mwinKeyCode code)
 {
     for (int i = 0; i < program->recordCount; i++)
     {
-        if (program->records[i].type == mwin_eventKeyUp &&
+        if (program->records[i].kind == mwin_eventKeyUp &&
             program->records[i].data.key.code == code)
         {
             return &program->records[i];
@@ -459,8 +459,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         for (int i = 0; i < program->recordCount; i++)
         {
             const mwinEvent* record = &program->records[i];
-            bool key = record->type == mwin_eventKeyDown || record->type == mwin_eventKeyUp;
-            printf(" %d", (int)record->type);
+            bool key = record->kind == mwin_eventKeyDown || record->kind == mwin_eventKeyUp;
+            printf(" %d", (int)record->kind);
             if (key)
             {
                 printf("(%d)", (int)record->data.key.code);

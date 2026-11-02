@@ -217,23 +217,23 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->seen |= 1ull << event.type;
-        program->size = event.type == mwin_eventResized ? event.data.size : program->size;
-        program->position = event.type == mwin_eventMoved ? event.data.position : program->position;
-        program->mode = event.type == mwin_eventModeChanged ? event.data.mode : program->mode;
-        program->scale = event.type == mwin_eventScaleChanged ? event.data.scale : program->scale;
+        program->seen |= 1ull << event.kind;
+        program->size = event.kind == mwin_eventResized ? event.data.size : program->size;
+        program->position = event.kind == mwin_eventMoved ? event.data.position : program->position;
+        program->mode = event.kind == mwin_eventModeChanged ? event.data.mode : program->mode;
+        program->scale = event.kind == mwin_eventScaleChanged ? event.data.scale : program->scale;
         program->pixels =
-            event.type == mwin_eventPixelSizeChanged ? event.data.pixelSize : program->pixels;
-        if (event.type == mwin_eventRequestCompleted)
+            event.kind == mwin_eventPixelSizeChanged ? event.data.pixelSize : program->pixels;
+        if (event.kind == mwin_eventRequestCompleted)
         {
             program->completion = event.data.completion;
             program->completed = true;
         }
-        program->sizeAnswered = program->sizeAnswered || (event.type == mwin_eventResized &&
+        program->sizeAnswered = program->sizeAnswered || (event.kind == mwin_eventResized &&
                                                           event.data.size.width == ANSWER_WIDTH &&
                                                           event.data.size.height == ANSWER_HEIGHT);
         program->pixelsAnswered = program->pixelsAnswered ||
-                                  (event.type == mwin_eventPixelSizeChanged &&
+                                  (event.kind == mwin_eventPixelSizeChanged &&
                                    event.data.pixelSize.width == program->answerPixels.width &&
                                    event.data.pixelSize.height == program->answerPixels.height);
     }
@@ -244,7 +244,7 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool Seen(const Program* program, mwinEventType type)
+static bool Seen(const Program* program, mwinEventKind type)
 {
     return (program->seen & (1ull << type)) != 0;
 }
@@ -300,7 +300,7 @@ static HWND WindowOf(mwinContext* context, mwinWindowId window)
 
 static void CheckCreated(const Program* program, mwinContext* context)
 {
-    static const mwinEventType expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
+    static const mwinEventKind expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
                                              mwin_eventResized,       mwin_eventPixelSizeChanged,
                                              mwin_eventModeChanged,   mwin_eventShown};
     for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)

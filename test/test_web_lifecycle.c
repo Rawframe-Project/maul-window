@@ -102,7 +102,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventSuspending || event.type == mwin_eventResuming)
+        if (event.kind == mwin_eventSuspending || event.kind == mwin_eventResuming)
         {
             program->critical = InEvent();
         }
@@ -110,11 +110,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -142,7 +142,7 @@ static bool Ready(const Program* program)
 }
 
 // Whether a record came before another, both there.
-static bool Before(const Program* program, mwinEventType first, mwinEventType second)
+static bool Before(const Program* program, mwinEventKind first, mwinEventKind second)
 {
     const mwinEvent* a = Find(program, first, 0);
     const mwinEvent* b = Find(program, second, 0);
@@ -237,7 +237,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
         {
-            (void)printf("  record %d\n", (int)program->records[i].type);
+            (void)printf("  record %d\n", (int)program->records[i].kind);
         }
         program->timedOut = true;
         return mwin_frameStop;

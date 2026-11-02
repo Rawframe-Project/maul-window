@@ -34,7 +34,7 @@
 
 typedef struct Record
 {
-    mwinEventType type;
+    mwinEventKind kind;
     char text[32];
     uint32_t length;
     int32_t caret;
@@ -65,18 +65,18 @@ static uint64_t NowNs(void)
 
 static void Keep(Record* record, const mwinEvent* event)
 {
-    if (event->type == mwin_eventRequestCompleted)
+    if (event->kind == mwin_eventRequestCompleted)
     {
         record->outcome = event->data.completion.outcome;
         return;
     }
     const char* text =
-        event->type == mwin_eventTextInput ? event->data.text.text : event->data.preedit.text;
+        event->kind == mwin_eventTextInput ? event->data.text.text : event->data.preedit.text;
     uint32_t length =
-        event->type == mwin_eventTextInput ? event->data.text.length : event->data.preedit.length;
+        event->kind == mwin_eventTextInput ? event->data.text.length : event->data.preedit.length;
     record->length = length;
     memcpy(record->text, text, length < 31 ? length : 31);
-    if (event->type != mwin_eventImePreedit)
+    if (event->kind != mwin_eventImePreedit)
     {
         return;
     }
@@ -96,13 +96,13 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        bool kept = event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit ||
-                    event.type == mwin_eventRequestCompleted;
+        program->shown |= event.kind == mwin_eventShown;
+        bool kept = event.kind == mwin_eventTextInput || event.kind == mwin_eventImePreedit ||
+                    event.kind == mwin_eventRequestCompleted;
         if (kept && program->count < MAX_RECORDS)
         {
             Record* record = &program->records[program->count++];
-            *record = (Record){.type = event.type};
+            *record = (Record){.kind = event.kind};
             Keep(record, &event);
         }
     }
@@ -114,11 +114,11 @@ static bool RomanOnly(NSView* view)
         isEqual:@[ NSAllRomanInputSourcesLocaleIdentifier ]];
 }
 
-static const Record* Find(const Program* program, size_t* at, mwinEventType type)
+static const Record* Find(const Program* program, size_t* at, mwinEventKind type)
 {
     for (; *at < program->count; (*at)++)
     {
-        if (program->records[*at].type == type)
+        if (program->records[*at].kind == type)
         {
             return &program->records[(*at)++];
         }

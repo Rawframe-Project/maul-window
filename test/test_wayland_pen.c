@@ -70,11 +70,11 @@ static uint64_t NowNs(void)
 }
 
 // The index of the first record of a type, or -1.
-static int Find(const Program* program, mwinEventType type)
+static int Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return i;
         }
@@ -82,7 +82,7 @@ static int Find(const Program* program, mwinEventType type)
     return -1;
 }
 
-static const mwinPenEvent* PenOf(const Program* program, mwinEventType type)
+static const mwinPenEvent* PenOf(const Program* program, mwinEventKind type)
 {
     int found = Find(program, type);
     return found >= 0 ? &program->records[found].data.pen : nullptr;
@@ -330,9 +330,9 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->mouseRecords += event.type == mwin_eventCursorEntered ||
-                                         event.type == mwin_eventCursorMoved ||
-                                         event.type == mwin_eventButtonDown
+        program->mouseRecords += event.kind == mwin_eventCursorEntered ||
+                                         event.kind == mwin_eventCursorMoved ||
+                                         event.kind == mwin_eventButtonDown
                                      ? 1
                                      : 0;
         if (program->count < MAX_RECORDS)

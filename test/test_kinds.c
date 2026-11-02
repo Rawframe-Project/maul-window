@@ -68,12 +68,12 @@ static void Arguments(mwinContext* context, mwinWindowId window, mwinGamepadId g
         size_t length = 0;
         REFUSED("the kind of what the test platform opened", v,
                 mwinContext_GetTestOpened(context, v, bytes, sizeof(bytes), &length));
-        mwinEvent event = {.type = v, .window = window};
+        mwinEvent event = {.kind = v, .window = window};
         REFUSED("a test report's type", v, mwinContext_PostTestEvent(context, &event));
-        mwinEvent down = {.type = mwin_eventKeyDown, .window = window};
+        mwinEvent down = {.kind = mwin_eventKeyDown, .window = window};
         down.data.key.code = v;
         REFUSED("a key press's code", v, mwinContext_PostTestEvent(context, &down));
-        mwinEvent up = {.type = mwin_eventKeyUp, .window = window};
+        mwinEvent up = {.kind = mwin_eventKeyUp, .window = window};
         up.data.key.code = v;
         REFUSED("a key release's code", v, mwinContext_PostTestEvent(context, &up));
 #ifdef MWIN_TEST_GAMEPAD
@@ -85,7 +85,7 @@ static void Arguments(mwinContext* context, mwinWindowId window, mwinGamepadId g
     }
     REFUSED("a window style past every flag", -1,
             mwinWindow_RequestStyle(context, window, UINT32_MAX, nullptr));
-    mwinEvent past = {.type = mwin_eventKeyUp, .window = window};
+    mwinEvent past = {.kind = mwin_eventKeyUp, .window = window};
     past.data.key.code = mwin_codeMetaRight + 1;
     REFUSED("a key release's code past the last", past.data.key.code,
             mwinContext_PostTestEvent(context, &past));

@@ -54,7 +54,7 @@ extern "C"
 #endif
 
     // What a record reports.
-    typedef int32_t mwinEventType;
+    typedef int32_t mwinEventKind;
 
     enum
     {
@@ -416,7 +416,7 @@ extern "C"
     // One record of the stream.
     typedef struct mwinEvent
     {
-        mwinEventType type;
+        mwinEventKind kind;
         // How many platform samples the record stands for: 1, or more for
         // motion merged when its storage was full.
         uint16_t sampleCount;

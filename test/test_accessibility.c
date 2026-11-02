@@ -22,7 +22,7 @@ static int Asked(const Program* program)
     int count = 0;
     for (int i = 0; i < program->eventCount; i++)
     {
-        count += program->events[i].type == mwin_eventAccessibilityRequested;
+        count += program->events[i].kind == mwin_eventAccessibilityRequested;
     }
     return count;
 }

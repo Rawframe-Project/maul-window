@@ -77,11 +77,11 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->themeChanged |= event.type == mwin_eventThemeChanged;
-        program->powerChanged |= event.type == mwin_eventPowerChanged;
-        program->localeChanged |= event.type == mwin_eventLocaleChanged;
-        program->closeRequests += event.type == mwin_eventCloseRequested;
-        program->resizes += program->phase > 0 && event.type == mwin_eventResized;
+        program->themeChanged |= event.kind == mwin_eventThemeChanged;
+        program->powerChanged |= event.kind == mwin_eventPowerChanged;
+        program->localeChanged |= event.kind == mwin_eventLocaleChanged;
+        program->closeRequests += event.kind == mwin_eventCloseRequested;
+        program->resizes += program->phase > 0 && event.kind == mwin_eventResized;
     }
 }
 

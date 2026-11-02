@@ -19,7 +19,7 @@
 static mwinEvent Preedit(mwinWindowId window, const char* text, int32_t caret,
                          const mwinPreeditSegment* segments, uint32_t segmentCount)
 {
-    mwinEvent event = {.type = mwin_eventImePreedit, .window = window};
+    mwinEvent event = {.kind = mwin_eventImePreedit, .window = window};
     event.data.preedit.text = text;
     event.data.preedit.length = (uint32_t)strlen(text);
     event.data.preedit.caret = caret;
@@ -28,9 +28,9 @@ static mwinEvent Preedit(mwinWindowId window, const char* text, int32_t caret,
     return event;
 }
 
-static mwinEvent Key(mwinWindowId window, mwinEventType type, mwinKeyCode code, mwinKey key)
+static mwinEvent Key(mwinWindowId window, mwinEventKind type, mwinKeyCode code, mwinKey key)
 {
-    mwinEvent event = {.type = type, .window = window};
+    mwinEvent event = {.kind = type, .window = window};
     event.data.key.code = code;
     event.data.key.key = key;
     return event;
@@ -69,7 +69,7 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
     case 2:
     {
         Drain(program, context);
-        static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventImePreedit,
+        static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventImePreedit,
                                                  mwin_eventKeyUp, mwin_eventKeyDown,
                                                  mwin_eventRequestCompleted};
         CHECK(Types(program, expected, 5), "the composition consumes its character keys");
@@ -91,7 +91,7 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
                   enabled && caret.x == 10.0f && caret.y == 20.0f && caret.width == 1.0f &&
                   caret.height == 16.0f,
               "the test platform tells the caret it was given");
-        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+        Post(context, (mwinEvent){.kind = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"\xE6\xBC\xA2", 3}});
         // The composition ends empty, its text NULL as some platforms
@@ -105,7 +105,7 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
     case 3:
         Drain(program, context);
         {
-            static const mwinEventType expected[] = {mwin_eventTextInput, mwin_eventImePreedit,
+            static const mwinEventKind expected[] = {mwin_eventTextInput, mwin_eventImePreedit,
                                                      mwin_eventKeyDown};
             CHECK(Types(program, expected, 3) && program->events[1].data.preedit.length == 0,
                   "the commit as text, the end of the composition, then keys again");
@@ -120,7 +120,7 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         return;
     default:
         Drain(program, context);
-        CHECK(program->eventCount == 2 && program->events[0].type == mwin_eventImePreedit &&
+        CHECK(program->eventCount == 2 && program->events[0].kind == mwin_eventImePreedit &&
                   program->events[0].data.preedit.length == 0 &&
                   mwinWindow_GetState(context, window, &state) == mwin_success &&
                   !state.textInput && !state.composing,
@@ -189,7 +189,7 @@ static void FittedStep(Program* program, mwinContext* context, int step)
     const mwinPreeditEvent* fitted = nullptr;
     for (int i = 0; i < program->eventCount; i++)
     {
-        if (program->events[i].type == mwin_eventImePreedit)
+        if (program->events[i].kind == mwin_eventImePreedit)
         {
             fitted = &program->events[i].data.preedit;
         }
@@ -221,7 +221,7 @@ static void StorageStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     for (int i = 0; i < program->eventCount; i++)
     {
-        CHECK(program->events[i].type != mwin_eventInputStateReset, "no storage leaks");
+        CHECK(program->events[i].kind != mwin_eventInputStateReset, "no storage leaks");
     }
     CHECK(step == 1 || (program->eventCount == 1 && program->events[0].data.preedit.length == 10),
           "only the newest composition of a pump");
@@ -271,14 +271,14 @@ static void LostStep(Program* program, mwinContext* context, int step)
         return;
     case 3:
     {
-        static const mwinEventType expected[] = {mwin_eventInputStateReset, mwin_eventImePreedit};
+        static const mwinEventKind expected[] = {mwin_eventInputStateReset, mwin_eventImePreedit};
         CHECK(Types(program, expected, 2) && program->events[1].data.preedit.length == 3,
               "the reset in the lost composition's place, then the next, without the key it took");
         Post(context, Preedit(window, tooLong, 65, nullptr, 0));
         return;
     }
     case 4:
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventInputStateReset,
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventInputStateReset,
               "the reset");
         CHECK(mwinWindow_GetState(context, window, &state) == mwin_success && !state.composing,
               "the reset ends the composition shown");
@@ -290,7 +290,7 @@ static void LostStep(Program* program, mwinContext* context, int step)
         return;
     case 5:
     {
-        static const mwinEventType expected[] = {mwin_eventImePreedit, mwin_eventRequestCompleted};
+        static const mwinEventKind expected[] = {mwin_eventImePreedit, mwin_eventRequestCompleted};
         CHECK(Types(program, expected, 2) && program->events[0].data.preedit.length == 0,
               "the key the input method took left out; its composition ends with text input");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
@@ -299,18 +299,18 @@ static void LostStep(Program* program, mwinContext* context, int step)
     }
     case 6:
     {
-        static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventKeyUp};
+        static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventKeyUp};
         CHECK(Types(program, expected, 2), "then the keys go through again");
         // A composition lost again, and the focus leaving ends it.
         Post(context, Preedit(window, tooLong, 65, nullptr, 0));
-        Post(context, (mwinEvent){.type = mwin_eventFocusLost, .window = window});
+        Post(context, (mwinEvent){.kind = mwin_eventFocusLost, .window = window});
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
         Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
         return;
     }
     default:
     {
-        static const mwinEventType expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
+        static const mwinEventKind expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
                                                  mwin_eventKeyDown, mwin_eventKeyUp};
         CHECK(Types(program, expected, 4), "the keys after the focus left go through");
         program->done = true;
@@ -335,12 +335,12 @@ static void CheckDropped(const Program* program)
     int texts = 0;
     for (int i = 0; i < program->eventCount; i++)
     {
-        if (program->events[i].type == mwin_eventTextInput)
+        if (program->events[i].kind == mwin_eventTextInput)
         {
             text = &program->events[i];
             texts++;
         }
-        else if (program->events[i].type == mwin_eventImePreedit)
+        else if (program->events[i].kind == mwin_eventImePreedit)
         {
             preedit = &program->events[i].data.preedit;
         }
@@ -365,7 +365,7 @@ static void CheckDropped(const Program* program)
 // The commit step 2 posted, as text and keys.
 static void CheckTyped(const Program* program)
 {
-    static const mwinEventType expected[] = {
+    static const mwinEventKind expected[] = {
         mwin_eventImePreedit, mwin_eventTextInput, mwin_eventKeyDown, mwin_eventKeyUp,
         mwin_eventTextInput,  mwin_eventKeyDown,   mwin_eventKeyUp,   mwin_eventTextInput,
         mwin_eventKeyDown,    mwin_eventKeyUp};
@@ -397,16 +397,16 @@ static void ControlStep(Program* program, mwinContext* context, int step)
     {
         // NUL, DEL and NEL (U+0085, a C1 control) go; the no-break space
         // after them stays.
-        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+        Post(context, (mwinEvent){.kind = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"a\0b\x7F\xC2\x85\xC2\xA0"
                                                 "c",
                                                 9}});
-        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+        Post(context, (mwinEvent){.kind = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"\x1B\x01", 2}});
         Post(context,
-             (mwinEvent){.type = mwin_eventTextInput, .window = window, .data.text = {"", 0}});
+             (mwinEvent){.kind = mwin_eventTextInput, .window = window, .data.text = {"", 0}});
         // Escape, "ab", DEL, "c": the caret before "c", a selection of
         // all of it, "ab" a segment, and DEL and "c" another.
         static const mwinPreeditSegment segments[2] = {{1, 2, mwin_preeditTarget},
@@ -425,7 +425,7 @@ static void ControlStep(Program* program, mwinContext* context, int step)
         // The composition ends; then a commit holds a tab, a carriage
         // return and line feed, and a line feed.
         Post(context, Preedit(window, "", -1, nullptr, 0));
-        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+        Post(context, (mwinEvent){.kind = mwin_eventTextInput,
                                   .window = window,
                                   .data.text = {"a\tb\r\nc\n", 7}});
         return;

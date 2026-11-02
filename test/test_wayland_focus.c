@@ -136,14 +136,14 @@ static void Collect(mwinContext* context, Program* program)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        for (int i = 0; i < 2 && event.type == mwin_eventRequestCompleted; i++)
+        for (int i = 0; i < 2 && event.kind == mwin_eventRequestCompleted; i++)
         {
             bool same = completion->request.index1 == program->requests[i].index1 &&
                         completion->request.generation == program->requests[i].generation;
             program->outcomes[i] = same ? completion->outcome : program->outcomes[i];
         }
-        program->created = program->created || event.type == mwin_eventWindowCreated;
-        program->pressed = program->pressed || event.type == mwin_eventKeyDown;
+        program->created = program->created || event.kind == mwin_eventWindowCreated;
+        program->pressed = program->pressed || event.kind == mwin_eventKeyDown;
     }
 }
 

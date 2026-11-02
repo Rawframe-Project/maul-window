@@ -75,9 +75,9 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->asked += event.type == mwin_eventAccessibilityRequested;
-        if (event.type == mwin_eventRequestCompleted)
+        program->shown |= event.kind == mwin_eventShown;
+        program->asked += event.kind == mwin_eventAccessibilityRequested;
+        if (event.kind == mwin_eventRequestCompleted)
         {
             program->completions += 1;
             program->outcome = event.data.completion.outcome;

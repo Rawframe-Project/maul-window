@@ -12,10 +12,10 @@
 
 #include <string.h>
 
-static void PostGlobalType(mwinContext* context, mwinEventType type, uint64_t timeNs)
+static void PostGlobalType(mwinContext* context, mwinEventKind type, uint64_t timeNs)
 {
     mwinEvent event = {0};
-    event.type = type;
+    event.kind = type;
     event.timeNs = timeNs;
     mwinPostGlobal(context, &event);
 }

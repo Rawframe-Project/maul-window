@@ -87,7 +87,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
@@ -98,11 +98,11 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }
@@ -225,7 +225,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
         {
-            (void)printf("  record %d\n", (int)program->records[i].type);
+            (void)printf("  record %d\n", (int)program->records[i].kind);
         }
         program->timedOut = true;
         return mwin_frameStop;

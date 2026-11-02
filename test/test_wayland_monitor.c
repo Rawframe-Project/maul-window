@@ -57,11 +57,11 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }

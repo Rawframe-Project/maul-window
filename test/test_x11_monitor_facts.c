@@ -121,7 +121,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->changed = program->changed || event.type == mwin_eventMonitorChanged;
+        program->changed = program->changed || event.kind == mwin_eventMonitorChanged;
     }
     mwinMonitorInfo info;
     if (program->phase == phaseStart && First(context, &info))

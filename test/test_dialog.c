@@ -39,7 +39,7 @@ static int Outcome(const Program* program, int request)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        if (event->type == mwin_eventRequestCompleted &&
+        if (event->kind == mwin_eventRequestCompleted &&
             SameId(event->data.completion.request, program->requests[request]))
         {
             return event->data.completion.outcome;

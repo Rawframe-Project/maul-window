@@ -69,11 +69,11 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }
@@ -88,7 +88,7 @@ static int DragRecords(const Program* program)
     int count = 0;
     for (int i = 0; i < program->count; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
     }
     return count;
@@ -100,10 +100,10 @@ static bool LeftThenEntered(const Program* program)
     int seen = 0;
     for (int i = 0; i < program->count; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         if (type >= mwin_eventDragEntered && type <= mwin_eventDropped)
         {
-            mwinEventType expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
+            mwinEventKind expected = seen == 0 ? mwin_eventDragLeft : mwin_eventDragEntered;
             if (seen < 2 && type != expected)
             {
                 return false;
@@ -155,8 +155,8 @@ static bool LeftAfterEntering(const Program* program)
     bool entered = false;
     for (int i = 0; i < program->count; i++)
     {
-        entered = entered || program->records[i].type == mwin_eventDragEntered;
-        if (entered && program->records[i].type == mwin_eventDragLeft)
+        entered = entered || program->records[i].kind == mwin_eventDragEntered;
+        if (entered && program->records[i].kind == mwin_eventDragLeft)
         {
             return true;
         }

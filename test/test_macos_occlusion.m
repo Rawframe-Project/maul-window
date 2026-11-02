@@ -44,7 +44,7 @@ typedef struct Program
     NSWindow* cover;
     bool shown;
     // The occlusion notification the phase saw last, or 0.
-    mwinEventType occlusion;
+    mwinEventKind occlusion;
     bool timedOut;
     // Whether user activity was declared, the application activated and
     // the window ordered front, and the assertion the declaration made.
@@ -64,10 +64,10 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        if (event.type == mwin_eventOccluded || event.type == mwin_eventRevealed)
+        program->shown |= event.kind == mwin_eventShown;
+        if (event.kind == mwin_eventOccluded || event.kind == mwin_eventRevealed)
         {
-            program->occlusion = event.type;
+            program->occlusion = event.kind;
         }
     }
 }
@@ -152,7 +152,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     program->phase += 1;
-    program->occlusion = (mwinEventType)0;
+    program->occlusion = (mwinEventKind)0;
     program->startNs = NowNs();
 }
 

@@ -92,12 +92,12 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        program->created = program->created || event.type == mwin_eventWindowCreated;
-        if (event.type == mwin_eventRequestCompleted && Same(completion->request, program->request))
+        program->created = program->created || event.kind == mwin_eventWindowCreated;
+        if (event.kind == mwin_eventRequestCompleted && Same(completion->request, program->request))
         {
             program->outcome = completion->outcome;
         }
-        if (event.type == mwin_eventRequestCompleted && Same(completion->request, program->second))
+        if (event.kind == mwin_eventRequestCompleted && Same(completion->request, program->second))
         {
             program->secondOutcome = completion->outcome;
         }

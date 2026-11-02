@@ -48,8 +48,8 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        CHECK(program->events[0].type == mwin_eventMonitorAdded &&
-                  program->events[1].type == mwin_eventMonitorAdded &&
+        CHECK(program->events[0].kind == mwin_eventMonitorAdded &&
+                  program->events[1].kind == mwin_eventMonitorAdded &&
                   SameMonitor(program->events[1].data.monitor, s_monitors[1]) &&
                   program->events[0].window.index1 == 0,
               "hotplug records name the monitor and no window");
@@ -77,17 +77,17 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
                   mwinMonitor_SetTestInfo(context, s_monitors[1], &changed) == mwin_success &&
                   mwinMonitor_SetTestInfo(context, s_monitors[0], &changed) == mwin_success,
               "changes");
-        mwinEvent move = {.type = mwin_eventDisplayChanged, .window = program->windows[0]};
+        mwinEvent move = {.kind = mwin_eventDisplayChanged, .window = program->windows[0]};
         move.data.monitor = s_monitors[0];
         CHECK(mwinContext_PostTestEvent(context, &move) == mwin_success, "the window moves");
         return;
     }
     if (step == 2)
     {
-        CHECK(program->eventCount == 3 && program->events[0].type == mwin_eventMonitorChanged &&
-                  program->events[1].type == mwin_eventMonitorChanged &&
+        CHECK(program->eventCount == 3 && program->events[0].kind == mwin_eventMonitorChanged &&
+                  program->events[1].kind == mwin_eventMonitorChanged &&
                   !SameMonitor(program->events[0].data.monitor, program->events[1].data.monitor) &&
-                  program->events[2].type == mwin_eventDisplayChanged,
+                  program->events[2].kind == mwin_eventDisplayChanged,
               "changes merge per monitor");
         CHECK(mwinRemoveTestMonitor(context, s_monitors[0]) == mwin_success, "unplugged");
         CHECK(mwinMonitor_GetInfo(context, s_monitors[0], &info) == mwin_errorStale &&
@@ -99,9 +99,9 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
               "plugged in again, it gets another slot while its removal waits");
         return;
     }
-    CHECK(program->eventCount == 2 && program->events[0].type == mwin_eventMonitorRemoved &&
+    CHECK(program->eventCount == 2 && program->events[0].kind == mwin_eventMonitorRemoved &&
               SameMonitor(program->events[0].data.monitor, s_monitors[0]) &&
-              program->events[1].type == mwin_eventMonitorAdded,
+              program->events[1].kind == mwin_eventMonitorAdded,
           "the removal, then the new connection");
     program->done = true;
 }
@@ -149,12 +149,12 @@ static void LimitStep(Program* program, mwinContext* context, int step)
               mwinMonitor_GetInfo(context, s_monitors[1], &info) == mwin_success &&
               info.nameLength == MWIN_MONITOR_NAME_BYTES,
           "a length past the name's bytes read as the name's bytes");
-    mwinEvent move = {.type = mwin_eventDisplayChanged, .window = Create(context, nullptr)};
+    mwinEvent move = {.kind = mwin_eventDisplayChanged, .window = Create(context, nullptr)};
     move.data.monitor = (mwinMonitorId){5, 1};
     CHECK(mwinContext_PostTestEvent(context, &move) == mwin_errorStale,
           "no move to an unknown monitor");
-    mwinEvent added = {.type = mwin_eventMonitorAdded};
-    mwinEvent changed = {.type = mwin_eventMonitorChanged};
+    mwinEvent added = {.kind = mwin_eventMonitorAdded};
+    mwinEvent changed = {.kind = mwin_eventMonitorChanged};
     CHECK(mwinContext_PostTestEvent(context, &added) == mwin_errorInvalid &&
               mwinContext_PostTestEvent(context, &changed) == mwin_errorInvalid,
           "hotplug is not a report, a change neither");
@@ -191,7 +191,7 @@ static void ReuseStep(Program* program, mwinContext* context, int step)
               "the slot waits for its removal to be read");
         return;
     }
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventMonitorRemoved,
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventMonitorRemoved,
           "the removal read");
     CHECK(mwinAddTestMonitor(context, &info, &s_monitors[2]) == mwin_success &&
               s_monitors[2].index1 == s_monitors[0].index1 &&

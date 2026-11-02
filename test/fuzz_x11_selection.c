@@ -264,7 +264,7 @@ static void Drain(mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type != mwin_eventRequestCompleted)
+        if (event.kind != mwin_eventRequestCompleted)
         {
             continue;
         }

@@ -85,10 +85,10 @@ mwinKey mwinIOSMapKeyCode(const mwinIOSPlatform* platform, mwinKeyCode code)
     return mwinKeyPrints(code) ? platform->meanings[code] : MWIN_KEY_NAMED | code;
 }
 
-static void PostKey(mwinIOSPlatform* platform, uint32_t slot, mwinEventType type, mwinKeyCode code,
+static void PostKey(mwinIOSPlatform* platform, uint32_t slot, mwinEventKind type, mwinKeyCode code,
                     mwinKey key, mwinModifiers modifiers)
 {
-    mwinEvent event = {.type = type};
+    mwinEvent event = {.kind = type};
     event.data.key = (mwinKeyEvent){code, modifiers, key, false};
     Post(platform, slot, &event);
 }
@@ -143,13 +143,13 @@ static void PostText(mwinIOSPlatform* platform, uint32_t slot, NSMutableString* 
     char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
     if (bytes != nullptr && length <= UINT32_MAX)
     {
-        mwinEvent event = {.type = mwin_eventTextInput};
+        mwinEvent event = {.kind = mwin_eventTextInput};
         event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
         Post(platform, slot, &event);
     }
     else if (kept.length > 0)
     {
-        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
     }
     if (bytes != nullptr)
@@ -257,7 +257,7 @@ static void KeyboardMoved(mwinIOSPlatform* platform, NSNotification* note)
             continue;
         }
         window->covered = rect;
-        mwinEvent event = {.type = mwin_eventVirtualKeyboardChanged};
+        mwinEvent event = {.kind = mwin_eventVirtualKeyboardChanged};
         event.data.rect = rect;
         Post(platform, slot, &event);
     }
@@ -305,7 +305,7 @@ void mwinIOSWatchKeyboard(mwinIOSPlatform* platform)
                            (void)note;
                            // What the keys type is learned again.
                            memset(platform->meanings, 0, sizeof(platform->meanings));
-                           mwinEvent event = {.type = mwin_eventKeyboardLayoutChanged,
+                           mwinEvent event = {.kind = mwin_eventKeyboardLayoutChanged,
                                               .timeNs = mwinIOSNow()};
                            mwinPostGlobal(platform->context, &event);
                          }] retain];

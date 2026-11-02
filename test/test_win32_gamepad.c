@@ -70,14 +70,14 @@ static void Connect(Program* program, mwinContext* context)
     mwinWin32PadsPump(&s_pads, 1000 * MS);
 }
 
-static bool Has(const Program* program, mwinEventType type, uint8_t control, float value)
+static bool Has(const Program* program, mwinEventKind type, uint8_t control, float value)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        bool button = event->type == type && type == mwin_eventGamepadButtonDown &&
+        bool button = event->kind == type && type == mwin_eventGamepadButtonDown &&
                       event->data.gamepadButton.button == control;
-        bool axis = event->type == type && type == mwin_eventGamepadAxisMoved &&
+        bool axis = event->kind == type && type == mwin_eventGamepadAxisMoved &&
                     event->data.gamepadAxis.axis == control &&
                     event->data.gamepadAxis.value == value;
         if (button || axis)
@@ -90,7 +90,7 @@ static bool Has(const Program* program, mwinEventType type, uint8_t control, flo
 
 static void CheckConnected(Program* program, mwinContext* context)
 {
-    CHECK(program->eventCount >= 2 && program->events[0].type == mwin_eventGamepadAdded &&
+    CHECK(program->eventCount >= 2 && program->events[0].kind == mwin_eventGamepadAdded &&
               Has(program, mwin_eventGamepadButtonDown, mwin_padFaceEast, 0.0f),
           "a pad found, a button held then told with it");
     mwinGamepadInfo info;
@@ -215,7 +215,7 @@ static void Step(Program* program, mwinContext* context, int step)
     default:
     {
         const mwinEvent* last = &program->events[program->eventCount - 1];
-        CHECK(program->eventCount >= 2 && last->type == mwin_eventGamepadRemoved,
+        CHECK(program->eventCount >= 2 && last->kind == mwin_eventGamepadRemoved,
               "a new pad, and a disconnect");
         CheckStop(context);
         program->done = true;

@@ -67,10 +67,10 @@ static bool ContactAfter(NSEvent* event, bool before)
     }
 }
 
-static void Post(mwinMacPlatform* platform, uint32_t slot, mwinEventType type,
+static void Post(mwinMacPlatform* platform, uint32_t slot, mwinEventKind type,
                  const mwinPenEvent* pen)
 {
-    mwinEvent event = {.type = type, .timeNs = mwinMacNow()};
+    mwinEvent event = {.kind = type, .timeNs = mwinMacNow()};
     event.data.pen = *pen;
     mwinPost(platform->context, slot, &event);
 }

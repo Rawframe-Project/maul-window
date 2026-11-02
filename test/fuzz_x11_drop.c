@@ -325,7 +325,7 @@ static void Drain(mwinContext* context)
         {
             i++;
         }
-        switch (event.type)
+        switch (event.kind)
         {
         case mwin_eventDragEntered:
             Expect(i < WINDOWS && !s_entered[i]);

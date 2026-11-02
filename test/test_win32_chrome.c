@@ -60,14 +60,14 @@ static int Outcome(mwinContext* context, Program* program)
     int outcome = -1;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->seen |= 1ull << event.type;
-        if (event.type == mwin_eventCursorMoved || event.type == mwin_eventButtonDown ||
-            event.type == mwin_eventButtonUp)
+        program->seen |= 1ull << event.kind;
+        if (event.kind == mwin_eventCursorMoved || event.kind == mwin_eventButtonDown ||
+            event.kind == mwin_eventButtonUp)
         {
             program->pointer = event.data.pointer;
         }
         const mwinCompletion* completion = &event.data.completion;
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             completion->request.index1 == program->request.index1 &&
             completion->request.generation == program->request.generation)
         {

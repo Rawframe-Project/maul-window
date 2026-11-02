@@ -21,7 +21,7 @@ void mwinTestCarryOutText(mwinContext* context, uint32_t slot, const mwinRequest
         {
             // Leaving text input ends the composition.
             mwinEvent end = {0};
-            end.type = mwin_eventImePreedit;
+            end.kind = mwin_eventImePreedit;
             end.timeNs = mwinTestPlatformOf(context)->timeNs;
             end.data.preedit.caret = -1;
             mwinPost(context, slot, &end);
@@ -31,7 +31,7 @@ void mwinTestCarryOutText(mwinContext* context, uint32_t slot, const mwinRequest
     // The keyboard covers the lower two fifths of the window.
     mwinSize size = window->state.size;
     mwinEvent event = {0};
-    event.type = mwin_eventVirtualKeyboardChanged;
+    event.kind = mwin_eventVirtualKeyboardChanged;
     event.timeNs = mwinTestPlatformOf(context)->timeNs;
     text->keyboard = (request->value.code & 0x80u) != 0;
     text->purpose = (mwinInputPurpose)(request->value.code & 0x7Fu);

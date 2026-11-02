@@ -234,13 +234,13 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventGamepadAdded)
+        if (event.kind == mwin_eventGamepadAdded)
         {
             Added(program, context, event.data.gamepad);
             continue;
         }
         Pad* pad = nullptr;
-        if (event.type == mwin_eventGamepadRemoved)
+        if (event.kind == mwin_eventGamepadRemoved)
         {
             pad = PadOf(program, event.data.gamepad);
             if (pad != nullptr)
@@ -251,20 +251,20 @@ static void Collect(Program* program, mwinContext* context)
                 *gone = *gone == 0 ? NowNs() : *gone;
             }
         }
-        else if (event.type == mwin_eventGamepadButtonDown ||
-                 event.type == mwin_eventGamepadButtonUp)
+        else if (event.kind == mwin_eventGamepadButtonDown ||
+                 event.kind == mwin_eventGamepadButtonUp)
         {
             const mwinGamepadButtonEvent* button = &event.data.gamepadButton;
             pad = PadOf(program, button->gamepad);
             if (pad != nullptr)
             {
                 uint32_t bit = 1u << (button->button & 31u);
-                pad->downs |= event.type == mwin_eventGamepadButtonDown ? bit : 0;
-                pad->ups |= event.type == mwin_eventGamepadButtonUp ? bit : 0;
+                pad->downs |= event.kind == mwin_eventGamepadButtonDown ? bit : 0;
+                pad->ups |= event.kind == mwin_eventGamepadButtonUp ? bit : 0;
                 CHECK(button->raw == pad->raw, "a button raw as its gamepad");
             }
         }
-        else if (event.type == mwin_eventGamepadAxisMoved)
+        else if (event.kind == mwin_eventGamepadAxisMoved)
         {
             const mwinGamepadAxisEvent* axis = &event.data.gamepadAxis;
             pad = PadOf(program, axis->gamepad);

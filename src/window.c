@@ -137,7 +137,7 @@ void mwinComplete(mwinContext* context, uint32_t slot, uint32_t request, mwinOut
     }
     mwinReleaseRequestData(context, entry);
     mwinEvent event = {0};
-    event.type = mwin_eventRequestCompleted;
+    event.kind = mwin_eventRequestCompleted;
     event.timeNs = context->backend->now(context);
     event.data.completion.request = mwinRequestIdOf(context, slot, request);
     event.data.completion.kind = entry->kind;

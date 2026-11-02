@@ -49,12 +49,12 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->downs += event.type == mwin_eventButtonDown;
-        program->ups += event.type == mwin_eventButtonUp;
-        program->size = event.type == mwin_eventResized ? event.data.size : program->size;
-        program->mode = event.type == mwin_eventModeChanged ? event.data.mode : program->mode;
-        if (event.type == mwin_eventRequestCompleted && program->completions < 4)
+        program->shown |= event.kind == mwin_eventShown;
+        program->downs += event.kind == mwin_eventButtonDown;
+        program->ups += event.kind == mwin_eventButtonUp;
+        program->size = event.kind == mwin_eventResized ? event.data.size : program->size;
+        program->mode = event.kind == mwin_eventModeChanged ? event.data.mode : program->mode;
+        if (event.kind == mwin_eventRequestCompleted && program->completions < 4)
         {
             program->outcomes[program->completions++] = event.data.completion.outcome;
         }

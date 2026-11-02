@@ -7,7 +7,9 @@
 // as told. Through the portal: OpenFile over the window with its title,
 // many files, the filters as case-blind globs, the first chosen, the
 // folder as bytes, answered with file URIs; SaveFile with the name,
-// closed by the user; a folder; a dialog closed when its window goes;
+// closed by the user; a folder, after another program sent the program
+// a Response of its own at the request's path; a dialog closed when its
+// window goes;
 // a URI of no local file failed; results keyed by numbers (a{dv}, the
 // shape of a fuzz finding) failed; zenity where the portal refuses.
 // Without a bus, zenity: its arguments, a choice of several, closed, a
@@ -60,6 +62,8 @@ typedef struct Step
     bool destroy;
     // The Response's results are keyed by numbers.
     bool odd;
+    // Another program sends a Response first, in the portal's place.
+    bool spoof;
     // The dialog has no title and no folder.
     bool bare;
 } Step;
@@ -185,6 +189,14 @@ static void Answer(mwinContext* context, Program* program)
     }
     else
     {
+        static const char* const forged[] = {"file:///etc"};
+        void* real = step->spoof ? FakeBeginSpoof(fake) : nullptr;
+        CHECK(!step->spoof || real != nullptr, "another program joined the bus");
+        if (real != nullptr)
+        {
+            FakeRespond(fake, 0, forged, 1);
+            CHECK(FakeEndSpoof(fake, real), "another program sent a Response");
+        }
         FakeRespond(fake, (uint32_t)step->code, step->uris, step->uriCount);
     }
 }
@@ -309,8 +321,9 @@ static const Step s_portal[] = {
      .outcome = mwin_outcomeCancelled,
      .asked =
          "SaveFile;parent=%s;title=Pick;" FILTERS "current_folder=/tmp/a b;current_name=out.txt;"},
-    {.what = "a folder",
+    {.what = "a folder, another program's Response left alone",
      .kind = mwin_dialogFolder,
+     .spoof = true,
      .uris = s_folder,
      .uriCount = 1,
      .outcome = mwin_outcomeDone,

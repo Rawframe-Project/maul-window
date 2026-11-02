@@ -380,14 +380,18 @@ static void TakeIBusPreedit(mwinLinuxIme* ime, DBusMessage* message)
     PostPreedit(ime, &preedit);
 }
 
-// The input context's signals: committed text and compositions.
+// The input context's signals, committed text and compositions, from
+// the connection that made it: any program on the bus may send a signal
+// at its path.
 static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, void* data)
 {
     (void)connection;
     mwinLinuxIme* ime = data;
     const mwinDBusApi* api = &ime->bus->api;
     const char* path = api->path(message);
-    if (!ime->ready || path == nullptr || strcmp(path, ime->path) != 0)
+    const char* sender = api->sender(message);
+    if (!ime->ready || path == nullptr || strcmp(path, ime->path) != 0 || sender == nullptr ||
+        strcmp(sender, ime->owner) != 0)
     {
         return mwin_dbusNotHandled;
     }
@@ -525,8 +529,8 @@ static void Apply(mwinLinuxIme* ime)
     }
 }
 
-// Takes the answer to CreateInputContext: the context's path, or a try
-// of the next framework.
+// Takes the answer to CreateInputContext: the context's path and the
+// connection that made it, or a try of the next framework.
 static void PumpCreate(mwinLinuxIme* ime, uint64_t nowNs)
 {
     bool failed = false;
@@ -543,9 +547,12 @@ static void PumpCreate(mwinLinuxIme* ime, uint64_t nowNs)
     {
         api->getBasic(&arguments, (void*)&path);
     }
-    if (path != nullptr && strlen(path) < sizeof(ime->path))
+    const char* owner = reply != nullptr ? api->sender(reply) : nullptr;
+    if (path != nullptr && strlen(path) < sizeof(ime->path) && owner != nullptr &&
+        strlen(owner) < sizeof(ime->owner))
     {
         memcpy(ime->path, path, strlen(path) + 1);
+        memcpy(ime->owner, owner, strlen(owner) + 1);
         ime->ready = true;
         Listen(ime);
         Apply(ime);

@@ -5,7 +5,8 @@
 // and IBus on a session bus of the test's own (linux_ime_fake.h), keys
 // driven through XTEST: text input enabled makes an input context and
 // gives it the focus and the caret in root coordinates, and a caret
-// that only widens is told again; "a" taken by the
+// that only widens is told again; a commit another program on the bus
+// sends at the context's path is left alone; "a" taken by the
 // method shows a composition and no key; Return commits it as text; "b",
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away; a key the
@@ -310,8 +311,17 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     case phaseMoved:
+    {
+        void* real = FakeBeginSpoof(program->bus);
+        CHECK(real != nullptr, "another program joined the bus");
+        if (real != nullptr)
+        {
+            FakeImeCommit(program->bus, fcitx);
+            CHECK(FakeEndSpoof(program->bus, real), "another program sent a commit");
+        }
         Press(program, KEYCODE_A);
         break;
+    }
     case phasePreedit:
         CHECK(program->preeditLength == 3 && memcmp(program->preedit, IME_KANA, 3) == 0 &&
                   program->preeditCaret == 3 && program->segments > 0 &&

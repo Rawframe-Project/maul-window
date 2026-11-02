@@ -22,7 +22,9 @@
 // message's types follow the shape the module expects with others put in
 // their place now and then, and every message is marshalled and read
 // back as libdbus reads one off a bus, so only messages a bus could
-// deliver reach the modules. This libdbus checks its arguments and ends
+// deliver reach the modules. Replies and signals come from one
+// connection, which owns the names until GetNameOwner or an owner change
+// names another; its signals are then another program's. This libdbus checks its arguments and ends
 // the process on a call that breaks its rules, as a getter of the wrong
 // type, which is how a module's mistake shows.
 //
@@ -127,6 +129,8 @@ static char s_sessionConnection;
 static char s_systemConnection;
 #define SESSION ((DBusConnection*)&s_sessionConnection)
 #define SYSTEM  ((DBusConnection*)&s_systemConnection)
+// The connection replies and signals come from, unless set otherwise.
+#define OWNER ":1.5"
 
 // A call a module made: what it asked, its reply once the script gave
 // one, and whether the module took the reply and let the call go.
@@ -141,6 +145,7 @@ typedef enum CallKind
     callFindUser,
     callGetAll,
     callInhibit,
+    callOwner,
 } CallKind;
 
 typedef struct Call
@@ -239,6 +244,7 @@ static mwinDBusBool SendWithReply(DBusConnection* connection, DBusMessage* messa
                  : strcmp(member, "FindUserById") == 0       ? callFindUser
                  : strcmp(member, "GetAll") == 0             ? callGetAll
                  : strcmp(member, "Inhibit") == 0            ? callInhibit
+                 : strcmp(member, "GetNameOwner") == 0       ? callOwner
                                                              : callOther;
     *pending = (DBusPendingCall*)call;
     return 1;
@@ -792,6 +798,10 @@ static DBusMessage* Fill(DBusMessage* message, const char* types, const char* co
         Value(&arguments, &at, 0);
     }
     s_dbus.setSerial(message, 7);
+    if (s_session.api.sender(message) == nullptr)
+    {
+        (void)s_dbus.setSender(message, OWNER);
+    }
     char* bytes = nullptr;
     int length = 0;
     DBusMessage* read = nullptr;
@@ -858,6 +868,19 @@ static DBusMessage* Reply(const Call* call)
     case callInhibit:
         // The screensaver's cookie, or the portal's request handle.
         return Fill(reply, (shape & 8) != 0 ? "o" : "u", nullptr, 0);
+    case callOwner:
+    {
+        // Mostly the connection the replies and signals come from; an
+        // error says the name has no owner.
+        const char* owner = (shape & 8) != 0 ? ":1.6" : OWNER;
+        mwinDBusIter iter;
+        if (reply != nullptr)
+        {
+            s_session.api.iterInitAppend(reply, &iter);
+            Basic(&iter, mwin_dbusTypeString, &owner);
+        }
+        return Fill(reply, "", nullptr, 0);
+    }
     default:
         return Fill(reply, "", nullptr, 0);
     }
@@ -934,9 +957,12 @@ static void UserSignal(uint8_t op)
     if ((op & 160) == 160)
     {
         // Mostly a name and owners of its own, now and then the script's;
-        // now and then held back (s_held).
-        static const char* const names[] = {"org.freedesktop.Accounts", "org.freedesktop.UPower"};
-        static const char* const owners[] = {"", ":1.7", ":1.8", ""};
+        // now and then held back (s_held). The portal's name changes on
+        // the session bus, the others on the system bus.
+        static const char* const names[] = {"org.freedesktop.Accounts", "org.freedesktop.UPower",
+                                            "org.freedesktop.portal.Desktop",
+                                            "org.freedesktop.portal.Desktop"};
+        static const char* const owners[] = {"", ":1.7", OWNER, ""};
         DBusMessage* message =
             Signal("/org/freedesktop/DBus", "org.freedesktop.DBus", "NameOwnerChanged");
         uint8_t shape = Byte();
@@ -950,7 +976,9 @@ static void UserSignal(uint8_t op)
             Deliver(SYSTEM, Fill(message, "sss", nullptr, 0));
             return;
         }
-        const char* arguments[] = {names[(shape >> 1) & 1], owners[(shape >> 2) & 3],
+        uint32_t named = ((shape >> 1) & 1) | ((shape >> 6) & 2);
+        DBusConnection* bus = named >= 2 ? SESSION : SYSTEM;
+        const char* arguments[] = {names[named], owners[(shape >> 2) & 3],
                                    owners[(shape >> 4) & 3]};
         mwinDBusIter iter;
         s_session.api.iterInitAppend(message, &iter);
@@ -959,13 +987,13 @@ static void UserSignal(uint8_t op)
             Basic(&iter, mwin_dbusTypeString, &arguments[i]);
         }
         message = Fill(message, "", nullptr, 0);
-        if ((shape & 64) != 0 && s_held == nullptr)
+        if ((shape & 64) != 0 && bus == SYSTEM && s_held == nullptr)
         {
             s_held = message;
             s_heldSkips = 1;
             return;
         }
-        Deliver(SYSTEM, message);
+        Deliver(bus, message);
         return;
     }
     const char* path = Path();

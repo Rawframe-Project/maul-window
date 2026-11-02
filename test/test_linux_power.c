@@ -8,6 +8,8 @@
 // - Each followed as it changes.
 // - A change of another interface, or of the wrong type, left alone; and
 //   one keyed by numbers (a{tv}, the shape of a fuzz finding).
+// - A change another program on either bus sends in a service's place
+//   left alone.
 // - With the portal refusing and no system bus: both unknown, and no
 //   change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
@@ -58,6 +60,20 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000u + (uint64_t)now.tv_nsec;
 }
 
+// Another program on a bus sends a boolean property's change in its
+// service's place.
+static void Spoof(FakeBus* fake, const char* path, const char* interface, const char* name,
+                  unsigned value)
+{
+    void* real = FakeBeginSpoof(fake);
+    CHECK(real != nullptr, "another program joined the bus");
+    if (real != nullptr)
+    {
+        FakePropertyChanged(fake, path, interface, name, 'b', &value);
+        CHECK(FakeEndSpoof(fake, real), "another program sent a change");
+    }
+}
+
 // What the services say once a phase's facts were seen.
 static void Change(const Program* program)
 {
@@ -83,11 +99,13 @@ static void Change(const Program* program)
         FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "OnBattery", 'b', &no);
         FakeOddChanged(program->system, UPOWER_PATH, UPOWER);
         FakeOddChanged(program->session, PORTAL_PATH, MONITOR);
+        Spoof(program->system, UPOWER_PATH, UPOWER, "OnBattery", 0);
         FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 'b',
                             &yes);
     }
     else
     {
+        Spoof(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 0);
         FakePropertyChanged(program->system, UPOWER_PATH, UPOWER, "OnBattery", 'b', &no);
     }
 }

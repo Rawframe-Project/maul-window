@@ -215,6 +215,18 @@ extern "C"
         mwin_buttonForward = 5,
     };
 
+    // The mouse buttons held: bit b - 1 for button b.
+    typedef uint32_t mwinMouseButtons;
+
+    enum
+    {
+        mwin_mouseLeft = 1,
+        mwin_mouseRight = 2,
+        mwin_mouseMiddle = 4,
+        mwin_mouseBack = 8,
+        mwin_mouseForward = 16,
+    };
+
     // How the cursor behaves over a window.
     typedef int32_t mwinCursorMode;
 

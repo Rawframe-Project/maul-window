@@ -125,7 +125,8 @@ static void TestStroke(void)
               Near(record.data.pen.pressure, 0.5f),
           "a value left out is kept");
     CHECK(Event(pen, mwin_x11PenPress, 2, NONE, NONE, NONE, &record) == 1 &&
-              record.kind == mwin_eventPenButtonDown && record.data.pen.button == 1 &&
+              record.kind == mwin_eventPenButtonDown &&
+              record.data.pen.button == mwin_penButtonBarrel &&
               record.data.pen.flags == (mwin_penContact | mwin_penBarrel),
           "button 2 the barrel, while in contact");
     CHECK(Event(pen, mwin_x11PenPress, 3, NONE, NONE, NONE, &record) == 0 &&

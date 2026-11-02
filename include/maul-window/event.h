@@ -324,8 +324,7 @@ extern "C"
     {
         mwinPosition position;
         mwinModifiers modifiers;
-        // Bit b - 1 is set while button b is held.
-        uint8_t buttons;
+        mwinMouseButtons buttons;
         mwinMouseButton button;
         uint8_t clickCount;
     } mwinPointerEvent;
@@ -368,6 +367,16 @@ extern "C"
         mwin_penBarrel = 4,
     };
 
+    // A pen button, which a pen button record names.
+    typedef int32_t mwinPenButton;
+
+    enum
+    {
+        // Not a pen button record.
+        mwin_penButtonNone = 0,
+        mwin_penButtonBarrel = 1,
+    };
+
     // A pen, where the platform has one.
     typedef struct mwinPenEvent
     {
@@ -378,8 +387,8 @@ extern "C"
         float tiltX;
         float tiltY;
         mwinPenFlags flags;
-        // For a pen button record, the button: 1 for the barrel.
-        uint8_t button;
+        // For a pen button record, the button.
+        mwinPenButton button;
     } mwinPenEvent;
 
     // What a drag carries.

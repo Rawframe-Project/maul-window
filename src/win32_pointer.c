@@ -126,11 +126,11 @@ static void OnPen(mwinWin32Window* window, UINT message, UINT32 id)
     pen.flags = flags;
     if (((flags ^ window->penFlags) & mwin_penBarrel) != 0)
     {
-        pen.button = 1;
+        pen.button = mwin_penButtonBarrel;
         PostPen(window,
                 (flags & mwin_penBarrel) != 0 ? mwin_eventPenButtonDown : mwin_eventPenButtonUp,
                 &pen, timeNs);
-        pen.button = 0;
+        pen.button = mwin_penButtonNone;
     }
     window->penFlags = flags;
     mwinEventKind type = message == WM_POINTERDOWN ? mwin_eventPenDown

@@ -96,10 +96,10 @@ bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event)
                         0};
     if (((flags ^ window->penFlags) & mwin_penBarrel) != 0)
     {
-        pen.button = 1;
+        pen.button = mwin_penButtonBarrel;
         Post(platform, slot,
              (flags & mwin_penBarrel) != 0 ? mwin_eventPenButtonDown : mwin_eventPenButtonUp, &pen);
-        pen.button = 0;
+        pen.button = mwin_penButtonNone;
     }
     mwinPenFlags touched = (flags ^ window->penFlags) & mwin_penContact;
     window->penFlags = flags;

@@ -252,7 +252,7 @@ static void CheckPen(const Program* program)
     const mwinEvent* pressed = Find(program, mwin_eventPenButtonDown);
     const mwinEvent* down = Find(program, mwin_eventPenDown);
     const mwinEvent* up = Find(program, mwin_eventPenUp);
-    CHECK(pressed != nullptr && pressed->data.pen.button == 1 &&
+    CHECK(pressed != nullptr && pressed->data.pen.button == mwin_penButtonBarrel &&
               (pressed->data.pen.flags & mwin_penContact) == 0 &&
               At(program, pressed->data.pen.position, 200.0f, 150.0f),
           "the barrel button, the pen hovering");

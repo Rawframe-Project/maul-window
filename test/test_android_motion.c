@@ -127,7 +127,7 @@ static void CheckPen(Program* program, mwinContext* context)
           "hovering, tilted toward positive y when it points up");
     CHECK(events[1].data.pen.flags == mwin_penContact && events[1].data.pen.pressure == 0.5f,
           "touching, with its pressure");
-    CHECK(events[2].data.pen.button == 1 &&
+    CHECK(events[2].data.pen.button == mwin_penButtonBarrel &&
               events[3].data.pen.flags == (mwin_penContact | mwin_penBarrel) &&
               Near(events[3].data.pen.tiltX, -45.0f) && Near(events[3].data.pen.tiltY, 0.0f),
           "the barrel held; pointing right, tilted toward negative x");

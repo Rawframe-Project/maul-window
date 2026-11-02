@@ -115,12 +115,15 @@ extern "C"
         int8_t battery;
     } mwinGamepadInfo;
 
+    // The buttons of a gamepad held: bit b for button b, an
+    // mwinGamepadButton of a mapped gamepad, the raw button's number of a
+    // raw one.
+    typedef uint32_t mwinGamepadButtons;
+
     // A gamepad's controls as the platform last reported them.
     typedef struct mwinGamepadState
     {
-        // Bit b set while button b is held: mwinGamepadButton of a mapped
-        // gamepad, the raw button's number of a raw one.
-        uint32_t buttons;
+        mwinGamepadButtons buttons;
         // mwinGamepadAxis of a mapped gamepad (the rest 0), the raw axes of
         // a raw one.
         float axes[MWIN_GAMEPAD_RAW_AXES];

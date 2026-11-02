@@ -5,14 +5,14 @@
 // (tools/run_android_app.sh): what the system's own input command
 // injects, which the test asks the runner for, after a frame shown, as
 // Android 14 and later send no touch to a window whose surface never
-// showed one, and with the screen turned upright, where the window
-// starts at the screen's corner (in landscape Android 11 moves it past
-// the cutout, and the command's places are the screen's). A tap and a swipe on the touch screen as
-// one touch each, in logical units; a mouse's tap as the left button's click; a stylus's tap as the
-// pen touching (where the command marks it a stylus); the A key as its key, its meaning and its
-// text; typed text through the virtual keyboard's keys, Shift's press named; Escape taken by the
-// program, so that the activity stays, and Menu, which Android counts a system key, left to it;
-// and, from Android 13, whose command can scroll, a mouse's wheel; then, on the emulator's
+// showed one, and with the screen at its natural rotation, where the
+// window starts at the screen's corner (in landscape Android 11 moves it
+// past a phone's cutout, and the command's places are the screen's). A tap and a swipe on the touch
+// screen as one touch each, in logical units; a mouse's tap as the left button's click; a stylus's
+// tap as the pen touching (where the command marks it a stylus); the A key as its key, its meaning
+// and its text; typed text through the virtual keyboard's keys, Shift's press named; Escape taken
+// by the program, so that the activity stays, and Menu, which Android counts a system key, left to
+// it; and, from Android 13, whose command can scroll, a mouse's wheel; then, on the emulator's
 // keyboard, a dead key (Alt and E, a combining acute accent) and A, typing an a with an acute
 // accent. quit writes the closing line the runner waits for.
 
@@ -24,6 +24,7 @@
 #include "maul-window/window.h"
 
 #include <android/api-level.h>
+#include <android/native_activity.h>
 #include <android/native_window.h>
 #include <math.h>
 #include <stdlib.h>
@@ -130,6 +131,91 @@ static bool Near(mwinPosition position, float x, float y)
     return fabsf(position.x - x) < 1.0f && fabsf(position.y - y) < 1.0f;
 }
 
+// The system setting name holds, or -1 when it cannot be read.
+static jint Setting(JNIEnv* env, jobject activity, const char* name)
+{
+    jclass activities = (*env)->GetObjectClass(env, activity);
+    jobject resolver =
+        (*env)->CallObjectMethod(env, activity,
+                                 (*env)->GetMethodID(env, activities, "getContentResolver",
+                                                     "()Landroid/content/ContentResolver;"));
+    jclass settings = (*env)->FindClass(env, "android/provider/Settings$System");
+    jstring key = (*env)->NewStringUTF(env, name);
+    jint value = -1;
+    if (resolver != nullptr && settings != nullptr && key != nullptr &&
+        !(*env)->ExceptionCheck(env))
+    {
+        value = (*env)->CallStaticIntMethod(
+            env, settings,
+            (*env)->GetStaticMethodID(env, settings, "getInt",
+                                      "(Landroid/content/ContentResolver;Ljava/lang/String;I)I"),
+            resolver, key, -1);
+    }
+    if ((*env)->ExceptionCheck(env))
+    {
+        (*env)->ExceptionClear(env);
+        value = -1;
+    }
+    (*env)->DeleteLocalRef(env, key);
+    (*env)->DeleteLocalRef(env, settings);
+    (*env)->DeleteLocalRef(env, resolver);
+    (*env)->DeleteLocalRef(env, activities);
+    return value;
+}
+
+// Whether the display is at its natural rotation and the window has
+// turned with it: taller than wide exactly when the display's natural
+// size is, which a tablet's is not. Only once the runner has fixed the
+// rotation at 0: before that, a rotation left in the settings may still
+// turn the display away from the natural one the window first shows at.
+static bool Natural(const Program* program, mwinContext* context, mwinPixelSize size)
+{
+    mwinNativeHandles handles = {0};
+    if (mwinWindow_GetNativeHandles(context, program->window, &handles) != mwin_success ||
+        handles.handles.android.activity == nullptr)
+    {
+        return false;
+    }
+    ANativeActivity* activity = handles.handles.android.activity;
+    JNIEnv* env = activity->env;
+    if (Setting(env, activity->clazz, "accelerometer_rotation") != 0 ||
+        Setting(env, activity->clazz, "user_rotation") != 0)
+    {
+        return false;
+    }
+    jclass activities = (*env)->GetObjectClass(env, activity->clazz);
+    jobject display = (*env)->CallObjectMethod(
+        env, activity->clazz,
+        (*env)->GetMethodID(env, activities, "getDisplay", "()Landroid/view/Display;"));
+    bool natural = false;
+    if (display != nullptr && !(*env)->ExceptionCheck(env))
+    {
+        jclass displays = (*env)->GetObjectClass(env, display);
+        jint rotation = (*env)->CallIntMethod(
+            env, display, (*env)->GetMethodID(env, displays, "getRotation", "()I"));
+        jobject mode = (*env)->CallObjectMethod(
+            env, display,
+            (*env)->GetMethodID(env, displays, "getMode", "()Landroid/view/Display$Mode;"));
+        if (mode != nullptr && !(*env)->ExceptionCheck(env))
+        {
+            jclass modes = (*env)->GetObjectClass(env, mode);
+            jint width = (*env)->CallIntMethod(
+                env, mode, (*env)->GetMethodID(env, modes, "getPhysicalWidth", "()I"));
+            jint height = (*env)->CallIntMethod(
+                env, mode, (*env)->GetMethodID(env, modes, "getPhysicalHeight", "()I"));
+            natural = !(*env)->ExceptionCheck(env) && rotation == 0 &&
+                      (size.height > size.width) == (height > width);
+            (*env)->DeleteLocalRef(env, modes);
+        }
+        (*env)->DeleteLocalRef(env, mode);
+        (*env)->DeleteLocalRef(env, displays);
+    }
+    (*env)->ExceptionClear(env);
+    (*env)->DeleteLocalRef(env, display);
+    (*env)->DeleteLocalRef(env, activities);
+    return natural;
+}
+
 static bool Ready(const Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
@@ -137,7 +223,7 @@ static bool Ready(const Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        return program->shown && state.pixelSize.height > state.pixelSize.width;
+        return program->shown && Natural(program, context, state.pixelSize);
     case 1:
     case 2:
         return Find(program, mwin_eventTouchUp) != nullptr;
@@ -347,8 +433,8 @@ static mwinResult Init(mwinContext* context, void* user)
     Program* program = user;
     mwinWindowDef def = mwinDefaultWindowDef();
     program->startNs = NowNs();
-    // Upright, whatever the test before left; the runner puts the
-    // rotation back.
+    // At the natural rotation, whatever the test before left; the runner
+    // puts the rotation back.
     printf("adb: settings put system accelerometer_rotation 0\n");
     printf("adb: settings put system user_rotation 0\n");
     return mwinCreateWindow(context, &def, &program->window, nullptr);

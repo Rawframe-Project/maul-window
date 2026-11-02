@@ -138,12 +138,11 @@ static void CheckDrop(Program* program, mwinContext* context)
     size_t length = 0;
     static const char paths[] = "/tmp/a b.txt\0/tmp/\xC3\xA9.png";
     CHECK(drop->position.x == 30.0f && drop->fileCount == 2 && drop->truncated &&
-              mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
+              mwinDrop_GetFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
                   mwin_success &&
               length == sizeof(paths) && memcmp(bytes, paths, length) == 0,
           "the paths of the file URIs, the other scheme left out");
-    CHECK(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
               length == 6 && memcmp(bytes, "hi\xEF\xBF\xBD(", 6) == 0,
           "the text, repaired");
     DataDragEnter(program->data, 5.0, 5.0, nullptr, nullptr);

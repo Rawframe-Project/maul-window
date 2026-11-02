@@ -164,6 +164,14 @@ extern "C"
         uint32_t generation;
     } mwinRequestId;
 
+    // A drop, whose files and text wait until the next drop. The context
+    // keeps one drop, so its slot is always 1.
+    typedef struct mwinDropId
+    {
+        uint32_t index1;
+        uint32_t generation;
+    } mwinDropId;
+
     // A library version: major, minor and patch.
     typedef struct mwinVersion
     {

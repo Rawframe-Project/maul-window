@@ -6,9 +6,9 @@
 // the payloads of a clipboard read of each kind, a dialog and a drop, and
 // the context, at every block the teardown gives back but the context's
 // own, the cursor's images, the payloads, the platform's clipboard and
-// the platform block among them. Every id and drop number is stale at
-// each, and the calls that would ask the backend without an id answer
-// mwin_errorState, or no key.
+// the platform block among them. Every id is stale at each, and the
+// calls that would ask the backend without an id answer mwin_errorState,
+// or no key.
 
 #include "cursor.h"
 #include "test_program.h"
@@ -42,7 +42,7 @@ static mwinRequestId s_text;
 static mwinRequestId s_data;
 static mwinRequestId s_primary;
 static mwinRequestId s_dialog;
-static uint32_t s_drop;
+static mwinDropId s_drop;
 static bool s_armed;
 static int s_releases;
 static int s_found;
@@ -62,8 +62,8 @@ static int Payloads(bool live)
         mwinRequest_GetPrimaryText(s_context, s_primary, bytes, sizeof(bytes), &length) != want;
     wrong += mwinRequest_GetDialogFiles(s_context, s_dialog, bytes, sizeof(bytes), &length,
                                         &count) != want;
-    wrong += mwinContext_GetDroppedFiles(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
-    wrong += mwinContext_GetDroppedText(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
+    wrong += mwinDrop_GetFiles(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
+    wrong += mwinDrop_GetText(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
     return wrong;
 }
 
@@ -109,7 +109,7 @@ static void HookFree(void* memory, size_t size, size_t alignment, void* user)
     s_found += status == mwin_success && length != 0 && (length != 4 || memcmp(held, "held", 4));
 }
 
-static uint32_t DropNumber(const Program* program)
+static mwinDropId Dropped(const Program* program)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
@@ -118,7 +118,7 @@ static uint32_t DropNumber(const Program* program)
             return program->events[i].data.drop.drop;
         }
     }
-    return 0;
+    return (mwinDropId){0};
 }
 
 static void Step(Program* program, mwinContext* context, int step)
@@ -165,8 +165,8 @@ static void Step(Program* program, mwinContext* context, int step)
         break;
     }
     case 3:
-        s_drop = DropNumber(program);
-        CHECK(s_drop != 0, "the drop delivered");
+        s_drop = Dropped(program);
+        CHECK(s_drop.index1 != 0, "the drop delivered");
         CHECK(Payloads(true) == 0, "every payload read back during the run");
         program->done = true;
         break;

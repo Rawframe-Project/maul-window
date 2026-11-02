@@ -43,7 +43,7 @@ static const char s_secondFiles[] = ROOT "/b";
 static mwinContext* s_context;
 static Case s_case;
 static mwinRequestId s_first;
-static uint32_t s_firstDrop;
+static mwinDropId s_firstDrop;
 static int s_live;
 static int s_stale;
 static int s_wrong;
@@ -97,9 +97,9 @@ static void ReadBack(void)
         Count(status, count == 1 && Same(bytes, length, s_firstFiles, sizeof(s_firstFiles)));
         break;
     case CASE_DROP:
-        status = mwinContext_GetDroppedText(s_context, s_firstDrop, bytes, sizeof(bytes), &length);
+        status = mwinDrop_GetText(s_context, s_firstDrop, bytes, sizeof(bytes), &length);
         Count(status, Same(bytes, length, "one", 3));
-        status = mwinContext_GetDroppedFiles(s_context, s_firstDrop, bytes, sizeof(bytes), &length);
+        status = mwinDrop_GetFiles(s_context, s_firstDrop, bytes, sizeof(bytes), &length);
         Count(status, Same(bytes, length, s_firstFiles, sizeof(s_firstFiles)));
         break;
     case CASE_TEST_CLIPBOARD:
@@ -155,7 +155,7 @@ static void Disarm(const char* what)
     }
 }
 
-static uint32_t DropNumber(const Program* program)
+static mwinDropId Dropped(const Program* program)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
@@ -164,7 +164,7 @@ static uint32_t DropNumber(const Program* program)
             return program->events[i].data.drop.drop;
         }
     }
-    return 0;
+    return (mwinDropId){0};
 }
 
 static mwinFileDialogDef Dialog(void)
@@ -247,15 +247,16 @@ static void Step(Program* program, mwinContext* context, int step)
               "a first drop");
         break;
     case 10:
-        s_firstDrop = DropNumber(program);
-        CHECK(s_firstDrop != 0, "the first drop delivered");
+        s_firstDrop = Dropped(program);
+        CHECK(s_firstDrop.index1 != 0, "the first drop delivered");
         Arm(CASE_DROP);
         CHECK(mwinWindow_PostTestDrop(context, window, (mwinPosition){1.0f, 1.0f}, s_secondFiles,
                                       sizeof(s_secondFiles), "two", 3) == mwin_success,
               "a second drop");
         break;
     case 11:
-        CHECK(DropNumber(program) == s_firstDrop + 1, "the second drop delivered");
+        CHECK(Dropped(program).generation == s_firstDrop.generation + 1,
+              "the second drop delivered");
         Disarm("a drop replaced");
         CHECK(mwinContext_SetTestClipboard(context, "First", 5) == mwin_success,
               "the platform's text");

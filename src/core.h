@@ -291,11 +291,11 @@ struct mwinContext
     // by the count it made, and a read's getter answers only while its
     // payload is the last.
     uint32_t foundPayloads[mwin_foundKinds];
-    // The drop being gathered, and the last one delivered with its
-    // number.
+    // The drop being gathered, and the last one delivered with its id's
+    // generation.
     mwinDropPayload dropping;
     mwinDropPayload dropped;
-    uint32_t dropNumber;
+    uint32_t dropGeneration;
     // The paths of the dialog being answered and how it goes, and those
     // of the last dialog done, with its request.
     mwinFileList dialogGathering;

@@ -13,8 +13,9 @@
 // told. Started as a system bus, it plays UPower (OnBattery) and
 // AccountsService instead: FindUserById, the user's GetAll with its
 // Languages and Language, and their PropertiesChanged and Changed; and
-// AccountsService restarting under a new unique name. On either bus,
-// another program can send what a stand-in sends, in its place.
+// AccountsService restarting. On either bus, another program can send
+// what a stand-in sends, in its place; and a service can restart under a
+// new unique name, its old connection still sending what it sent.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -944,11 +945,11 @@ static inline bool FakeEndSpoof(FakeBus* fake, void* real)
     return passed;
 }
 
-// AccountsService restarts in two steps: its connection gives up the name
-// and stays on the bus (fake->retired, the one retired before closed);
-// then a new one takes the name and answers from then on. 1: released;
-// 1: the primary owner.
-static inline bool FakeRelease(FakeBus* fake)
+// A service restarts in two steps: its connection gives up the name and
+// stays on the bus (fake->retired, the one retired before closed); then a
+// new one takes the name and answers from then on. 1: released; 1: the
+// primary owner.
+static inline bool FakeReleaseName(FakeBus* fake, const char* name)
 {
     if (fake->retired != nullptr)
     {
@@ -956,10 +957,10 @@ static inline bool FakeRelease(FakeBus* fake)
         fake->unrefConnection(fake->retired);
     }
     fake->retired = fake->connection;
-    return fake->releaseName(fake->retired, "org.freedesktop.Accounts", nullptr) == 1;
+    return fake->releaseName(fake->retired, name, nullptr) == 1;
 }
 
-static inline bool FakeTakeOver(FakeBus* fake)
+static inline bool FakeTakeOverName(FakeBus* fake, const char* name)
 {
     void* fresh = FakeOpen(fake);
     if (fresh == nullptr)
@@ -967,7 +968,39 @@ static inline bool FakeTakeOver(FakeBus* fake)
         return false;
     }
     fake->connection = fresh;
-    return fake->requestName(fresh, "org.freedesktop.Accounts", 4, nullptr) == 1;
+    return fake->requestName(fresh, name, 4, nullptr) == 1;
+}
+
+// AccountsService restarts.
+static inline bool FakeRelease(FakeBus* fake)
+{
+    return FakeReleaseName(fake, "org.freedesktop.Accounts");
+}
+
+static inline bool FakeTakeOver(FakeBus* fake)
+{
+    return FakeTakeOverName(fake, "org.freedesktop.Accounts");
+}
+
+// The connection from before the restart speaks in the stand-in's place
+// until FakeEndRetired: what the stand-in sends in between, it sends. The
+// real connection, to hand back.
+static inline void* FakeBeginRetired(FakeBus* fake)
+{
+    void* real = fake->connection;
+    fake->connection = fake->retired;
+    return real;
+}
+
+// The stand-in speaks again. The old connection asks the bus for a name
+// of its own first, which the bus answers only once it passed on what
+// that connection sent, ahead of what the stand-in sends next: 1, the
+// primary owner.
+static inline bool FakeEndRetired(FakeBus* fake, void* real, const char* name)
+{
+    void* old = fake->connection;
+    fake->connection = real;
+    return fake->requestName(old, name, 4, nullptr) == 1;
 }
 
 // Tells every listener that something of the user changed, the older

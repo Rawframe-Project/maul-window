@@ -10,6 +10,9 @@
 //   one keyed by numbers (a{tv}, the shape of a fuzz finding).
 // - A change another program on either bus sends in a service's place
 //   left alone.
+// - UPower, then the portal, restarting under a new owner: a change from
+//   the old connection left alone, the new owner's followed, and its next
+//   change too.
 // - With the portal refusing and no system bus: both unknown, and no
 //   change told.
 // Skipped (exit status 77) without an X server, dbus-daemon or
@@ -50,7 +53,8 @@ typedef struct Program
 // Low power, then on battery, for each phase.
 static const mwinTristate s_expected[][2] = {
     {mwin_yes, mwin_no},  {mwin_yes, mwin_yes}, {mwin_no, mwin_yes},
-    {mwin_yes, mwin_yes}, {mwin_yes, mwin_no},
+    {mwin_yes, mwin_yes}, {mwin_yes, mwin_no},  {mwin_yes, mwin_yes},
+    {mwin_yes, mwin_no},  {mwin_no, mwin_no},   {mwin_yes, mwin_no},
 };
 
 static uint64_t NowNs(void)
@@ -72,6 +76,25 @@ static void Spoof(FakeBus* fake, const char* path, const char* interface, const 
         FakePropertyChanged(fake, path, interface, name, 'b', &value);
         CHECK(FakeEndSpoof(fake, real), "another program sent a change");
     }
+}
+
+// A service restarts under a new owner. Its old connection says the
+// property turned to value, which is left alone; the new owner says it is
+// the other value, which it already is, then value: one change. Were both
+// heard, there would be three, or the next phase's change would be told
+// more than once. Were only the old connection heard, its change would
+// pass for the new owner's; the next phase, where the new owner changes
+// the property back, finds that.
+static void Restart(FakeBus* fake, const char* name, const char* path, const char* interface,
+                    const char* property, unsigned value, const char* barrier)
+{
+    unsigned other = !value;
+    CHECK(FakeReleaseName(fake, name) && FakeTakeOverName(fake, name), "a service restarted");
+    void* real = FakeBeginRetired(fake);
+    FakePropertyChanged(fake, path, interface, property, 'b', &value);
+    CHECK(FakeEndRetired(fake, real, barrier), "the old connection sent a change");
+    FakePropertyChanged(fake, path, interface, property, 'b', &other);
+    FakePropertyChanged(fake, path, interface, property, 'b', &value);
 }
 
 // What the services say once a phase's facts were seen.
@@ -103,10 +126,29 @@ static void Change(const Program* program)
         FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 'b',
                             &yes);
     }
-    else
+    else if (program->phase == 3)
     {
         Spoof(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 0);
         FakePropertyChanged(program->system, UPOWER_PATH, UPOWER, "OnBattery", 'b', &no);
+    }
+    else if (program->phase == 4)
+    {
+        Restart(program->system, UPOWER, UPOWER_PATH, UPOWER, "OnBattery", 1,
+                "org.example.OldUPower");
+    }
+    else if (program->phase == 5)
+    {
+        FakePropertyChanged(program->system, UPOWER_PATH, UPOWER, "OnBattery", 'b', &no);
+    }
+    else if (program->phase == 6)
+    {
+        Restart(program->session, "org.freedesktop.portal.Desktop", PORTAL_PATH, MONITOR,
+                "power-saver-enabled", 0, "org.example.OldPortal");
+    }
+    else
+    {
+        FakePropertyChanged(program->session, PORTAL_PATH, MONITOR, "power-saver-enabled", 'b',
+                            &yes);
     }
 }
 
@@ -168,7 +210,12 @@ static void Run(FakeBus* session, FakeBus* system, int phases, const char* what)
     def.init = Init;
     def.frame = Frame;
     def.user = &program;
-    CHECK(mwinRun(&def) == mwin_success && program.done, what);
+    bool ran = mwinRun(&def) == mwin_success;
+    if (!program.done && program.phases > 0)
+    {
+        (void)printf("stopped at phase %d of %d\n", program.phase, program.phases);
+    }
+    CHECK(ran && program.done, what);
 }
 
 int main(void)
@@ -206,7 +253,7 @@ int main(void)
     {
         session.saver = 1;
         system.battery = 0;
-        Run(&session, &system, 5, "the power facts and their changes");
+        Run(&session, &system, 9, "the power facts and their changes");
         session.saver = -1;
         (void)setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/nonexistent/mwin", 1);
         Run(&session, nullptr, 0, "no power facts");

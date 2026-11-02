@@ -16,6 +16,7 @@
 // drop's text. The drop is posted once every item has loaded, at the
 // place it was made; one whose window or program went since is dropped.
 
+#include "apple_text.h"
 #include "ios.h"
 
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -225,12 +226,18 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
           if ([value isKindOfClass:[NSString class]])
           {
               const char* path = ((NSString*)value).UTF8String;
-              mwinAddDroppedFile(context, path, strlen(path));
+              if (path != nullptr)
+              {
+                  mwinAddDroppedFile(context, path, strlen(path));
+              }
+              else
+              {
+                  context->dropping.truncated = true;
+              }
           }
           else if ([value isKindOfClass:[NSArray class]] && !texted)
           {
-              const char* text = ((NSString*)((NSArray*)value).firstObject).UTF8String;
-              mwinSetDroppedText(context, text, strlen(text));
+              mwinAppleSetDroppedText(context, (NSString*)((NSArray*)value).firstObject);
               texted = true;
           }
       }

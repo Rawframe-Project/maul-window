@@ -5,7 +5,7 @@
 // that carries only an image refused; one that carries a file and text
 // entering with both, a rest that has not moved posting nothing, a move,
 // leaving; then entering again and dropped, with the file's path and the
-// text read back. No drag can be made on the runner, so the test hands
+// text read back, a U+0000 within it kept. No drag can be made on the runner, so the test hands
 // the view a drag of its own: a private pasteboard and a place, what the
 // backend asks a drag for.
 
@@ -21,7 +21,8 @@
 
 #define DEADLINE_NS 10000000000ull
 #define MAX_RECORDS 8
-#define TEXT        "Maul drop"
+// Text with a U+0000 within it, which ended it when read as UTF-8.
+#define TEXT "Maul\0drop"
 
 // A drag: its pasteboard and where it is in the window.
 @interface FakeDrag : NSObject
@@ -102,7 +103,11 @@ static NSPasteboard* FileAndText(const char* path)
     NSPasteboardItem* text = [[NSPasteboardItem alloc] init];
     NSURL* address = [NSURL fileURLWithPath:@(path)];
     [file setString:address.absoluteString forType:NSPasteboardTypeFileURL];
-    [text setString:@TEXT forType:NSPasteboardTypeString];
+    NSString* string = [[NSString alloc] initWithBytes:TEXT
+                                                length:sizeof(TEXT) - 1
+                                              encoding:NSUTF8StringEncoding];
+    [text setString:string forType:NSPasteboardTypeString];
+    [string release];
     [pasteboard clearContents];
     [pasteboard writeObjects:@[ file, text ]];
     [file release];

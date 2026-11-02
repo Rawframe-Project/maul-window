@@ -4,12 +4,15 @@
 // The fitting of compositions below the stream, at the text's very end,
 // whose text sits alone in a heap allocation of its length so that
 // AddressSanitizer sees a read past it; and the stream's own check of
-// the text a backend posts, which backends repair first. The text
-// storage itself is tested through the stream in test_input.c.
+// the text a backend posts, which backends repair first; and UTF-16 cut
+// to the whole characters that fit, from units that end where their
+// heap allocation does, more than the cut reads. The text storage itself
+// is tested through the stream in test_input.c.
 
 #include "core.h"
 #include "preedit_fit.h"
 #include "test_program.h"
+#include "utf8.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -84,6 +87,62 @@ static void BackendStep(Program* program, mwinContext* context, int step)
     program->done = true;
 }
 
+// The UTF-8 of ASCII text and the units after it, cut to capacity.
+static size_t Cut(const char* ascii, const uint16_t* tail, size_t tailCount, size_t capacity,
+                  char* out)
+{
+    size_t length = strlen(ascii);
+    uint16_t units[80];
+    for (size_t i = 0; i < length; i++)
+    {
+        units[i] = (uint16_t)(unsigned char)ascii[i];
+    }
+    if (tailCount > 0)
+    {
+        memcpy(units + length, tail, tailCount * sizeof(uint16_t));
+    }
+    return mwinCutUtf16(units, length + tailCount, out, capacity);
+}
+
+static void TestCutUtf16(void)
+{
+    char out[72];
+    static const char sixty[] = "0123456789012345678901234567890123456789012345678901234567890";
+    CHECK(Cut("Xbox Wireless Controller", nullptr, 0, 64, out) == 24 &&
+              memcmp(out, "Xbox Wireless Controller", 24) == 0,
+          "a name that fits kept whole");
+    // 61 bytes, then é (2), then U+20AC (3): 63, the euro left out.
+    static const uint16_t accents[] = {0xE9, 0x20AC};
+    size_t length = Cut(sixty, accents, 2, 64, out);
+    CHECK(length == 63 && memcmp(out + 61, "\xC3\xA9", 2) == 0, "cut before a character");
+    // 61 bytes, then U+1F3AE as a pair: four bytes do not fit in three.
+    static const uint16_t pair[] = {0xD83C, 0xDFAE};
+    CHECK(Cut(sixty, pair, 2, 64, out) == 61, "a pair never split");
+    CHECK(Cut(sixty, pair, 2, 65, out) == 65 && memcmp(out + 61, "\xF0\x9F\x8E\xAE", 4) == 0,
+          "a pair that fits kept");
+    // A lone high surrogate at the end, a lone low one inside.
+    static const uint16_t lone[] = {0xDC00, 'b', 0xD800};
+    CHECK(Cut("a", lone, 3, 64, out) == 8 && memcmp(out,
+                                                    "a\xEF\xBF\xBD"
+                                                    "b\xEF\xBF\xBD",
+                                                    8) == 0,
+          "an unpaired surrogate as U+FFFD");
+    CHECK(mwinCutUtf16(nullptr, 0, out, 64) == 0 && Cut("abc", nullptr, 0, 0, nullptr) == 0,
+          "nothing for no units or no room");
+    // Units said to be a million, held up to 66: a cut of 64 reads no
+    // more than capacity + 2, where AddressSanitizer would see it.
+    uint16_t* many = malloc(66 * sizeof(uint16_t));
+    if (many != nullptr)
+    {
+        for (size_t i = 0; i < 66; i++)
+        {
+            many[i] = 'x';
+        }
+        CHECK(mwinCutUtf16(many, 1u << 20, out, 64) == 64, "no more read than the cut needs");
+        free(many);
+    }
+}
+
 static void TestBackendText(void)
 {
     Program program = {.step = BackendStep};
@@ -93,6 +152,7 @@ static void TestBackendText(void)
 int main(void)
 {
     TestFitAtTheEnds();
+    TestCutUtf16();
     TestBackendText();
     return s_failures == 0 ? 0 : 1;
 }

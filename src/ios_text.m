@@ -12,10 +12,9 @@
 // but only the text it accepts is posted, as on macOS. The program
 // turning text input off drops a composition, telling UIKit so.
 
+#include "allocator.h"
 #include "apple_text.h"
 #include "ios.h"
-
-#include <string.h>
 
 // A place in the marked text, in UTF-16 units.
 @interface MwinIOSPosition : UITextPosition
@@ -110,10 +109,23 @@ void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* te
         EndPreedit(platform, slot);
         return;
     }
-    const char* bytes = text.UTF8String;
-    size_t length = bytes != nullptr ? strlen(bytes) : 0;
-    if (!platform->windows[slot].textInput || length == 0 || length > UINT32_MAX)
+    if (!platform->windows[slot].textInput)
     {
+        return;
+    }
+    mwinContext* context = platform->context;
+    size_t length = 0;
+    size_t size = 0;
+    char* bytes = mwinAppleUtf8Of(context, text, &length, &size);
+    if (bytes == nullptr || length > UINT32_MAX)
+    {
+        // The program's composition cannot follow the input method's.
+        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        Post(platform, slot, &reset);
+        if (bytes != nullptr)
+        {
+            mwinRelease(&context->allocator, bytes, size, 1);
+        }
         return;
     }
     mwinPreeditSegment segment = {0, (uint32_t)length, mwin_preeditUnderline};
@@ -130,6 +142,7 @@ void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* te
     preedit->segments = &segment;
     preedit->segmentCount = 1;
     Post(platform, slot, &event);
+    mwinRelease(&context->allocator, bytes, size, 1);
 }
 
 void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept)

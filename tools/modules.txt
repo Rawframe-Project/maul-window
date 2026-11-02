@@ -58,13 +58,13 @@ input: core
 ios: apple_pad core
 ios_dialog: answer core dialog ios
 ios_drop: apple_text core ios
-ios_keys: core ios key_prints
+ios_keys: allocator apple_text core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
 ios_services: answer apple_clipboard apple_text clipboard_data core ios
 ios_system: apple_locale core ios
-ios_text: apple_text core ios
+ios_text: allocator apple_text core ios
 ios_view: accessibility core ios
 ios_window: core ios
 key_prints:

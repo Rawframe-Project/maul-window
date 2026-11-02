@@ -6,11 +6,10 @@
 // client, one composition a frame, as preedit records coalesce: marked
 // text reported, its selection and caret in bytes, the candidate window
 // placed at the program's caret; accepted as it is; accepted as other
-// text; shortened by a deletion; part of it replaced, as a correction
-// does, with the caret after the new text; a selection within it set;
-// a range past its end replaced, which accepts the text in its place;
-// dropped when the program stops taking text; and, while it does not,
-// composed without a record, only the text accepted posted.
+// text; a lone surrogate composed as U+FFFD; shortened by a deletion; part of it replaced, as a
+// correction does, with the caret after the new text; a selection within it set; a range past its
+// end replaced, which accepts the text in its place; dropped when the program stops taking text;
+// and, while it does not, composed without a record, only the text accepted posted.
 
 #include "test_harness.h"
 
@@ -23,7 +22,7 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
-#define LAST_PHASE  15
+#define LAST_PHASE  16
 
 typedef struct Program
 {
@@ -152,18 +151,29 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
         CHECK(strcmp(program->text, "\xE6\x97\xA5") == 0 && !Composing(context, window) &&
                   view.markedTextRange == nil,
               "accepted as other text");
-        Mark(view, @"ab", 2, 0);
+        Mark(view, [NSString stringWithCharacters:(const unichar[]){'a', 0xD800, 'b'} length:3], 3,
+             0);
         break;
     case 6:
+        CHECK(program->last.length == 5 &&
+                  memcmp(program->preedit,
+                         "a\xEF\xBF\xBD"
+                         "b",
+                         5) == 0 &&
+                  program->last.caret == 5,
+              "a lone surrogate composed as U+FFFD, the caret after it");
+        Mark(view, @"ab", 2, 0);
+        break;
+    case 7:
         CHECK(strcmp(program->preedit, "ab") == 0, "composing again");
         [view deleteBackward];
         break;
-    case 7:
+    case 8:
         CHECK(strcmp(program->preedit, "a") == 0 && program->last.caret == 1,
               "a deletion shortens the composition");
         Mark(view, @"abc", 3, 0);
         break;
-    case 8:
+    case 9:
     {
         // A correction replaces part of the composition.
         UITextPosition* start = view.beginningOfDocument;
@@ -173,7 +183,7 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
                   withText:@"XY"];
         break;
     }
-    case 9:
+    case 10:
     {
         CHECK(strcmp(program->preedit, "aXYc") == 0 && program->last.caret == 3,
               "part of it replaced, the caret after the new text");
@@ -187,20 +197,20 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
                              toPosition:[view positionFromPosition:start offset:3]];
         break;
     }
-    case 10:
+    case 11:
         CHECK(strcmp(program->preedit, "aXYc") == 0 && program->last.selectionStart == 1 &&
                   program->last.selectionEnd == 3,
               "a selection within it, in bytes");
         Mark(view, @"ab", 2, 0);
         break;
-    case 11:
+    case 12:
         CHECK(strcmp(program->preedit, "ab") == 0, "a shorter composition");
         program->texts = 0;
         [view replaceRange:s_stale withText:@"Z"];
         [s_stale release];
         s_stale = nil;
         break;
-    case 12:
+    case 13:
         CHECK(strcmp(program->text, "Z") == 0 && program->texts == 1 && Ended(program) &&
                   view.markedTextRange == nil,
               "a range past its end: the text accepted in its place");
@@ -209,7 +219,7 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
                   mwin_success,
               "text no longer taken");
         return;
-    case 13:
+    case 14:
         CHECK(Ended(program) && !Composing(context, window) && view.markedTextRange == nil &&
                   program->texts == 0,
               "the composition dropped, not accepted");
@@ -233,7 +243,7 @@ static bool Ready(const Program* program, UIView* view)
     case 0:
         return program->shown && view != nil && view.isFirstResponder;
     case 1:
-    case 13:
+    case 14:
         return program->completions >= 1;
     default:
         return true;
@@ -262,7 +272,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context, view);
         }
         // A request's step waits for its answer.
-        if (phase == 0 || phase == 12)
+        if (phase == 0 || phase == 13)
         {
             program->phase += 1;
             program->completions = 0;

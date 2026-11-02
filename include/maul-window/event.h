@@ -408,7 +408,8 @@ extern "C"
         uint32_t fileCount;
         uint32_t textLength;
         // Files or text were left out: past the droppedFiles or dropBytes
-        // limit, or a path that is not UTF-8.
+        // limit, a path that is not UTF-8, or what the dragging program
+        // handed over in a form that could not be read.
         bool truncated;
     } mwinDropEvent;
 

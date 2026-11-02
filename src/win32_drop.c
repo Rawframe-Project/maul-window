@@ -110,10 +110,17 @@ static HRESULT STDMETHODCALLTYPE DragLeave(IDropTarget* target)
     return S_OK;
 }
 
-// Adds the paths of a file drop to the context's drop.
+// Adds the paths of a file drop to the context's drop: no more than a
+// drop delivers, as each path is found by reading the list from its
+// start, and another program's list may hold any number of them.
 static void GatherFiles(mwinContext* context, HDROP files)
 {
     UINT count = DragQueryFileW(files, 0xFFFFFFFFu, nullptr, 0);
+    if (count > context->limits.droppedFiles)
+    {
+        context->dropping.truncated = true;
+        count = context->limits.droppedFiles;
+    }
     for (UINT i = 0; i < count; i++)
     {
         UINT length = DragQueryFileW(files, i, nullptr, 0);
@@ -132,13 +139,22 @@ static void GatherFiles(mwinContext* context, HDROP files)
     }
 }
 
-// Adds what a data object holds in a format to the context's drop.
+// Adds what a data object holds in a format to the context's drop. It is
+// asked for global memory, and another program's object may answer with
+// a medium of another type, which is let go unread and the drop marked
+// truncated.
 static void Gather(mwinContext* context, IDataObject* data, CLIPFORMAT format)
 {
     FORMATETC wanted = {format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
     STGMEDIUM medium = {0};
     if (data->lpVtbl->GetData(data, &wanted, &medium) != S_OK)
     {
+        return;
+    }
+    if (medium.tymed != TYMED_HGLOBAL)
+    {
+        context->dropping.truncated = true;
+        ReleaseStgMedium(&medium);
         return;
     }
     void* bytes = GlobalLock(medium.hGlobal);

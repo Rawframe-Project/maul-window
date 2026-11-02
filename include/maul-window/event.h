@@ -267,7 +267,8 @@ extern "C"
         bool repeat;
     } mwinKeyEvent;
 
-    // Typed or composed text, valid until the frame that drained it
+    // Typed or composed text, valid UTF-8 with no control characters
+    // (typed text is never empty), valid until the frame that drained it
     // returns.
     typedef struct mwinTextEvent
     {

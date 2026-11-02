@@ -153,7 +153,11 @@ void mwinIOSInsertText(mwinIOSPlatform* platform, uint32_t slot, NSString* text)
         if (unit == '\n' || unit == '\r' || unit == '\t')
         {
             PostText(platform, slot, kept);
-            Tap(platform, slot, unit == '\t' ? codeTab : codeEnter);
+            // A carriage return and line feed is one Enter.
+            if (unit != '\n' || i == 0 || [text characterAtIndex:i - 1] != '\r')
+            {
+                Tap(platform, slot, unit == '\t' ? codeTab : codeEnter);
+            }
         }
         else if (unit >= 0x20 && unit != 0x7F && (unit < 0xF700 || unit > 0xF8FF))
         {

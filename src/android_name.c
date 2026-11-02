@@ -27,12 +27,16 @@ void mwinAndroidNameOf(const uint16_t* units, size_t count, char* name)
     (void)muniConvertUtf16ToUtf8(units, taken, muni_convertReplace, name, MWIN_ANDROID_NAME_BYTES,
                                  &needed);
     name[needed] = '\0';
+    // A '/' would leave the folder, and a NUL end the name early.
+    for (size_t i = 0; i < needed; i++)
+    {
+        if (name[i] == '/' || name[i] == '\0')
+        {
+            name[i] = '_';
+        }
+    }
     if (needed == 0 || strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
     {
         (void)snprintf(name, MWIN_ANDROID_NAME_BYTES + 1, "Document");
-    }
-    for (char* at = strchr(name, '/'); at != nullptr; at = strchr(at, '/'))
-    {
-        *at = '_';
     }
 }

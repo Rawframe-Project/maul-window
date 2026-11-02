@@ -13,15 +13,14 @@
 // records it should give are worked out apart from the backend: a reset
 // where a string was lost to the limit, the committed text, then the new
 // composition, or its end where the window composes, each string as its
-// UTF-8 repair, the core's reset in place of one whose text the
-// window's storage has no room for. The program must read exactly those
-// text records for each window, in that order, and a reset exactly where
-// one is due (resets coalesce, so its place is the core's); committed
-// text must be
-// UTF-8 within the limit, a composition UTF-8 with its caret, selection
-// and segments on character boundaries within it; no record may name a
-// destroyed window; and a window's composition ends when it loses the
-// focus or its text input is turned off.
+// UTF-8 repair without control characters, the committed text in pieces
+// between its tabs and line breaks (which come as keys), the core's
+// reset in place of one whose text the window's storage has no room for. The program must read
+// exactly those text records for each window, in that order, and a reset exactly where one is due
+// (resets coalesce, so its place is the core's); committed text must be UTF-8 within the limit, a
+// composition UTF-8 with its caret, selection and segments on character boundaries within it; no
+// record may name a destroyed window; and a window's composition ends when it loses the focus or
+// its text input is turned off.
 
 #include "utf8.h"
 #include "wayland_text.h"
@@ -243,18 +242,17 @@ static void Model(const char* string, char* text, uint32_t* length, bool* lost)
     }
 }
 
-// A record the window should get. One whose text the window's storage
-// has no room for, as the core reserves it (aligned for the segments a
-// composition stores before its text), becomes a reset instead.
-static void Push(uint32_t slot, mwinEventType type, const char* text, uint32_t length)
+// A record the window should get, which takes need bytes of its
+// storage. One the storage has no room for, as the core reserves it
+// (aligned for the segments a composition stores before its text),
+// becomes a reset instead.
+static void PushSized(uint32_t slot, mwinEventType type, const char* text, uint32_t length,
+                      uint32_t need)
 {
     if (s_trace)
     {
         (void)fprintf(stderr, "expect slot %u type %d length %u\n", slot, (int)type, length);
     }
-    uint32_t need = length > 0 && type == mwin_eventImePreedit
-                        ? length + (uint32_t)sizeof(mwinPreeditSegment)
-                        : length;
     uint32_t align = (uint32_t)alignof(mwinPreeditSegment);
     uint32_t start = (s_expected[slot].used + align - 1) & ~(align - 1);
     if (type == mwin_eventInputStateReset || (need > 0 && start + need > LIMIT))
@@ -269,6 +267,56 @@ static void Push(uint32_t slot, mwinEventType type, const char* text, uint32_t l
     if (length > 0)
     {
         memcpy(record->text, text, length);
+    }
+}
+
+static void Push(uint32_t slot, mwinEventType type, const char* text, uint32_t length)
+{
+    PushSized(slot, type, text, length, length);
+}
+
+// Text without its control characters (C0, DEL and C1), as the core
+// keeps it; the length kept.
+static uint32_t Kept(const char* text, uint32_t length, char* out)
+{
+    uint32_t kept = 0;
+    for (uint32_t i = 0; i < length; i++)
+    {
+        unsigned char byte = (unsigned char)text[i];
+        if (byte < 0x20u || byte == 0x7Fu)
+        {
+            continue;
+        }
+        if (byte == 0xC2u && i + 1 < length && (unsigned char)text[i + 1] < 0xA0u)
+        {
+            i++;
+            continue;
+        }
+        out[kept++] = text[i];
+    }
+    return kept;
+}
+
+// The text records a commit should give: the text between its tabs and
+// line breaks, which come as keys these records leave out, each piece
+// without its other control characters and none left empty.
+static void PushCommit(uint32_t slot)
+{
+    char kept[LIMIT];
+    uint32_t start = 0;
+    for (uint32_t i = 0; i <= s_commit.length; i++)
+    {
+        char byte = i < s_commit.length ? s_commit.text[i] : '\n';
+        if (byte != '\t' && byte != '\n' && byte != '\r')
+        {
+            continue;
+        }
+        uint32_t length = Kept(s_commit.text + start, i - start, kept);
+        if (length > 0)
+        {
+            Push(slot, mwin_eventTextInput, kept, length);
+        }
+        start = i + 1;
     }
 }
 
@@ -296,13 +344,14 @@ static void Done(const mwinContext* context)
         {
             Push(slot, mwin_eventInputStateReset, nullptr, 0);
         }
-        if (s_commit.length > 0)
-        {
-            Push(slot, mwin_eventTextInput, s_commit.text, s_commit.length);
-        }
+        PushCommit(slot);
         if (s_preedit.length > 0)
         {
-            Push(slot, mwin_eventImePreedit, s_preedit.text, s_preedit.length);
+            // Its one segment is stored even when no text is left.
+            char kept[LIMIT];
+            uint32_t length = Kept(s_preedit.text, s_preedit.length, kept);
+            PushSized(slot, mwin_eventImePreedit, kept, length,
+                      length + (uint32_t)sizeof(mwinPreeditSegment));
         }
         else
         {

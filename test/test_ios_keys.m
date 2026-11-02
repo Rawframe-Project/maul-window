@@ -5,7 +5,8 @@
 // (tools/run_ios_app.sh). The test hands the view's controller what a
 // hardware keyboard would, its own presses: Shift+A, the left arrow,
 // Return with the newline UIKit then types; it types into the view as
-// the on-screen keyboard would, text with a tab, and a deletion; it asks
+// the on-screen keyboard would, text with a carriage return and line
+// feed and a tab, and a deletion; it asks
 // for the on-screen keyboard for a number, and tells the view of the
 // keyboard's frame as UIKit would, then hides it. The view is the first
 // responder while its window shows, its input view empty unless the
@@ -154,7 +155,7 @@ static void Type(UIView* view)
     Press(view, UIKeyboardHIDUsageKeyboardLeftArrow, @"UIKeyInputLeftArrow", @"UIKeyInputLeftArrow",
           0, nil);
     Press(view, UIKeyboardHIDUsageKeyboardReturnOrEnter, @"\r", @"\r", 0, @"\n");
-    [(id<UIKeyInput>)view insertText:@"héllo\t"];
+    [(id<UIKeyInput>)view insertText:@"héllo\r\n\t"];
     [(id<UIKeyInput>)view deleteBackward];
 }
 
@@ -168,8 +169,8 @@ static bool KeyIs(const mwinEvent* event, mwinEventType type, mwinKeyCode code, 
 static void CheckKeys(const Program* program, mwinContext* context)
 {
     const mwinEvent* r = program->records;
-    CHECK(program->count == 11, "eleven key and text records");
-    if (program->count != 11)
+    CHECK(program->count == 13, "thirteen key and text records");
+    if (program->count != 13)
     {
         return;
     }
@@ -183,12 +184,15 @@ static void CheckKeys(const Program* program, mwinContext* context)
               KeyIs(&r[5], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
           "Return once: its newline gives no second press");
     CHECK(r[6].type == mwin_eventTextInput && strcmp(program->text, "h\xC3\xA9llo") == 0,
-          "the text before the tab");
-    CHECK(KeyIs(&r[7], mwin_eventKeyDown, 43, MWIN_KEY_NAMED | 43, 0) &&
-              KeyIs(&r[8], mwin_eventKeyUp, 43, MWIN_KEY_NAMED | 43, 0),
+          "the text before the line break");
+    CHECK(KeyIs(&r[7], mwin_eventKeyDown, 40, MWIN_KEY_NAMED | 40, 0) &&
+              KeyIs(&r[8], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
+          "the typed CR LF as one Enter");
+    CHECK(KeyIs(&r[9], mwin_eventKeyDown, 43, MWIN_KEY_NAMED | 43, 0) &&
+              KeyIs(&r[10], mwin_eventKeyUp, 43, MWIN_KEY_NAMED | 43, 0),
           "the typed tab as the Tab key");
-    CHECK(KeyIs(&r[9], mwin_eventKeyDown, 42, MWIN_KEY_NAMED | 42, 0) &&
-              KeyIs(&r[10], mwin_eventKeyUp, 42, MWIN_KEY_NAMED | 42, 0),
+    CHECK(KeyIs(&r[11], mwin_eventKeyDown, 42, MWIN_KEY_NAMED | 42, 0) &&
+              KeyIs(&r[12], mwin_eventKeyUp, 42, MWIN_KEY_NAMED | 42, 0),
           "a deletion as Backspace");
     CHECK(mwinContext_MapKeyCode(context, 4) == 'a' && mwinContext_MapKeyCode(context, 5) == 0 &&
               mwinContext_MapKeyCode(context, 80) == (MWIN_KEY_NAMED | 80),

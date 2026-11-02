@@ -7,8 +7,8 @@
 // window and goes when asked to. The test calls the activity's input
 // connection as an input method would (through JNI, the user's typing
 // being out of its reach): committed text as text, compositions told
-// while the window accepts text and kept as its caret moves, a newline
-// and a tab as the Enter and Tab keys, deletions outside a composition
+// while the window accepts text and kept as its caret moves, a carriage
+// return and line feed and a tab as one Enter and Tab, deletions outside a composition
 // and sent keys as keys, with their modifiers; a composition dropped
 // when the window stops accepting text, not committed when the input
 // method closes its old connection, and none told while it does not; a
@@ -369,7 +369,7 @@ static void CheckKeys(const Program* program)
           "a deletion outside a composition as Backspace and Delete");
     CHECK(IsText(&program->records[6], "a") && IsTap(program, 7, mwin_codeEnter) &&
               IsTap(program, 9, mwin_codeTab) && IsText(&program->records[11], "b"),
-          "a newline and a tab in committed text as Enter and Tab, no text between");
+          "CR LF and a tab in committed text as one Enter and Tab, no text between");
     CHECK(IsTap(program, 12, mwin_codeBackspace), "a key the input method sends");
     CHECK(program->records[12].modifiers ==
                   (mwin_modControl | mwin_modAlt | mwin_modCapsLock | mwin_modNumLock) &&
@@ -462,7 +462,7 @@ static void Advance(Program* program, mwinContext* context)
                   !StateOf(program, context).composing,
               "committed, and the composition ended");
         Delete(env, connection, 2, 1);
-        Text(env, connection, "commitText", "a\n\tb");
+        Text(env, connection, "commitText", "a\r\n\tb");
         SendKey(env, connection, 0, KEYCODE_DEL,
                 AMETA_CTRL_ON | AMETA_ALT_ON | AMETA_CAPS_LOCK_ON | AMETA_NUM_LOCK_ON);
         SendKey(env, connection, 1, KEYCODE_DEL, 0);

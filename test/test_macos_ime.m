@@ -34,7 +34,7 @@
 
 typedef struct Record
 {
-    mwinEventKind type;
+    mwinEventKind kind;
     char text[32];
     uint32_t length;
     int32_t caret;
@@ -102,7 +102,7 @@ static void Collect(Program* program, mwinContext* context)
         if (kept && program->count < MAX_RECORDS)
         {
             Record* record = &program->records[program->count++];
-            *record = (Record){.type = event.kind};
+            *record = (Record){.kind = event.kind};
             Keep(record, &event);
         }
     }
@@ -118,7 +118,7 @@ static const Record* Find(const Program* program, size_t* at, mwinEventKind type
 {
     for (; *at < program->count; (*at)++)
     {
-        if (program->records[*at].type == type)
+        if (program->records[*at].kind == type)
         {
             return &program->records[(*at)++];
         }

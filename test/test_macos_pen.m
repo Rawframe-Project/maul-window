@@ -28,7 +28,7 @@
 
 typedef struct Record
 {
-    mwinEventKind type;
+    mwinEventKind kind;
     mwinPenEvent pen;
 } Record;
 
@@ -115,7 +115,7 @@ static bool Near(float value, float expected)
 
 static bool Is(const Program* program, size_t index, mwinEventKind type, mwinPenFlags flags)
 {
-    return index < program->count && program->records[index].type == type &&
+    return index < program->count && program->records[index].kind == type &&
            program->records[index].pen.flags == flags;
 }
 

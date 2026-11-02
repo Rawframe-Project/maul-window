@@ -24,7 +24,7 @@ apple_clipboard:
 apple_locale: core
 apple_pad: core pad_tracker
 apple_rumble: apple_pad
-apple_text:
+apple_text: allocator core
 backend:
 backend_android: allocator android backend core key_reach
 backend_ios: allocator backend core ios key_reach
@@ -57,12 +57,12 @@ cursor: allocator core icon
 input: core
 ios: apple_pad core
 ios_dialog: answer core dialog ios
-ios_drop: core ios
+ios_drop: apple_text core ios
 ios_keys: core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios
-ios_services: answer apple_clipboard clipboard_data core ios
+ios_services: answer apple_clipboard apple_text clipboard_data core ios
 ios_system: apple_locale core ios
 ios_text: apple_text core ios
 ios_view: accessibility core ios
@@ -88,14 +88,14 @@ macos: apple_pad core
 macos_chrome: chrome core macos
 macos_cursor: core cursor icon macos
 macos_dialog: answer core dialog macos
-macos_drop: core macos
+macos_drop: apple_text core macos
 macos_icon: core icon macos
 macos_keys: core macos
 macos_message_box: message_box
 macos_output: core macos
 macos_owned: core macos
 macos_pen: core macos
-macos_services: apple_clipboard clipboard_data core macos
+macos_services: apple_clipboard apple_text clipboard_data core macos
 macos_system: apple_locale core macos
 macos_text: apple_text core macos
 macos_view: accessibility core macos

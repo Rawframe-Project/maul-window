@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The macOS backend's clipboard and services, against macOS's own (a CI
-// runner's session): text written to the pasteboard read back whole;
+// runner's session): text written to the pasteboard read back whole, a
+// U+0000 within it kept;
 // the display kept awake while a window asks, read back from the
 // process's power assertions, and let go when it no longer asks; a file
 // that does not exist not revealed, and one that does shown in the
@@ -24,8 +25,8 @@
 #include <unistd.h>
 
 #define DEADLINE_NS 10000000000ull
-// "Maul é", past ASCII.
-#define TEXT "Maul \xC3\xA9"
+// "Maul é", past ASCII, then U+0000 and "!".
+#define TEXT "Maul \xC3\xA9\0!"
 
 typedef struct Program
 {

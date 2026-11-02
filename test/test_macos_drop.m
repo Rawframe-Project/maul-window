@@ -5,9 +5,11 @@
 // that carries only an image refused; one that carries a file and text
 // entering with both, a rest that has not moved posting nothing, a move,
 // leaving; then entering again and dropped, with the file's path and the
-// text read back. No drag can be made on the runner, so the test hands
-// the view a drag of its own: a private pasteboard and a place, what the
-// backend asks a drag for.
+// text read back, a U+0000 within it kept. Then a drop of text with a lone
+// surrogate, from a pasteboard of the test's that answers what the
+// backend asks: the text arrives with U+FFFD in its place, not truncated. No drag can be made on
+// the runner, so the test hands the view a drag of its own: a private pasteboard and a place, what
+// the backend asks a drag for.
 
 #include "test_harness.h"
 
@@ -21,7 +23,8 @@
 
 #define DEADLINE_NS 10000000000ull
 #define MAX_RECORDS 8
-#define TEXT        "Maul drop"
+// Text with a U+0000 within it, which ended it when read as UTF-8.
+#define TEXT "Maul\0drop"
 
 // A drag: its pasteboard and where it is in the window.
 @interface FakeDrag : NSObject
@@ -41,6 +44,40 @@
 - (NSPoint)draggingLocation
 {
     return location;
+}
+@end
+
+// A pasteboard of only text, which no real one stores as it is: "a", a
+// lone surrogate, "b". It answers the messages the backend sends.
+@interface FakeTextPasteboard : NSObject
+@end
+
+@implementation FakeTextPasteboard
+- (BOOL)canReadObjectForClasses:(NSArray*)classes options:(NSDictionary*)options
+{
+    (void)classes;
+    (void)options;
+    return NO;
+}
+
+- (NSPasteboardType)availableTypeFromArray:(NSArray<NSPasteboardType>*)types
+{
+    return [types containsObject:NSPasteboardTypeString] ? NSPasteboardTypeString : nil;
+}
+
+- (NSArray*)readObjectsForClasses:(NSArray*)classes options:(NSDictionary*)options
+{
+    (void)classes;
+    (void)options;
+    return @[];
+}
+
+- (NSString*)stringForType:(NSPasteboardType)type
+{
+    static const unichar units[] = {'a', 0xD800, 'b'};
+    return [type isEqualToString:NSPasteboardTypeString]
+               ? [NSString stringWithCharacters:units length:3]
+               : nil;
 }
 @end
 
@@ -102,7 +139,11 @@ static NSPasteboard* FileAndText(const char* path)
     NSPasteboardItem* text = [[NSPasteboardItem alloc] init];
     NSURL* address = [NSURL fileURLWithPath:@(path)];
     [file setString:address.absoluteString forType:NSPasteboardTypeFileURL];
-    [text setString:@TEXT forType:NSPasteboardTypeString];
+    NSString* string = [[NSString alloc] initWithBytes:TEXT
+                                                length:sizeof(TEXT) - 1
+                                              encoding:NSUTF8StringEncoding];
+    [text setString:string forType:NSPasteboardTypeString];
+    [string release];
     [pasteboard clearContents];
     [pasteboard writeObjects:@[ file, text ]];
     [file release];
@@ -158,6 +199,37 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the text");
 }
 
+// Drops the text with a lone surrogate.
+static void DropSurrogate(NSView<NSDraggingDestination>* view)
+{
+    FakeDrag* drag = [[FakeDrag alloc] init];
+    FakeTextPasteboard* pasteboard = [[FakeTextPasteboard alloc] init];
+    drag->pasteboard = (NSPasteboard*)pasteboard;
+    CHECK([view draggingEntered:At(drag, view, 10.0, 10.0)] == NSDragOperationCopy &&
+              [view performDragOperation:At(drag, view, 10.0, 10.0)],
+          "a drag of text with a lone surrogate taken and dropped");
+    [pasteboard release];
+    [drag release];
+}
+
+static void CheckSurrogate(const Program* program, mwinContext* context)
+{
+    const mwinDropEvent* drop = program->count == 2 && program->records[1].type == mwin_eventDropped
+                                    ? &program->records[1].data.drop
+                                    : nullptr;
+    char text[16];
+    size_t length = 0;
+    CHECK(drop != nullptr && drop->fileCount == 0 && drop->textLength == 5 && !drop->truncated &&
+              mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
+                  mwin_success &&
+              length == 5 &&
+              memcmp(text,
+                     "a\xEF\xBF\xBD"
+                     "b",
+                     5) == 0,
+          "the text with U+FFFD for the lone surrogate, not truncated");
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
@@ -183,9 +255,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                 program->count = 0;
                 Drag(program, (NSView<NSDraggingDestination>*)handles.handles.apple.view);
             }
-            else
+            else if (program->phase == 1)
             {
                 CheckDrop(program, context);
+                program->count = 0;
+                DropSurrogate((NSView<NSDraggingDestination>*)handles.handles.apple.view);
+            }
+            else
+            {
+                CheckSurrogate(program, context);
             }
         }
         program->phase += 1;
@@ -195,7 +273,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 2 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 3 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -215,6 +293,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 2, "every phase ran");
+    CHECK(program.phase == 3, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

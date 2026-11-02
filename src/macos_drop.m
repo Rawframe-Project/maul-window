@@ -7,6 +7,7 @@
 // drop's files are the file URLs' paths, and its text the pasteboard's
 // string.
 
+#include "apple_text.h"
 #include "macos.h"
 
 #include <string.h>
@@ -98,10 +99,10 @@ bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> dr
             mwinAddDroppedFile(context, path, strlen(path));
         }
     }
-    const char* text = [pasteboard stringForType:NSPasteboardTypeString].UTF8String;
-    if (text != nullptr)
+    NSString* text = [pasteboard stringForType:NSPasteboardTypeString];
+    if (text != nil)
     {
-        mwinSetDroppedText(context, text, strlen(text));
+        mwinAppleSetDroppedText(context, text);
     }
     mwinFinishDrop(context, slot, PositionOf(window, drag), mwinMacNow());
     return true;

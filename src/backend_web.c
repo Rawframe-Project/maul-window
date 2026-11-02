@@ -103,7 +103,7 @@ static void ReadFacts(mwinWebPlatform* platform)
     facts.onBattery =
         battery >= mwin_unknown && battery <= mwin_yes ? (mwinTristate)battery : mwin_unknown;
     mwinSetSystemFacts(context, &facts, NowNs());
-    // A list past the limit is left as it was.
+    // The leading languages that fit.
     char locales[MWIN_WEB_LOCALE_BYTES];
     uint32_t length = mwinWebLocales(locales, sizeof(locales));
     if (length < sizeof(locales))

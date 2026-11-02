@@ -2,14 +2,45 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The system facts contract against the test backend: the look and the
-// power each notify only when they change, the preferred locales, the
-// keyboard layout's change, a window's safe area, and the on-screen
-// keyboard's request and the part of the window it covers, and the
-// record the test platform keeps of it.
+// power each notify only when they change, the preferred locales and
+// the leading tags kept of a list past the limit, the keyboard layout's
+// change, a window's safe area, and the on-screen keyboard's request and
+// the part of the window it covers, and the record the test platform
+// keeps of it.
 
 #include "test_program.h"
 
 #include <string.h>
+
+// A list past the limit, 256 bytes, keeps its leading tags that fit:
+// of 50 "ab-CD," the first 42 tags, 251 bytes; of a tag of 256 bytes
+// and another, the first; of a tag past the limit alone, none.
+static bool LongLocales(mwinContext* context)
+{
+    static char list[300];
+    static char read[300];
+    size_t length = 0;
+    for (size_t i = 0; i < sizeof(list); i += 6)
+    {
+        memcpy(list + i, "ab-CD,", 6);
+    }
+    bool tags =
+        mwinContext_SetTestLocales(context, list, sizeof(list)) == mwin_success &&
+        mwinContext_GetPreferredLocales(context, read, sizeof(read), &length) == mwin_success &&
+        length == 251 && memcmp(read, list, 251) == 0;
+    memset(list, 'x', sizeof(list));
+    list[256] = ',';
+    bool whole =
+        mwinContext_SetTestLocales(context, list, sizeof(list)) == mwin_success &&
+        mwinContext_GetPreferredLocales(context, read, sizeof(read), &length) == mwin_success &&
+        length == 256 && memcmp(read, list, 256) == 0;
+    list[256] = 'x';
+    bool none =
+        mwinContext_SetTestLocales(context, list, sizeof(list)) == mwin_success &&
+        mwinContext_GetPreferredLocales(context, read, sizeof(read), &length) == mwin_success &&
+        length == 0;
+    return tags && whole && none;
+}
 
 static void FactsStep(Program* program, mwinContext* context, int step)
 {
@@ -74,11 +105,8 @@ static void FactsStep(Program* program, mwinContext* context, int step)
                   mwin_success &&
               length == 0,
           "no locales");
-    static char longList[300];
-    memset(longList, 'a', sizeof(longList));
-    CHECK(mwinContext_SetTestLocales(context, longList, sizeof(longList)) == mwin_errorCapacity &&
-              mwinContext_SetTestLocales(context, "\xFF", 1) == mwin_errorInvalid,
-          "locales past the limit or not UTF-8");
+    CHECK(LongLocales(context), "locales past the limit");
+    CHECK(mwinContext_SetTestLocales(context, "\xFF", 1) == mwin_errorInvalid, "locales not UTF-8");
     mwinEvent theme = {.type = mwin_eventThemeChanged};
     CHECK(mwinContext_PostTestEvent(context, &theme) == mwin_errorInvalid,
           "facts are set, not reported");

@@ -808,10 +808,6 @@ mwinResult mwinContext_SetTestLocales(mwinContext* context, const char* locales,
     {
         return mwin_errorUnsupported;
     }
-    if (length > context->limits.localeBytes)
-    {
-        return mwin_errorCapacity;
-    }
     return mwinSetLocales(context, locales, length, Now(context)) ? mwin_success
                                                                   : mwinMisuse(context);
 }

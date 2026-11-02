@@ -4,9 +4,11 @@
 // Fuzzes the fitting of a composition's offsets (preedit_fit.c), as an
 // input method hands them: a caret, a selection and segments from the
 // input's first bytes, the text from the rest, made well-formed first
-// as every backend does. Fitted, every offset must lie on a character
-// boundary within the text, the selection in order, every segment
-// non-empty and inside the text, and fitting again must change nothing.
+// as every backend does, then copied without its control characters as
+// the core does. The copy must be as long as counted and hold no control
+// character. Fitted, every offset must lie on a character boundary
+// within the text, the selection in order, every segment non-empty and
+// inside the text, and fitting again must change nothing.
 
 #include "preedit_fit.h"
 #include "utf8.h"
@@ -44,6 +46,12 @@ static void Check(const mwinPreeditEvent* preedit)
 {
     const char* text = preedit->text;
     uint32_t length = preedit->length;
+    for (uint32_t i = 0; i < length; i++)
+    {
+        unsigned char byte = (unsigned char)text[i];
+        Expect(byte >= 0x20u && byte != 0x7Fu &&
+               (byte != 0xC2u || i + 1 == length || (unsigned char)text[i + 1] >= 0xA0u));
+    }
     Expect(preedit->caret >= -1 && preedit->caret <= (int64_t)length);
     Expect(preedit->caret < 0 || OnBoundary(text, length, (uint32_t)preedit->caret));
     Expect(preedit->selectionStart <= preedit->selectionEnd);
@@ -79,11 +87,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         segments[i] = (mwinPreeditSegment){values[0], values[1], mwin_preeditUnderline};
     }
     // The text, made well-formed as backends make it, within the bound.
+    static char repaired[TEXT_BYTES * 3];
     static char text[TEXT_BYTES * 3];
     size_t raw = size < TEXT_BYTES ? size : TEXT_BYTES;
-    size_t length = mwinRepairUtf8((const char*)data, raw, text);
-    mwinPreeditEvent preedit = {text,         (uint32_t)length, caret, selection[0],
-                                selection[1], segments,         count};
+    uint32_t length = (uint32_t)mwinRepairUtf8((const char*)data, raw, repaired);
+    uint32_t kept = mwinKeptTextBytes(repaired, length);
+    Expect(kept <= length);
+    mwinPreeditEvent preedit = {text, kept, caret, selection[0], selection[1], segments, count};
+    mwinCopyKeptText(text, repaired, length, &preedit, segments);
     mwinFitPreedit(&preedit, segments);
     Check(&preedit);
     mwinPreeditEvent again = preedit;

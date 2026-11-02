@@ -320,8 +320,10 @@ static bool AreSegmentsReadable(const mwinPreeditEvent* preedit)
 }
 
 // Moves a record's text, and a composition's segments before it, into
-// the window's storage; false when the record is lost. The text is
-// validated here once more, though backends repair what they receive.
+// the window's storage, without the control characters an input method
+// or a browser may hand; false when the record is lost, or is text with
+// nothing left. The text is validated here once more, though
+// backends repair what they receive.
 static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 {
     const char* text = record->data.text.text;
@@ -333,17 +335,23 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
     {
         return false;
     }
+    uint32_t kept = mwinKeptTextBytes(text, length);
+    if (!preedit && kept == 0)
+    {
+        return false;
+    }
     uint32_t segmentBytes = segments * (uint32_t)sizeof(mwinPreeditSegment);
-    if (length + segmentBytes == 0)
+    if (kept + segmentBytes == 0)
     {
         record->data.text.text = "";
+        record->data.text.length = 0;
         if (preedit)
         {
             mwinFitPreedit(&record->data.preedit, nullptr);
         }
         return true;
     }
-    unsigned char* block = mwinReserveText(&context->windows[slot].text, segmentBytes + length,
+    unsigned char* block = mwinReserveText(&context->windows[slot].text, segmentBytes + kept,
                                            alignof(mwinPreeditSegment));
     if (block == nullptr)
     {
@@ -355,11 +363,10 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
         memcpy(block, record->data.preedit.segments, segmentBytes);
         record->data.preedit.segments = (const mwinPreeditSegment*)block;
     }
-    if (length > 0)
-    {
-        memcpy(block + segmentBytes, text, length);
-    }
+    mwinCopyKeptText((char*)block + segmentBytes, text, length,
+                     preedit ? &record->data.preedit : nullptr, (mwinPreeditSegment*)block);
     record->data.text.text = (const char*)block + segmentBytes;
+    record->data.text.length = kept;
     if (preedit)
     {
         mwinFitPreedit(&record->data.preedit, (mwinPreeditSegment*)block);
@@ -393,11 +400,68 @@ static bool Consumed(mwinWindow* window, const mwinEvent* record)
     return false;
 }
 
+// Posts a piece of a text record, if it holds any bytes.
+static void PostPiece(mwinContext* context, uint32_t slot, const mwinEvent* record, uint32_t start,
+                      uint32_t end)
+{
+    if (end > start)
+    {
+        mwinEvent piece = *record;
+        piece.data.text = (mwinTextEvent){record->data.text.text + start, end - start};
+        mwinPost(context, slot, &piece);
+    }
+}
+
+// Posts a named key's press and release.
+static void PostTap(mwinContext* context, uint32_t slot, uint64_t timeNs, mwinKeyCode code)
+{
+    mwinEvent key = {.type = mwin_eventKeyDown, .timeNs = timeNs};
+    key.data.key = (mwinKeyEvent){code, 0, MWIN_KEY_NAMED | code, false};
+    mwinPost(context, slot, &key);
+    key.type = mwin_eventKeyUp;
+    mwinPost(context, slot, &key);
+}
+
+// Posts committed text that holds a tab, a line feed or a carriage
+// return as the text around them and the Tab or Enter key's press and
+// release (a carriage return and line feed one Enter), as an input
+// method that commits them means them; false when it holds none, or is
+// not well formed, for TakeText to refuse. Keys never type them: the
+// backends drop control characters from what a key types.
+static bool PostTyped(mwinContext* context, uint32_t slot, const mwinEvent* record)
+{
+    const char* text = record->data.text.text;
+    uint32_t length = record->data.text.length;
+    if (record->type != mwin_eventTextInput || text == nullptr ||
+        (memchr(text, '\t', length) == nullptr && memchr(text, '\n', length) == nullptr &&
+         memchr(text, '\r', length) == nullptr) ||
+        muniValidateUtf8(text, length).status != muni_success)
+    {
+        return false;
+    }
+    uint32_t start = 0;
+    for (uint32_t i = 0; i < length; i++)
+    {
+        if (text[i] != '\t' && text[i] != '\n' && text[i] != '\r')
+        {
+            continue;
+        }
+        PostPiece(context, slot, record, start, i);
+        if (text[i] != '\n' || i == 0 || text[i - 1] != '\r')
+        {
+            PostTap(context, slot, record->timeNs, text[i] == '\t' ? mwin_codeTab : mwin_codeEnter);
+        }
+        start = i + 1;
+    }
+    PostPiece(context, slot, record, start, length);
+    return true;
+}
+
 void mwinPost(mwinContext* context, uint32_t slot, const mwinEvent* event)
 {
     MWIN_ASSERT(slot < context->limits.windows);
     mwinWindow* window = &context->windows[slot];
-    if (window->status != mwin_slotLive)
+    if (window->status != mwin_slotLive || PostTyped(context, slot, event))
     {
         return;
     }

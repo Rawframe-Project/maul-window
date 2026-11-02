@@ -8,7 +8,8 @@
 // offsets fitted to their text, compositions that replace each other
 // without leaking storage, and a composition lost to the text limit
 // ending the one before with its reset while the input method's keys
-// stay left out.
+// stay left out, and control characters dropped from text and
+// compositions with the offsets moved.
 
 #include "test_program.h"
 
@@ -325,11 +326,127 @@ static void TestLost(void)
     CHECK(RunWith(&program, def) == mwin_success && program.done, "the program runs");
 }
 
+// The text and composition step 1 posted, without their control
+// characters.
+static void CheckDropped(const Program* program)
+{
+    const mwinEvent* text = nullptr;
+    const mwinPreeditEvent* preedit = nullptr;
+    int texts = 0;
+    for (int i = 0; i < program->eventCount; i++)
+    {
+        if (program->events[i].type == mwin_eventTextInput)
+        {
+            text = &program->events[i];
+            texts++;
+        }
+        else if (program->events[i].type == mwin_eventImePreedit)
+        {
+            preedit = &program->events[i].data.preedit;
+        }
+    }
+    CHECK(texts == 1 && text->data.text.length == 5 &&
+              memcmp(text->data.text.text,
+                     "ab\xC2\xA0"
+                     "c",
+                     5) == 0,
+          "the text without its control characters, and none of text left empty");
+    CHECK(preedit != nullptr && preedit->length == 3 && memcmp(preedit->text, "abc", 3) == 0,
+          "the composition without its control characters");
+    CHECK(preedit != nullptr && preedit->caret == 2 && preedit->selectionStart == 0 &&
+              preedit->selectionEnd == 3,
+          "its caret and selection moved with the bytes");
+    CHECK(preedit != nullptr && preedit->segmentCount == 2 && preedit->segments[0].start == 0 &&
+              preedit->segments[0].length == 2 && preedit->segments[1].start == 2 &&
+              preedit->segments[1].length == 1,
+          "and its segments");
+}
+
+// The commit step 2 posted, as text and keys.
+static void CheckTyped(const Program* program)
+{
+    static const mwinEventType expected[] = {
+        mwin_eventImePreedit, mwin_eventTextInput, mwin_eventKeyDown, mwin_eventKeyUp,
+        mwin_eventTextInput,  mwin_eventKeyDown,   mwin_eventKeyUp,   mwin_eventTextInput,
+        mwin_eventKeyDown,    mwin_eventKeyUp};
+    const mwinEvent* events = program->events;
+    bool typed = Types(program, expected, 10);
+    CHECK(typed && events[1].data.text.length == 1 && events[1].data.text.text[0] == 'a' &&
+              events[4].data.text.length == 1 && events[4].data.text.text[0] == 'b' &&
+              events[7].data.text.length == 1 && events[7].data.text.text[0] == 'c',
+          "the text around the tab and the line breaks");
+    CHECK(typed && events[2].data.key.code == mwin_codeTab &&
+              events[3].data.key.key == (MWIN_KEY_NAMED | mwin_codeTab) &&
+              events[5].data.key.code == mwin_codeEnter &&
+              events[8].data.key.code == mwin_codeEnter,
+          "the tab as Tab's press and release, each line break as Enter's, CR LF as one");
+}
+
+static void ControlStep(Program* program, mwinContext* context, int step)
+{
+    mwinWindowId window = program->windows[0];
+    if (step == 0)
+    {
+        program->windows[0] = Create(context, nullptr);
+        return;
+    }
+    Drain(program, context);
+    switch (step)
+    {
+    case 1:
+    {
+        // NUL, DEL and NEL (U+0085, a C1 control) go; the no-break space
+        // after them stays.
+        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+                                  .window = window,
+                                  .data.text = {"a\0b\x7F\xC2\x85\xC2\xA0"
+                                                "c",
+                                                9}});
+        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+                                  .window = window,
+                                  .data.text = {"\x1B\x01", 2}});
+        Post(context,
+             (mwinEvent){.type = mwin_eventTextInput, .window = window, .data.text = {"", 0}});
+        // Escape, "ab", DEL, "c": the caret before "c", a selection of
+        // all of it, "ab" a segment, and DEL and "c" another.
+        static const mwinPreeditSegment segments[2] = {{1, 2, mwin_preeditTarget},
+                                                       {3, 2, mwin_preeditUnderline}};
+        mwinEvent composition = Preedit(window,
+                                        "\x1B"
+                                        "ab\x7F"
+                                        "c",
+                                        4, segments, 2);
+        composition.data.preedit.selectionEnd = 5;
+        Post(context, composition);
+        return;
+    }
+    case 2:
+        CheckDropped(program);
+        // The composition ends; then a commit holds a tab, a carriage
+        // return and line feed, and a line feed.
+        Post(context, Preedit(window, "", -1, nullptr, 0));
+        Post(context, (mwinEvent){.type = mwin_eventTextInput,
+                                  .window = window,
+                                  .data.text = {"a\tb\r\nc\n", 7}});
+        return;
+    default:
+        CheckTyped(program);
+        program->done = true;
+    }
+}
+
+static void TestControls(void)
+{
+    Program program = {.step = ControlStep};
+    CHECK(Run(&program) == mwin_success && program.done, "the program runs");
+}
+
 int main(void)
 {
     TestComposition();
     TestRefusals();
     TestStorage();
     TestLost();
+    TestControls();
     return s_failures == 0 ? 0 : 1;
 }

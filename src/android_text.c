@@ -7,7 +7,8 @@
 //
 // - The activity's view is what input methods type into, whatever the
 //   program asked: committed text comes as text, a newline and a tab as
-//   the Enter and Tab keys' press and release, as on iOS; a composition
+//   the Enter and Tab keys' press and release (a carriage return and
+//   line feed as one Enter), as on iOS; a composition
 //   is told while the window accepts text, and dropped (the input method
 //   started again) when it stops. A deletion outside a composition and
 //   the keys an input method sends come as keys.
@@ -105,7 +106,11 @@ static void JNICALL Commit(JNIEnv* env, jclass type, jlong program, jstring text
         if (bytes[i] == '\n' || bytes[i] == '\r' || bytes[i] == '\t')
         {
             PostText(platform, bytes + start, i - start);
-            Tap(platform, bytes[i] == '\t' ? AKEYCODE_TAB : AKEYCODE_ENTER);
+            // A carriage return and line feed is one Enter.
+            if (bytes[i] != '\n' || i == 0 || bytes[i - 1] != '\r')
+            {
+                Tap(platform, bytes[i] == '\t' ? AKEYCODE_TAB : AKEYCODE_ENTER);
+            }
             start = i + 1;
         }
     }

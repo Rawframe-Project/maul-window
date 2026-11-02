@@ -30,7 +30,9 @@
 // after it was let go, and every call and filter is let go by the end;
 // every request completes exactly once, and a dialog's paths are
 // absolute UTF-8 within the limits; committed text and compositions are
-// UTF-8, a composition's caret, selection and segments within its text
+// UTF-8 with no control character, committed text never empty, a tab or
+// line break it held coming as Tab's or Enter's press and release, a
+// composition's caret, selection and segments within its text
 // on character boundaries; at most one inhibition is held, a portal's
 // handle only where it fits, and each is let go exactly once, by its
 // cookie or its handle, and nothing else is; the facts the program
@@ -1135,6 +1137,35 @@ static bool IsUtf8(const char* text, size_t length)
            (text != nullptr && muniValidateUtf8(text, length).status == muni_success);
 }
 
+// Whether well-formed text holds a control character: C0, DEL or C1.
+static bool HasControl(const char* text, size_t length)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        unsigned char byte = (unsigned char)text[i];
+        if (byte < 0x20u || byte == 0x7Fu ||
+            (byte == 0xC2u && i + 1 < length && (unsigned char)text[i + 1] < 0xA0u))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether a key record is the Tab or Enter press or release a tab or a
+// line break of a commit becomes: it has the commit's time, which no
+// key's serial reaches.
+static bool IsTyped(const mwinEvent* event)
+{
+    mwinKeyCode code = event->data.key.code;
+    if (event->timeNs <= s_keyCount || (code != mwin_codeTab && code != mwin_codeEnter))
+    {
+        return false;
+    }
+    Expect(event->data.key.key == (MWIN_KEY_NAMED | code) && !event->data.key.repeat);
+    return true;
+}
+
 // Whether an offset falls on a character's start or the text's end.
 static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
 {
@@ -1145,7 +1176,7 @@ static void CheckPreedit(const mwinPreeditEvent* preedit)
 {
     const char* text = preedit->text;
     uint32_t length = preedit->length;
-    Expect(IsUtf8(text, length));
+    Expect(IsUtf8(text, length) && !HasControl(text, length));
     Expect(preedit->caret == -1 || OnBoundary(text, length, (uint32_t)preedit->caret));
     Expect(preedit->selectionStart <= preedit->selectionEnd &&
            OnBoundary(text, length, preedit->selectionStart) &&
@@ -1218,7 +1249,9 @@ static void Drain(mwinContext* context)
         switch (event.type)
         {
         case mwin_eventTextInput:
-            Expect(IsUtf8(event.data.text.text, event.data.text.length));
+            Expect(IsUtf8(event.data.text.text, event.data.text.length) &&
+                   event.data.text.length > 0 &&
+                   !HasControl(event.data.text.text, event.data.text.length));
             break;
         case mwin_eventImePreedit:
             CheckPreedit(&event.data.preedit);
@@ -1235,6 +1268,10 @@ static void Drain(mwinContext* context)
         {
             // A key may be taken or dropped, never moved, repeated or
             // given another window or type.
+            if (IsTyped(&event))
+            {
+                break;
+            }
             uint64_t serial = event.timeNs;
             Expect(serial > s_keyRead && serial <= s_keyCount);
             Expect(memcmp(&s_keys[serial - 1].window, &event.window, sizeof(event.window)) == 0 &&

@@ -7,9 +7,12 @@
 // moved not reported again, and a drop delivering the paths, a path
 // with a lone surrogate left out, and the text repaired, its memory left
 // unlocked; a drag of neither refused and not reported; a drag that
-// leaves; no interface but the target's own. Then, with the thread made
-// multithreaded first so OLE cannot start, files dropped through
-// WM_DROPFILES, and a drop of good paths alone not truncated.
+// leaves; no interface but the target's own; a data object answering
+// with a stream where global memory was asked, its stream let go unread
+// and the drop truncated. Then, with the thread made multithreaded first
+// so OLE cannot start, files dropped through WM_DROPFILES, a drop of good
+// paths alone not truncated, and one of more paths than a drop delivers
+// truncated to them.
 
 // The interfaces' function tables const, as the test's are.
 #define CONST_VTABLE
@@ -37,7 +40,16 @@ typedef struct Data
     // The text's memory, lent rather than given: its release is the
     // object's, so the test sees whether it was left locked.
     HGLOBAL lent;
+    // It answers with a stream, of another medium than asked for.
+    bool stream;
 } Data;
+
+// A stream that is only ever let go, and counts how often.
+typedef struct Stream
+{
+    IStream stream;
+    int releases;
+} Stream;
 
 typedef struct Program
 {
@@ -99,12 +111,41 @@ static ULONG STDMETHODCALLTYPE DataReference(IDataObject* object)
     return 1;
 }
 
+static HRESULT STDMETHODCALLTYPE StreamQuery(IStream* stream, REFIID id, void** out)
+{
+    (void)stream;
+    (void)id;
+    *out = nullptr;
+    return E_NOINTERFACE;
+}
+
+static ULONG STDMETHODCALLTYPE StreamReference(IStream* stream)
+{
+    (void)stream;
+    return 1;
+}
+
+static ULONG STDMETHODCALLTYPE StreamRelease(IStream* stream)
+{
+    ((Stream*)(void*)stream)->releases += 1;
+    return 1;
+}
+
+static const IStreamVtbl s_stream = {
+    .QueryInterface = StreamQuery, .AddRef = StreamReference, .Release = StreamRelease};
+static Stream s_answered = {{&s_stream}, 0};
+
 static HRESULT STDMETHODCALLTYPE DataGet(IDataObject* object, FORMATETC* format, STGMEDIUM* medium)
 {
     static const WCHAR text[] = {L'h', L'i', 0xD800, L'!', 0};
     if (!Holds(DataOf(object), format))
     {
         return DV_E_FORMATETC;
+    }
+    if (DataOf(object)->stream)
+    {
+        *medium = (STGMEDIUM){.tymed = TYMED_ISTREAM, .pstm = &s_answered.stream};
+        return S_OK;
     }
     *medium = (STGMEDIUM){.tymed = TYMED_HGLOBAL};
     if (format->cfFormat == CF_HDROP)
@@ -227,9 +268,10 @@ static bool Paths(mwinContext* context, uint32_t drop)
 static void Drag(Program* program, mwinContext* context, IDropTarget* target, HWND hwnd,
                  float scale)
 {
-    Data both = {{&s_data}, true, true, nullptr};
-    Data neither = {{&s_data}, false, false, nullptr};
-    Data files = {{&s_data}, true, false, nullptr};
+    Data both = {{&s_data}, true, true, nullptr, false};
+    Data neither = {{&s_data}, false, false, nullptr, false};
+    Data files = {{&s_data}, true, false, nullptr, false};
+    Data stream = {{&s_data}, false, true, nullptr, true};
     DWORD effect = DROPEFFECT_COPY;
     target->lpVtbl->DragEnter(target, &both.object, 0, Screen(hwnd, 10, 20), &effect);
     CHECK(effect == DROPEFFECT_COPY, "a drag of files and text taken");
@@ -272,6 +314,13 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
               program->records[0].data.drag.contents == mwin_dragFiles &&
               program->records[1].type == mwin_eventDragLeft,
           "a drag of neither not reported, and one that leaves");
+    target->lpVtbl->DragEnter(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
+    target->lpVtbl->Drop(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
+    Collect(program, context);
+    CHECK(program->count == 2 && program->records[1].type == mwin_eventDropped &&
+              program->records[1].data.drop.textLength == 0 &&
+              program->records[1].data.drop.truncated && s_answered.releases == 1,
+          "a stream where global memory was asked let go unread, and the drop truncated");
 }
 
 static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float scale)
@@ -294,6 +343,22 @@ static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float s
     CHECK(program->count == 1 && program->records[0].data.drop.fileCount == 1 &&
               !program->records[0].data.drop.truncated,
           "a drop of good paths alone not truncated");
+    // One path more than a drop delivers, each "C:\\a" and its end, and
+    // the list's end.
+    static WCHAR many[257 * 5 + 1];
+    for (size_t i = 0; i < 257; i++)
+    {
+        memcpy(&many[i * 5], L"C:\\a", 5 * sizeof(WCHAR));
+    }
+    memory = Global(many, sizeof(many), sizeof(DROPFILES));
+    header = GlobalLock(memory);
+    *header = (DROPFILES){.pFiles = sizeof(DROPFILES), .pt = {15, 25}, .fWide = TRUE};
+    GlobalUnlock(memory);
+    SendMessageW(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
+    Collect(program, context);
+    CHECK(program->count == 1 && program->records[0].data.drop.fileCount == 256 &&
+              program->records[0].data.drop.truncated,
+          "a drop of more paths than a drop delivers truncated to them");
 }
 
 static void Check(Program* program, mwinContext* context)

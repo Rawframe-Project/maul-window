@@ -6,7 +6,8 @@
 // leaves its folder, and U+0000 too, so that none is cut short or left
 // empty; "Document" for none, an empty name, "." and "..";
 // a name of exactly the limit kept whole, a longer one cut to whole
-// characters within it, never half a surrogate pair.
+// characters within it, never half a surrogate pair, a lone surrogate cut
+// alone; a name of a million units cut at once.
 
 #include "android_name.h"
 #include "test_harness.h"
@@ -97,11 +98,39 @@ static void TestLimit(void)
     // where half a pair would leave a replacement's three bytes.
     CHECK(Repeats(NameOfRepeated(0xDBFF, 0xDFFF, 64), "\xF4\x8F\xBF\xBF", 63),
           "never half a surrogate pair");
+    // A lone low surrogate is a replacement's three bytes: past the limit
+    // it goes alone, and the 'y' before it stays.
+    static uint16_t lone[LIMIT];
+    for (size_t i = 0; i < LIMIT - 2; i++)
+    {
+        lone[i] = 'x';
+    }
+    lone[LIMIT - 2] = 'y';
+    lone[LIMIT - 1] = 0xDC00;
+    mwinAndroidNameOf(lone, LIMIT, s_name);
+    CHECK(strlen(s_name) == LIMIT - 1 && s_name[LIMIT - 2] == 'y',
+          "a lone low surrogate cut alone");
+}
+
+// A provider's name of a million units: cut at once, where cutting a
+// unit at a time from the end, each time converting all that is left,
+// took minutes.
+static void TestLongName(void)
+{
+    static uint16_t units[1u << 20];
+    for (size_t i = 0; i < sizeof(units) / sizeof(units[0]); i++)
+    {
+        units[i] = i % 2 == 0 ? 0xE9 : 'x';
+    }
+    mwinAndroidNameOf(units, sizeof(units) / sizeof(units[0]), s_name);
+    // 85 "éx" are 255 bytes.
+    CHECK(Repeats(s_name, "\xC3\xA9x", 85), "a million units cut to the limit");
 }
 
 int main(void)
 {
     TestNames();
     TestLimit();
+    TestLongName();
     return s_failures == 0 ? 0 : 1;
 }

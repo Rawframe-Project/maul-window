@@ -13,8 +13,8 @@
 // told. Started as a system bus, it plays UPower (OnBattery) and
 // AccountsService instead: FindUserById, the user's GetAll with its
 // Languages and Language, and their PropertiesChanged and Changed; and
-// another program on that bus, sending the user's PropertiesChanged in
-// its place; and AccountsService restarting under a new unique name.
+// AccountsService restarting under a new unique name. On either bus,
+// another program can send what a stand-in sends, in its place.
 
 #ifndef MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
 #define MAUL_WINDOW_TEST_LINUX_BUS_FAKE_H
@@ -865,10 +865,11 @@ static inline void FakeLanguagesChanged(FakeBus* fake, const char* names)
     fake->flush(fake->connection);
 }
 
-// A connection of the test's own to the system bus, or NULL.
+// A connection of the test's own to the stand-in's bus, or NULL.
 static inline void* FakeOpen(FakeBus* fake)
 {
-    const char* address = getenv("DBUS_SYSTEM_BUS_ADDRESS");
+    const char* address =
+        getenv(fake->system ? "DBUS_SYSTEM_BUS_ADDRESS" : "DBUS_SESSION_BUS_ADDRESS");
     void* other = address != nullptr ? fake->openPrivate(address, nullptr) : nullptr;
     if (other == nullptr)
     {
@@ -913,6 +914,34 @@ static inline bool FakeSpoof(FakeBus* fake, const char* names)
     fake->close(other);
     fake->unrefConnection(other);
     return sent;
+}
+
+// Another program on the bus speaks in the stand-in's place until
+// FakeEndSpoof: what the stand-in sends in between, it sends. The real
+// connection, to hand back, or NULL.
+static inline void* FakeBeginSpoof(FakeBus* fake)
+{
+    void* other = FakeOpen(fake);
+    if (other == nullptr)
+    {
+        return nullptr;
+    }
+    void* real = fake->connection;
+    fake->connection = other;
+    return real;
+}
+
+// The stand-in speaks again. The other program asks the bus for a name
+// first, which the bus answers only once it passed on what that program
+// sent, ahead of what the stand-in sends next: 1, the primary owner.
+static inline bool FakeEndSpoof(FakeBus* fake, void* real)
+{
+    void* other = fake->connection;
+    fake->connection = real;
+    bool passed = fake->requestName(other, "org.example.Spoof", 4, nullptr) == 1;
+    fake->close(other);
+    fake->unrefConnection(other);
+    return passed;
 }
 
 // AccountsService restarts in two steps: its connection gives up the name

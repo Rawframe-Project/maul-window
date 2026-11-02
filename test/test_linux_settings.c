@@ -6,7 +6,8 @@
 // - GNOME's answer: the dark style, the accent, reduced motion from
 //   animations off, and large text;
 // - the standard reduced-motion key over GNOME's own;
-// - the light style, and an accent out of range as none;
+// - the light style, and an accent out of range as none; a text scale
+//   another program on the bus sends in the portal's place left alone;
 // - settings of the wrong type left alone, and text scales a float
 //   cannot hold (1e300, infinity), the shape of a fuzz finding;
 // - KDE's answer: no preference as an unknown theme, and reduced motion
@@ -114,6 +115,15 @@ static void Change(FakeBus* fake, int phase)
     }
     else if (phase == 1)
     {
+        const double twice = 2.0;
+        void* real = FakeBeginSpoof(fake);
+        CHECK(real != nullptr, "another program joined the bus");
+        if (real != nullptr)
+        {
+            FakeSettingChanged(fake, "org.gnome.desktop.interface", "text-scaling-factor", 'd',
+                               &twice);
+            CHECK(FakeEndSpoof(fake, real), "another program sent a setting");
+        }
         FakeSettingChanged(fake, APPEARANCE, "color-scheme", 'u', &light);
         FakeSettingChanged(fake, APPEARANCE, "accent-color", 'r', far);
     }

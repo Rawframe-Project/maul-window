@@ -30,7 +30,8 @@
 //   same list, and that owner's change followed.
 // - With no system bus and no configuration folder, or AccountsService
 //   refusing the user and plasma-localerc no file: the starting list,
-//   and nothing told.
+//   and nothing told; with a limit of 512 bytes, a starting list of 365
+//   kept whole.
 // A step that tells nothing on the bus ends with Changed, and is judged
 // when the GetAll that follows reaches the stand-in: the library read
 // what came before it by then. One on the file is judged a few frames
@@ -60,6 +61,9 @@ static char s_directory[] = "/tmp/mwin-languages-XXXXXX";
 static char s_system[64];
 static char s_config[64];
 static char s_file[96];
+// The starting list, and the run's localeBytes limit, 0 for the default.
+static char s_start[512] = "en-US";
+static uint16_t s_localeBytes;
 
 typedef enum Kind
 {
@@ -249,7 +253,7 @@ static void Act(Program* program)
 
 static bool LocalesAre(mwinContext* context, const char* expected)
 {
-    char locales[64];
+    char locales[512];
     size_t length = 0;
     return mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
                mwin_success &&
@@ -341,7 +345,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     program->frames += 1;
     if (program->steps == 0)
     {
-        CHECK(LocalesAre(context, "en-US") && program->changes == 0,
+        CHECK(LocalesAre(context, s_start) && program->changes == 0,
               "nothing to follow leaves the starting list");
         program->done = program->frames > 50;
     }
@@ -363,6 +367,10 @@ static void Run(FakeBus* system, int steps, const char* what)
     def.init = Init;
     def.frame = Frame;
     def.user = &program;
+    if (s_localeBytes != 0)
+    {
+        def.context.limits.localeBytes = s_localeBytes;
+    }
     CHECK(mwinRun(&def) == mwin_success && program.done, what);
 }
 
@@ -416,6 +424,26 @@ int main(void)
         (void)setenv("DBUS_SYSTEM_BUS_ADDRESS", "unix:path=/nonexistent/mwin", 1);
         (void)setenv("XDG_CONFIG_HOME", "/nonexistent/mwin", 1);
         Run(nullptr, 0, "no system bus and no configuration folder");
+        // A limit of 512 bytes: 60 languages, aa_AA to ch_CH, and en-US
+        // after them, 365 bytes, all kept.
+        static char language[60 * 6];
+        size_t at = 0;
+        for (int i = 0; i < 60; i++)
+        {
+            char first = (char)('a' + i / 26);
+            char second = (char)('a' + i % 26);
+            char name[6] = {first, second, '_', (char)(first - 32), (char)(second - 32), ':'};
+            memcpy(language + at, name, 6);
+            memcpy(s_start + at, name, 6);
+            s_start[at + 2] = '-';
+            s_start[at + 5] = ',';
+            at += 6;
+        }
+        language[at - 1] = '\0';
+        memcpy(s_start + at, "en-US", 6);
+        (void)setenv("LANGUAGE", language, 1);
+        s_localeBytes = 512;
+        Run(nullptr, 0, "a starting list past 256 bytes, within the limit");
         status = s_failures == 0 ? 0 : 1;
     }
     FakeStop(&system);

@@ -71,6 +71,7 @@
 #define SLOTS        8
 #define FILES        8u
 #define DIALOG_BYTES 4096u
+#define LOCALE_BYTES 256
 // The calls a run can make: more than an input of 256 bytes asks for.
 #define CALLS   512
 #define FILTERS 8
@@ -176,6 +177,8 @@ static mwinLinuxSettings s_settings;
 static mwinLinuxPower s_power;
 static mwinLinuxBus s_system;
 static mwinLinuxLanguages s_languages;
+// The languages' room, for the context's localeBytes limit.
+static char s_languageRoom[MWIN_LINUX_LANGUAGE_PARTS * LOCALE_BYTES];
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
 static mwinLinuxInhibit s_inhibit;
@@ -1258,7 +1261,7 @@ static bool IsTagByte(char c)
 // The preferred locales: never empty, tags between single commas.
 static void CheckLocales(const mwinContext* context)
 {
-    char locales[MWIN_LINUX_LOCALE_BYTES];
+    char locales[LOCALE_BYTES];
     size_t length = 0;
     Expect(mwinContext_GetPreferredLocales(context, locales, sizeof(locales), &length) ==
                mwin_success &&
@@ -1368,7 +1371,7 @@ static void Start(mwinContext* context)
     mwinPowerStart(&s_power, context, &s_session, &s_system, now);
     JoinSystem();
     // It finds the stand-in, and no configuration folder.
-    mwinLanguagesStart(&s_languages, context, &s_system, "en-US", 5, now);
+    mwinLanguagesStart(&s_languages, context, &s_system, s_languageRoom, "en-US", 5, now);
     mwinDialogsStart(&s_dialogs, context, &s_session);
     mwinImeStart(&s_ime, context, &s_session);
     s_test = context->backend;
@@ -1591,6 +1594,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.windows = SLOTS;
     def.context.limits.dialogFiles = FILES;
     def.context.limits.dialogBytes = DIALOG_BYTES;
+    def.context.limits.localeBytes = LOCALE_BYTES;
     def.init = Init;
     def.frame = Frame;
     Expect(mwinRun(&def) == mwin_success);

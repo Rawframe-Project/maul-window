@@ -38,13 +38,16 @@
 #define MWIN_LINUX_CONFIG_PATH_BYTES 512
 // The most of plasma-localerc read: a longer file is left alone.
 #define MWIN_LINUX_PLASMA_BYTES 4096
+// The parts of a languages room, each of the localeBytes limit: two to
+// work in, the starting list, and what GNOME and KDE last said.
+#define MWIN_LINUX_LANGUAGE_PARTS 5
 
 // What a source last said: nothing yet, or its tags.
 typedef struct mwinLinuxLanguageWord
 {
     bool said;
     uint16_t length;
-    char tags[MWIN_LINUX_LOCALE_BYTES];
+    char* tags;
 } mwinLinuxLanguageWord;
 
 typedef struct mwinLinuxLanguages
@@ -65,10 +68,15 @@ typedef struct mwinLinuxLanguages
     bool refind;
     bool reread;
     char stale[MWIN_LINUX_USER_PATH_BYTES];
-    // The starting list, and the most a list may hold.
-    char start[MWIN_LINUX_LOCALE_BYTES];
+    // The starting list, and the most a list may hold: the localeBytes
+    // limit, the bytes of each part of the room.
+    char* start;
     uint16_t startLength;
     uint16_t capacity;
+    // The room's parts to work in: the tags read, and a single
+    // Language's.
+    char* work;
+    char* single;
     mwinLinuxLanguageWord gnome;
     mwinLinuxLanguageWord kde;
     // The inotify watch, -1 for none, and plasma-localerc's path.
@@ -77,9 +85,11 @@ typedef struct mwinLinuxLanguages
 } mwinLinuxLanguages;
 
 // Takes the starting list, asks AccountsService for the user, and
-// watches plasma-localerc; whatever is not there is left out.
+// watches plasma-localerc; whatever is not there is left out. The room
+// holds MWIN_LINUX_LANGUAGE_PARTS times the localeBytes limit; the
+// starting list may lie in its first part.
 void mwinLanguagesStart(mwinLinuxLanguages* languages, mwinContext* context, mwinLinuxBus* system,
-                        const char* start, size_t startLength, uint64_t nowNs);
+                        char* room, const char* start, size_t startLength, uint64_t nowNs);
 
 // Takes the answers that came, after the system bus's pump, and reads
 // plasma-localerc when it changed.

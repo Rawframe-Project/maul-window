@@ -7,6 +7,8 @@
 
 #include "allocator.h"
 
+#include "maul-unicode/encoding.h"
+
 uint32_t mwinAppleBytesBefore(NSString* string, NSUInteger index)
 {
     NSUInteger count = string.length;
@@ -80,4 +82,28 @@ void mwinAppleSetDroppedText(mwinContext* context, NSString* text)
     {
         mwinRelease(&context->allocator, units, bytes, alignof(uint16_t));
     }
+}
+
+char* mwinAppleUtf8Of(mwinContext* context, NSString* string, size_t* lengthOut, size_t* sizeOut)
+{
+    *lengthOut = 0;
+    *sizeOut = 0;
+    size_t bytes = 0;
+    uint16_t* units = Units(context, string, &bytes);
+    if (units == nullptr)
+    {
+        return nullptr;
+    }
+    size_t needed = 0;
+    (void)muniConvertUtf16ToUtf8(units, string.length, muni_convertReplace, nullptr, 0, &needed);
+    char* text = needed > 0 ? mwinAllocate(&context->allocator, needed, 1) : nullptr;
+    if (text != nullptr)
+    {
+        (void)muniConvertUtf16ToUtf8(units, string.length, muni_convertReplace, text, needed,
+                                     &needed);
+        *lengthOut = needed;
+        *sizeOut = needed;
+    }
+    mwinRelease(&context->allocator, units, bytes, alignof(uint16_t));
+    return text;
 }

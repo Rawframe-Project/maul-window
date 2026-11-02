@@ -58,7 +58,7 @@ input: core
 ios: apple_pad core
 ios_dialog: answer core dialog ios
 ios_drop: apple_text core ios
-ios_keys: core ios key_prints
+ios_keys: apple_text core ios key_prints
 ios_message_box: message_box
 ios_output: core ios
 ios_pointer: core ios

@@ -22,6 +22,7 @@
 //   or completed. The part of the window it covers is posted when its
 //   frame changes.
 
+#include "apple_text.h"
 #include "ios.h"
 #include "key_prints.h"
 
@@ -131,15 +132,28 @@ static void Tap(mwinIOSPlatform* platform, uint32_t slot, mwinKeyCode code)
     PostKey(platform, slot, mwin_eventKeyUp, code, MWIN_KEY_NAMED | code, 0);
 }
 
+// Posts the text kept, a lone surrogate in it as U+FFFD; a reset in its
+// place when there is no memory for it.
 static void PostText(mwinIOSPlatform* platform, uint32_t slot, NSMutableString* kept)
 {
-    const char* bytes = kept.UTF8String;
-    size_t length = bytes != nullptr ? strlen(bytes) : 0;
-    if (length > 0 && length <= UINT32_MAX)
+    mwinContext* context = platform->context;
+    size_t length = 0;
+    size_t size = 0;
+    char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
+    if (bytes != nullptr && length <= UINT32_MAX)
     {
         mwinEvent event = {.type = mwin_eventTextInput};
         event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
         Post(platform, slot, &event);
+    }
+    else if (kept.length > 0)
+    {
+        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        Post(platform, slot, &reset);
+    }
+    if (bytes != nullptr)
+    {
+        mwinRelease(&context->allocator, bytes, size, 1);
     }
     [kept setString:@""];
 }

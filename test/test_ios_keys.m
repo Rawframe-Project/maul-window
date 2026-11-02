@@ -6,7 +6,7 @@
 // hardware keyboard would, its own presses: Shift+A, the left arrow,
 // Return with the newline UIKit then types; it types into the view as
 // the on-screen keyboard would, text with a carriage return and line
-// feed and a tab, and a deletion; it asks
+// feed and a tab, a deletion, and text with a lone surrogate; it asks
 // for the on-screen keyboard for a number, and tells the view of the
 // keyboard's frame as UIKit would, then hides it. The view is the first
 // responder while its window shows, its input view empty unless the
@@ -80,7 +80,9 @@ typedef struct Program
     int completions;
     int count;
     mwinEvent records[MAX_RECORDS];
-    char text[32];
+    // The first two texts, in order.
+    char texts[2][32];
+    int textCount;
     bool covered;
     mwinRect rect;
 } Program;
@@ -107,9 +109,11 @@ static void Collect(Program* program, mwinContext* context)
             program->covered = true;
             program->rect = event.data.rect;
         }
-        if (event.type == mwin_eventTextInput && event.data.text.length < sizeof(program->text))
+        if (event.type == mwin_eventTextInput && program->textCount < 2 &&
+            event.data.text.length < sizeof(program->texts[0]))
         {
-            memcpy(program->text, event.data.text.text, event.data.text.length);
+            memcpy(program->texts[program->textCount++], event.data.text.text,
+                   event.data.text.length);
         }
         bool key = event.type == mwin_eventKeyDown || event.type == mwin_eventKeyUp ||
                    event.type == mwin_eventTextInput;
@@ -157,6 +161,8 @@ static void Type(UIView* view)
     Press(view, UIKeyboardHIDUsageKeyboardReturnOrEnter, @"\r", @"\r", 0, @"\n");
     [(id<UIKeyInput>)view insertText:@"héllo\r\n\t"];
     [(id<UIKeyInput>)view deleteBackward];
+    [(id<UIKeyInput>)view
+        insertText:[NSString stringWithCharacters:(const unichar[]){'x', 0xD800, 'y'} length:3]];
 }
 
 static bool KeyIs(const mwinEvent* event, mwinEventType type, mwinKeyCode code, mwinKey key,
@@ -169,8 +175,8 @@ static bool KeyIs(const mwinEvent* event, mwinEventType type, mwinKeyCode code, 
 static void CheckKeys(const Program* program, mwinContext* context)
 {
     const mwinEvent* r = program->records;
-    CHECK(program->count == 13, "thirteen key and text records");
-    if (program->count != 13)
+    CHECK(program->count == 14, "fourteen key and text records");
+    if (program->count != 14)
     {
         return;
     }
@@ -183,7 +189,7 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(KeyIs(&r[4], mwin_eventKeyDown, 40, MWIN_KEY_NAMED | 40, 0) &&
               KeyIs(&r[5], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
           "Return once: its newline gives no second press");
-    CHECK(r[6].type == mwin_eventTextInput && strcmp(program->text, "h\xC3\xA9llo") == 0,
+    CHECK(r[6].type == mwin_eventTextInput && strcmp(program->texts[0], "h\xC3\xA9llo") == 0,
           "the text before the line break");
     CHECK(KeyIs(&r[7], mwin_eventKeyDown, 40, MWIN_KEY_NAMED | 40, 0) &&
               KeyIs(&r[8], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
@@ -194,6 +200,8 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(KeyIs(&r[11], mwin_eventKeyDown, 42, MWIN_KEY_NAMED | 42, 0) &&
               KeyIs(&r[12], mwin_eventKeyUp, 42, MWIN_KEY_NAMED | 42, 0),
           "a deletion as Backspace");
+    CHECK(r[13].type == mwin_eventTextInput && strcmp(program->texts[1], "x\xEF\xBF\xBDy") == 0,
+          "typed text with a lone surrogate, U+FFFD in its place");
     CHECK(mwinContext_MapKeyCode(context, 4) == 'a' && mwinContext_MapKeyCode(context, 5) == 0 &&
               mwinContext_MapKeyCode(context, 80) == (MWIN_KEY_NAMED | 80),
           "A known once pressed, B not yet, the arrow named");

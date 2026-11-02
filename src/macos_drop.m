@@ -93,10 +93,15 @@ bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> dr
     mwinBeginDrop(context);
     for (NSURL* file in [pasteboard readObjectsForClasses:@[ [NSURL class] ] options:FilesOnly()])
     {
+        // Another program's URL may name a path that is not UTF-8.
         const char* path = file.path.UTF8String;
         if (path != nullptr)
         {
             mwinAddDroppedFile(context, path, strlen(path));
+        }
+        else
+        {
+            context->dropping.truncated = true;
         }
     }
     NSString* text = [pasteboard stringForType:NSPasteboardTypeString];

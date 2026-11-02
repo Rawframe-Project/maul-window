@@ -87,7 +87,7 @@ static void Feed(mwinContext* context, char* bytes, size_t length, int kind)
     }
     default:
 #ifdef MAUL_WINDOW_ZENITY
-        mwinZenityGather(context, bytes, length);
+        mwinZenityGather(context, bytes, length, s_data[0] >= 128);
         CheckList(&context->dialogGathering, limits->dialogFiles, limits->dialogBytes);
 #endif
         return;

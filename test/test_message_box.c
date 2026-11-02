@@ -7,7 +7,8 @@
 // of zenity's own; kdialog where zenity is missing, the longest title
 // whole; none where both are and no X server answers (the library's own
 // box, test_x11_message_box.c); and defs refused before anything runs,
-// with text past its named bound as mwin_errorLimit.
+// with text past its named bound as mwin_errorLimit. A failure leaves
+// the answer as it was.
 
 #include "test_harness.h"
 
@@ -79,7 +80,9 @@ static void CheckZenity(void)
                   "--ok-label=Yes\n--cancel-label=No\n"),
           "a question answered No");
     setenv("MWIN_EXIT", "5", 1);
-    CHECK(mwinShowMessageBox(&question, &accepted) == mwin_errorPlatform, "an error of zenity's");
+    accepted = true;
+    CHECK(mwinShowMessageBox(&question, &accepted) == mwin_errorPlatform && accepted,
+          "an error of zenity's, the answer left as it was");
     unsetenv("MWIN_EXIT");
 }
 
@@ -112,8 +115,9 @@ static void CheckKdialog(void)
     unsetenv("MWIN_EXIT");
     (void)snprintf(path, sizeof(path), "%s/kdialog", s_directory);
     (void)remove(path);
-    CHECK(mwinShowMessageBox(&question, &accepted) == mwin_errorUnsupported,
-          "no message box without either, nor an X server");
+    accepted = true;
+    CHECK(mwinShowMessageBox(&question, &accepted) == mwin_errorUnsupported && accepted,
+          "no message box without either, nor an X server, the answer left as it was");
 }
 
 static void CheckRefused(void)
@@ -135,6 +139,9 @@ static void CheckRefused(void)
               mwinShowMessageBox(&text, nullptr) == mwin_errorInvalid &&
               mwinShowMessageBox(&nul, nullptr) == mwin_errorInvalid && !Ran(""),
           "defs refused before anything runs");
+    bool accepted = true;
+    CHECK(mwinShowMessageBox(&wrong, &accepted) == mwin_errorInvalid && accepted,
+          "a refused def leaves the answer as it was");
     static char s_long[MWIN_MAX_MESSAGE_BYTES + 1];
     memset(s_long, 'a', sizeof(s_long));
     mwinMessageBoxDef title = def;

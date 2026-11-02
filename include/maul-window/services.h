@@ -166,7 +166,8 @@ extern "C"
     ///
     /// @param def          The message box.
     /// @param acceptedOut  Receives true for OK or Yes, false for Cancel,
-    ///                     No or a closed box. May be NULL.
+    ///                     No or a closed box. May be NULL. Left as it was
+    ///                     on failure.
     /// @return `mwin_success`; `mwin_errorVersion` for a def built from
     ///         another release's headers, checked first;
     ///         `mwin_errorUnsupported` where the platform

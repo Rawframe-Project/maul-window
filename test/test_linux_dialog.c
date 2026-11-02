@@ -12,9 +12,11 @@
 // window goes;
 // a URI of no local file failed; results keyed by numbers (a{dv}, the
 // shape of a fuzz finding) failed; zenity where the portal refuses.
-// Without a bus, zenity: its arguments, a choice of several, closed, a
-// save with no title or folder given its name alone, failing, a choice
-// of exactly the limits and one past them, and missing. Skipped (exit
+// Without a bus, zenity: its arguments, a choice of several with a name
+// holding U+001E, one file whose name holds it and ends in a line feed,
+// several of exactly the limits, closed, a save with no title or folder
+// given its name alone, failing, a choice of exactly the limits and one
+// past them, and missing. Skipped (exit
 // status 77) without an X server.
 
 #include "linux_bus_fake.h"
@@ -357,13 +359,28 @@ static const Step s_portal[] = {
 };
 
 static const Step s_zenity[] = {
-    {.what = "several files by zenity",
+    {.what = "several files by zenity, a name holding U+001E kept whole",
      .kind = mwin_dialogOpenMany,
-     .output = "/a\x1e/b c\n",
+     .output = "/a\x1e/.//b c\n",
      .outcome = mwin_outcomeDone,
-     .files = "/a\0/b c",
-     .filesLength = 8,
-     .asked = "--file-selection\n--title=Pick\n--multiple\n--separator=\x1e\n"
+     .files = "/a\x1e\0/b c",
+     .filesLength = 9,
+     .asked = "--file-selection\n--title=Pick\n--multiple\n--separator=/./\n"
+              "--filename=/tmp/a b/\n" ZENITY_FILTERS},
+    {.what = "one file by zenity, its name holding U+001E and ending in a line feed",
+     .kind = mwin_dialogOpen,
+     .output = "/a\x1e/b\n\n",
+     .outcome = mwin_outcomeDone,
+     .files = "/a\x1e/b\n",
+     .filesLength = 7,
+     .asked = "--file-selection\n--title=Pick\n--filename=/tmp/a b/\n" ZENITY_FILTERS},
+    {.what = "several files of exactly the limits",
+     .kind = mwin_dialogOpenMany,
+     .output = "/xxxxxxxxxxxxxx/.//yyyyyyyyyyyyyy\n",
+     .outcome = mwin_outcomeDone,
+     .files = "/xxxxxxxxxxxxxx\0/yyyyyyyyyyyyyy",
+     .filesLength = 32,
+     .asked = "--file-selection\n--title=Pick\n--multiple\n--separator=/./\n"
               "--filename=/tmp/a b/\n" ZENITY_FILTERS},
     {.what = "a save closed in zenity",
      .kind = mwin_dialogSave,
@@ -445,7 +462,7 @@ int main(void)
     CHECK(started != fakeBroken, fake.failure);
     FakeStop(&fake);
     (void)setenv("XDG_RUNTIME_DIR", s_directory, 1);
-    Run(s_zenity, 6, nullptr, 32, "dialogs by zenity");
+    Run(s_zenity, 8, nullptr, 32, "dialogs by zenity");
     (void)setenv("PATH", none, 1);
     Run(s_none, 1, nullptr, 1u << 20, "dialogs without zenity");
     (void)remove(path);

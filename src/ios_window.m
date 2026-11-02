@@ -450,8 +450,9 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
         [window->view becomeFirstResponder];
         return mwin_outcomeDone;
     case mwin_requestTextInput:
-        return mwinIOSSetTextInput(platform, slot, request->value.textInput.enabled,
-                                   request->value.textInput.caret);
+        return mwinIOSSetTextInput(platform, slot, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinIOSSetTextCaret(platform, slot, request->value.caret);
     case mwin_requestVirtualKeyboard:
         // The purpose in the low bits, the high bit set to show.
         return mwinIOSSetVirtualKeyboard(platform, slot, (request->value.code & 0x80u) != 0,

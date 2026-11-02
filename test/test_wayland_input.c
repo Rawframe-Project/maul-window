@@ -71,6 +71,7 @@ typedef enum Phase
     phaseVisible,
     phasePointerLeave,
     phaseTextEnable,
+    phaseCaretMoved,
     phasePreedit,
     phaseTextCommit,
     phaseBrokenPreedit,
@@ -293,6 +294,9 @@ static bool Ready(const Program* program)
         return First(program, mwin_eventRequestCompleted) != nullptr &&
                text.enabled == (program->phase == phaseTextEnable);
     }
+    case phaseCaretMoved:
+        return First(program, mwin_eventRequestCompleted) != nullptr &&
+               ServerText(program->server).x == 30;
     case phasePreedit:
         return First(program, mwin_eventImePreedit) != nullptr;
     case phaseFrame:
@@ -380,9 +384,11 @@ static void AdvanceText(Program* program, mwinContext* context)
     {
     case phasePointerLeave:
         ServerTextEnter(program->server);
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true,
-                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                          nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window,
+                                               (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                               nullptr) == mwin_success &&
+                  mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
+                      mwin_success,
               "accept text");
         break;
     case phaseTextEnable:
@@ -390,6 +396,18 @@ static void AdvanceText(Program* program, mwinContext* context)
         TextState text = ServerText(program->server);
         CHECK(text.x == 10 && text.y == 20 && text.width == 1 && text.height == 16,
               "the input method knows where the caret is");
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window,
+                                               (mwinRect){30.0f, 40.0f, 2.0f, 16.0f},
+                                               nullptr) == mwin_success,
+              "the caret moved");
+        break;
+    }
+    case phaseCaretMoved:
+    {
+        TextState text = ServerText(program->server);
+        CHECK(text.enabled && text.enables == 1 && text.x == 30 && text.y == 40 &&
+                  text.width == 2 && text.height == 16,
+              "a moved caret is sent alone, without enabling again");
         // "kan", with the caret after it.
         ServerCompose(program->server, "\xE3\x81\x8B\xE3\x82\x93", 6, 6, nullptr);
         break;
@@ -421,8 +439,7 @@ static void AdvanceText(Program* program, mwinContext* context)
     case phaseBrokenCommit:
         CHECK(TextIs(program, "\xE6\xBC\xA2\xEF\xBF\xBD"),
               "committed text that is not UTF-8, repaired");
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, (mwinRect){0},
-                                          nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "stop accepting text");
         break;
     default:

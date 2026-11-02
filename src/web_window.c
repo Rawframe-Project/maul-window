@@ -179,8 +179,9 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestCursorImage:
         return mwinWebSetCursorImage(PlatformOf(context), slot, request->value.cursor);
     case mwin_requestTextInput:
-        return mwinWebSetTextInput(PlatformOf(context), slot, request->value.textInput.enabled,
-                                   request->value.textInput.caret);
+        return mwinWebSetTextInput(PlatformOf(context), slot, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinWebSetTextCaret(PlatformOf(context), slot, request->value.caret);
     case mwin_requestClipboardWrite:
         return mwinWebWriteClipboard(context, slot);
     case mwin_requestClipboardRead:

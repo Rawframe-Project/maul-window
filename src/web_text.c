@@ -125,17 +125,23 @@ static void EndComposition(mwinWebPlatform* platform, uint32_t slot, double time
     Post(platform, slot, &end, timeMs);
 }
 
-mwinOutcome mwinWebSetTextInput(mwinWebPlatform* platform, uint32_t slot, bool enabled,
-                                mwinRect caret)
+mwinOutcome mwinWebSetTextInput(mwinWebPlatform* platform, uint32_t slot, bool enabled)
 {
     mwinContext* context = platform->context;
     mwinPageMakeField(context, slot);
-    mwinPagePlaceField(context, slot, caret.x, caret.y, caret.width, caret.height);
     mwinPageFocusField(context, slot, enabled);
     if (!enabled)
     {
         EndComposition(platform, slot, mwinWebNow());
     }
+    return mwin_outcomeDone;
+}
+
+mwinOutcome mwinWebSetTextCaret(mwinWebPlatform* platform, uint32_t slot, mwinRect caret)
+{
+    mwinContext* context = platform->context;
+    mwinPageMakeField(context, slot);
+    mwinPagePlaceField(context, slot, caret.x, caret.y, caret.width, caret.height);
     return mwin_outcomeDone;
 }
 

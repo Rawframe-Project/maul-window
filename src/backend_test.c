@@ -297,6 +297,7 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
         Focus(context, slot);
         break;
     case mwin_requestTextInput:
+    case mwin_requestTextInputCaret:
     case mwin_requestVirtualKeyboard:
         mwinTestCarryOutText(context, slot, request);
         break;

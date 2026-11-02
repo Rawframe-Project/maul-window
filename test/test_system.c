@@ -200,9 +200,11 @@ static void KeyboardRecordStep(Program* program, mwinContext* context, int step)
         program->windows[0] = Create(context, nullptr);
         CHECK(mwinWindow_RequestVirtualKeyboard(context, program->windows[0], true,
                                                 mwin_purposeNumber, nullptr) == mwin_success &&
-                  mwinWindow_RequestTextInput(context, program->windows[0], true,
-                                              (mwinRect){1.0f, 2.0f, 3.0f, 4.0f},
-                                              nullptr) == mwin_success,
+                  mwinWindow_RequestTextInput(context, program->windows[0], true, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestTextInputCaret(context, program->windows[0],
+                                                   (mwinRect){1.0f, 2.0f, 3.0f, 4.0f},
+                                                   nullptr) == mwin_success,
               "the keyboard and text input asked for");
         return;
     }

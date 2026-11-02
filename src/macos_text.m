@@ -219,11 +219,9 @@ NSRect mwinMacCaretOnScreen(const mwinMacPlatform* platform, uint32_t slot)
     return [window->window convertRectToScreen:[window->view convertRect:inView toView:nil]];
 }
 
-mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool enabled,
-                                mwinRect caret)
+mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool enabled)
 {
     mwinMacWindow* window = &platform->windows[slot];
-    window->caret = caret;
     if (!enabled && window->textInput)
     {
         // The composition is dropped, not committed, if the method
@@ -236,6 +234,14 @@ mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool e
     window->textInput = enabled;
     mwinMacLimitInputSources(window->view, enabled);
     // The candidate window moves to the caret.
+    [window->view.inputContext invalidateCharacterCoordinates];
+    return mwin_outcomeDone;
+}
+
+mwinOutcome mwinMacSetTextCaret(mwinMacPlatform* platform, uint32_t slot, mwinRect caret)
+{
+    mwinMacWindow* window = &platform->windows[slot];
+    window->caret = caret;
     [window->view.inputContext invalidateCharacterCoordinates];
     return mwin_outcomeDone;
 }

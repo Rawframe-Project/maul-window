@@ -518,7 +518,13 @@ static void SetTextInput(mwinContext* context, uint8_t op, uint32_t i)
     {
         ExpectEnd(context, slot);
     }
-    Expect(mwinWaylandSetTextInput(&s_platform, slot, enabled,
+    Expect(mwinWaylandSetTextInput(&s_platform, slot, enabled) == mwin_outcomeDone);
+}
+
+static void SetTextCaret(uint8_t op, uint32_t i)
+{
+    uint32_t slot = s_ids[i].index1 - 1;
+    Expect(mwinWaylandSetTextCaret(&s_platform, slot,
                                    (mwinRect){(float)(op >> 4), 1.0f, 2.0f, 3.0f}) ==
            mwin_outcomeDone);
 }
@@ -578,8 +584,10 @@ static mwinResult Init(mwinContext* context, void* user)
             Done(context);
             break;
         case 9:
-        case 10:
             SetTextInput(context, op, i);
+            break;
+        case 10:
+            SetTextCaret(op, i);
             break;
         case 11:
             Replace(context, i);

@@ -431,7 +431,9 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         Paint(program, context);
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window, caret, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
                       mwin_success &&
                   mwinWindow_RequestVirtualKeyboard(context, program->window, true,
                                                     mwin_purposeText, nullptr) == mwin_success,
@@ -473,10 +475,9 @@ static void Advance(Program* program, mwinContext* context)
         Text(env, connection, "setComposingText", "xy");
         program->composing = (*env)->NewGlobalRef(env, connection);
         {
-            // Text input asked for again, the caret moved: the
-            // composition stays.
+            // The caret moved: the composition stays.
             mwinRect moved = {30.0f, 10.0f, 1.0f, 20.0f};
-            CHECK(mwinWindow_RequestTextInput(context, program->window, true, moved, nullptr) ==
+            CHECK(mwinWindow_RequestTextInputCaret(context, program->window, moved, nullptr) ==
                       mwin_success,
                   "the caret moved while composing");
         }
@@ -485,8 +486,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(count == 1 && IsPreedit(&records[0], "xy", 2),
               "composing, the composition kept as the caret moves");
         program->completions = 0;
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "text input stopped");
         // The input method closes its old connection, which finishes the
         // composition.
@@ -508,8 +508,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(count == 1 && IsText(&records[0], "zz"),
               "no composition told while not accepting text, its text committed");
         // Composing from hardware keys, the keyboard hidden.
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success,
               "text input asked for again");
         Text(env, connection, "setComposingText", "kn");
         program->composing = (*env)->NewGlobalRef(env, connection);

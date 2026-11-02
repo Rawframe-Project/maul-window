@@ -325,14 +325,30 @@ extern "C"
 
     /// Asks a window to accept text, or to stop: while it does, input
     /// methods compose into it and mwin_eventImePreedit reports their
-    /// compositions, and the caret rectangle tells the platform where to
-    /// place the candidate window. Ask again to move the caret. It asks the
-    /// platform for a state of the window, which mwinWindowState's
-    /// textInput reports, and switches no part of the library.
+    /// compositions. It asks the platform for a state of the window, which
+    /// mwinWindowState's textInput reports, and switches no part of the
+    /// library.
     ///
     /// @param context     The context.
     /// @param window      The window.
     /// @param enabled     true to accept text, false to stop.
+    /// @param requestOut  Receives the request's id. May be NULL. The null
+    ///                    request on failure.
+    /// @return As mwinWindow_RequestTitle.
+    /// @par Thread safety
+    /// Main thread only.
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestTextInput(mwinContext* context,
+                                                                   mwinWindowId window,
+                                                                   bool enabled,
+                                                                   mwinRequestId* requestOut);
+
+    /// Tells the platform where a window's caret is, which it places the
+    /// input method's candidate window by. The window keeps the caret
+    /// while text input is turned off and on again; ask again when the
+    /// caret moves. Empty at the window's start.
+    ///
+    /// @param context     The context.
+    /// @param window      The window.
     /// @param caret       Where the caret is, in the window's logical units.
     /// @param requestOut  Receives the request's id. May be NULL. The null
     ///                    request on failure.
@@ -340,10 +356,10 @@ extern "C"
     ///         that is not finite or has a negative size.
     /// @par Thread safety
     /// Main thread only.
-    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestTextInput(mwinContext* context,
-                                                                   mwinWindowId window,
-                                                                   bool enabled, mwinRect caret,
-                                                                   mwinRequestId* requestOut);
+    MWIN_NODISCARD MWIN_API mwinResult mwinWindow_RequestTextInputCaret(mwinContext* context,
+                                                                        mwinWindowId window,
+                                                                        mwinRect caret,
+                                                                        mwinRequestId* requestOut);
 
     /// Asks for a cursor mode over a window.
     ///

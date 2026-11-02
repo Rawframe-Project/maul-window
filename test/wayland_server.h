@@ -83,6 +83,8 @@ typedef struct TextState
     int32_t width;
     int32_t height;
     uint32_t commits;
+    // The enable requests, which reset the input method's state.
+    uint32_t enables;
 } TextState;
 
 // What the client asked of its toplevel's shell: the window geometry,
@@ -727,6 +729,7 @@ static inline void ServerEnableText(struct wl_client* client, struct wl_resource
     (void)client;
     Server* server = wl_resource_get_user_data(resource);
     server->pendingText.enabled = true;
+    server->pendingText.enables += 1;
 }
 
 static inline void ServerDisableText(struct wl_client* client, struct wl_resource* resource)

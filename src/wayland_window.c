@@ -662,9 +662,9 @@ static int CarryOut(mwinWaylandWindow* window, mwinWindow* core, uint32_t index)
     case mwin_requestCursorImage:
         return mwinWaylandSetCursorImage(window->platform, window->slot, request->value.cursor);
     case mwin_requestTextInput:
-        return mwinWaylandSetTextInput(window->platform, window->slot,
-                                       request->value.textInput.enabled,
-                                       request->value.textInput.caret);
+        return mwinWaylandSetTextInput(window->platform, window->slot, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinWaylandSetTextCaret(window->platform, window->slot, request->value.caret);
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardWriteData:
     case mwin_requestPrimaryWrite:

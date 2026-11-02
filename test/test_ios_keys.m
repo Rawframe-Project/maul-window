@@ -243,9 +243,10 @@ static void Advance(Program* program, mwinContext* context, UIView* view)
     case 0:
         CHECK(view.inputView != nil, "no on-screen keyboard unless asked for");
         Type(view);
-        CHECK(mwinWindow_RequestTextInput(context, window, true,
-                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                          nullptr) == mwin_success &&
+        CHECK(mwinWindow_RequestTextInputCaret(context, window,
+                                               (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                               nullptr) == mwin_success &&
+                  mwinWindow_RequestTextInput(context, window, true, nullptr) == mwin_success &&
                   mwinWindow_RequestVirtualKeyboard(context, window, true, mwin_purposeNumber,
                                                     nullptr) == mwin_success,
               "text, and the keyboard for a number");

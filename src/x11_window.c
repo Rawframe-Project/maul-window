@@ -506,8 +506,11 @@ static int CarryOut(mwinX11Platform* platform, mwinX11Window* window, mwinWindow
     case mwin_requestTextInput:
         // Keys type text whether asked or not; an input method takes
         // them while it is asked.
-        window->textInput = request->value.textInput.enabled;
-        window->caret = request->value.textInput.caret;
+        window->textInput = request->value.textInput;
+        mwinX11FollowIme(platform);
+        return mwin_outcomeDone;
+    case mwin_requestTextInputCaret:
+        window->caret = request->value.caret;
         mwinX11FollowIme(platform);
         return mwin_outcomeDone;
     case mwin_requestClipboardWrite:

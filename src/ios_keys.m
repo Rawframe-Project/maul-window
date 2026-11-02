@@ -203,8 +203,7 @@ UIKeyboardType mwinIOSKeyboardTypeOf(mwinInputPurpose purpose)
     }
 }
 
-mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool enabled,
-                                mwinRect caret)
+mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool enabled)
 {
     mwinIOSWindow* window = &platform->windows[slot];
     if (!enabled && window->textInput)
@@ -213,7 +212,12 @@ mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool e
         mwinIOSEndComposition(platform, slot, false);
     }
     window->textInput = enabled;
-    window->caret = caret;
+    return mwin_outcomeDone;
+}
+
+mwinOutcome mwinIOSSetTextCaret(mwinIOSPlatform* platform, uint32_t slot, mwinRect caret)
+{
+    platform->windows[slot].caret = caret;
     return mwin_outcomeDone;
 }
 

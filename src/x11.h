@@ -117,7 +117,8 @@ typedef struct mwinX11Window
     int32_t offsetX;
     int32_t offsetY;
     // Whether the program takes text in it, and its caret, in window
-    // coordinates (mwinWindow_RequestTextInput).
+    // coordinates (mwinWindow_RequestTextInput and
+    // mwinWindow_RequestTextInputCaret).
     bool textInput;
     mwinRect caret;
     // Whether the X server last reported it wholly covered.

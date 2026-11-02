@@ -13,10 +13,14 @@ void mwinTestCarryOutText(mwinContext* context, uint32_t slot, const mwinRequest
 {
     const mwinWindow* window = &context->windows[slot];
     mwinTestText* text = &mwinTestPlatformOf(context)->texts[slot];
+    if (request->kind == mwin_requestTextInputCaret)
+    {
+        text->caret = request->value.caret;
+        return;
+    }
     if (request->kind == mwin_requestTextInput)
     {
-        text->enabled = request->value.textInput.enabled;
-        text->caret = request->value.textInput.caret;
+        text->enabled = request->value.textInput;
         if (!text->enabled && window->imeComposing)
         {
             // Leaving text input ends the composition.

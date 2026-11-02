@@ -238,9 +238,8 @@ bool mwinWin32HandleIme(mwinWin32Window* window, UINT message, WPARAM wParam, LP
     }
 }
 
-mwinOutcome mwinWin32SetTextInput(mwinWin32Window* window, bool enabled, mwinRect caret)
+mwinOutcome mwinWin32SetTextInput(mwinWin32Window* window, bool enabled)
 {
-    window->caret = caret;
     if (enabled)
     {
         (void)ImmAssociateContextEx(window->hwnd, nullptr, IACE_DEFAULT);
@@ -255,6 +254,14 @@ mwinOutcome mwinWin32SetTextInput(mwinWin32Window* window, bool enabled, mwinRec
     }
     (void)ImmAssociateContextEx(window->hwnd, nullptr, 0);
     EndComposition(window);
+    return mwin_outcomeDone;
+}
+
+mwinOutcome mwinWin32SetTextCaret(mwinWin32Window* window, mwinRect caret)
+{
+    // A window that takes no text has no input context to place.
+    window->caret = caret;
+    Place(window);
     return mwin_outcomeDone;
 }
 

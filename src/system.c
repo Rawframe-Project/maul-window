@@ -40,8 +40,21 @@ void mwinSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts, uint
 
 bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, uint64_t timeNs)
 {
-    if (length > context->limits.localeBytes || (locales == nullptr && length != 0) ||
-        muniValidateUtf8(locales, length).status != muni_success)
+    if (locales == nullptr && length != 0)
+    {
+        return false;
+    }
+    // A list past the limit keeps its leading tags that fit: up to the
+    // last comma within the limit's bytes and one more.
+    if (length > context->limits.localeBytes)
+    {
+        length = context->limits.localeBytes;
+        while (length > 0 && locales[length] != ',')
+        {
+            length--;
+        }
+    }
+    if (muniValidateUtf8(locales, length).status != muni_success)
     {
         return false;
     }

@@ -3,8 +3,8 @@
 //
 // The web backend's preferred locales in headless Chrome, as the page's
 // languages change: every language of the list, in order; a list a byte
-// shorter than the backend's bytes taken whole; and a list of the
-// backend's bytes left out, the locales kept as they were.
+// shorter than the backend's bytes taken whole; and of a list past them,
+// the leading language that fits.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -32,7 +32,6 @@ typedef struct Program
     double startMs;
     mwinEvent records[MAX_RECORDS];
     int count;
-    int frames;
     bool timedOut;
 } Program;
 
@@ -76,16 +75,6 @@ static bool LocalesAre(const mwinContext* context, const char* expected, size_t 
            got == length && memcmp(locales, expected, length) == 0;
 }
 
-static bool Ready(Program* program)
-{
-    if (program->phase == phaseTooLong)
-    {
-        // Nothing comes: a few frames show it.
-        return ++program->frames > 10;
-    }
-    return Changed(program);
-}
-
 static void Advance(Program* program, mwinContext* context)
 {
     static const char languages[] = "tr-TR,en-US";
@@ -97,11 +86,13 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseLongest:
         CHECK(LocalesAre(context, s_list, LIST_BYTES - 1), "a list a byte shorter taken whole");
-        SetLanguageOf(LIST_BYTES);
+        // "en-GB", then a language of the backend's bytes.
+        memcpy(s_list, "en-GB,", 6);
+        memset(s_list + 6, 'x', LIST_BYTES - 6);
+        SetLanguages(s_list, LIST_BYTES);
         break;
     default:
-        CHECK(!Changed(program) && LocalesAre(context, s_list, LIST_BYTES - 1),
-              "a list of the backend's bytes left out");
+        CHECK(LocalesAre(context, "en-GB", 5), "of a list past them, the leading language");
         break;
     }
     program->phase += 1;
@@ -126,7 +117,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         program->records[program->count++] = event;
     }
-    if (Ready(program))
+    if (Changed(program))
     {
         Advance(program, context);
     }

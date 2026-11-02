@@ -180,17 +180,17 @@ extern "C"
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_SetTestSystemFacts(mwinContext* context,
                                                                       const mwinSystemFacts* facts);
 
-    /// Sets the user's preferred locales, at once; a change posts
-    /// mwin_eventLocaleChanged.
+    /// Sets the user's preferred locales, at once, as a platform reports
+    /// them: a list past the localeBytes limit keeps its leading tags that
+    /// fit. A change posts mwin_eventLocaleChanged.
     ///
     /// @param context  A context of the test backend.
     /// @param locales  BCP 47 tags separated by commas, UTF-8. May be NULL
     ///                 when length is 0.
     /// @param length   The number of bytes.
-    /// @return `mwin_success`; `mwin_errorCapacity` past the localeBytes
-    ///         limit; `mwin_errorUnsupported` for a context of another
-    ///         backend; `mwin_errorInvalid` for a NULL context or a list
-    ///         that is not UTF-8.
+    /// @return `mwin_success`; `mwin_errorUnsupported` for a context of
+    ///         another backend; `mwin_errorInvalid` for a NULL context or
+    ///         tags kept that are not UTF-8.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_SetTestLocales(mwinContext* context,

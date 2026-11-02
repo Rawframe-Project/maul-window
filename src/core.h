@@ -361,8 +361,9 @@ void mwinRemoveMonitor(mwinContext* context, uint32_t slot, uint64_t timeNs);
 // notifications.
 void mwinSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts, uint64_t timeNs);
 
-// The preferred locales as the platform reports them; false for a list
-// that is not UTF-8 or past the localeBytes limit.
+// The preferred locales as the platform reports them, a list past the
+// localeBytes limit cut to its leading tags that fit; false for a list
+// that is not UTF-8.
 bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, uint64_t timeNs);
 
 // Gamepads as the backend reports them: a new one's slot (-1 when every

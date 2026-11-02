@@ -89,7 +89,7 @@ static int OutcomeOf(const Program* program, mwinRequestId request)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* record = &program->records[i];
-        if (record->type == mwin_eventRequestCompleted &&
+        if (record->kind == mwin_eventRequestCompleted &&
             record->data.completion.request.index1 == request.index1 &&
             record->data.completion.request.generation == request.generation)
         {
@@ -104,7 +104,7 @@ static int CountCompletions(const Program* program)
     int completions = 0;
     for (int i = 0; i < program->count; i++)
     {
-        completions += program->records[i].type == mwin_eventRequestCompleted;
+        completions += program->records[i].kind == mwin_eventRequestCompleted;
     }
     return completions;
 }
@@ -119,11 +119,11 @@ static bool Found(const mwinContext* context, mwinRequestId read, const char* ex
            found == length && memcmp(text, expected, length) == 0;
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }

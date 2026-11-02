@@ -64,19 +64,19 @@ static void Collect(Program* program, mwinContext* context)
             {
                 continue;
             }
-            if (event.type == mwin_eventCloseRequested)
+            if (event.kind == mwin_eventCloseRequested)
             {
                 printf("close requested for window %d\n", i);
                 program->closeRequested[i] = true;
             }
-            if (event.type == mwin_eventRequestCompleted &&
+            if (event.kind == mwin_eventRequestCompleted &&
                 event.data.completion.kind == mwin_requestCreate)
             {
                 printf("window %d created: outcome %d\n", i, (int)event.data.completion.outcome);
                 program->created[i] = (int)event.data.completion.outcome;
             }
         }
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             memcmp(&event.data.completion.request, &program->failing, sizeof(mwinRequestId)) == 0)
         {
             program->failed = (int)event.data.completion.outcome;

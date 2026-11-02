@@ -115,7 +115,7 @@ static void EndComposition(mwinLinuxIme* ime, int32_t slot)
         return;
     }
     mwinEvent end = {0};
-    end.type = mwin_eventImePreedit;
+    end.kind = mwin_eventImePreedit;
     end.timeNs = mwinMonotonicNow();
     end.data.preedit.caret = -1;
     mwinPost(ime->context, (uint32_t)slot, &end);
@@ -136,7 +136,7 @@ static void PostText(mwinLinuxIme* ime, const char* bytes, size_t length)
     }
     (void)mwinRepairUtf8(bytes, length, text);
     mwinEvent event = {0};
-    event.type = mwin_eventTextInput;
+    event.kind = mwin_eventTextInput;
     event.timeNs = mwinMonotonicNow();
     event.data.text = (mwinTextEvent){text, (uint32_t)needed};
     mwinPost(ime->context, (uint32_t)ime->focus, &event);
@@ -189,7 +189,7 @@ static void PostPreedit(mwinLinuxIme* ime, const Preedit* preedit)
         return;
     }
     mwinEvent event = {0};
-    event.type = mwin_eventImePreedit;
+    event.kind = mwin_eventImePreedit;
     event.timeNs = mwinMonotonicNow();
     event.data.preedit = (mwinPreeditEvent){
         preedit->text,         preedit->length,   preedit->caret, preedit->selectionStart,
@@ -610,7 +610,7 @@ static void Deliver(mwinLinuxIme* ime, const mwinImeKey* held)
     if (held->length > 0)
     {
         mwinEvent typed = {0};
-        typed.type = mwin_eventTextInput;
+        typed.kind = mwin_eventTextInput;
         typed.timeNs = held->key.timeNs;
         typed.data.text = (mwinTextEvent){held->text, held->length};
         mwinPost(ime->context, slot, &typed);
@@ -625,7 +625,7 @@ static void Release(mwinLinuxIme* ime, bool taken)
     uint8_t bit = (uint8_t)(1u << (held->keycode & 7u));
     uint8_t* pressed = &ime->taken[held->keycode >> 3];
     mwinBusDrop(ime->bus, &held->call);
-    if (held->key.type == mwin_eventKeyUp)
+    if (held->key.kind == mwin_eventKeyUp)
     {
         taken = taken || (*pressed & bit) != 0;
         *pressed = (uint8_t)(*pressed & ~bit);
@@ -647,7 +647,7 @@ static void Ask(mwinLinuxIme* ime, mwinImeKey* held, uint32_t keysym, uint32_t k
                 uint32_t state, uint64_t nowNs)
 {
     bool fcitx = ime->framework == frameworkFcitx;
-    bool release = held->key.type == mwin_eventKeyUp;
+    bool release = held->key.kind == mwin_eventKeyUp;
     DBusMessage* message = ContextMethod(ime, "ProcessKeyEvent");
     if (message == nullptr)
     {

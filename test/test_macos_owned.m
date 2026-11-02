@@ -68,13 +68,13 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         int index = IndexOf(program, event.window);
-        program->shown += event.type == mwin_eventShown;
-        program->destroyed += event.type == mwin_eventWindowDestroyed;
-        if (event.type == mwin_eventMoved && index >= 0)
+        program->shown += event.kind == mwin_eventShown;
+        program->destroyed += event.kind == mwin_eventWindowDestroyed;
+        if (event.kind == mwin_eventMoved && index >= 0)
         {
             program->moved[index] = event.data.position;
         }
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             event.data.completion.kind == mwin_requestIcon && program->completed < 2)
         {
             program->outcomes[program->completed++] = event.data.completion.outcome;

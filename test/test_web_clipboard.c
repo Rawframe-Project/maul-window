@@ -118,7 +118,7 @@ static int Outcome(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             completion->request.index1 == program->request.index1 &&
             completion->request.generation == program->request.generation)
         {

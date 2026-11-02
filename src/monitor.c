@@ -43,10 +43,10 @@ static void Store(mwinMonitor* monitor, const mwinMonitorInfo* info)
     monitor->info.nameLength = valid.status == muni_success ? length : (uint32_t)valid.offset;
 }
 
-static void PostMonitor(mwinContext* context, uint32_t slot, mwinEventType type, uint64_t timeNs)
+static void PostMonitor(mwinContext* context, uint32_t slot, mwinEventKind type, uint64_t timeNs)
 {
     mwinEvent event = {0};
-    event.type = type;
+    event.kind = type;
     event.timeNs = timeNs;
     event.data.monitor = mwinMonitorIdOf(context, slot);
     mwinPostGlobal(context, &event);

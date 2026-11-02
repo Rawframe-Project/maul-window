@@ -9,9 +9,9 @@
 
 #include "test_program.h"
 
-static mwinEvent Global(mwinEventType type)
+static mwinEvent Global(mwinEventKind type)
 {
-    mwinEvent event = {.type = type};
+    mwinEvent event = {.kind = type};
     return event;
 }
 
@@ -26,10 +26,10 @@ static void SuspendStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent resize = {.type = mwin_eventResized, .window = window};
+        mwinEvent resize = {.kind = mwin_eventResized, .window = window};
         resize.data.size = (mwinSize){300.0f, 200.0f};
         mwinEvent suspending = Global(mwin_eventSuspending);
-        mwinEvent key = {.type = mwin_eventKeyDown, .window = window};
+        mwinEvent key = {.kind = mwin_eventKeyDown, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &resize) == mwin_success &&
                   mwinContext_PostTestEvent(context, &suspending) == mwin_success &&
                   mwinContext_PostTestEvent(context, &key) == mwin_success,
@@ -39,13 +39,13 @@ static void SuspendStep(Program* program, mwinContext* context, int step)
     if (step == 2)
     {
         // The frame the pump ran for the suspend, before the key arrived.
-        static const mwinEventType expected[] = {mwin_eventSuspending, mwin_eventResized,
+        static const mwinEventKind expected[] = {mwin_eventSuspending, mwin_eventResized,
                                                  mwin_eventInputStateReset};
         CHECK(Types(program, expected, 3), "the suspend first, at once, with a reset");
         CHECK(program->events[0].window.index1 == 0, "the context's records name no window");
         return;
     }
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventKeyDown,
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventKeyDown,
           "what came after the suspend waits for the next frame");
     program->done = true;
 }
@@ -60,7 +60,7 @@ static void CycleStep(Program* program, mwinContext* context, int step)
 {
     if (step == 0)
     {
-        static const mwinEventType cycle[] = {mwin_eventSuspending, mwin_eventSuspended,
+        static const mwinEventKind cycle[] = {mwin_eventSuspending, mwin_eventSuspended,
                                               mwin_eventResuming, mwin_eventResumed};
         for (int i = 0; i < 4; i++)
         {
@@ -70,9 +70,9 @@ static void CycleStep(Program* program, mwinContext* context, int step)
         return;
     }
     Drain(program, context);
-    static const mwinEventType expected[] = {mwin_eventSuspending, mwin_eventSuspended,
+    static const mwinEventKind expected[] = {mwin_eventSuspending, mwin_eventSuspended,
                                              mwin_eventResuming, mwin_eventResumed};
-    CHECK(program->eventCount == 1 && program->events[0].type == expected[step - 1],
+    CHECK(program->eventCount == 1 && program->events[0].kind == expected[step - 1],
           "each step of the cycle in a frame of its own");
     program->done = step == 4;
 }
@@ -114,26 +114,26 @@ static void SurfaceStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = window};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
     if (step == 2)
     {
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventSurfaceLost &&
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventSurfaceLost &&
                   mwinWindow_GetState(context, window, &state) == mwin_success && state.surfaceLost,
               "the lost surface shows in the state");
-        mwinEvent restored = {.type = mwin_eventSurfaceRestored, .window = window};
+        mwinEvent restored = {.kind = mwin_eventSurfaceRestored, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &restored) == mwin_success, "and comes back");
         return;
     }
     if (step == 3)
     {
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventSurfaceRestored &&
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventSurfaceRestored &&
                   mwinWindow_GetState(context, window, &state) == mwin_success &&
                   !state.surfaceLost,
               "restored");
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = window};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "lost again");
         return;
     }
@@ -144,7 +144,7 @@ static void SurfaceStep(Program* program, mwinContext* context, int step)
               "destroyed");
         return;
     }
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventWindowDestroyed,
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventWindowDestroyed,
           "nothing of it but its end");
     program->done = true;
 }
@@ -166,7 +166,7 @@ static void DestroyStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         Drain(program, context);
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = window};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
@@ -177,7 +177,7 @@ static void DestroyStep(Program* program, mwinContext* context, int step)
         return;
     }
     Drain(program, context);
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventWindowDestroyed,
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventWindowDestroyed,
           "the loss of a destroyed window's surface is dropped");
     program->done = true;
 }

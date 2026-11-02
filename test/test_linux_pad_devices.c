@@ -140,7 +140,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventGamepadAdded)
+        if (event.kind == mwin_eventGamepadAdded)
         {
             program->added += 1;
             program->pad = event.data.gamepad;
@@ -157,7 +157,7 @@ static bool Pressed(const Program* program, uint8_t button)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventGamepadButtonDown &&
+        if (event->kind == mwin_eventGamepadButtonDown &&
             event->data.gamepadButton.button == button)
         {
             return true;
@@ -339,9 +339,9 @@ static mwinFrameResult FullFrame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        full->added += event.type == mwin_eventGamepadAdded ? 1 : 0;
-        full->removed += event.type == mwin_eventGamepadRemoved ? 1 : 0;
-        full->pad = event.type == mwin_eventGamepadAdded ? event.data.gamepad : full->pad;
+        full->added += event.kind == mwin_eventGamepadAdded ? 1 : 0;
+        full->removed += event.kind == mwin_eventGamepadRemoved ? 1 : 0;
+        full->pad = event.kind == mwin_eventGamepadAdded ? event.data.gamepad : full->pad;
     }
     if (full->phase == 0 && full->added == 1)
     {

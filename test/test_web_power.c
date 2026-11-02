@@ -85,7 +85,7 @@ static bool PowerChanged(const Program* program)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == mwin_eventPowerChanged)
+        if (program->records[i].kind == mwin_eventPowerChanged)
         {
             return true;
         }

@@ -73,15 +73,15 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventRequestCompleted && program->completions < 4)
+        if (event.kind == mwin_eventRequestCompleted && program->completions < 4)
         {
             program->outcomes[program->completions++] = event.data.completion.outcome;
         }
-        program->asked |= event.type == mwin_eventAccessibilityRequested;
+        program->asked |= event.kind == mwin_eventAccessibilityRequested;
         program->touches +=
-            event.type == mwin_eventTouchDown || event.type == mwin_eventTouchMoved ||
-            event.type == mwin_eventCursorMoved || event.type == mwin_eventCursorEntered ||
-            event.type == mwin_eventPenMoved;
+            event.kind == mwin_eventTouchDown || event.kind == mwin_eventTouchMoved ||
+            event.kind == mwin_eventCursorMoved || event.kind == mwin_eventCursorEntered ||
+            event.kind == mwin_eventPenMoved;
     }
 }
 

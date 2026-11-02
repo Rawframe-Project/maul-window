@@ -98,8 +98,8 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->changed |= event.type == mwin_eventThemeChanged;
-        if (event.type == mwin_eventShown && program->phase == phaseCreate)
+        program->changed |= event.kind == mwin_eventThemeChanged;
+        if (event.kind == mwin_eventShown && program->phase == phaseCreate)
         {
             program->changed = true;
         }

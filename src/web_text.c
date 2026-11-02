@@ -120,7 +120,7 @@ static void EndComposition(mwinWebPlatform* platform, uint32_t slot, double time
     {
         return;
     }
-    mwinEvent end = {.type = mwin_eventImePreedit};
+    mwinEvent end = {.kind = mwin_eventImePreedit};
     end.data.preedit.caret = -1;
     Post(platform, slot, &end, timeMs);
 }
@@ -158,13 +158,13 @@ void mwinWebHandleTextRecord(mwinWebPlatform* platform, const mwinWebRecord* rec
     if (length < 0)
     {
         // Past the limit: the program's text state cannot follow.
-        event.type = mwin_eventInputStateReset;
+        event.kind = mwin_eventInputStateReset;
         Post(platform, slot, &event, record->timeMs);
         return;
     }
     if (record->kind == mwin_webCommit)
     {
-        event.type = mwin_eventTextInput;
+        event.kind = mwin_eventTextInput;
         event.data.text = (mwinTextEvent){platform->text, (uint32_t)length};
         Post(platform, slot, &event, record->timeMs);
         return;
@@ -177,7 +177,7 @@ void mwinWebHandleTextRecord(mwinWebPlatform* platform, const mwinWebRecord* rec
     mwinPreeditSegment segment = {0, (uint32_t)length, mwin_preeditUnderline};
     uint32_t caret =
         (uint32_t)record->code <= (uint32_t)length ? (uint32_t)record->code : (uint32_t)length;
-    event.type = mwin_eventImePreedit;
+    event.kind = mwin_eventImePreedit;
     event.data.preedit = (mwinPreeditEvent){
         platform->text, (uint32_t)length, (int32_t)caret, caret, caret, &segment, 1};
     Post(platform, slot, &event, record->timeMs);

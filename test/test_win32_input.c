@@ -139,23 +139,23 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
-        program->entered |= event.type == mwin_eventCursorEntered;
+        program->entered |= event.kind == mwin_eventCursorEntered;
         program->records[program->count++] = event;
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -164,11 +164,11 @@ static const mwinEvent* Find(const Program* program, mwinEventType type, int nth
 }
 
 // The first record of a type for a key.
-static const mwinEvent* KeyOf(const Program* program, mwinEventType type, mwinKeyCode code)
+static const mwinEvent* KeyOf(const Program* program, mwinEventKind type, mwinKeyCode code)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && program->records[i].data.key.code == code)
+        if (program->records[i].kind == type && program->records[i].data.key.code == code)
         {
             return &program->records[i];
         }
@@ -178,7 +178,7 @@ static const mwinEvent* KeyOf(const Program* program, mwinEventType type, mwinKe
 
 typedef struct ButtonRecord
 {
-    mwinEventType type;
+    mwinEventKind type;
     mwinMouseButton button;
     uint8_t held;
 } ButtonRecord;
@@ -191,11 +191,11 @@ static bool Buttons(const Program* program, const ButtonRecord* expected, int co
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type != mwin_eventButtonDown && event->type != mwin_eventButtonUp)
+        if (event->kind != mwin_eventButtonDown && event->kind != mwin_eventButtonUp)
         {
             continue;
         }
-        same = same && seen < count && event->type == expected[seen].type &&
+        same = same && seen < count && event->kind == expected[seen].type &&
                event->data.pointer.button == expected[seen].button &&
                event->data.pointer.buttons == expected[seen].held;
         seen += 1;
@@ -567,7 +567,7 @@ static void AdvanceKeys(Program* program, mwinContext* context)
         for (int i = 0; i < program->count; i++)
         {
             const mwinEvent* event = &program->records[i];
-            caps |= event->type == mwin_eventKeyDown && event->data.key.code == mwin_codeKeyA &&
+            caps |= event->kind == mwin_eventKeyDown && event->data.key.code == mwin_codeKeyA &&
                     (event->data.key.modifiers & mwin_modCapsLock) != 0;
         }
         CHECK(caps && (alt->data.key.modifiers & mwin_modCapsLock) == 0,
@@ -626,14 +626,14 @@ static void Dump(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventButtonDown || event->type == mwin_eventButtonUp)
+        if (event->kind == mwin_eventButtonDown || event->kind == mwin_eventButtonUp)
         {
             (void)printf("  phase %d: type %d, button %d, held %02x\n", (int)program->phase,
-                         (int)event->type, (int)event->data.pointer.button,
+                         (int)event->kind, (int)event->data.pointer.button,
                          (unsigned)event->data.pointer.buttons);
             continue;
         }
-        (void)printf("  phase %d: type %d, key %u, %s\n", (int)program->phase, (int)event->type,
+        (void)printf("  phase %d: type %d, key %u, %s\n", (int)program->phase, (int)event->kind,
                      (unsigned)event->data.key.code, event->data.key.repeat ? "repeat" : "");
     }
 }

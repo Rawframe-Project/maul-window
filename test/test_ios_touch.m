@@ -57,17 +57,17 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventShown && program->shownNs == 0)
+        if (event.kind == mwin_eventShown && program->shownNs == 0)
         {
             program->shownNs = NowNs();
         }
-        if (event.type == mwin_eventTouchDown)
+        if (event.kind == mwin_eventTouchDown)
         {
             program->downs += 1;
             program->downId = event.data.touch.id;
             program->down = event.data.touch.position;
         }
-        if (event.type == mwin_eventTouchUp)
+        if (event.kind == mwin_eventTouchUp)
         {
             program->ups += 1;
             program->upId = event.data.touch.id;

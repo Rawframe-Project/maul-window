@@ -532,7 +532,7 @@ static uint32_t Dropped(const Program* program)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
-        if (program->events[i].type == mwin_eventDropped)
+        if (program->events[i].kind == mwin_eventDropped)
         {
             return program->events[i].data.drop.drop;
         }

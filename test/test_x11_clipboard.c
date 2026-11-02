@@ -76,8 +76,8 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        program->created = program->created || event.type == mwin_eventWindowCreated;
-        if (event.type == mwin_eventRequestCompleted &&
+        program->created = program->created || event.kind == mwin_eventWindowCreated;
+        if (event.kind == mwin_eventRequestCompleted &&
             completion->request.index1 == program->request.index1 &&
             completion->request.generation == program->request.generation)
         {

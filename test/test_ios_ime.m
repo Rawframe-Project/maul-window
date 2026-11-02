@@ -61,10 +61,10 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->completions += event.type == mwin_eventRequestCompleted &&
+        program->shown |= event.kind == mwin_eventShown;
+        program->completions += event.kind == mwin_eventRequestCompleted &&
                                 event.data.completion.outcome == mwin_outcomeDone;
-        if (event.type == mwin_eventImePreedit)
+        if (event.kind == mwin_eventImePreedit)
         {
             program->preedits += 1;
             program->last = event.data.preedit;
@@ -72,7 +72,7 @@ static void Collect(Program* program, mwinContext* context)
             program->segment = event.data.preedit.segmentCount > 0 ? event.data.preedit.segments[0]
                                                                    : (mwinPreeditSegment){0};
         }
-        if (event.type == mwin_eventTextInput)
+        if (event.kind == mwin_eventTextInput)
         {
             program->texts += 1;
             Copy(program->text, event.data.text.text, event.data.text.length);

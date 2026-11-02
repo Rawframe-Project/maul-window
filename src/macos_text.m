@@ -37,7 +37,7 @@ static void EndComposition(mwinMacPlatform* platform, uint32_t slot)
     {
         return;
     }
-    mwinEvent end = {.type = mwin_eventImePreedit};
+    mwinEvent end = {.kind = mwin_eventImePreedit};
     end.data.preedit.caret = -1;
     Post(platform, slot, &end);
 }
@@ -62,13 +62,13 @@ static void PostText(mwinMacPlatform* platform, uint32_t slot, NSString* string)
     char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
     if (bytes != nullptr && length <= UINT32_MAX)
     {
-        mwinEvent event = {.type = mwin_eventTextInput};
+        mwinEvent event = {.kind = mwin_eventTextInput};
         event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
         Post(platform, slot, &event);
     }
     else if (kept.length > 0)
     {
-        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
     }
     if (bytes != nullptr)
@@ -158,7 +158,7 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     if (bytes == nullptr || length > UINT32_MAX)
     {
         // The program's composition cannot follow the input method's.
-        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
         if (bytes != nullptr)
         {
@@ -167,7 +167,7 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
         return;
     }
     mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS];
-    mwinEvent event = {.type = mwin_eventImePreedit};
+    mwinEvent event = {.kind = mwin_eventImePreedit};
     mwinPreeditEvent* preedit = &event.data.preedit;
     preedit->text = bytes;
     preedit->length = (uint32_t)length;

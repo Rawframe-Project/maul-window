@@ -113,7 +113,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= TEXT_BYTES)
         {
             memcpy(program->text + program->textLength, event.data.text.text,
@@ -124,14 +124,14 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static int CountOf(const Program* program, mwinEventType type, bool repeat)
+static int CountOf(const Program* program, mwinEventKind type, bool repeat)
 {
     int count = 0;
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
         count +=
-            event->type == type && (type != mwin_eventKeyDown || event->data.key.repeat == repeat);
+            event->kind == type && (type != mwin_eventKeyDown || event->data.key.repeat == repeat);
     }
     return count;
 }
@@ -144,17 +144,17 @@ static int RepeatsAfterRelease(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        released = released || event->type == mwin_eventKeyUp;
-        repeats += released && event->type == mwin_eventKeyDown && event->data.key.repeat;
+        released = released || event->kind == mwin_eventKeyUp;
+        repeats += released && event->kind == mwin_eventKeyDown && event->data.key.repeat;
     }
     return repeats;
 }
 
-static const mwinEvent* First(const Program* program, mwinEventType type)
+static const mwinEvent* First(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }
@@ -169,7 +169,7 @@ static float Turned(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         turned +=
-            program->records[i].type == mwin_eventWheel ? program->records[i].data.wheel.y : 0.0f;
+            program->records[i].kind == mwin_eventWheel ? program->records[i].data.wheel.y : 0.0f;
     }
     return turned;
 }
@@ -181,7 +181,7 @@ static float TurnedRight(const Program* program)
     for (int i = 0; i < program->count; i++)
     {
         turned +=
-            program->records[i].type == mwin_eventWheel ? program->records[i].data.wheel.x : 0.0f;
+            program->records[i].kind == mwin_eventWheel ? program->records[i].data.wheel.x : 0.0f;
     }
     return turned;
 }
@@ -546,7 +546,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
         for (int i = 0; i < program->count; i++)
         {
             second =
-                program->records[i].type == mwin_eventButtonDown ? &program->records[i] : second;
+                program->records[i].kind == mwin_eventButtonDown ? &program->records[i] : second;
         }
         const mwinEvent* first = First(program, mwin_eventButtonDown);
         CHECK(first != nullptr && first->data.pointer.button == mwin_buttonLeft &&

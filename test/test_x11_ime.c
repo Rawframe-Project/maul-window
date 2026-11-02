@@ -126,18 +126,18 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
-        if (event.type == mwin_eventImePreedit && event.data.preedit.length == 0)
+        if (event.kind == mwin_eventImePreedit && event.data.preedit.length == 0)
         {
             program->ends += 1;
         }
-        else if (event.type == mwin_eventImePreedit &&
+        else if (event.kind == mwin_eventImePreedit &&
                  event.data.preedit.length <= sizeof(program->preedit))
         {
             program->preedits += 1;
@@ -160,7 +160,7 @@ static int CountKeys(const Program* program, mwinKeyCode code)
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* record = &program->records[i];
-        keys += (record->type == mwin_eventKeyDown || record->type == mwin_eventKeyUp) &&
+        keys += (record->kind == mwin_eventKeyDown || record->kind == mwin_eventKeyUp) &&
                 record->data.key.code == code;
     }
     return keys;
@@ -173,7 +173,7 @@ static int KeyAt(const Program* program, mwinKeyCode code, bool last)
     for (int i = 0; i < program->count && (last || at < 0); i++)
     {
         const mwinEvent* record = &program->records[i];
-        if ((record->type == mwin_eventKeyDown || record->type == mwin_eventKeyUp) &&
+        if ((record->kind == mwin_eventKeyDown || record->kind == mwin_eventKeyUp) &&
             record->data.key.code == code)
         {
             at = i;
@@ -182,11 +182,11 @@ static int KeyAt(const Program* program, mwinKeyCode code, bool last)
     return at;
 }
 
-static bool Has(const Program* program, mwinEventType type)
+static bool Has(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return true;
         }

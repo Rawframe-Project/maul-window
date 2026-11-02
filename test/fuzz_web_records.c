@@ -542,7 +542,7 @@ static void Drain(mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const typeof(event.data)* data = &event.data;
-        switch (event.type)
+        switch (event.kind)
         {
         case mwin_eventTextInput:
             Expect(data->text.length <= TEXT && IsUtf8(data->text.text, data->text.length));

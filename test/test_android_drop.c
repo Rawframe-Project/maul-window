@@ -69,15 +69,15 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->touched |= event.type == mwin_eventTouchDown;
-        program->entered |= event.type == mwin_eventDragEntered;
-        program->moved |= event.type == mwin_eventDragMoved;
-        program->left |= event.type == mwin_eventDragLeft;
-        if (event.type == mwin_eventDragEntered)
+        program->touched |= event.kind == mwin_eventTouchDown;
+        program->entered |= event.kind == mwin_eventDragEntered;
+        program->moved |= event.kind == mwin_eventDragMoved;
+        program->left |= event.kind == mwin_eventDragLeft;
+        if (event.kind == mwin_eventDragEntered)
         {
             program->contents = event.data.drag.contents;
         }
-        if (event.type == mwin_eventDropped)
+        if (event.kind == mwin_eventDropped)
         {
             program->dropped = true;
             program->drop = event.data.drop;

@@ -62,12 +62,12 @@ static int Completed(mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventRequestCompleted)
+        if (event.kind == mwin_eventRequestCompleted)
         {
             CHECK(event.data.completion.outcome == mwin_outcomeDone, "a request done");
             done += 1;
         }
-        done += event.type == mwin_eventWindowCreated;
+        done += event.kind == mwin_eventWindowCreated;
     }
     return done;
 }

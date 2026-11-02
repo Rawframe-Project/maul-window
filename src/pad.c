@@ -45,9 +45,9 @@ static void Store(mwinGamepad* gamepad, const mwinGamepadInfo* info)
     gamepad->info.rawAxisCount = info->mapped ? 0 : axes;
 }
 
-static void PostGlobal(mwinContext* context, uint32_t slot, mwinEventType type, uint64_t timeNs)
+static void PostGlobal(mwinContext* context, uint32_t slot, mwinEventKind type, uint64_t timeNs)
 {
-    mwinEvent event = {.type = type, .timeNs = timeNs};
+    mwinEvent event = {.kind = type, .timeNs = timeNs};
     event.data.gamepad = mwinGamepadIdOf(context, slot);
     mwinPostGlobal(context, &event);
 }
@@ -106,7 +106,7 @@ void mwinPostGamepadButton(mwinContext* context, uint32_t slot, uint8_t button, 
         return;
     }
     gamepad->state.buttons = down ? gamepad->state.buttons | bit : gamepad->state.buttons & ~bit;
-    mwinEvent event = {.type = down ? mwin_eventGamepadButtonDown : mwin_eventGamepadButtonUp,
+    mwinEvent event = {.kind = down ? mwin_eventGamepadButtonDown : mwin_eventGamepadButtonUp,
                        .timeNs = timeNs};
     event.data.gamepadButton =
         (mwinGamepadButtonEvent){mwinGamepadIdOf(context, slot), button, !gamepad->info.mapped};
@@ -123,7 +123,7 @@ void mwinPostGamepadAxis(mwinContext* context, uint32_t slot, uint8_t axis, floa
         return;
     }
     gamepad->state.axes[axis] = value;
-    mwinEvent event = {.type = mwin_eventGamepadAxisMoved, .timeNs = timeNs};
+    mwinEvent event = {.kind = mwin_eventGamepadAxisMoved, .timeNs = timeNs};
     event.data.gamepadAxis =
         (mwinGamepadAxisEvent){mwinGamepadIdOf(context, slot), axis, !gamepad->info.mapped, value};
     mwinPostGamepadRecord(context, &event);

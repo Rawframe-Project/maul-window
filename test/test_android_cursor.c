@@ -52,7 +52,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventRequestCompleted)
+        if (event.kind == mwin_eventRequestCompleted)
         {
             program->completions += 1;
             program->outcome = event.data.completion.outcome;

@@ -99,24 +99,24 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->completions += event.type == mwin_eventRequestCompleted &&
+        program->shown |= event.kind == mwin_eventShown;
+        program->completions += event.kind == mwin_eventRequestCompleted &&
                                 event.data.completion.outcome == mwin_outcomeDone;
         // UIKit may say more of the keyboard: the test's own frame is
         // looked for.
-        if (event.type == mwin_eventVirtualKeyboardChanged && event.data.rect.height == 300.0f)
+        if (event.kind == mwin_eventVirtualKeyboardChanged && event.data.rect.height == 300.0f)
         {
             program->covered = true;
             program->rect = event.data.rect;
         }
-        if (event.type == mwin_eventTextInput && program->textCount < 2 &&
+        if (event.kind == mwin_eventTextInput && program->textCount < 2 &&
             event.data.text.length < sizeof(program->texts[0]))
         {
             memcpy(program->texts[program->textCount++], event.data.text.text,
                    event.data.text.length);
         }
-        bool key = event.type == mwin_eventKeyDown || event.type == mwin_eventKeyUp ||
-                   event.type == mwin_eventTextInput;
+        bool key = event.kind == mwin_eventKeyDown || event.kind == mwin_eventKeyUp ||
+                   event.kind == mwin_eventTextInput;
         if (key && program->count < MAX_RECORDS)
         {
             program->records[program->count++] = event;
@@ -165,10 +165,10 @@ static void Type(UIView* view)
         insertText:[NSString stringWithCharacters:(const unichar[]){'x', 0xD800, 'y'} length:3]];
 }
 
-static bool KeyIs(const mwinEvent* event, mwinEventType type, mwinKeyCode code, mwinKey key,
+static bool KeyIs(const mwinEvent* event, mwinEventKind type, mwinKeyCode code, mwinKey key,
                   mwinModifiers modifiers)
 {
-    return event->type == type && event->data.key.code == code && event->data.key.key == key &&
+    return event->kind == type && event->data.key.code == code && event->data.key.key == key &&
            event->data.key.modifiers == modifiers && !event->data.key.repeat;
 }
 
@@ -189,7 +189,7 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(KeyIs(&r[4], mwin_eventKeyDown, 40, MWIN_KEY_NAMED | 40, 0) &&
               KeyIs(&r[5], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
           "Return once: its newline gives no second press");
-    CHECK(r[6].type == mwin_eventTextInput && strcmp(program->texts[0], "h\xC3\xA9llo") == 0,
+    CHECK(r[6].kind == mwin_eventTextInput && strcmp(program->texts[0], "h\xC3\xA9llo") == 0,
           "the text before the line break");
     CHECK(KeyIs(&r[7], mwin_eventKeyDown, 40, MWIN_KEY_NAMED | 40, 0) &&
               KeyIs(&r[8], mwin_eventKeyUp, 40, MWIN_KEY_NAMED | 40, 0),
@@ -200,7 +200,7 @@ static void CheckKeys(const Program* program, mwinContext* context)
     CHECK(KeyIs(&r[11], mwin_eventKeyDown, 42, MWIN_KEY_NAMED | 42, 0) &&
               KeyIs(&r[12], mwin_eventKeyUp, 42, MWIN_KEY_NAMED | 42, 0),
           "a deletion as Backspace");
-    CHECK(r[13].type == mwin_eventTextInput && strcmp(program->texts[1], "x\xEF\xBF\xBDy") == 0,
+    CHECK(r[13].kind == mwin_eventTextInput && strcmp(program->texts[1], "x\xEF\xBF\xBDy") == 0,
           "typed text with a lone surrogate, U+FFFD in its place");
     CHECK(mwinContext_MapKeyCode(context, 4) == 'a' && mwinContext_MapKeyCode(context, 5) == 0 &&
               mwinContext_MapKeyCode(context, 80) == (MWIN_KEY_NAMED | 80),

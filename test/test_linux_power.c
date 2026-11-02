@@ -168,7 +168,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->changes += event.type == mwin_eventPowerChanged;
+        program->changes += event.kind == mwin_eventPowerChanged;
     }
     mwinSystemFacts facts;
     CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success, "facts");

@@ -96,10 +96,10 @@ static void Collect(mwinContext* context, Program* program)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->completions += event.type == mwin_eventRequestCompleted &&
+        program->completions += event.kind == mwin_eventRequestCompleted &&
                                 event.data.completion.outcome == mwin_outcomeDone;
-        program->downs += event.type == mwin_eventButtonDown;
-        program->ups += event.type == mwin_eventButtonUp;
+        program->downs += event.kind == mwin_eventButtonDown;
+        program->ups += event.kind == mwin_eventButtonUp;
     }
 }
 

@@ -65,11 +65,11 @@ static float PressureOf(UITouch* touch, bool measured)
 static void OnFinger(mwinIOSPlatform* platform, uint32_t slot, UITouch* touch,
                      mwinIOSTouchPhase phase)
 {
-    static const mwinEventType types[] = {mwin_eventTouchDown, mwin_eventTouchMoved,
+    static const mwinEventKind types[] = {mwin_eventTouchDown, mwin_eventTouchMoved,
                                           mwin_eventTouchUp, mwin_eventTouchCancelled};
     UIView* view = platform->windows[slot].view;
     bool measured = view.traitCollection.forceTouchCapability == UIForceTouchCapabilityAvailable;
-    mwinEvent event = {.type = types[phase]};
+    mwinEvent event = {.kind = types[phase]};
     event.data.touch = (mwinTouchEvent){(uint64_t)(uintptr_t)touch, PlaceOf(touch, view),
                                         PressureOf(touch, measured)};
     Post(platform, slot, &event);
@@ -92,11 +92,11 @@ static void TiltOf(UITouch* touch, UIView* view, float* x, float* y)
 static void OnPencil(mwinIOSPlatform* platform, uint32_t slot, UITouch* touch,
                      mwinIOSTouchPhase phase)
 {
-    static const mwinEventType types[] = {mwin_eventPenDown, mwin_eventPenMoved, mwin_eventPenUp,
+    static const mwinEventKind types[] = {mwin_eventPenDown, mwin_eventPenMoved, mwin_eventPenUp,
                                           mwin_eventPenUp};
     UIView* view = platform->windows[slot].view;
     bool touching = phase == mwin_iosTouchBegan || phase == mwin_iosTouchMoved;
-    mwinEvent event = {.type = types[phase]};
+    mwinEvent event = {.kind = types[phase]};
     mwinPenEvent* pen = &event.data.pen;
     pen->position = PlaceOf(touch, view);
     pen->pressure = touching ? fmaxf(PressureOf(touch, true), 0.0f) : 0.0f;
@@ -105,11 +105,11 @@ static void OnPencil(mwinIOSPlatform* platform, uint32_t slot, UITouch* touch,
     Post(platform, slot, &event);
 }
 
-static void PostPointer(mwinIOSPlatform* platform, uint32_t slot, mwinEventType type,
+static void PostPointer(mwinIOSPlatform* platform, uint32_t slot, mwinEventKind type,
                         mwinPosition position, UIKeyModifierFlags flags, mwinMouseButton button,
                         uint8_t clicks)
 {
-    mwinEvent event = {.type = type};
+    mwinEvent event = {.kind = type};
     event.data.pointer = (mwinPointerEvent){position, mwinIOSModifiersOf(flags),
                                             platform->windows[slot].buttons, button, clicks};
     Post(platform, slot, &event);
@@ -197,7 +197,7 @@ void mwinIOSPencilHover(mwinIOSPlatform* platform, uint32_t slot, UIHoverGesture
     }
     UIView* view = platform->windows[slot].view;
     CGPoint point = [hover locationInView:view];
-    mwinEvent event = {.type = mwin_eventPenMoved};
+    mwinEvent event = {.kind = mwin_eventPenMoved};
     mwinPenEvent* pen = &event.data.pen;
     pen->position = (mwinPosition){(float)point.x, (float)point.y};
     float tiltX = 0.0f;
@@ -222,7 +222,7 @@ void mwinIOSScroll(mwinIOSPlatform* platform, uint32_t slot, UIPanGestureRecogni
     {
         return;
     }
-    mwinEvent event = {.type = mwin_eventWheel};
+    mwinEvent event = {.kind = mwin_eventWheel};
     event.data.wheel = wheel;
     Post(platform, slot, &event);
 }

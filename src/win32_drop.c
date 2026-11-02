@@ -63,12 +63,12 @@ static mwinPosition PositionOf(const mwinWin32Window* window, POINT point)
     return (mwinPosition){(float)point.x / scale, (float)point.y / scale};
 }
 
-static void PostDrag(mwinWin32Window* window, mwinEventType type, POINT point)
+static void PostDrag(mwinWin32Window* window, mwinEventKind type, POINT point)
 {
     mwinWin32DropTarget* drop = &window->drop;
     drop->x = point.x;
     drop->y = point.y;
-    mwinEvent event = {.type = type, .timeNs = mwinWin32Now()};
+    mwinEvent event = {.kind = type, .timeNs = mwinWin32Now()};
     event.data.drag = (mwinDragEvent){PositionOf(window, point), drop->contents};
     mwinPost(window->platform->context, window->slot, &event);
 }

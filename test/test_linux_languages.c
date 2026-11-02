@@ -336,7 +336,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         // The starting list's own change comes before the first frame.
-        program->changes += event.type == mwin_eventLocaleChanged && program->frames > 0;
+        program->changes += event.kind == mwin_eventLocaleChanged && program->frames > 0;
     }
     program->frames += 1;
     if (program->steps == 0)

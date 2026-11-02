@@ -114,7 +114,7 @@ static inline bool SameWindow(mwinWindowId a, mwinWindowId b)
 }
 
 // Whether the drained records have exactly these types, in order.
-static inline bool Types(const Program* program, const mwinEventType* types, int count)
+static inline bool Types(const Program* program, const mwinEventKind* types, int count)
 {
     if (program->eventCount != count)
     {
@@ -122,7 +122,7 @@ static inline bool Types(const Program* program, const mwinEventType* types, int
     }
     for (int i = 0; i < count; i++)
     {
-        if (program->events[i].type != types[i])
+        if (program->events[i].kind != types[i])
         {
             return false;
         }

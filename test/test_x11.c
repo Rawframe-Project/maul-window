@@ -59,10 +59,10 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->seen |= 1ull << event.type;
-        program->size = event.type == mwin_eventResized ? event.data.size : program->size;
-        program->position = event.type == mwin_eventMoved ? event.data.position : program->position;
-        if (event.type == mwin_eventRequestCompleted)
+        program->seen |= 1ull << event.kind;
+        program->size = event.kind == mwin_eventResized ? event.data.size : program->size;
+        program->position = event.kind == mwin_eventMoved ? event.data.position : program->position;
+        if (event.kind == mwin_eventRequestCompleted)
         {
             program->completion = event.data.completion;
             program->completed = true;
@@ -70,7 +70,7 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool Seen(const Program* program, mwinEventType type)
+static bool Seen(const Program* program, mwinEventKind type)
 {
     return (program->seen & (1ull << type)) != 0;
 }
@@ -98,7 +98,7 @@ static bool Ready(const Program* program)
 
 static void CheckCreated(const Program* program, mwinContext* context)
 {
-    static const mwinEventType expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
+    static const mwinEventKind expected[] = {mwin_eventWindowCreated, mwin_eventScaleChanged,
                                              mwin_eventResized,       mwin_eventPixelSizeChanged,
                                              mwin_eventModeChanged,   mwin_eventShown};
     for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++)

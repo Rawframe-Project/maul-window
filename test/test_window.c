@@ -32,7 +32,7 @@ static void CreationStep(Program* program, mwinContext* context, int step)
         return;
     }
     Drain(program, context);
-    static const mwinEventType expected[] = {
+    static const mwinEventKind expected[] = {
         mwin_eventWindowCreated,    mwin_eventScaleChanged, mwin_eventResized,
         mwin_eventPixelSizeChanged, mwin_eventModeChanged,  mwin_eventShown,
         mwin_eventRequestCompleted,
@@ -76,7 +76,7 @@ static void RequestStep(Program* program, mwinContext* context, int step)
               "a title request");
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
+    static const mwinEventKind expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
                                              mwin_eventRequestCompleted,
                                              mwin_eventRequestCompleted};
     CHECK(Types(program, expected, 4), "notifications, then completions in order");
@@ -129,7 +129,7 @@ static void SupersedeStep(Program* program, mwinContext* context, int step)
         CHECK(mwinContext_HoldTestRequests(context, false) == mwin_success, "release");
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
+    static const mwinEventKind expected[] = {mwin_eventResized, mwin_eventPixelSizeChanged,
                                              mwin_eventRequestCompleted};
     CHECK(Types(program, expected, 3) && program->events[0].data.size.width == 200.0f &&
               SameId(program->events[2].data.completion.request, program->requests[1]),
@@ -192,14 +192,14 @@ static void CloseStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent close = {.type = mwin_eventCloseRequested, .window = window};
+        mwinEvent close = {.kind = mwin_eventCloseRequested, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &close) == mwin_success, "the close button");
         return;
     }
     if (step == 2)
     {
         mwinWindowState state;
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventCloseRequested &&
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventCloseRequested &&
                   mwinWindow_GetState(context, window, &state) == mwin_success,
               "a close request closes nothing");
         CHECK(mwinContext_HoldTestRequests(context, true) == mwin_success, "hold");
@@ -216,7 +216,7 @@ static void CloseStep(Program* program, mwinContext* context, int step)
                   mwinWindow_RequestTitle(context, window, "x", 1, nullptr) == mwin_errorStale,
               "a stale id is refused");
         Drain(program, context);
-        static const mwinEventType expected[] = {mwin_eventRequestCompleted,
+        static const mwinEventKind expected[] = {mwin_eventRequestCompleted,
                                                  mwin_eventWindowDestroyed};
         CHECK(Types(program, expected, 2) &&
                   program->events[0].data.completion.outcome == mwin_outcomeCancelled,
@@ -247,8 +247,8 @@ static void CriticalStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         Drain(program, context);
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
-        mwinEvent other = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = program->windows[0]};
+        mwinEvent other = {.kind = mwin_eventSurfaceLost, .window = program->windows[1]};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success &&
                   mwinContext_PostTestEvent(context, &other) == mwin_success,
               "both windows lose their surfaces");
@@ -269,10 +269,10 @@ static void CriticalStep(Program* program, mwinContext* context, int step)
     {
         const mwinEvent* event = &program->events[i];
         first +=
-            event->type == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[0]);
+            event->kind == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[0]);
         second +=
-            event->type == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[1]);
-        destroyed += event->type == mwin_eventWindowDestroyed;
+            event->kind == mwin_eventSurfaceLost && SameWindow(event->window, program->windows[1]);
+        destroyed += event->kind == mwin_eventWindowDestroyed;
     }
     CHECK(first == 0 && second == 1 && destroyed == 1,
           "the destroyed window's record goes, the other's stays");
@@ -298,7 +298,7 @@ static void DropStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         Drain(program, context);
-        mwinEvent resized = {.type = mwin_eventResized, .window = window};
+        mwinEvent resized = {.kind = mwin_eventResized, .window = window};
         resized.data.size = (mwinSize){30.0f, 30.0f};
         CHECK(mwinContext_PostTestEvent(context, &resized) == mwin_success &&
                   mwinContext_HoldTestRequests(context, true) == mwin_success &&
@@ -309,7 +309,7 @@ static void DropStep(Program* program, mwinContext* context, int step)
     }
     CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy with the size waiting");
     Drain(program, context);
-    static const mwinEventType expected[] = {mwin_eventRequestCompleted, mwin_eventWindowDestroyed};
+    static const mwinEventKind expected[] = {mwin_eventRequestCompleted, mwin_eventWindowDestroyed};
     CHECK(Types(program, expected, 2) &&
               program->events[0].data.completion.outcome == mwin_outcomeCancelled,
           "the size goes, the cancelled request stays");
@@ -359,7 +359,7 @@ static void EdgeStep(Program* program, mwinContext* context, int step)
         int completions = 0;
         for (int i = 0; i < program->eventCount; i++)
         {
-            completions += program->events[i].type == mwin_eventRequestCompleted &&
+            completions += program->events[i].kind == mwin_eventRequestCompleted &&
                            program->events[i].data.completion.outcome == mwin_outcomeDone;
         }
         CHECK(completions == 2 && mwinWindow_GetState(context, window, &state) == mwin_success &&
@@ -415,7 +415,7 @@ static void NeighbourStep(Program* program, mwinContext* context, int step)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        done = done || (event->type == mwin_eventRequestCompleted &&
+        done = done || (event->kind == mwin_eventRequestCompleted &&
                         SameId(event->data.completion.request, program->requests[0]) &&
                         event->data.completion.outcome == mwin_outcomeDone);
     }
@@ -442,9 +442,9 @@ static void FullCriticalStep(Program* program, mwinContext* context, int step)
     if (step == 1)
     {
         Drain(program, context);
-        mwinEvent first = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
-        mwinEvent second = {.type = mwin_eventSurfaceLost, .window = program->windows[1]};
-        mwinEvent suspending = {.type = mwin_eventSuspending};
+        mwinEvent first = {.kind = mwin_eventSurfaceLost, .window = program->windows[0]};
+        mwinEvent second = {.kind = mwin_eventSurfaceLost, .window = program->windows[1]};
+        mwinEvent suspending = {.kind = mwin_eventSuspending};
         CHECK(mwinContext_PostTestEvent(context, &first) == mwin_success &&
                   mwinContext_PostTestEvent(context, &second) == mwin_success &&
                   mwinContext_PostTestEvent(context, &suspending) == mwin_success,
@@ -457,7 +457,7 @@ static void FullCriticalStep(Program* program, mwinContext* context, int step)
     }
     Drain(program, context);
     // Suspending resets each window's input after them.
-    static const mwinEventType expected[] = {mwin_eventSurfaceLost, mwin_eventSurfaceLost,
+    static const mwinEventKind expected[] = {mwin_eventSurfaceLost, mwin_eventSurfaceLost,
                                              mwin_eventSuspending, mwin_eventInputStateReset,
                                              mwin_eventInputStateReset};
     CHECK(Types(program, expected, 5), "all three wait in the critical ring");
@@ -483,7 +483,7 @@ static void StopStep(Program* program, mwinContext* context, int step)
     }
     if (step == 1)
     {
-        mwinEvent lost = {.type = mwin_eventSurfaceLost, .window = program->windows[0]};
+        mwinEvent lost = {.kind = mwin_eventSurfaceLost, .window = program->windows[0]};
         CHECK(mwinContext_PostTestEvent(context, &lost) == mwin_success, "the surface goes");
         return;
     }
@@ -556,14 +556,14 @@ static void OrderStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent event = {.type = mwin_eventFocusLost, .window = a};
+        mwinEvent event = {.kind = mwin_eventFocusLost, .window = a};
         CHECK(mwinContext_SetTestTime(context, 1000) == mwin_success, "time");
         CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "focus leaves A");
-        event = (mwinEvent){.type = mwin_eventFocusGained, .window = b};
+        event = (mwinEvent){.kind = mwin_eventFocusGained, .window = b};
         CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success, "and enters B");
         for (int i = 1; i <= 3; i++)
         {
-            event = (mwinEvent){.type = mwin_eventResized, .window = a};
+            event = (mwinEvent){.kind = mwin_eventResized, .window = a};
             event.data.size = (mwinSize){(float)(100 * i), 50.0f};
             CHECK(mwinContext_PostTestEvent(context, &event) == mwin_success,
                   "the user drags A's edge");
@@ -571,7 +571,7 @@ static void OrderStep(Program* program, mwinContext* context, int step)
         CHECK(mwinContext_SetTestTime(context, 999) == mwin_errorInvalid, "time goes forward");
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
+    static const mwinEventKind expected[] = {mwin_eventFocusLost, mwin_eventInputStateReset,
                                              mwin_eventFocusGained, mwin_eventResized};
     CHECK(Types(program, expected, 4) && SameWindow(program->events[0].window, a) &&
               SameWindow(program->events[1].window, a) && SameWindow(program->events[2].window, b),
@@ -634,7 +634,7 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     CHECK(mwinWindow_RequestSize(context, window, (mwinSize){-1.0f, 1.0f}, nullptr) ==
               mwin_errorInvalid,
           "a negative size");
-    mwinEvent event = {.type = mwin_eventRequestCompleted, .window = window};
+    mwinEvent event = {.kind = mwin_eventRequestCompleted, .window = window};
     CHECK(mwinContext_PostTestEvent(context, &event) == mwin_errorInvalid,
           "completions are the core's");
     CHECK(mwinContext_NextEvent(nullptr, &event) == mwin_errorInvalid, "a NULL context");

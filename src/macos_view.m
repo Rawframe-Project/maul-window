@@ -42,9 +42,9 @@ static void Post(const MwinMacView* view, mwinEvent* event)
     mwinPost(view->platform->context, view->slot, event);
 }
 
-static void PostKey(const MwinMacView* view, mwinEventType type, NSEvent* event, mwinKeyCode code)
+static void PostKey(const MwinMacView* view, mwinEventKind type, NSEvent* event, mwinKeyCode code)
 {
-    mwinEvent record = {.type = type};
+    mwinEvent record = {.kind = type};
     record.data.key = (mwinKeyEvent){code, mwinMacModifiersOf(event.modifierFlags),
                                      mwinMacMeaningOf(view->platform, event.keyCode, code),
                                      // AppKit raises for a modifier event's repeat.
@@ -98,11 +98,11 @@ static mwinMouseButton ButtonOf(NSEvent* event)
     }
 }
 
-static void PostPointer(const MwinMacView* view, mwinEventType type, NSEvent* event,
+static void PostPointer(const MwinMacView* view, mwinEventKind type, NSEvent* event,
                         mwinMouseButton button, uint8_t clicks)
 {
     NSPoint point = [view convertPoint:event.locationInWindow fromView:nil];
-    mwinEvent record = {.type = type};
+    mwinEvent record = {.kind = type};
     record.data.pointer = (mwinPointerEvent){{(float)point.x, (float)point.y},
                                              mwinMacModifiersOf(event.modifierFlags),
                                              WindowOf(view)->buttons,
@@ -142,7 +142,7 @@ static void OnMove(const MwinMacView* view, NSEvent* event)
     // A captured cursor stays put; the mouse's motion is the delta.
     if (view->platform->captured == view->slot + 1)
     {
-        mwinEvent record = {.type = mwin_eventRawPointerDelta};
+        mwinEvent record = {.kind = mwin_eventRawPointerDelta};
         record.data.delta = (mwinDeltaEvent){(float)event.deltaX, (float)event.deltaY};
         Post(view, &record);
         return;
@@ -165,7 +165,7 @@ static void OnWheel(const MwinMacView* view, NSEvent* event)
     {
         return;
     }
-    mwinEvent record = {.type = mwin_eventWheel};
+    mwinEvent record = {.kind = mwin_eventWheel};
     record.data.wheel = wheel;
     Post(view, &record);
 }

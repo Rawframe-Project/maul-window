@@ -239,7 +239,7 @@ static void Drain(mwinContext* context, Program* program)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        if (event.type != mwin_eventRequestCompleted)
+        if (event.kind != mwin_eventRequestCompleted)
         {
             continue;
         }

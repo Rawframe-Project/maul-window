@@ -210,7 +210,7 @@ static uint32_t s_made;
 static struct
 {
     mwinWindowId window;
-    mwinEventType type;
+    mwinEventKind type;
 } s_keys[KEYS];
 static uint32_t s_keyCount;
 static uint64_t s_keyRead;
@@ -1091,7 +1091,7 @@ static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
     s_keys[s_keyCount] = (typeof(s_keys[0])){window, key.type};
     key.timeNs = ++s_keyCount;
     key.data.key.code = (mwinKeyCode)(1 + (op >> 5));
-    const char* text = key.type == mwin_eventKeyDown ? texts[Byte() & 3] : "";
+    const char* text = key.kind == mwin_eventKeyDown ? texts[Byte() & 3] : "";
     uint32_t keycode = 8u + (op >> 5);
     uint32_t slot = window.index1 - 1;
     if (!mwinImeOffer(&s_ime, slot, 'a', keycode, 0, &key, text, (uint32_t)strlen(text),
@@ -1274,7 +1274,7 @@ static void Drain(mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        switch (event.type)
+        switch (event.kind)
         {
         case mwin_eventTextInput:
             Expect(IsUtf8(event.data.text.text, event.data.text.length) &&
@@ -1303,7 +1303,7 @@ static void Drain(mwinContext* context)
             uint64_t serial = event.timeNs;
             Expect(serial > s_keyRead && serial <= s_keyCount);
             Expect(memcmp(&s_keys[serial - 1].window, &event.window, sizeof(event.window)) == 0 &&
-                   s_keys[serial - 1].type == event.type);
+                   s_keys[serial - 1].type == event.kind);
             s_keyRead = serial;
             break;
         }

@@ -141,9 +141,9 @@ static void Finish(mwinContext* context)
 }
 @end
 
-static void PostLifecycle(mwinContext* context, mwinEventType type)
+static void PostLifecycle(mwinContext* context, mwinEventKind type)
 {
-    mwinEvent event = {.type = type, .timeNs = mwinIOSNow()};
+    mwinEvent event = {.kind = type, .timeNs = mwinIOSNow()};
     mwinPostGlobal(context, &event);
 }
 

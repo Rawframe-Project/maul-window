@@ -95,11 +95,11 @@ EM_JS(bool, DragEvents, (const char* selector, int which), {
 });
 // clang-format on
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -114,7 +114,7 @@ static int DragRecords(const Program* program)
     int count = 0;
     for (int i = 0; i < program->count; i++)
     {
-        mwinEventType type = program->records[i].type;
+        mwinEventKind type = program->records[i].kind;
         count += type >= mwin_eventDragEntered && type <= mwin_eventDropped;
     }
     return count;

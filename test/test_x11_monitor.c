@@ -125,11 +125,11 @@ static void Redefine(Program* program, int16_t x, uint16_t widthMm)
     xcb_flush(program->connection);
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type)
+static const mwinEvent* Find(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type)
+        if (program->records[i].kind == type)
         {
             return &program->records[i];
         }
@@ -189,11 +189,11 @@ static bool Same(mwinMonitorId a, mwinMonitorId b)
 }
 
 // Whether a record of a type came for the test's monitor.
-static bool Came(const Program* program, mwinEventType type)
+static bool Came(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type &&
+        if (program->records[i].kind == type &&
             (type == mwin_eventMonitorAdded ||
              Same(program->records[i].data.monitor, program->monitor)))
         {
@@ -208,7 +208,7 @@ static bool Shown(const Program* program, bool onTest)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == mwin_eventDisplayChanged &&
+        if (program->records[i].kind == mwin_eventDisplayChanged &&
             Same(program->records[i].data.monitor, program->monitor) == onTest)
         {
             return true;

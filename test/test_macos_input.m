@@ -32,7 +32,7 @@
 
 typedef struct Record
 {
-    mwinEventType type;
+    mwinEventKind type;
     mwinKeyEvent key;
     mwinPointerEvent pointer;
     mwinWheelEvent wheel;
@@ -65,28 +65,28 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        bool input = event.type >= mwin_eventKeyDown && event.type <= mwin_eventWheel;
-        if ((!input && event.type != mwin_eventRequestCompleted) || program->count == MAX_RECORDS)
+        program->shown |= event.kind == mwin_eventShown;
+        bool input = event.kind >= mwin_eventKeyDown && event.kind <= mwin_eventWheel;
+        if ((!input && event.kind != mwin_eventRequestCompleted) || program->count == MAX_RECORDS)
         {
             continue;
         }
         Record* record = &program->records[program->count++];
-        *record = (Record){.type = event.type};
-        if (event.type == mwin_eventKeyDown || event.type == mwin_eventKeyUp)
+        *record = (Record){.type = event.kind};
+        if (event.kind == mwin_eventKeyDown || event.kind == mwin_eventKeyUp)
         {
             record->key = event.data.key;
         }
-        else if (event.type == mwin_eventTextInput)
+        else if (event.kind == mwin_eventTextInput)
         {
             size_t length = event.data.text.length < 15 ? event.data.text.length : 15;
             memcpy(record->text, event.data.text.text, length);
         }
-        else if (event.type == mwin_eventRequestCompleted)
+        else if (event.kind == mwin_eventRequestCompleted)
         {
             record->outcome = event.data.completion.outcome;
         }
-        else if (event.type == mwin_eventWheel)
+        else if (event.kind == mwin_eventWheel)
         {
             record->wheel = event.data.wheel;
         }
@@ -98,7 +98,7 @@ static void Collect(Program* program, mwinContext* context)
 }
 
 // The next record of a type from a place in the list, or nullptr.
-static const Record* Find(const Program* program, size_t* at, mwinEventType type)
+static const Record* Find(const Program* program, size_t* at, mwinEventKind type)
 {
     for (; *at < program->count; (*at)++)
     {
@@ -559,7 +559,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     size_t completions = 0;
     for (size_t i = 0; i < program->count; i++)
     {
-        completions += program->records[i].type == mwin_eventRequestCompleted ? 1 : 0;
+        completions += program->records[i].kind == mwin_eventRequestCompleted ? 1 : 0;
     }
     bool pending = (program->phase == 3 && program->keyWindow &&
                     Find(program, &at, mwin_eventKeyUp) == nullptr) ||

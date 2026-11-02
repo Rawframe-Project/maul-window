@@ -69,14 +69,14 @@ static void FactsStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        static const mwinEventType expected[] = {mwin_eventLocaleChanged, mwin_eventThemeChanged,
+        static const mwinEventKind expected[] = {mwin_eventLocaleChanged, mwin_eventThemeChanged,
                                                  mwin_eventPowerChanged};
         CHECK(Types(program, expected, 3), "one record per change, merged, none for no change");
-        mwinEvent layout = {.type = mwin_eventKeyboardLayoutChanged};
+        mwinEvent layout = {.kind = mwin_eventKeyboardLayoutChanged};
         CHECK(mwinContext_PostTestEvent(context, &layout) == mwin_success, "the layout changes");
         return;
     }
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventKeyboardLayoutChanged,
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventKeyboardLayoutChanged,
           "the layout's change comes at the pump");
     CHECK(mwinContext_GetSystemFacts(context, &facts) == mwin_success && facts.textScale == 1.25f &&
               facts.accent == 0x3D7EFFFFu && facts.onBattery == mwin_yes,
@@ -107,7 +107,7 @@ static void FactsStep(Program* program, mwinContext* context, int step)
           "no locales");
     CHECK(LongLocales(context), "locales past the limit");
     CHECK(mwinContext_SetTestLocales(context, "\xFF", 1) == mwin_errorInvalid, "locales not UTF-8");
-    mwinEvent theme = {.type = mwin_eventThemeChanged};
+    mwinEvent theme = {.kind = mwin_eventThemeChanged};
     CHECK(mwinContext_PostTestEvent(context, &theme) == mwin_errorInvalid,
           "facts are set, not reported");
     program->done = true;
@@ -131,7 +131,7 @@ static void WindowFactsStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent safe = {.type = mwin_eventSafeAreaChanged, .window = window};
+        mwinEvent safe = {.kind = mwin_eventSafeAreaChanged, .window = window};
         safe.data.insets = (mwinInsets){44.0f, 0.0f, 34.0f, 0.0f};
         CHECK(mwinContext_PostTestEvent(context, &safe) == mwin_success, "a notch");
         CHECK(mwinWindow_RequestVirtualKeyboard(context, window, true, mwin_purposeEmail,
@@ -144,7 +144,7 @@ static void WindowFactsStep(Program* program, mwinContext* context, int step)
     }
     if (step == 2)
     {
-        static const mwinEventType expected[] = {mwin_eventSafeAreaChanged,
+        static const mwinEventKind expected[] = {mwin_eventSafeAreaChanged,
                                                  mwin_eventVirtualKeyboardChanged,
                                                  mwin_eventRequestCompleted};
         CHECK(Types(program, expected, 3) &&

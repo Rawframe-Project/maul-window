@@ -110,7 +110,7 @@ static void TestStroke(void)
     mwinX11Pen* pen = WacomPen(&pens, 12, false);
     mwinEvent record;
     CHECK(Event(pen, mwin_x11PenMotion, 0, 300.0, 20.0, -80.0, &record) == 1 &&
-              record.type == mwin_eventPenMoved && record.data.pen.pressure == 0.0f &&
+              record.kind == mwin_eventPenMoved && record.data.pen.pressure == 0.0f &&
               Near(record.data.pen.tiltX, 20.0f) && record.data.pen.tiltY == -80.0f &&
               record.data.pen.flags == 0 && Near(record.data.pen.position.x, 10.5f),
           "hovering: no pressure, tilt in degrees");
@@ -118,24 +118,24 @@ static void TestStroke(void)
               record.data.pen.tiltX == 90.0f && record.data.pen.tiltY == -80.0f,
           "tilt clamped to 90 degrees, the other kept");
     CHECK(Event(pen, mwin_x11PenPress, 1, 1023.5, NONE, NONE, &record) == 1 &&
-              record.type == mwin_eventPenDown && record.data.pen.flags == mwin_penContact &&
+              record.kind == mwin_eventPenDown && record.data.pen.flags == mwin_penContact &&
               Near(record.data.pen.pressure, 0.5f),
           "the tip down, pressure over the valuator's range");
     CHECK(Event(pen, mwin_x11PenMotion, 0, NONE, NONE, NONE, &record) == 1 &&
               Near(record.data.pen.pressure, 0.5f),
           "a value left out is kept");
     CHECK(Event(pen, mwin_x11PenPress, 2, NONE, NONE, NONE, &record) == 1 &&
-              record.type == mwin_eventPenButtonDown && record.data.pen.button == 1 &&
+              record.kind == mwin_eventPenButtonDown && record.data.pen.button == 1 &&
               record.data.pen.flags == (mwin_penContact | mwin_penBarrel),
           "button 2 the barrel, while in contact");
     CHECK(Event(pen, mwin_x11PenPress, 3, NONE, NONE, NONE, &record) == 0 &&
               Event(pen, mwin_x11PenRelease, 3, NONE, NONE, NONE, &record) == 0,
           "button 3 makes no record");
     CHECK(Event(pen, mwin_x11PenRelease, 2, NONE, NONE, NONE, &record) == 1 &&
-              record.type == mwin_eventPenButtonUp && record.data.pen.flags == mwin_penContact,
+              record.kind == mwin_eventPenButtonUp && record.data.pen.flags == mwin_penContact,
           "the barrel released");
     CHECK(Event(pen, mwin_x11PenRelease, 1, 0.0, NONE, NONE, &record) == 1 &&
-              record.type == mwin_eventPenUp && record.data.pen.flags == 0 &&
+              record.kind == mwin_eventPenUp && record.data.pen.flags == 0 &&
               record.data.pen.pressure == 0.0f,
           "the tip up");
     CHECK(Event(pen, mwin_x11PenPress, 1, 4000.0, NONE, NONE, &record) == 1 &&

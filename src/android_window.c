@@ -13,9 +13,9 @@
 
 #include "android.h"
 
-static void PostType(mwinAndroidPlatform* platform, mwinEventType type)
+static void PostType(mwinAndroidPlatform* platform, mwinEventKind type)
 {
-    mwinEvent event = {.type = type, .timeNs = mwinAndroidNow()};
+    mwinEvent event = {.kind = type, .timeNs = mwinAndroidNow()};
     mwinPost(platform->context, (uint32_t)platform->slot, &event);
 }
 
@@ -39,7 +39,7 @@ void mwinAndroidReadSize(mwinAndroidPlatform* platform)
     if (scale != window->scale)
     {
         window->scale = scale;
-        event.type = mwin_eventScaleChanged;
+        event.kind = mwin_eventScaleChanged;
         event.data.scale = (mwinScaleChange){scale, size};
         mwinPost(platform->context, slot, &event);
     }
@@ -47,10 +47,10 @@ void mwinAndroidReadSize(mwinAndroidPlatform* platform)
     {
         window->width = (uint32_t)width;
         window->height = (uint32_t)height;
-        event.type = mwin_eventResized;
+        event.kind = mwin_eventResized;
         event.data.size = size;
         mwinPost(platform->context, slot, &event);
-        event.type = mwin_eventPixelSizeChanged;
+        event.kind = mwin_eventPixelSizeChanged;
         event.data.pixelSize = (mwinPixelSize){(uint32_t)width, (uint32_t)height};
         mwinPost(platform->context, slot, &event);
         // The keyboard's part depends on the size.

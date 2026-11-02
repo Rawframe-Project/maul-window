@@ -60,7 +60,7 @@ typedef struct Program
     // The lifecycle and surface records since the phase began, in order,
     // and whether a frame with none ran while the program was suspended
     // (the critical frames are the ones that carry them).
-    mwinEventType records[RECORDS];
+    mwinEventKind records[RECORDS];
     int recordCount;
     bool suspended;
     bool framedSuspended;
@@ -96,7 +96,7 @@ static bool SameWindow(mwinWindowId a, mwinWindowId b)
     return memcmp(&a, &b, sizeof(a)) == 0;
 }
 
-static bool IsRecord(mwinEventType type)
+static bool IsRecord(mwinEventKind type)
 {
     return (type >= mwin_eventSuspending && type <= mwin_eventSurfaceRestored) ||
            type == mwin_eventWindowCreated || type == mwin_eventWindowDestroyed ||
@@ -130,20 +130,20 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (IsRecord(event.type) && program->recordCount < RECORDS)
+        if (IsRecord(event.kind) && program->recordCount < RECORDS)
         {
-            program->records[program->recordCount++] = event.type;
+            program->records[program->recordCount++] = event.kind;
         }
-        int* first = event.type == mwin_eventSurfaceLost  ? &program->lostFrame
-                     : event.type == mwin_eventSuspending ? &program->suspendingFrame
-                     : event.type == mwin_eventResuming   ? &program->resumingFrame
-                     : event.type == mwin_eventOccluded   ? &program->occludedFrame
+        int* first = event.kind == mwin_eventSurfaceLost  ? &program->lostFrame
+                     : event.kind == mwin_eventSuspending ? &program->suspendingFrame
+                     : event.kind == mwin_eventResuming   ? &program->resumingFrame
+                     : event.kind == mwin_eventOccluded   ? &program->occludedFrame
                                                           : nullptr;
         if (first != nullptr && *first == 0)
         {
             *first = program->frame;
         }
-        switch (event.type)
+        switch (event.kind)
         {
         case mwin_eventWindowCreated:
             program->created |= SameWindow(event.window, program->window);
@@ -201,7 +201,7 @@ static bool Agrees(const mwinMonitorInfo* info, const mwinWindowState* state)
            info->bounds.height >= state->pixelSize.height;
 }
 
-static bool Saw(const Program* program, mwinEventType type)
+static bool Saw(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->recordCount; i++)
     {
@@ -213,7 +213,7 @@ static bool Saw(const Program* program, mwinEventType type)
     return false;
 }
 
-static bool SawInOrder(const Program* program, const mwinEventType* order, int count)
+static bool SawInOrder(const Program* program, const mwinEventKind* order, int count)
 {
     int next = 0;
     for (int i = 0; i < program->recordCount && next < count; i++)
@@ -311,7 +311,7 @@ static bool Ready(const Program* program, mwinContext* context)
     // window is occluded as the activity stops, after the suspending
     // record (lifecycle records come first), and revealed once it
     // started again.
-    static const mwinEventType order[] = {mwin_eventSuspending, mwin_eventOccluded,
+    static const mwinEventKind order[] = {mwin_eventSuspending, mwin_eventOccluded,
                                           mwin_eventResuming, mwin_eventResumed,
                                           mwin_eventRevealed};
     switch (program->phase)

@@ -53,7 +53,7 @@ typedef struct Program
     bool shown;
     bool hidden;
     // The occlusion notification the phase saw last, or 0.
-    mwinEventType occlusion;
+    mwinEventKind occlusion;
     uint64_t startNs;
     bool timedOut;
 } Program;
@@ -72,15 +72,15 @@ static void Collect(Program* program, mwinContext* context)
     {
         const mwinCompletion* completion = &event.data.completion;
         program->created =
-            program->created || (event.type == mwin_eventRequestCompleted &&
+            program->created || (event.kind == mwin_eventRequestCompleted &&
                                  completion->request.index1 == program->request.index1 &&
                                  completion->request.generation == program->request.generation &&
                                  completion->outcome == mwin_outcomeDone);
-        program->shown = program->shown || event.type == mwin_eventShown;
-        program->hidden = program->hidden || event.type == mwin_eventHidden;
-        if (event.type == mwin_eventOccluded || event.type == mwin_eventRevealed)
+        program->shown = program->shown || event.kind == mwin_eventShown;
+        program->hidden = program->hidden || event.kind == mwin_eventHidden;
+        if (event.kind == mwin_eventOccluded || event.kind == mwin_eventRevealed)
         {
-            program->occlusion = event.type;
+            program->occlusion = event.kind;
         }
     }
 }
@@ -208,7 +208,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     program->phase += 1;
-    program->occlusion = (mwinEventType)0;
+    program->occlusion = (mwinEventKind)0;
     program->startNs = NowNs();
 }
 

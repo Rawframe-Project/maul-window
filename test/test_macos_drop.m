@@ -105,8 +105,8 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        bool drag = event.type >= mwin_eventDragEntered && event.type <= mwin_eventDropped;
+        program->shown |= event.kind == mwin_eventShown;
+        bool drag = event.kind >= mwin_eventDragEntered && event.kind <= mwin_eventDropped;
         if (drag && program->count < MAX_RECORDS)
         {
             program->records[program->count++] = event;
@@ -114,14 +114,14 @@ static void Collect(Program* program, mwinContext* context)
     }
 }
 
-static bool Is(const Program* program, int index, mwinEventType type, float x, float y)
+static bool Is(const Program* program, int index, mwinEventKind type, float x, float y)
 {
     const mwinEvent* event = &program->records[index];
     mwinPosition at =
         type == mwin_eventDropped ? event->data.drop.position : event->data.drag.position;
     bool contents =
         type == mwin_eventDropped || event->data.drag.contents == (mwin_dragFiles | mwin_dragText);
-    return index < program->count && event->type == type && at.x == x && at.y == y && contents;
+    return index < program->count && event->kind == type && at.x == x && at.y == y && contents;
 }
 
 // Moves the drag to a place in the view, from its top left.
@@ -214,7 +214,7 @@ static void DropSurrogate(NSView<NSDraggingDestination>* view)
 
 static void CheckSurrogate(const Program* program, mwinContext* context)
 {
-    const mwinDropEvent* drop = program->count == 2 && program->records[1].type == mwin_eventDropped
+    const mwinDropEvent* drop = program->count == 2 && program->records[1].kind == mwin_eventDropped
                                     ? &program->records[1].data.drop
                                     : nullptr;
     char text[16];

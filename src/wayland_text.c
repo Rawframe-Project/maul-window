@@ -23,7 +23,7 @@ static void EndComposition(mwinWaylandPlatform* platform, uint32_t slot)
         return;
     }
     mwinEvent end = {0};
-    end.type = mwin_eventImePreedit;
+    end.kind = mwin_eventImePreedit;
     end.timeNs = mwinMonotonicNow();
     end.data.preedit.caret = -1;
     mwinPost(platform->context, slot, &end);
@@ -137,7 +137,7 @@ static void PostPreedit(mwinWaylandPlatform* platform, uint64_t timeNs)
     }
     mwinPreeditSegment segment = {0, text->preedit.length, mwin_preeditUnderline};
     mwinEvent event = {0};
-    event.type = mwin_eventImePreedit;
+    event.kind = mwin_eventImePreedit;
     event.timeNs = timeNs;
     mwinPreeditEvent* preedit = &event.data.preedit;
     preedit->text = text->preedit.bytes;
@@ -163,14 +163,14 @@ static void OnDone(void* data, struct zwp_text_input_v3* object, uint32_t serial
         if (text->commit.lost || text->preedit.lost)
         {
             mwinEvent reset = {0};
-            reset.type = mwin_eventInputStateReset;
+            reset.kind = mwin_eventInputStateReset;
             reset.timeNs = timeNs;
             Post(platform, &reset);
         }
         if (text->commit.length > 0)
         {
             mwinEvent event = {0};
-            event.type = mwin_eventTextInput;
+            event.kind = mwin_eventTextInput;
             event.timeNs = timeNs;
             event.data.text = (mwinTextEvent){text->commit.bytes, text->commit.length};
             Post(platform, &event);

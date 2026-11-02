@@ -68,19 +68,19 @@ static void BackendStep(Program* program, mwinContext* context, int step)
     }
     Drain(program, context);
     uint32_t slot = window.index1 - 1;
-    mwinEvent bad = {.type = mwin_eventTextInput, .window = window};
+    mwinEvent bad = {.kind = mwin_eventTextInput, .window = window};
     bad.data.text = (mwinTextEvent){"a\xFF", 2};
     mwinPost(context, slot, &bad);
     mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS + 1] = {0};
-    mwinEvent many = {.type = mwin_eventImePreedit, .window = window};
+    mwinEvent many = {.kind = mwin_eventImePreedit, .window = window};
     many.data.preedit =
         (mwinPreeditEvent){"ab", 2, -1, 0, 0, segments, MWIN_MAX_PREEDIT_SEGMENTS + 1};
     mwinPost(context, slot, &many);
-    mwinEvent good = {.type = mwin_eventTextInput, .window = window};
+    mwinEvent good = {.kind = mwin_eventTextInput, .window = window};
     good.data.text = (mwinTextEvent){"ok", 2};
     mwinPost(context, slot, &good);
     Drain(program, context);
-    CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventTextInput &&
+    CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventTextInput &&
               program->events[0].data.text.length == 2 &&
               memcmp(program->events[0].data.text.text, "ok", 2) == 0,
           "ill-formed text and too many segments are lost, good text arrives");

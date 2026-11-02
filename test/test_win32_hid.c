@@ -382,7 +382,7 @@ static void Ids(const Program* program, mwinGamepadId ids[3])
     int found = 0;
     for (int i = 0; i < program->eventCount && found < 3; i++)
     {
-        if (program->events[i].type == mwin_eventGamepadAdded)
+        if (program->events[i].kind == mwin_eventGamepadAdded)
         {
             ids[found++] = program->events[i].data.gamepad;
         }
@@ -455,7 +455,7 @@ static void Step(Program* program, mwinContext* context, int step)
     int added = 0;
     for (int i = 0; i < program->eventCount; i++)
     {
-        added += program->events[i].type == mwin_eventGamepadAdded;
+        added += program->events[i].kind == mwin_eventGamepadAdded;
     }
     switch (step)
     {
@@ -494,7 +494,7 @@ static void Step(Program* program, mwinContext* context, int step)
     default:
     {
         mwinGamepadState state;
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadRemoved &&
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventGamepadRemoved &&
                   mwinGamepad_GetState(context, ids[1], &state) == mwin_errorStale,
               "a removed device gone, its reports reading nothing, and reports of no size "
               "reading nothing");
@@ -523,7 +523,7 @@ static void RoomStep(Program* program, mwinContext* context, int step)
     int added = 0;
     for (int i = 0; i < program->eventCount; i++)
     {
-        added += program->events[i].type == mwin_eventGamepadAdded;
+        added += program->events[i].kind == mwin_eventGamepadAdded;
     }
     mwinGamepadInfo info;
     switch (step)
@@ -547,7 +547,7 @@ static void RoomStep(Program* program, mwinContext* context, int step)
         mwinWin32HidPump(&s_hid, 2);
         break;
     case 2:
-        CHECK(program->eventCount == 1 && program->events[0].type == mwin_eventGamepadRemoved,
+        CHECK(program->eventCount == 1 && program->events[0].kind == mwin_eventGamepadRemoved,
               "the pad unplugged, nothing added while its slot is held");
         mwinWin32HidPump(&s_hid, 3);
         break;

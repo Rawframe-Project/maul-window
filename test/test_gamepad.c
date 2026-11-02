@@ -42,8 +42,8 @@ static mwinGamepadId s_pads[3];
 
 static void CheckAdded(Program* program, mwinContext* context)
 {
-    CHECK(program->eventCount == 2 && program->events[0].type == mwin_eventGamepadAdded &&
-              program->events[1].type == mwin_eventGamepadAdded &&
+    CHECK(program->eventCount == 2 && program->events[0].kind == mwin_eventGamepadAdded &&
+              program->events[1].kind == mwin_eventGamepadAdded &&
               SamePad(program->events[1].data.gamepad, s_pads[1]) &&
               program->events[0].window.index1 == 0,
           "hotplug records name the gamepad and no window");
@@ -100,7 +100,7 @@ static void Press(mwinContext* context)
 
 static void CheckPressed(Program* program, mwinContext* context)
 {
-    static const mwinEventType types[] = {
+    static const mwinEventKind types[] = {
         mwin_eventGamepadButtonDown, mwin_eventGamepadAxisMoved,  mwin_eventGamepadAxisMoved,
         mwin_eventGamepadButtonUp,   mwin_eventGamepadButtonDown, mwin_eventGamepadAxisMoved,
     };
@@ -266,7 +266,7 @@ static void HotplugStep(Program* program, mwinContext* context, int step)
               "its slot waits for its record to be drained");
         return;
     }
-    static const mwinEventType types[] = {mwin_eventGamepadChanged, mwin_eventGamepadRemoved,
+    static const mwinEventKind types[] = {mwin_eventGamepadChanged, mwin_eventGamepadRemoved,
                                           mwin_eventGamepadAdded};
     CHECK(Types(program, types, 3) && SamePad(program->events[0].data.gamepad, s_pads[0]),
           "changes merged, then the disconnect and a new gamepad");
@@ -318,14 +318,14 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
         const mwinEvent* event = &program->events[i];
         const mwinGamepadAxisEvent* axis = &event->data.gamepadAxis;
         buttons +=
-            event->type == mwin_eventGamepadButtonDown || event->type == mwin_eventGamepadButtonUp;
-        x = event->type == mwin_eventGamepadAxisMoved && axis->axis == mwin_padStickRightX
+            event->kind == mwin_eventGamepadButtonDown || event->kind == mwin_eventGamepadButtonUp;
+        x = event->kind == mwin_eventGamepadAxisMoved && axis->axis == mwin_padStickRightX
                 ? axis->value
                 : x;
-        y = event->type == mwin_eventGamepadAxisMoved && axis->axis == mwin_padStickRightY
+        y = event->kind == mwin_eventGamepadAxisMoved && axis->axis == mwin_padStickRightY
                 ? axis->value
                 : y;
-        resets += event->type == mwin_eventInputStateReset && event->window.index1 == 0;
+        resets += event->kind == mwin_eventInputStateReset && event->window.index1 == 0;
     }
     CHECK(buttons == 4 && resets == 2,
           "button records past the ring are lost, and each gamepad reset");

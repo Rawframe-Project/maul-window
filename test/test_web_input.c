@@ -94,7 +94,7 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success && program->count < MAX_RECORDS)
     {
-        if (event.type == mwin_eventTextInput &&
+        if (event.kind == mwin_eventTextInput &&
             program->textLength + event.data.text.length <= sizeof(program->text))
         {
             memcpy(program->text + program->textLength, event.data.text.text,
@@ -102,16 +102,16 @@ static void Collect(Program* program, mwinContext* context)
             program->textLength += event.data.text.length;
         }
         program->layoutChanged =
-            program->layoutChanged || event.type == mwin_eventKeyboardLayoutChanged;
+            program->layoutChanged || event.kind == mwin_eventKeyboardLayoutChanged;
         program->records[program->count++] = event;
     }
 }
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -462,7 +462,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         (void)printf("timed out in phase %d\n", (int)program->phase);
         for (int i = 0; i < program->count; i++)
         {
-            (void)printf("  record %d\n", (int)program->records[i].type);
+            (void)printf("  record %d\n", (int)program->records[i].kind);
         }
         program->timedOut = true;
         return mwin_frameStop;

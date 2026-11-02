@@ -53,7 +53,7 @@ static int Outcome(const Program* program, int request)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        if (event->type == mwin_eventRequestCompleted &&
+        if (event->kind == mwin_eventRequestCompleted &&
             SameId(event->data.completion.request, program->requests[request]))
         {
             return event->data.completion.outcome;
@@ -69,7 +69,7 @@ static int DestroyedOrder(const Program* program, int* order, int capacity)
     for (int i = 0; i < program->eventCount && count < capacity; i++)
     {
         const mwinEvent* event = &program->events[i];
-        for (int w = 0; w < 4 && event->type == mwin_eventWindowDestroyed; w++)
+        for (int w = 0; w < 4 && event->kind == mwin_eventWindowDestroyed; w++)
         {
             if (SameWindow(event->window, program->windows[w]))
             {

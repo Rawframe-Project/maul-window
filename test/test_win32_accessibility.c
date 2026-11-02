@@ -141,9 +141,9 @@ static int Outcome(mwinContext* context, Program* program)
     int outcome = -1;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->asked += event.type == mwin_eventAccessibilityRequested;
+        program->asked += event.kind == mwin_eventAccessibilityRequested;
         const mwinCompletion* completion = &event.data.completion;
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             completion->request.index1 == program->request.index1 &&
             completion->request.generation == program->request.generation)
         {

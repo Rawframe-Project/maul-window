@@ -76,7 +76,7 @@ static void CheckTouches(Program* program, mwinContext* context)
     Sample(context, mwin_androidPointerDown, 1, false, 0, &b, &c);
     Sample(context, mwin_androidCancel, 0, false, 0, &b, &c);
     Drain(program, context);
-    static const mwinEventType types[] = {
+    static const mwinEventKind types[] = {
         mwin_eventTouchDown, mwin_eventTouchDown,      mwin_eventTouchMoved,    mwin_eventTouchUp,
         mwin_eventTouchDown, mwin_eventTouchCancelled, mwin_eventTouchCancelled};
     CHECK(Types(program, types, 7), "down, down, the moved one, up, down, both cancelled");
@@ -113,7 +113,7 @@ static void CheckPen(Program* program, mwinContext* context)
     // From a tablet whose source is a mouse's too: still the pen.
     Sample(context, mwin_androidHoverMove, 0, true, 0, &eraser, nullptr);
     Drain(program, context);
-    static const mwinEventType types[] = {
+    static const mwinEventKind types[] = {
         mwin_eventPenMoved, mwin_eventPenDown,     mwin_eventPenButtonDown, mwin_eventPenMoved,
         mwin_eventPenUp,    mwin_eventPenButtonUp, mwin_eventPenMoved};
     CHECK(Types(program, types, 7), "hover, down, the barrel, moved, up, the barrel let go");
@@ -146,7 +146,7 @@ static void CheckCursor(Program* program, mwinContext* context)
     Mouse(context, mwin_androidButtonRelease, mwin_androidSecondary, 6.0f, 5.0f);
     Mouse(context, mwin_androidUp, 0, 6.0f, 5.0f);
     Drain(program, context);
-    static const mwinEventType types[] = {
+    static const mwinEventKind types[] = {
         mwin_eventCursorEntered, mwin_eventCursorMoved, mwin_eventButtonDown,
         mwin_eventCursorMoved,   mwin_eventButtonUp,    mwin_eventButtonDown,
         mwin_eventButtonDown,    mwin_eventButtonUp,    mwin_eventButtonUp};
@@ -182,7 +182,7 @@ static void CheckCursor(Program* program, mwinContext* context)
     scroll.pointers[0] = (mwinAndroidPointer){0, mwin_androidMouse, {6.0f, 5.0f}, 0, 0, 0};
     mwinAndroidMotionSample(context, s_slot, &s_pointers, &scroll);
     Drain(program, context);
-    static const mwinEventType later[] = {mwin_eventButtonDown, mwin_eventButtonUp,
+    static const mwinEventKind later[] = {mwin_eventButtonDown, mwin_eventButtonUp,
                                           mwin_eventWheel};
     CHECK(Types(program, later, 3) && program->events[0].data.pointer.button == mwin_buttonLeft &&
               program->events[0].data.pointer.clickCount == 1 &&
@@ -199,7 +199,7 @@ static void CheckSideButtons(Program* program, mwinContext* context)
     Mouse(context, mwin_androidButtonRelease, mwin_androidForward, 6.0f, 5.0f);
     Mouse(context, mwin_androidUp, 0, 6.0f, 5.0f);
     Drain(program, context);
-    static const mwinEventType types[] = {mwin_eventButtonDown, mwin_eventButtonDown,
+    static const mwinEventKind types[] = {mwin_eventButtonDown, mwin_eventButtonDown,
                                           mwin_eventButtonUp, mwin_eventButtonUp};
     const mwinEvent* events = program->events;
     CHECK(Types(program, types, 4) && events[0].data.pointer.button == mwin_buttonBack &&
@@ -221,7 +221,7 @@ static void CheckForgetting(Program* program, mwinContext* context)
     Sample(context, mwin_androidUp, 0, false, 0, &a, nullptr);
     Mouse(context, mwin_androidButtonPress, mwin_androidPrimary, 5.0f, 5.0f);
     Drain(program, context);
-    static const mwinEventType types[] = {mwin_eventCursorEntered, mwin_eventButtonDown};
+    static const mwinEventKind types[] = {mwin_eventCursorEntered, mwin_eventButtonDown};
     CHECK(Types(program, types, 2),
           "a forgotten touch's end left out; the cursor entering again, its button pressed anew");
 }
@@ -235,7 +235,7 @@ static void CheckEnterAgain(Program* program, mwinContext* context)
     Mouse(context, mwin_androidHoverExit, 0, 7.0f, 8.0f);
     Mouse(context, mwin_androidHoverEnter, 0, 7.0f, 9.0f);
     Drain(program, context);
-    static const mwinEventType types[] = {mwin_eventCursorEntered, mwin_eventCursorMoved};
+    static const mwinEventKind types[] = {mwin_eventCursorEntered, mwin_eventCursorMoved};
     CHECK(Types(program, types, 2) && program->events[0].data.pointer.position.y == 8.0f &&
               program->events[1].data.pointer.position.y == 9.0f,
           "entered at the first enter; a second enter after a hover's end moved the cursor");

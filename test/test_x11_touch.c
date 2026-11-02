@@ -71,12 +71,12 @@ static void TestTouch(void)
     mwinEvent record;
     const uint64_t id = (uint64_t)9 << 32 | 77u;
     CHECK(Event(&touches, 9, mwin_x11TouchBegin, 77, 127.5, &record) == 1 &&
-              record.type == mwin_eventTouchDown && record.data.touch.id == id &&
+              record.kind == mwin_eventTouchDown && record.data.touch.id == id &&
               Near(record.data.touch.pressure, 0.5f) && record.data.touch.position.x == 10.5f &&
               record.data.touch.position.y == 20.25f,
           "down, the id the device's and the touch's, pressure over the range");
     CHECK(Event(&touches, 9, mwin_x11TouchUpdate, 77, NONE, &record) == 1 &&
-              record.type == mwin_eventTouchMoved && record.data.touch.id == id &&
+              record.kind == mwin_eventTouchMoved && record.data.touch.id == id &&
               Near(record.data.touch.pressure, 0.5f),
           "a move, its pressure kept when the event leaves it out");
     CHECK(Event(&touches, 9, mwin_x11TouchUpdate, 77, 300.0, &record) == 1 &&
@@ -92,7 +92,7 @@ static void TestTouch(void)
               record.data.touch.pressure == 0.0f,
           "a second finger starts with none and keeps its own");
     CHECK(Event(&touches, 9, mwin_x11TouchEnd, 77, NONE, &record) == 1 &&
-              record.type == mwin_eventTouchUp && record.data.touch.id == id &&
+              record.kind == mwin_eventTouchUp && record.data.touch.id == id &&
               record.data.touch.pressure == 0.0f,
           "up, with the last pressure");
     CHECK(Event(&touches, 9, mwin_x11TouchUpdate, 77, NONE, &record) == 1 &&
@@ -132,7 +132,7 @@ static void TestDevices(void)
           "devices forgotten make no record");
     (void)EvdevScreen(&touches, 4);
     CHECK(Event(&touches, 4, mwin_x11TouchUpdate, 2, NONE, &record) == 1 &&
-              record.type == mwin_eventTouchMoved && record.data.touch.pressure == -1.0f,
+              record.kind == mwin_eventTouchMoved && record.data.touch.pressure == -1.0f,
           "an update of a touch never begun is a move");
 }
 

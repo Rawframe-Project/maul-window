@@ -77,9 +77,9 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->destroyed |= event.type == mwin_eventWindowDestroyed;
-        if (event.type == mwin_eventRequestCompleted &&
+        program->shown |= event.kind == mwin_eventShown;
+        program->destroyed |= event.kind == mwin_eventWindowDestroyed;
+        if (event.kind == mwin_eventRequestCompleted &&
             event.data.completion.kind == mwin_requestFileDialog)
         {
             program->completed = true;

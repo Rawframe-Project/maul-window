@@ -125,11 +125,11 @@ EM_JS(void, Swap, (void), {
 
 EM_JS_DEPS(test_web_gamepad, "$UTF8ToString");
 
-static const mwinEvent* Find(const Program* program, mwinEventType type, int nth)
+static const mwinEvent* Find(const Program* program, mwinEventKind type, int nth)
 {
     for (int i = 0; i < program->count; i++)
     {
-        if (program->records[i].type == type && nth-- == 0)
+        if (program->records[i].kind == type && nth-- == 0)
         {
             return &program->records[i];
         }
@@ -147,7 +147,7 @@ static bool Button(const Program* program, mwinGamepadId pad, uint8_t button, bo
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventGamepadButtonDown &&
+        if (event->kind == mwin_eventGamepadButtonDown &&
             Same(event->data.gamepadButton.gamepad, pad) &&
             event->data.gamepadButton.button == button && event->data.gamepadButton.raw == raw)
         {
@@ -162,7 +162,7 @@ static bool Axis(const Program* program, mwinGamepadId pad, uint8_t axis, float 
     for (int i = 0; i < program->count; i++)
     {
         const mwinEvent* event = &program->records[i];
-        if (event->type == mwin_eventGamepadAxisMoved &&
+        if (event->kind == mwin_eventGamepadAxisMoved &&
             Same(event->data.gamepadAxis.gamepad, pad) && event->data.gamepadAxis.axis == axis &&
             event->data.gamepadAxis.value == value)
         {

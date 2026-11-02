@@ -70,7 +70,7 @@ static mwinWindowId s_ids[WINDOWS];
 // A record a window should get: its type and, for text, its bytes.
 typedef struct Expected
 {
-    mwinEventType type;
+    mwinEventKind type;
     uint32_t length;
     char text[LIMIT];
 } Expected;
@@ -246,7 +246,7 @@ static void Model(const char* string, char* text, uint32_t* length, bool* lost)
 // storage. One the storage has no room for, as the core reserves it
 // (aligned for the segments a composition stores before its text),
 // becomes a reset instead.
-static void PushSized(uint32_t slot, mwinEventType type, const char* text, uint32_t length,
+static void PushSized(uint32_t slot, mwinEventKind type, const char* text, uint32_t length,
                       uint32_t need)
 {
     if (s_trace)
@@ -270,7 +270,7 @@ static void PushSized(uint32_t slot, mwinEventType type, const char* text, uint3
     }
 }
 
-static void Push(uint32_t slot, mwinEventType type, const char* text, uint32_t length)
+static void Push(uint32_t slot, mwinEventKind type, const char* text, uint32_t length)
 {
     PushSized(slot, type, text, length, length);
 }
@@ -391,7 +391,7 @@ static void CheckComposition(const mwinPreeditEvent* preedit)
 // where one is due, else the next text record.
 static void Match(uint32_t slot, const mwinEvent* event)
 {
-    if (event->type == mwin_eventInputStateReset)
+    if (event->kind == mwin_eventInputStateReset)
     {
         Expect(s_expected[slot].reset && !s_expected[slot].resetRead);
         s_expected[slot].resetRead = true;
@@ -399,7 +399,7 @@ static void Match(uint32_t slot, const mwinEvent* event)
     }
     Expect(s_expected[slot].read < s_expected[slot].count);
     const Expected* expected = &s_expected[slot].records[s_expected[slot].read++];
-    Expect(event->type == expected->type && event->data.text.length == expected->length &&
+    Expect(event->kind == expected->type && event->data.text.length == expected->length &&
            (expected->length == 0 ||
             memcmp(event->data.text.text, expected->text, expected->length) == 0));
 }
@@ -411,8 +411,8 @@ static void Drain(mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        bool text = event.type == mwin_eventTextInput || event.type == mwin_eventImePreedit ||
-                    event.type == mwin_eventInputStateReset;
+        bool text = event.kind == mwin_eventTextInput || event.kind == mwin_eventImePreedit ||
+                    event.kind == mwin_eventInputStateReset;
         if (!text)
         {
             continue;
@@ -420,7 +420,7 @@ static void Drain(mwinContext* context)
         uint32_t slot = event.window.index1 - 1;
         if (s_trace)
         {
-            (void)fprintf(stderr, "read slot %u type %d length %u\n", slot, (int)event.type,
+            (void)fprintf(stderr, "read slot %u type %d length %u\n", slot, (int)event.kind,
                           event.data.text.length);
         }
         bool live = false;
@@ -429,13 +429,13 @@ static void Drain(mwinContext* context)
             live = live || memcmp(&s_ids[i], &event.window, sizeof(event.window)) == 0;
         }
         Expect(live);
-        if (event.type == mwin_eventTextInput)
+        if (event.kind == mwin_eventTextInput)
         {
             Expect(event.data.text.length <= LIMIT &&
                    muniValidateUtf8(event.data.text.text, event.data.text.length).status ==
                        muni_success);
         }
-        if (event.type == mwin_eventImePreedit && event.data.preedit.length > 0)
+        if (event.kind == mwin_eventImePreedit && event.data.preedit.length > 0)
         {
             CheckComposition(&event.data.preedit);
         }

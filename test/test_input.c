@@ -15,9 +15,9 @@
 
 #include <string.h>
 
-static mwinEvent Key(mwinWindowId window, mwinEventType type, mwinKeyCode code, mwinKey key)
+static mwinEvent Key(mwinWindowId window, mwinEventKind type, mwinKeyCode code, mwinKey key)
 {
-    mwinEvent event = {.type = type, .window = window};
+    mwinEvent event = {.kind = type, .window = window};
     event.data.key.code = code;
     event.data.key.key = key;
     return event;
@@ -25,7 +25,7 @@ static mwinEvent Key(mwinWindowId window, mwinEventType type, mwinKeyCode code, 
 
 static mwinEvent Text(mwinWindowId window, const char* text)
 {
-    mwinEvent event = {.type = mwin_eventTextInput, .window = window};
+    mwinEvent event = {.kind = mwin_eventTextInput, .window = window};
     event.data.text.text = text;
     event.data.text.length = (uint32_t)strlen(text);
     return event;
@@ -33,7 +33,7 @@ static mwinEvent Text(mwinWindowId window, const char* text)
 
 static bool TextIs(const mwinEvent* event, const char* text)
 {
-    return event->type == mwin_eventTextInput && event->data.text.length == strlen(text) &&
+    return event->kind == mwin_eventTextInput && event->data.text.length == strlen(text) &&
            memcmp(event->data.text.text, text, strlen(text)) == 0;
 }
 
@@ -58,7 +58,7 @@ static void KeyStep(Program* program, mwinContext* context, int step)
         }
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventTextInput,
+    static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventTextInput,
                                              mwin_eventKeyUp};
     CHECK(Types(program, expected, 3) && program->events[0].data.key.code == mwin_codeKeyA &&
               program->events[0].data.key.key == 'a' && TextIs(&program->events[1], "\xC3\xA4"),
@@ -83,7 +83,7 @@ static void FullReportStep(Program* program, mwinContext* context, int step)
         return;
     }
     memset(text, 'a', sizeof(text));
-    mwinEvent full = {.type = mwin_eventTextInput, .window = program->windows[0]};
+    mwinEvent full = {.kind = mwin_eventTextInput, .window = program->windows[0]};
     full.data.text = (mwinTextEvent){text, 65537};
     CHECK(mwinContext_PostTestEvent(context, &full) == mwin_errorCapacity,
           "a byte past the report text");
@@ -148,7 +148,7 @@ static void WrapStep(Program* program, mwinContext* context, int step)
     }
     default:
         Drain(program, context);
-        static const mwinEventType expected[] = {mwin_eventTextInput, mwin_eventTextInput,
+        static const mwinEventKind expected[] = {mwin_eventTextInput, mwin_eventTextInput,
                                                  mwin_eventInputStateReset};
         CHECK(Types(program, expected, 3), "a text that does not fit is a reset");
         program->done = true;
@@ -181,11 +181,11 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
         }
         for (int i = 1; i <= 6; i++)
         {
-            mwinEvent move = {.type = mwin_eventCursorMoved, .window = window};
+            mwinEvent move = {.kind = mwin_eventCursorMoved, .window = window};
             move.data.pointer.position = (mwinPosition){(float)i, 0.0f};
-            mwinEvent delta = {.type = mwin_eventRawPointerDelta, .window = window};
+            mwinEvent delta = {.kind = mwin_eventRawPointerDelta, .window = window};
             delta.data.delta = (mwinDeltaEvent){1.0f, 2.0f};
-            mwinEvent wheel = {.type = mwin_eventWheel, .window = window};
+            mwinEvent wheel = {.kind = mwin_eventWheel, .window = window};
             wheel.data.wheel = (mwinWheelEvent){0.0f, 0.5f};
             CHECK(mwinContext_PostTestEvent(context, &move) == mwin_success &&
                       mwinContext_PostTestEvent(context, &delta) == mwin_success &&
@@ -203,13 +203,13 @@ static void OverflowStep(Program* program, mwinContext* context, int step)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        keys += event->type == mwin_eventKeyDown;
-        resets += event->type == mwin_eventInputStateReset;
-        CHECK(event->type != mwin_eventInputStateReset || keys == 4, "the reset where the loss");
-        deltaX += event->type == mwin_eventRawPointerDelta ? event->data.delta.x : 0.0f;
-        wheelY += event->type == mwin_eventWheel ? event->data.wheel.y : 0.0f;
-        lastMove = event->type == mwin_eventCursorMoved ? event : lastMove;
-        moveSamples += event->type == mwin_eventCursorMoved ? event->sampleCount : 0;
+        keys += event->kind == mwin_eventKeyDown;
+        resets += event->kind == mwin_eventInputStateReset;
+        CHECK(event->kind != mwin_eventInputStateReset || keys == 4, "the reset where the loss");
+        deltaX += event->kind == mwin_eventRawPointerDelta ? event->data.delta.x : 0.0f;
+        wheelY += event->kind == mwin_eventWheel ? event->data.wheel.y : 0.0f;
+        lastMove = event->kind == mwin_eventCursorMoved ? event : lastMove;
+        moveSamples += event->kind == mwin_eventCursorMoved ? event->sampleCount : 0;
     }
     CHECK(keys == 4 && resets == 1, "the fifth key is lost to a reset");
     CHECK(deltaX == 6.0f && wheelY == 3.0f, "deltas and wheel turns add up when merged");
@@ -246,11 +246,11 @@ static void PenStep(Program* program, mwinContext* context, int step)
             CHECK(mwinContext_PostTestEvent(context, &key) == mwin_success,
                   "four keys fill the storage");
         }
-        mwinEvent up = {.type = mwin_eventPenButtonUp, .window = window};
+        mwinEvent up = {.kind = mwin_eventPenButtonUp, .window = window};
         CHECK(mwinContext_PostTestEvent(context, &up) == mwin_success, "then a pen's button");
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventKeyDown,
+    static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventKeyDown,
                                              mwin_eventKeyDown, mwin_eventKeyDown,
                                              mwin_eventInputStateReset};
     CHECK(Types(program, expected, 5), "the button is lost to a reset");
@@ -278,10 +278,10 @@ static void ReplaceStep(Program* program, mwinContext* context, int step)
     Drain(program, context);
     if (step == 1)
     {
-        mwinEvent first = {.type = mwin_eventResized, .window = window};
+        mwinEvent first = {.kind = mwin_eventResized, .window = window};
         first.data.size = (mwinSize){10.0f, 10.0f};
         mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');
-        mwinEvent moved = {.type = mwin_eventMoved, .window = window};
+        mwinEvent moved = {.kind = mwin_eventMoved, .window = window};
         moved.data.position = (mwinPosition){5.0f, 5.0f};
         mwinEvent second = first;
         second.data.size = (mwinSize){20.0f, 20.0f};
@@ -292,7 +292,7 @@ static void ReplaceStep(Program* program, mwinContext* context, int step)
               "a size, a key, a move and a new size");
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventKeyDown, mwin_eventMoved, mwin_eventResized};
+    static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventMoved, mwin_eventResized};
     CHECK(Types(program, expected, 3) && program->events[2].data.size.width == 20.0f,
           "the key and the move in their places, the newer size last");
     program->done = true;
@@ -328,7 +328,7 @@ static void SampleStep(Program* program, mwinContext* context, int step)
     {
         for (int i = 0; i < ReportsPerFrame; i++)
         {
-            mwinEvent move = {.type = mwin_eventCursorMoved, .window = window};
+            mwinEvent move = {.kind = mwin_eventCursorMoved, .window = window};
             move.data.pointer.position = (mwinPosition){(float)i, (float)step};
             (void)mwinContext_PostTestEvent(context, &move);
         }
@@ -339,8 +339,8 @@ static void SampleStep(Program* program, mwinContext* context, int step)
     const mwinEvent* last = nullptr;
     for (int i = 0; i < program->eventCount; i++)
     {
-        moves += program->events[i].type == mwin_eventCursorMoved;
-        last = program->events[i].type == mwin_eventCursorMoved ? &program->events[i] : last;
+        moves += program->events[i].kind == mwin_eventCursorMoved;
+        last = program->events[i].kind == mwin_eventCursorMoved ? &program->events[i] : last;
     }
     CHECK(moves == 4 && last != nullptr && last->sampleCount == UINT16_MAX &&
               last->data.pointer.position.y == (float)SampleSteps,
@@ -374,7 +374,7 @@ static void SegmentStep(Program* program, mwinContext* context, int step)
         {
             segments[i] = (mwinPreeditSegment){i, 1, mwin_preeditUnderline};
         }
-        mwinEvent preedit = {.type = mwin_eventImePreedit, .window = window};
+        mwinEvent preedit = {.kind = mwin_eventImePreedit, .window = window};
         preedit.data.preedit = (mwinPreeditEvent){text,     MWIN_MAX_PREEDIT_SEGMENTS, -1, 0, 0,
                                                   segments, MWIN_MAX_PREEDIT_SEGMENTS};
         CHECK(mwinContext_PostTestEvent(context, &preedit) == mwin_success,
@@ -385,7 +385,7 @@ static void SegmentStep(Program* program, mwinContext* context, int step)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinPreeditEvent* preedit = &program->events[i].data.preedit;
-        found = found || (program->events[i].type == mwin_eventImePreedit &&
+        found = found || (program->events[i].kind == mwin_eventImePreedit &&
                           preedit->segmentCount == MWIN_MAX_PREEDIT_SEGMENTS &&
                           preedit->segments[MWIN_MAX_PREEDIT_SEGMENTS - 1].start ==
                               MWIN_MAX_PREEDIT_SEGMENTS - 1);
@@ -414,13 +414,13 @@ static void TouchStep(Program* program, mwinContext* context, int step)
         // Two moves of touch 7 fill the storage; touch 9 has nothing to join.
         for (int i = 0; i < 3; i++)
         {
-            mwinEvent move = {.type = mwin_eventTouchMoved, .window = window};
+            mwinEvent move = {.kind = mwin_eventTouchMoved, .window = window};
             move.data.touch.id = i < 2 ? 7 : 9;
             CHECK(mwinContext_PostTestEvent(context, &move) == mwin_success, "touch moves");
         }
         return;
     }
-    static const mwinEventType expected[] = {mwin_eventTouchMoved, mwin_eventTouchMoved,
+    static const mwinEventKind expected[] = {mwin_eventTouchMoved, mwin_eventTouchMoved,
                                              mwin_eventInputStateReset};
     CHECK(Types(program, expected, 3), "a touch never merges into another");
     program->done = true;
@@ -440,7 +440,7 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     mwinWindowId window = Create(context, nullptr);
     mwinEvent bad = Text(window, "\xE0\x80\x80");
     CHECK(mwinContext_PostTestEvent(context, &bad) == mwin_errorInvalid, "text that is not UTF-8");
-    mwinEvent reset = {.type = mwin_eventInputStateReset, .window = window};
+    mwinEvent reset = {.kind = mwin_eventInputStateReset, .window = window};
     CHECK(mwinContext_PostTestEvent(context, &reset) == mwin_errorInvalid, "resets are the core's");
     CHECK(mwinDestroyWindow(context, window) == mwin_success, "destroy");
     mwinEvent key = Key(window, mwin_eventKeyDown, mwin_codeKeyA, 'a');

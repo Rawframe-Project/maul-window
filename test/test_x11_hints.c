@@ -104,14 +104,14 @@ static void Collect(mwinContext* context, Program* program)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->created += event.type == mwin_eventWindowCreated;
-        program->completed += event.type == mwin_eventRequestCompleted &&
+        program->created += event.kind == mwin_eventWindowCreated;
+        program->completed += event.kind == mwin_eventRequestCompleted &&
                               event.data.completion.outcome == mwin_outcomeDone;
-        if (event.type == mwin_eventModeChanged && Same(event.window, program->ids[0]))
+        if (event.kind == mwin_eventModeChanged && Same(event.window, program->ids[0]))
         {
             program->mode = event.data.mode;
         }
-        program->closeAsked = program->closeAsked || event.type == mwin_eventCloseRequested;
+        program->closeAsked = program->closeAsked || event.kind == mwin_eventCloseRequested;
     }
     xcb_generic_event_t* got = nullptr;
     while ((got = xcb_poll_for_event(program->connection)) != nullptr)
@@ -360,13 +360,13 @@ static mwinFrameResult AskingFrame(mwinContext* context, void* user)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        if (event.type == mwin_eventWindowCreated)
+        if (event.kind == mwin_eventWindowCreated)
         {
             CHECK(mwinWindow_RequestMode(context, asking->window, mwin_modeMaximized,
                                          &asking->request) == mwin_success,
                   "a mode asked");
         }
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             event.data.completion.request.index1 == asking->request.index1 &&
             event.data.completion.request.generation == asking->request.generation)
         {

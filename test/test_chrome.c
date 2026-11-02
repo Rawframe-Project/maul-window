@@ -22,7 +22,7 @@ static bool Completed(const Program* program, mwinRequestId request, mwinOutcome
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinCompletion* completion = &program->events[i].data.completion;
-        if (program->events[i].type == mwin_eventRequestCompleted &&
+        if (program->events[i].kind == mwin_eventRequestCompleted &&
             completion->request.index1 == request.index1 &&
             completion->request.generation == request.generation)
         {

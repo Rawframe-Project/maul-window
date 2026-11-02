@@ -175,7 +175,7 @@ static uint64_t NowNs(void)
     return (uint64_t)now.tv_sec * 1000000000ull + (uint64_t)now.tv_nsec;
 }
 
-static bool Input(mwinEventType type)
+static bool Input(mwinEventKind type)
 {
     return (type >= mwin_eventCursorMoved && type <= mwin_eventWheel) ||
            (type >= mwin_eventTouchDown && type <= mwin_eventPenButtonUp);
@@ -186,8 +186,8 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        if (Input(event.type) && program->count < MAX_RECORDS)
+        program->shown |= event.kind == mwin_eventShown;
+        if (Input(event.kind) && program->count < MAX_RECORDS)
         {
             program->records[program->count++] = event;
         }
@@ -275,9 +275,9 @@ static void Pointer(UIView* view)
 }
 
 // The next record from *at of a type, or null.
-static const mwinEvent* Next(const Program* program, int* at, mwinEventType type)
+static const mwinEvent* Next(const Program* program, int* at, mwinEventKind type)
 {
-    while (*at < program->count && program->records[*at].type != type)
+    while (*at < program->count && program->records[*at].kind != type)
     {
         *at += 1;
     }

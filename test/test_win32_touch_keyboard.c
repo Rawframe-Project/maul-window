@@ -77,12 +77,12 @@ static int Outcome(Program* program, mwinContext* context, mwinRequestId request
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         const mwinCompletion* completion = &event.data.completion;
-        *created = *created || event.type == mwin_eventWindowCreated;
-        if (event.type == mwin_eventVirtualKeyboardChanged && program->covers < 4)
+        *created = *created || event.kind == mwin_eventWindowCreated;
+        if (event.kind == mwin_eventVirtualKeyboardChanged && program->covers < 4)
         {
             program->covered[program->covers++] = event.data.rect;
         }
-        if (event.type == mwin_eventRequestCompleted &&
+        if (event.kind == mwin_eventRequestCompleted &&
             completion->request.index1 == request.index1 &&
             completion->request.generation == request.generation)
         {

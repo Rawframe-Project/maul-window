@@ -51,13 +51,13 @@ typedef struct Program
     // The lifecycle records in order, with the frame each came in and
     // when that frame ran.
     int lifecycle;
-    mwinEventType lifecycleTypes[4];
+    mwinEventKind lifecycleTypes[4];
     int lifecycleFrames[4];
     uint64_t lifecycleNs[4];
     // The window's occlusion records in order, with the frame each came
     // in, and whether its state said occluded as the first was taken.
     int occlusion;
-    mwinEventType occlusionTypes[4];
+    mwinEventKind occlusionTypes[4];
     int occlusionFrames[4];
     bool occludedState;
     // From the frame that tells of the suspending behind another
@@ -104,21 +104,21 @@ static void Collect(Program* program, mwinContext* context)
     mwinEvent event;
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
-        program->shown |= event.type == mwin_eventShown;
-        program->hidden |= event.type == mwin_eventHidden;
-        if (event.type == mwin_eventRequestCompleted && program->completions < 4)
+        program->shown |= event.kind == mwin_eventShown;
+        program->hidden |= event.kind == mwin_eventHidden;
+        if (event.kind == mwin_eventRequestCompleted && program->completions < 4)
         {
             program->outcomes[program->completions++] = event.data.completion.outcome;
         }
-        if (event.type >= mwin_eventSuspending && event.type <= mwin_eventResumed &&
+        if (event.kind >= mwin_eventSuspending && event.kind <= mwin_eventResumed &&
             program->lifecycle < 4)
         {
-            program->lifecycleTypes[program->lifecycle] = event.type;
+            program->lifecycleTypes[program->lifecycle] = event.kind;
             program->lifecycleFrames[program->lifecycle] = program->frames;
             program->lifecycleNs[program->lifecycle] = NowNs();
             program->lifecycle += 1;
         }
-        if ((event.type == mwin_eventOccluded || event.type == mwin_eventRevealed) &&
+        if ((event.kind == mwin_eventOccluded || event.kind == mwin_eventRevealed) &&
             SameWindow(event.window, program->window) && program->occlusion < 4)
         {
             mwinWindowState state = {0};
@@ -128,12 +128,12 @@ static void Collect(Program* program, mwinContext* context)
                     mwinWindow_GetState(context, program->window, &state) == mwin_success &&
                     state.occluded;
             }
-            program->occlusionTypes[program->occlusion] = event.type;
+            program->occlusionTypes[program->occlusion] = event.kind;
             program->occlusionFrames[program->occlusion] = program->frames;
             program->occlusion += 1;
         }
         // The last frame before the application is suspended.
-        if (event.type == mwin_eventSuspending && program->phase == 4)
+        if (event.kind == mwin_eventSuspending && program->phase == 4)
         {
             Replace(program, context);
         }
@@ -216,7 +216,7 @@ static void Background(UIWindowScene* scene)
 // way to the resuming one (lifecycle records coalesce).
 static void CheckLifecycle(const Program* program)
 {
-    static const mwinEventType order[] = {mwin_eventSuspending, mwin_eventResuming,
+    static const mwinEventKind order[] = {mwin_eventSuspending, mwin_eventResuming,
                                           mwin_eventResumed};
     bool ordered = program->lifecycle == 3;
     for (int i = 0; ordered && i < 3; i++)

@@ -53,11 +53,11 @@ static void HookFree(void* memory, size_t size, size_t alignment, void* user)
     s_found += s_cursor.index1 != 0 && mwinFindCursor(s_context, s_cursor) != nullptr;
 }
 
-static bool Has(const Program* program, mwinEventType type)
+static bool Has(const Program* program, mwinEventKind type)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
-        if (program->events[i].type == type)
+        if (program->events[i].kind == type)
         {
             return true;
         }
@@ -70,7 +70,7 @@ static bool Cancelled(const Program* program, mwinRequestId request)
     for (int i = 0; i < program->eventCount; i++)
     {
         const mwinEvent* event = &program->events[i];
-        if (event->type == mwin_eventRequestCompleted &&
+        if (event->kind == mwin_eventRequestCompleted &&
             SameId(event->data.completion.request, request))
         {
             return event->data.completion.outcome == mwin_outcomeCancelled;

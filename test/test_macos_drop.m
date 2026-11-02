@@ -293,6 +293,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 2, "every phase ran");
+    CHECK(program.phase == 3, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

@@ -181,8 +181,8 @@ extern "C"
                                                                       const mwinSystemFacts* facts);
 
     /// Sets the user's preferred locales, at once, as a platform reports
-    /// them: a list past the localeBytes limit keeps its leading tags that
-    /// fit. A change posts mwin_eventLocaleChanged.
+    /// them: a list past the localeBytes limit keeps the longest beginning
+    /// of it that fits. A change posts mwin_eventLocaleChanged.
     ///
     /// @param context  A context of the test backend.
     /// @param locales  BCP 47 tags separated by commas, UTF-8. May be NULL

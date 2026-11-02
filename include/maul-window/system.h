@@ -59,9 +59,11 @@ extern "C"
 
     /// Reads the user's preferred locales, most preferred first, as BCP 47
     /// tags separated by commas ("de-DE,en-GB"); empty where the platform
-    /// does not say. A list longer than the localeBytes limit keeps its
-    /// most preferred tags that fit; on Windows, only the language Windows
-    /// shows, where it fits.
+    /// does not say. A list longer than the localeBytes limit keeps the
+    /// longest beginning of it that fits: the first tag that does not fit
+    /// is left out with every tag after it. Windows hands over its list
+    /// only whole, so there such a list keeps only its first language,
+    /// the one Windows shows, where it fits.
     ///
     /// @param context    The context.
     /// @param bufferOut  Receives the list, not NUL-terminated. May be NULL

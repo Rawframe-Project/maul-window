@@ -97,7 +97,7 @@ macos_owned: core macos
 macos_pen: core macos
 macos_services: apple_clipboard apple_text clipboard_data core macos
 macos_system: apple_locale core macos
-macos_text: apple_text core macos
+macos_text: allocator apple_text core macos
 macos_view: accessibility core macos
 macos_window: core macos
 message_box: utf8

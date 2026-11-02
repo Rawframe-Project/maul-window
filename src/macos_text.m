@@ -11,10 +11,9 @@
 // that marks the one being converted, and the result as text. The
 // candidate window goes by the caret the program gave.
 
+#include "allocator.h"
 #include "apple_text.h"
 #include "macos.h"
-
-#include <string.h>
 
 static void Post(mwinMacPlatform* platform, uint32_t slot, mwinEvent* event)
 {
@@ -44,7 +43,8 @@ static void EndComposition(mwinMacPlatform* platform, uint32_t slot)
 }
 
 // Typed text without control characters or AppKit's function key
-// characters, which are keys.
+// characters, which are keys; a lone surrogate as U+FFFD, and a reset in
+// its place when there is no memory for it.
 static void PostText(mwinMacPlatform* platform, uint32_t slot, NSString* string)
 {
     NSMutableString* kept = [NSMutableString stringWithCapacity:string.length];
@@ -56,15 +56,25 @@ static void PostText(mwinMacPlatform* platform, uint32_t slot, NSString* string)
             CFStringAppendCharacters((CFMutableStringRef)kept, &unit, 1);
         }
     }
-    const char* bytes = kept.UTF8String;
-    size_t length = bytes != nullptr ? strlen(bytes) : 0;
-    if (length == 0 || length > UINT32_MAX)
+    mwinContext* context = platform->context;
+    size_t length = 0;
+    size_t size = 0;
+    char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
+    if (bytes != nullptr && length <= UINT32_MAX)
     {
-        return;
+        mwinEvent event = {.type = mwin_eventTextInput};
+        event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
+        Post(platform, slot, &event);
     }
-    mwinEvent event = {.type = mwin_eventTextInput};
-    event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
-    Post(platform, slot, &event);
+    else if (kept.length > 0)
+    {
+        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        Post(platform, slot, &reset);
+    }
+    if (bytes != nullptr)
+    {
+        mwinRelease(&context->allocator, bytes, size, 1);
+    }
 }
 
 // The style of a clause: the thick underline marks the one a conversion
@@ -141,10 +151,19 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     {
         return;
     }
-    const char* bytes = text.UTF8String;
-    size_t length = bytes != nullptr ? strlen(bytes) : 0;
-    if (length == 0 || length > UINT32_MAX)
+    mwinContext* context = platform->context;
+    size_t length = 0;
+    size_t size = 0;
+    char* bytes = mwinAppleUtf8Of(context, text, &length, &size);
+    if (bytes == nullptr || length > UINT32_MAX)
     {
+        // The program's composition cannot follow the input method's.
+        mwinEvent reset = {.type = mwin_eventInputStateReset};
+        Post(platform, slot, &reset);
+        if (bytes != nullptr)
+        {
+            mwinRelease(&context->allocator, bytes, size, 1);
+        }
         return;
     }
     mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS];
@@ -165,6 +184,7 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     preedit->segmentCount = Segment(string, text, segments, preedit);
     preedit->segments = segments;
     Post(platform, slot, &event);
+    mwinRelease(&context->allocator, bytes, size, 1);
 }
 
 void mwinMacInsertText(mwinMacPlatform* platform, uint32_t slot, id string)

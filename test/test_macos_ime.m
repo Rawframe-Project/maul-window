@@ -6,8 +6,9 @@
 // one that does takes every input source, and has a caret the candidate
 // window goes by; marked text with
 // two clauses, the thick-underlined one the target, comes as a
-// composition; committing ends it with the text; turning text input off
-// ends a composition without committing it. No input method can be
+// composition; committing ends it with the text; text typed and composed
+// with a lone surrogate arrives with U+FFFD in its place; turning text
+// input off ends a composition without committing it. No input method can be
 // driven on the runner, so the test calls the view's text input client
 // as a method would.
 
@@ -188,6 +189,39 @@ static void CheckCommit(const Program* program, NSView<NSTextInputClient>* view)
     CHECK(!view.hasMarkedText, "no marked text is left");
 }
 
+// "x", a lone surrogate, "y", and "a", one, "b": what UTF8String cannot
+// convert.
+static NSString* Surrogate(unichar first, unichar last)
+{
+    const unichar units[] = {first, 0xD800, last};
+    return [NSString stringWithCharacters:units length:3];
+}
+
+static void CheckSurrogateText(const Program* program)
+{
+    size_t at = 0;
+    const Record* text = Find(program, &at, mwin_eventTextInput);
+    CHECK(text != nullptr && text->length == 5 &&
+              memcmp(text->text,
+                     "x\xEF\xBF\xBD"
+                     "y",
+                     5) == 0,
+          "typed text with a lone surrogate, U+FFFD in its place");
+}
+
+static void CheckSurrogatePreedit(const Program* program)
+{
+    size_t at = 0;
+    const Record* preedit = Find(program, &at, mwin_eventImePreedit);
+    CHECK(preedit != nullptr && preedit->length == 5 &&
+              memcmp(preedit->text,
+                     "a\xEF\xBF\xBD"
+                     "b",
+                     5) == 0 &&
+              preedit->caret == 5,
+          "a composition with a lone surrogate, U+FFFD in its place, the caret after it");
+}
+
 static void CheckPlain(const Program* program)
 {
     size_t at = 0;
@@ -244,17 +278,27 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 3:
         CheckCommit(program, view);
+        [view insertText:Surrogate('x', 'y') replacementRange:NSMakeRange(NSNotFound, 0)];
+        break;
+    case 4:
+        CheckSurrogateText(program);
+        [view setMarkedText:Surrogate('a', 'b')
+               selectedRange:NSMakeRange(3, 0)
+            replacementRange:NSMakeRange(NSNotFound, 0)];
+        break;
+    case 5:
+        CheckSurrogatePreedit(program);
         [view setMarkedText:@"か"
                selectedRange:NSMakeRange(1, 0)
             replacementRange:NSMakeRange(NSNotFound, 0)];
         break;
-    case 4:
+    case 6:
         CheckPlain(program);
         CHECK(mwinWindow_RequestTextInput(context, program->window, false, (mwinRect){0},
                                           nullptr) == mwin_success,
               "text input off");
         break;
-    case 5:
+    case 7:
         CheckOff(program, view);
         break;
     default:
@@ -265,11 +309,11 @@ static void Advance(Program* program, mwinContext* context)
     program->startNs = NowNs();
 }
 
-// Phases 1 and 5 wait for their request's completion.
+// Phases 1 and 7 wait for their request's completion.
 static bool Pending(const Program* program)
 {
     size_t at = 0;
-    return (program->phase == 1 || program->phase == 5) &&
+    return (program->phase == 1 || program->phase == 7) &&
            Find(program, &at, mwin_eventRequestCompleted) == nullptr &&
            NowNs() - program->startNs < DEADLINE_NS;
 }
@@ -301,7 +345,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 6 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 8 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -314,6 +358,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 6, "every phase ran");
+    CHECK(program.phase == 8, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

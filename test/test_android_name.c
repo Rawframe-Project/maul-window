@@ -3,7 +3,8 @@
 //
 // The names of Android's document copies (android_name.h), on any
 // platform: a name kept as it is, in UTF-8; '/' made '_', so that no name
-// leaves its folder; "Document" for none, an empty name, "." and "..";
+// leaves its folder, and U+0000 too, so that none is cut short or left
+// empty; "Document" for none, an empty name, "." and "..";
 // a name of exactly the limit kept whole, a longer one cut to whole
 // characters within it, never half a surrogate pair.
 
@@ -76,6 +77,11 @@ static void TestNames(void)
     CHECK(strcmp(NameOfText("."), "Document") == 0 && strcmp(NameOfText(".."), "Document") == 0 &&
               strcmp(NameOfText("..."), "...") == 0,
           "\".\" and \"..\" not names; \"...\" one");
+    static const uint16_t nul[] = {0, 'a', 0};
+    mwinAndroidNameOf(nul, 3, s_name);
+    CHECK(strcmp(s_name, "_a_") == 0, "every U+0000 made '_'");
+    mwinAndroidNameOf(nul, 1, s_name);
+    CHECK(strcmp(s_name, "_") == 0, "a name of only U+0000 not left empty");
     mwinAndroidNameOf(nullptr, 3, s_name);
     bool none = strcmp(s_name, "Document") == 0;
     CHECK(none && strcmp(NameOfText(""), "Document") == 0, "\"Document\" for none or empty");

@@ -12,6 +12,7 @@
 // but only the text it accepts is posted, as on macOS. The program
 // turning text input off drops a composition, telling UIKit so.
 
+#include "allocator.h"
 #include "apple_text.h"
 #include "ios.h"
 

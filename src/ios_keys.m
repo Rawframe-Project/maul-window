@@ -22,6 +22,7 @@
 //   or completed. The part of the window it covers is posted when its
 //   frame changes.
 
+#include "allocator.h"
 #include "apple_text.h"
 #include "ios.h"
 #include "key_prints.h"

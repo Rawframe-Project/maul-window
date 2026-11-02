@@ -7,9 +7,15 @@
 // moved not reported again, and a drop delivering the paths, a path
 // with a lone surrogate left out, and the text repaired, its memory left
 // unlocked; a drag of neither refused and not reported; a drag that
-// leaves; no interface but the target's own. Then, with the thread made
-// multithreaded first so OLE cannot start, files dropped through
-// WM_DROPFILES, and a drop of good paths alone not truncated.
+// leaves; no interface but the target's own; a data object answering
+// with a stream where global memory was asked, its stream let go unread
+// and the drop truncated; a success other than S_OK taken, its text read
+// and its stream let go. Then, with the thread made multithreaded first
+// so OLE cannot start, files dropped through WM_DROPFILES, a drop of good
+// paths alone not truncated, one of more paths than a drop delivers
+// truncated to them, bad paths ahead of good ones passed over until a
+// drop's worth, paths in the system's code page, and a list that starts
+// past its memory read as none.
 
 // The interfaces' function tables const, as the test's are.
 #define CONST_VTABLE
@@ -37,7 +43,19 @@ typedef struct Data
     // The text's memory, lent rather than given: its release is the
     // object's, so the test sees whether it was left locked.
     HGLOBAL lent;
+    // It answers with a stream, of another medium than asked for.
+    bool stream;
+    // What GetData answers when it holds the format: S_OK, or another
+    // success.
+    HRESULT answer;
 } Data;
+
+// A stream that is only ever let go, and counts how often.
+typedef struct Stream
+{
+    IStream stream;
+    int releases;
+} Stream;
 
 typedef struct Program
 {
@@ -99,12 +117,41 @@ static ULONG STDMETHODCALLTYPE DataReference(IDataObject* object)
     return 1;
 }
 
+static HRESULT STDMETHODCALLTYPE StreamQuery(IStream* stream, REFIID id, void** out)
+{
+    (void)stream;
+    (void)id;
+    *out = nullptr;
+    return E_NOINTERFACE;
+}
+
+static ULONG STDMETHODCALLTYPE StreamReference(IStream* stream)
+{
+    (void)stream;
+    return 1;
+}
+
+static ULONG STDMETHODCALLTYPE StreamRelease(IStream* stream)
+{
+    ((Stream*)(void*)stream)->releases += 1;
+    return 1;
+}
+
+static const IStreamVtbl s_stream = {
+    .QueryInterface = StreamQuery, .AddRef = StreamReference, .Release = StreamRelease};
+static Stream s_answered = {{&s_stream}, 0};
+
 static HRESULT STDMETHODCALLTYPE DataGet(IDataObject* object, FORMATETC* format, STGMEDIUM* medium)
 {
     static const WCHAR text[] = {L'h', L'i', 0xD800, L'!', 0};
     if (!Holds(DataOf(object), format))
     {
         return DV_E_FORMATETC;
+    }
+    if (DataOf(object)->stream)
+    {
+        *medium = (STGMEDIUM){.tymed = TYMED_ISTREAM, .pstm = &s_answered.stream};
+        return DataOf(object)->answer;
     }
     *medium = (STGMEDIUM){.tymed = TYMED_HGLOBAL};
     if (format->cfFormat == CF_HDROP)
@@ -115,7 +162,7 @@ static HRESULT STDMETHODCALLTYPE DataGet(IDataObject* object, FORMATETC* format,
     medium->hGlobal = Global(text, sizeof(text), 0);
     medium->pUnkForRelease = (IUnknown*)(void*)object;
     DataOf(object)->lent = medium->hGlobal;
-    return S_OK;
+    return DataOf(object)->answer;
 }
 
 static HRESULT STDMETHODCALLTYPE DataGetHere(IDataObject* object, FORMATETC* format,
@@ -227,9 +274,12 @@ static bool Paths(mwinContext* context, uint32_t drop)
 static void Drag(Program* program, mwinContext* context, IDropTarget* target, HWND hwnd,
                  float scale)
 {
-    Data both = {{&s_data}, true, true, nullptr};
-    Data neither = {{&s_data}, false, false, nullptr};
-    Data files = {{&s_data}, true, false, nullptr};
+    Data both = {{&s_data}, true, true, nullptr, false, S_OK};
+    Data neither = {{&s_data}, false, false, nullptr, false, S_OK};
+    Data files = {{&s_data}, true, false, nullptr, false, S_OK};
+    Data stream = {{&s_data}, false, true, nullptr, true, S_OK};
+    Data sameText = {{&s_data}, false, true, nullptr, false, DATA_S_SAMEFORMATETC};
+    Data sameStream = {{&s_data}, false, true, nullptr, true, DATA_S_SAMEFORMATETC};
     DWORD effect = DROPEFFECT_COPY;
     target->lpVtbl->DragEnter(target, &both.object, 0, Screen(hwnd, 10, 20), &effect);
     CHECK(effect == DROPEFFECT_COPY, "a drag of files and text taken");
@@ -272,6 +322,41 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
               program->records[0].data.drag.contents == mwin_dragFiles &&
               program->records[1].type == mwin_eventDragLeft,
           "a drag of neither not reported, and one that leaves");
+    target->lpVtbl->DragEnter(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
+    target->lpVtbl->Drop(target, &stream.object, 0, Screen(hwnd, 5, 5), &effect);
+    Collect(program, context);
+    CHECK(program->count == 2 && program->records[1].type == mwin_eventDropped &&
+              program->records[1].data.drop.textLength == 0 &&
+              program->records[1].data.drop.truncated && s_answered.releases == 1,
+          "a stream where global memory was asked let go unread, and the drop truncated");
+    target->lpVtbl->DragEnter(target, &sameText.object, 0, Screen(hwnd, 5, 5), &effect);
+    target->lpVtbl->Drop(target, &sameText.object, 0, Screen(hwnd, 5, 5), &effect);
+    target->lpVtbl->DragEnter(target, &sameStream.object, 0, Screen(hwnd, 5, 5), &effect);
+    target->lpVtbl->Drop(target, &sameStream.object, 0, Screen(hwnd, 5, 5), &effect);
+    Collect(program, context);
+    CHECK(program->count == 4 && program->records[1].type == mwin_eventDropped &&
+              program->records[1].data.drop.textLength == 6 &&
+              program->records[3].type == mwin_eventDropped && s_answered.releases == 2,
+          "a success other than S_OK taken: its text read, its stream let go");
+    CHECK(sameText.lent != nullptr && (GlobalFlags(sameText.lent) & GMEM_LOCKCOUNT) == 0,
+          "that text's memory left unlocked");
+    GlobalFree(sameText.lent);
+}
+
+// Drops a list of paths through WM_DROPFILES, its header saying where it
+// starts and whether it is UTF-16; the drop's record.
+static mwinDropEvent Send(Program* program, mwinContext* context, HWND hwnd, const void* list,
+                          size_t size, DWORD start, BOOL wide)
+{
+    HGLOBAL memory = Global(list, size, sizeof(DROPFILES));
+    DROPFILES* header = GlobalLock(memory);
+    *header = (DROPFILES){.pFiles = start, .pt = {15, 25}, .fWide = wide};
+    GlobalUnlock(memory);
+    SendMessageW(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
+    Collect(program, context);
+    return program->count == 1 && program->records[0].type == mwin_eventDropped
+               ? program->records[0].data.drop
+               : (mwinDropEvent){0};
 }
 
 static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float scale)
@@ -294,6 +379,48 @@ static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float s
     CHECK(program->count == 1 && program->records[0].data.drop.fileCount == 1 &&
               !program->records[0].data.drop.truncated,
           "a drop of good paths alone not truncated");
+    // One path more than a drop delivers, each "C:\\a" and its end, and
+    // the list's end.
+    static WCHAR many[257 * 5 + 1];
+    for (size_t i = 0; i < 257; i++)
+    {
+        memcpy(&many[i * 5], L"C:\\a", 5 * sizeof(WCHAR));
+    }
+    memory = Global(many, sizeof(many), sizeof(DROPFILES));
+    header = GlobalLock(memory);
+    *header = (DROPFILES){.pFiles = sizeof(DROPFILES), .pt = {15, 25}, .fWide = TRUE};
+    GlobalUnlock(memory);
+    SendMessageW(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
+    Collect(program, context);
+    CHECK(program->count == 1 && program->records[0].data.drop.fileCount == 256 &&
+              program->records[0].data.drop.truncated,
+          "a drop of more paths than a drop delivers truncated to them");
+    // Ten paths with a lone surrogate, each "C:\\b", U+D800 and its end,
+    // then 290 good ones.
+    static WCHAR mixed[10 * 6 + 290 * 5 + 1];
+    for (size_t i = 0; i < 10; i++)
+    {
+        memcpy(&mixed[i * 6], L"C:\\b\xD800", 6 * sizeof(WCHAR));
+    }
+    for (size_t i = 0; i < 290; i++)
+    {
+        memcpy(&mixed[10 * 6 + i * 5], L"C:\\a", 5 * sizeof(WCHAR));
+    }
+    mwinDropEvent drop =
+        Send(program, context, hwnd, mixed, sizeof(mixed), sizeof(DROPFILES), TRUE);
+    CHECK(drop.fileCount == 256 && drop.truncated,
+          "bad paths ahead of good ones passed over until a drop's worth");
+    static const char narrow[] = "C:\\a.txt\0";
+    drop = Send(program, context, hwnd, narrow, sizeof(narrow), sizeof(DROPFILES), FALSE);
+    char paths[16];
+    size_t length = 0;
+    CHECK(drop.fileCount == 1 && !drop.truncated &&
+              mwinContext_GetDroppedFiles(context, drop.drop, paths, sizeof(paths), &length) ==
+                  mwin_success &&
+              length == 9 && memcmp(paths, "C:\\a.txt", 9) == 0,
+          "paths in the system's code page");
+    drop = Send(program, context, hwnd, good, sizeof(good), sizeof(DROPFILES) + 4096, TRUE);
+    CHECK(drop.fileCount == 0 && drop.truncated, "a list that starts past its memory read as none");
 }
 
 static void Check(Program* program, mwinContext* context)

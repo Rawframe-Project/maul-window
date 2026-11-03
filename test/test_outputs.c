@@ -257,8 +257,8 @@ static void Reads(mwinContext* context, mwinWindowId window, mwinMonitorId monit
 // The calls that copy text or bytes out, each given a buffer and its
 // length filled with the pattern, and expected to answer status and
 // leave both zero.
-static void Copies(mwinContext* context, mwinWindowId window, mwinRequestId request, uint32_t drop,
-                   mwinResult status)
+static void Copies(mwinContext* context, mwinWindowId window, mwinRequestId request,
+                   mwinDropId drop, mwinResult status)
 {
     struct
     {
@@ -272,10 +272,10 @@ static void Copies(mwinContext* context, mwinWindowId window, mwinRequestId requ
            sizeof(buffer.bytes), &buffer.length);
     EXPECT(status, buffer, mwinRequest_GetPrimaryText, context, request, buffer.bytes,
            sizeof(buffer.bytes), &buffer.length);
-    EXPECT(status, buffer, mwinContext_GetDroppedFiles, context, drop, buffer.bytes,
-           sizeof(buffer.bytes), &buffer.length);
-    EXPECT(status, buffer, mwinContext_GetDroppedText, context, drop, buffer.bytes,
-           sizeof(buffer.bytes), &buffer.length);
+    EXPECT(status, buffer, mwinDrop_GetFiles, context, drop, buffer.bytes, sizeof(buffer.bytes),
+           &buffer.length);
+    EXPECT(status, buffer, mwinDrop_GetText, context, drop, buffer.bytes, sizeof(buffer.bytes),
+           &buffer.length);
     EXPECT(status, buffer, mwinWindow_GetTestTitle, context, window, buffer.bytes,
            sizeof(buffer.bytes), &buffer.length);
     struct
@@ -366,13 +366,13 @@ static void Short(const char* call, mwinResult status, const char* buffer, size_
         Short(#function, status, bytes, sizeof(bytes), length, needed);                            \
     } while (0)
 
-static void Shorts(Program* program, mwinContext* context, uint32_t drop)
+static void Shorts(Program* program, mwinContext* context, mwinDropId drop)
 {
     SHORT(9, mwinRequest_GetClipboardText, context, program->requests[1]);
     SHORT(3, mwinRequest_GetClipboardData, context, program->requests[2]);
     SHORT(7, mwinRequest_GetPrimaryText, context, program->requests[3]);
-    SHORT(4, mwinContext_GetDroppedFiles, context, drop);
-    SHORT(4, mwinContext_GetDroppedText, context, drop);
+    SHORT(4, mwinDrop_GetFiles, context, drop);
+    SHORT(4, mwinDrop_GetText, context, drop);
     SHORT(12, mwinContext_GetKeyboardLayout, context);
     SHORT(11, mwinContext_GetPreferredLocales, context);
     SHORT(4, mwinWindow_GetTestTitle, context, program->windows[0]);
@@ -425,13 +425,13 @@ static void Long(const char* call, mwinResult status, const char* buffer, size_t
 
 // Each call that fills a caller's array, given more room than it needs:
 // it writes what it reports and leaves the rest.
-static void Longs(Program* program, mwinContext* context, uint32_t drop)
+static void Longs(Program* program, mwinContext* context, mwinDropId drop)
 {
     LONG(9, mwinRequest_GetClipboardText, context, program->requests[1]);
     LONG(3, mwinRequest_GetClipboardData, context, program->requests[2]);
     LONG(7, mwinRequest_GetPrimaryText, context, program->requests[3]);
-    LONG(4, mwinContext_GetDroppedFiles, context, drop);
-    LONG(4, mwinContext_GetDroppedText, context, drop);
+    LONG(4, mwinDrop_GetFiles, context, drop);
+    LONG(4, mwinDrop_GetText, context, drop);
     LONG(12, mwinContext_GetKeyboardLayout, context);
     LONG(11, mwinContext_GetPreferredLocales, context);
     LONG(4, mwinWindow_GetTestTitle, context, program->windows[0]);
@@ -528,9 +528,9 @@ static void Ask(Program* program, mwinContext* context)
 }
 
 // The drop the test posted, by its number.
-static uint32_t s_drop;
+static mwinDropId s_drop;
 
-static uint32_t Dropped(const Program* program)
+static mwinDropId Dropped(const Program* program)
 {
     for (int i = 0; i < program->eventCount; i++)
     {
@@ -539,7 +539,7 @@ static uint32_t Dropped(const Program* program)
             return program->events[i].data.drop.drop;
         }
     }
-    return 0;
+    return (mwinDropId){0};
 }
 
 static void Step(Program* program, mwinContext* context, int step)
@@ -561,12 +561,14 @@ static void Step(Program* program, mwinContext* context, int step)
         Changes(nullptr, program->windows[0], mwin_errorInvalid);
         Gamepad(nullptr, (mwinGamepadId){0}, mwin_errorInvalid);
         Reads(nullptr, program->windows[0], monitor, mwin_errorInvalid);
-        Copies(nullptr, program->windows[0], (mwinRequestId){0}, 0, mwin_errorInvalid);
+        Copies(nullptr, program->windows[0], (mwinRequestId){0}, (mwinDropId){0},
+               mwin_errorInvalid);
         Context();
         s_kind = "with an id whose object is gone";
         Requests(context, program->windows[1], mwin_errorStale);
         Reads(context, program->windows[1], monitor, mwin_errorStale);
-        Copies(context, program->windows[1], program->requests[0], 1, mwin_errorStale);
+        Copies(context, program->windows[1], program->requests[0], (mwinDropId){1, 1},
+               mwin_errorStale);
 #ifdef MWIN_TEST_GAMEPAD
         mwinGamepadInfo padInfo = {.mapped = true, .battery = -1};
         mwinGamepadId gamepad = {0};
@@ -580,7 +582,7 @@ static void Step(Program* program, mwinContext* context, int step)
     }
     case 1:
         s_drop = Dropped(program);
-        CHECK(s_drop != 0, "the drop delivered");
+        CHECK(s_drop.index1 != 0, "the drop delivered");
         SHORT(3, mwinContext_GetTestClipboardData, context, "image/png", 9);
         CHECK(mwinContext_SetTestClipboard(context, "Maul text", 9) == mwin_success &&
                   mwinWindow_RequestClipboardRead(context, program->windows[0],

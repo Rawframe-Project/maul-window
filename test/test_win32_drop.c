@@ -261,13 +261,12 @@ static bool At(const mwinEvent* event, mwinEventKind type, float scale, LONG x, 
     return event->kind == type && position.x == (float)x / scale && position.y == (float)y / scale;
 }
 
-static bool Paths(mwinContext* context, uint32_t drop)
+static bool Paths(mwinContext* context, mwinDropId drop)
 {
     char paths[64];
     size_t length = 0;
     static const char expected[] = "C:\\a.txt\0C:\\\xC3\xA9.png";
-    return mwinContext_GetDroppedFiles(context, drop, paths, sizeof(paths), &length) ==
-               mwin_success &&
+    return mwinDrop_GetFiles(context, drop, paths, sizeof(paths), &length) == mwin_success &&
            length == sizeof(expected) && memcmp(paths, expected, length) == 0;
 }
 
@@ -297,8 +296,7 @@ static void Drag(Program* program, mwinContext* context, IDropTarget* target, HW
     char text[16];
     size_t length = 0;
     CHECK(drop->fileCount == 2 && drop->truncated && Paths(context, drop->drop) &&
-              mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
-                  mwin_success &&
+              mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == 6 && memcmp(text, "hi\xEF\xBF\xBD!", 6) == 0,
           "the paths, one with a lone surrogate left out, and the text repaired");
     CHECK(both.lent != nullptr && (GlobalFlags(both.lent) & GMEM_LOCKCOUNT) == 0,
@@ -415,7 +413,7 @@ static void DropFiles(Program* program, mwinContext* context, HWND hwnd, float s
     char paths[16];
     size_t length = 0;
     CHECK(drop.fileCount == 1 && !drop.truncated &&
-              mwinContext_GetDroppedFiles(context, drop.drop, paths, sizeof(paths), &length) ==
+              mwinDrop_GetFiles(context, drop.drop, paths, sizeof(paths), &length) ==
                   mwin_success &&
               length == 9 && memcmp(paths, "C:\\a.txt", 9) == 0,
           "paths in the system's code page");

@@ -246,8 +246,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "one file and the text");
     char paths[1024] = {0};
     size_t length = 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, paths, sizeof(paths), &length) ==
-              mwin_success,
+    CHECK(mwinDrop_GetFiles(context, drop->drop, paths, sizeof(paths), &length) == mwin_success,
           "the paths copied out");
     size_t name = strlen(program->name);
     size_t size = strlen(paths);
@@ -263,8 +262,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
     CHECK(got == strlen(CONTENT) && memcmp(content, CONTENT, got) == 0,
           "the copy the same as the document");
     char text[64] = {0};
-    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
           "the text");
 }

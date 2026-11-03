@@ -295,8 +295,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
 {
     static char bytes[LIMIT + 1];
     size_t length = 0;
-    Expect(mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
-               mwin_success &&
+    Expect(mwinDrop_GetFiles(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
            length <= LIMIT);
     uint32_t count = 0;
     for (size_t at = 0; at < length; count++)
@@ -308,8 +307,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
         at += path + 1;
     }
     Expect(count == drop->fileCount && count <= FILES);
-    Expect(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
-               mwin_success &&
+    Expect(mwinDrop_GetText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
            length == drop->textLength && length <= LIMIT && IsUtf8(bytes, length));
 }
 

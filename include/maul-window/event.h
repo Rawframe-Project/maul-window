@@ -173,7 +173,7 @@ extern "C"
         mwin_eventDragMoved = 60,
         mwin_eventDragLeft = 61,
         // Something was dropped on the window (data.drop):
-        // mwinContext_GetDroppedFiles and mwinContext_GetDroppedText have it.
+        // mwinDrop_GetFiles and mwinDrop_GetText have it.
         mwin_eventDropped = 62,
         // An accessibility client asked the window for its tree for the
         // first time: the program's adapter may start its updates. Once
@@ -408,12 +408,11 @@ extern "C"
         mwinDragContents contents;
     } mwinDragEvent;
 
-    // A drop: its files and text wait under its number until the next
-    // drop.
+    // A drop: its files and text wait under its id until the next drop.
     typedef struct mwinDropEvent
     {
         mwinPosition position;
-        uint32_t drop;
+        mwinDropId drop;
         // The files and the bytes of text it delivers.
         uint32_t fileCount;
         uint32_t textLength;

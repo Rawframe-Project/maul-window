@@ -189,12 +189,10 @@ static void CheckDrop(const Program* program, mwinContext* context)
     char text[32];
     size_t length = 0;
     size_t textLength = 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, files, sizeof(files), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetFiles(context, drop->drop, files, sizeof(files), &length) == mwin_success &&
               length == strlen(program->path) + 1 && strcmp(files, program->path) == 0,
           "the file's path");
-    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &textLength) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &textLength) == mwin_success &&
               textLength == sizeof(TEXT) - 1 && memcmp(text, TEXT, textLength) == 0,
           "the text");
 }
@@ -220,8 +218,7 @@ static void CheckSurrogate(const Program* program, mwinContext* context)
     char text[16];
     size_t length = 0;
     CHECK(drop != nullptr && drop->fileCount == 0 && drop->textLength == 5 && !drop->truncated &&
-              mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
-                  mwin_success &&
+              mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == 5 &&
               memcmp(text,
                      "a\xEF\xBF\xBD"

@@ -352,14 +352,13 @@ static void CheckDrop(Program* program, mwinContext* context)
     char bytes[64];
     size_t length = 0;
     static const char paths[] = "/tmp/a.txt\0/tmp/\xC3\xA9.png";
-    CHECK(drop->fileCount == 2 && drop->truncated &&
-              mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
-              length == sizeof(paths) && memcmp(bytes, paths, length) == 0 &&
-              mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
-              length == 6 && memcmp(bytes, "hi\xEF\xBF\xBD(", 6) == 0,
-          "the paths, another scheme left out, and the text repaired");
+    CHECK(
+        drop->fileCount == 2 && drop->truncated &&
+            mwinDrop_GetFiles(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
+            length == sizeof(paths) && memcmp(bytes, paths, length) == 0 &&
+            mwinDrop_GetText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
+            length == 6 && memcmp(bytes, "hi\xEF\xBF\xBD(", 6) == 0,
+        "the paths, another scheme left out, and the text repaired");
     // The text types only past the three the message holds.
     static const int types[] = {atomHtml, atomPng, atomHtml, atomTextPlain, atomUtf8};
     Enter(source, types, 5);
@@ -372,8 +371,8 @@ static void CheckLimited(const Program* program, mwinContext* context)
     char bytes[LIMIT];
     size_t length = 0;
     CHECK(dropped != nullptr &&
-              mwinContext_GetDroppedText(context, dropped->data.drop.drop, bytes, sizeof(bytes),
-                                         &length) == mwin_success &&
+              mwinDrop_GetText(context, dropped->data.drop.drop, bytes, sizeof(bytes), &length) ==
+                  mwin_success &&
               length == LIMIT && memcmp(bytes, s_limited, LIMIT) == 0,
           "a text of exactly the limit delivered whole");
 }

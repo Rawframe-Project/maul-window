@@ -476,8 +476,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
     Expect(Finite(drop->position));
     // A drop a later one replaced is stale: the records are drained now
     // and then.
-    mwinResult files =
-        mwinContext_GetDroppedFiles(context, drop->drop, bytes, sizeof(bytes), &length);
+    mwinResult files = mwinDrop_GetFiles(context, drop->drop, bytes, sizeof(bytes), &length);
     if (files == mwin_errorStale)
     {
         return;
@@ -493,8 +492,7 @@ static void CheckDrop(const mwinContext* context, const mwinDropEvent* drop)
         at += path + 1;
     }
     Expect(count == drop->fileCount && count <= FILES);
-    Expect(mwinContext_GetDroppedText(context, drop->drop, bytes, sizeof(bytes), &length) ==
-               mwin_success &&
+    Expect(mwinDrop_GetText(context, drop->drop, bytes, sizeof(bytes), &length) == mwin_success &&
            length == drop->textLength && length <= LIMIT && IsUtf8(bytes, length));
 }
 

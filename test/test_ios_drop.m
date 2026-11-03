@@ -210,8 +210,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "dropped where it was let go, a file and text");
     char files[1024];
     size_t length = 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, files, sizeof(files), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetFiles(context, drop->drop, files, sizeof(files), &length) == mwin_success &&
               length > 14 && strcmp(files + length - 14, "drop-test.dat") == 0,
           "the file's copy, by its name");
     NSString* copied = [NSString stringWithContentsOfFile:@(files)
@@ -219,8 +218,7 @@ static void CheckDrop(const Program* program, mwinContext* context)
                                                     error:nullptr];
     CHECK([copied isEqual:@"abc"], "with its contents");
     char text[32];
-    CHECK(mwinContext_GetDroppedText(context, drop->drop, text, sizeof(text), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == 12 && memcmp(text, "dropped text", 12) == 0,
           "the text");
 }

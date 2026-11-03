@@ -138,13 +138,11 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the drag's records, a still drag over not repeated, the drop");
     char bytes[64];
     size_t length = 0;
-    uint32_t drop = dropped != nullptr ? dropped->data.drop.drop : 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+    mwinDropId drop = dropped != nullptr ? dropped->data.drop.drop : (mwinDropId){0};
+    CHECK(mwinDrop_GetFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
               length == 13 && memcmp(bytes, "a.txt\0\xC3\xA9.png\0", 13) == 0,
           "the files' names, each ended by a NUL");
-    CHECK(mwinContext_GetDroppedText(context, drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
               length == 6 && memcmp(bytes, "hi \xE2\x98\x83", 6) == 0,
           "the text");
 }
@@ -161,13 +159,11 @@ static void CheckLimits(const Program* program, mwinContext* context)
           "a name past the window's text bytes left out");
     char bytes[DROP_BYTES + 1];
     size_t length = 0;
-    uint32_t drop = dropped != nullptr ? dropped->data.drop.drop : 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+    mwinDropId drop = dropped != nullptr ? dropped->data.drop.drop : (mwinDropId){0};
+    CHECK(mwinDrop_GetFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
               length == NAME_BYTES + 1 && memcmp(bytes, "aaaaaaaaaaaa.txt", NAME_BYTES + 1) == 0,
           "a name of the window's text bytes kept");
-    CHECK(mwinContext_GetDroppedText(context, drop, bytes, sizeof(bytes), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetText(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
               length == DROP_BYTES && bytes[0] == 'c' && bytes[DROP_BYTES - 1] == 'c',
           "text of the drop bytes kept");
 }

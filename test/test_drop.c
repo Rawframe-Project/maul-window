@@ -35,14 +35,16 @@ static bool DragAt(const mwinEvent* event, mwinEventKind type, float x, float y)
            event->data.drag.contents == (mwin_dragFiles | mwin_dragText);
 }
 
-static bool Copied(mwinContext* context, uint32_t drop, bool text, const char* expected,
+// The drop an earlier step saw, which a later step reads.
+static mwinDropId s_earlier;
+
+static bool Copied(mwinContext* context, mwinDropId drop, bool text, const char* expected,
                    size_t length)
 {
     char bytes[64];
     size_t found = 0;
-    mwinResult status =
-        text ? mwinContext_GetDroppedText(context, drop, bytes, sizeof(bytes), &found)
-             : mwinContext_GetDroppedFiles(context, drop, bytes, sizeof(bytes), &found);
+    mwinResult status = text ? mwinDrop_GetText(context, drop, bytes, sizeof(bytes), &found)
+                             : mwinDrop_GetFiles(context, drop, bytes, sizeof(bytes), &found);
     return status == mwin_success && found == length && memcmp(bytes, expected, length) == 0;
 }
 
@@ -64,16 +66,16 @@ static void CheckDrop(Program* program, mwinContext* context)
     char two[2];
     size_t length = 0;
     Fill(two, sizeof(two));
-    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, two, sizeof(two), &length) ==
-                  mwin_errorCapacity &&
+    CHECK(mwinDrop_GetFiles(context, drop->drop, two, sizeof(two), &length) == mwin_errorCapacity &&
               length == 17 && Zeroed(two, sizeof(two)) &&
-              mwinContext_GetDroppedFiles(context, drop->drop + 1, two, 2, &length) ==
+              mwinDrop_GetFiles(context, (mwinDropId){1, drop->drop.generation + 1}, two, 2,
+                                &length) == mwin_errorStale &&
+              mwinDrop_GetFiles(context, (mwinDropId){2, drop->drop.generation}, two, 2, &length) ==
                   mwin_errorStale &&
-              mwinContext_GetDroppedText(context, 0, nullptr, 0, &length) == mwin_errorStale &&
-              mwinContext_GetDroppedText(context, drop->drop, nullptr, 1, &length) ==
-                  mwin_errorInvalid,
-          "a buffer too short zeroed, a number not the last drop's, and a NULL buffer");
-    program->requests[1].index1 = drop->drop;
+              mwinDrop_GetText(context, (mwinDropId){0}, nullptr, 0, &length) == mwin_errorStale &&
+              mwinDrop_GetText(context, drop->drop, nullptr, 1, &length) == mwin_errorInvalid,
+          "a buffer too short zeroed, ids not the last drop's, and a NULL buffer");
+    s_earlier = drop->drop;
     Drag(context, program->windows[0], mwin_eventDragEntered, 10.0f, 20.0f);
     Drag(context, program->windows[0], mwin_eventDragLeft, 10.0f, 20.0f);
 }
@@ -101,16 +103,13 @@ static void CheckLimits(Program* program, mwinContext* context)
     char twelve[12];
     char four[4];
     size_t length = 0;
-    CHECK(mwinContext_GetDroppedFiles(context, drop->drop, twelve, sizeof(twelve), &length) ==
-                  mwin_success &&
+    CHECK(mwinDrop_GetFiles(context, drop->drop, twelve, sizeof(twelve), &length) == mwin_success &&
               length == 12 &&
-              mwinContext_GetDroppedText(context, drop->drop, four, sizeof(four), &length) ==
-                  mwin_success &&
+              mwinDrop_GetText(context, drop->drop, four, sizeof(four), &length) == mwin_success &&
               length == 0,
           "a buffer that fits exactly, and no text to copy");
-    CHECK(mwinContext_GetDroppedFiles(context, program->requests[1].index1, nullptr, 0,
-                                      &(size_t){0}) == mwin_errorStale,
-          "a later drop makes the earlier number stale");
+    CHECK(mwinDrop_GetFiles(context, s_earlier, nullptr, 0, &(size_t){0}) == mwin_errorStale,
+          "a later drop makes the earlier id stale");
     static const char files[] = "/0123456789\0/abcdefghij\0/klmnopqrst\0";
     CHECK(mwinWindow_PostTestDrop(context, program->windows[0], (mwinPosition){0}, files,
                                   sizeof(files) - 1, nullptr, 0) == mwin_success,
@@ -123,7 +122,7 @@ static void CheckBytes(Program* program, mwinContext* context)
     CHECK(program->eventCount == 1 && drop->fileCount == 2 && drop->truncated &&
               Copied(context, drop->drop, false, "/0123456789\0/abcdefghij\0", 24),
           "paths past dropBytes left out whole");
-    program->requests[1].index1 = drop->drop;
+    s_earlier = drop->drop;
     CHECK(mwinWindow_PostTestDrop(context, program->windows[0], (mwinPosition){0}, "/x\0", 3,
                                   nullptr, 0) == mwin_success &&
               mwinDestroyWindow(context, program->windows[0]) == mwin_success,
@@ -163,8 +162,7 @@ static void Step(Program* program, mwinContext* context, int step)
         CheckBytes(program, context);
         break;
     default:
-        CHECK(mwinContext_GetDroppedFiles(context, program->requests[1].index1, nullptr, 0,
-                                          &(size_t){0}) == mwin_errorCapacity,
+        CHECK(mwinDrop_GetFiles(context, s_earlier, nullptr, 0, &(size_t){0}) == mwin_errorCapacity,
               "no drop for a window that went");
         program->done = true;
         break;

@@ -19,7 +19,7 @@ On both, the program that set the selection serves it to every reader for as lon
 
 ## Drops
 
-A drop is gathered once, sometimes asynchronously (Wayland and X11 read the offer through pipes or properties), and delivered as one record with its payload under the drop's number. The last drop's payload stays until the next one makes the number stale, so a program reading a late record learns the payload went instead of getting another drop's.
+A drop is gathered once, sometimes asynchronously (Wayland and X11 read the offer through pipes or properties), and delivered as one record with its payload under the drop's id. The last drop's payload stays until the next one makes the id stale, so a program reading a late record learns the payload went instead of getting another drop's.
 
 A drag and a drop belong to the window they entered, and the core gives a window's slot to a new window once the program has read the old one's destruction. So when a window goes, the X11 and Wayland backends end the drag over it: its later messages reach no window, and a drop still being gathered is refused to its source (on X11 an `XdndFinished` without an action, on Wayland the offer let go unfinished) instead of reaching the window that takes the slot. A drag still reported when another enters (an X11 source that ended without `XdndLeave`, another client's drag, or a compositor that sent no leave) leaves first, so each window's drag records stay entered, moved, then left or dropped.
 

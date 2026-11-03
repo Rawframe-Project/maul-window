@@ -359,6 +359,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         if(TARGET test_win32_scope AND NOT MAUL_WINDOW_WIN32)
             target_sources(test_win32_scope PRIVATE ${PROJECT_SOURCE_DIR}/src/win32_scope.c)
         endif()
+        # Windows' languages handed to the context, on every platform.
+        maul_add_test(win32_locales WHITEBOX)
+        if(TARGET test_win32_locales AND NOT MAUL_WINDOW_WIN32)
+            target_sources(test_win32_locales PRIVATE ${PROJECT_SOURCE_DIR}/src/win32_locales.c)
+            target_link_libraries(test_win32_locales PRIVATE maul-unicode::maul-unicode)
+        endif()
         if(MAUL_WINDOW_GAMEPAD)
             maul_add_test(gamepad)
             # The runtime pads' tracking against a stand-in runtime.

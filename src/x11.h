@@ -236,7 +236,8 @@ typedef struct mwinX11Clipboard
 // A drag another client makes over one of the program's windows
 // (XDND): its source and version, the window, what it carries and the
 // type its text comes in, where it is and whether it was reported; and
-// a drop being converted, one type after the other, until a deadline.
+// a drop being converted, one type after the other, until a deadline,
+// each conversion into a read property of its own (property).
 typedef struct mwinX11Drag
 {
     xcb_window_t source;
@@ -248,9 +249,19 @@ typedef struct mwinX11Drag
     bool entered;
     bool dropping;
     xcb_atom_t converting;
+    xcb_atom_t property;
     xcb_timestamp_t time;
     uint64_t deadlineNs;
 } mwinX11Drag;
+
+// The read properties drops convert into, taken in turn as the
+// clipboard's are, kept apart from the drag, which each drop clears:
+// the last taken, and until when each rests.
+typedef struct mwinX11DropProperties
+{
+    uint8_t slot;
+    uint64_t quietUntilNs[MWIN_X11_READ_PROPERTIES];
+} mwinX11DropProperties;
 
 struct mwinX11Platform
 {
@@ -287,6 +298,7 @@ struct mwinX11Platform
     mwinX11Cursors cursors;
     mwinX11Clipboard clipboard;
     mwinX11Drag drag;
+    mwinX11DropProperties dropProperties;
     // Addresses, files and the bus (linux_services.c).
     mwinLinuxServices services;
     // The input method over the session bus (linux_ime.c).

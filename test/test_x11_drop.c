@@ -13,7 +13,10 @@
 // source's later messages to the window that takes its slot are not a
 // drag of that window's, and a drop under way when its window goes is
 // refused to the source and delivered to no window. A second enter
-// without a leave leaves the first drag before it enters. Under a drop limit
+// without a leave leaves the first drag before it enters. A drop whose
+// source does not answer is delivered truncated after five seconds,
+// and the source's late answer to it, during the next drop of the same
+// type, is not taken for that drop. Under a drop limit
 // that is no whole number of 32-bit words,
 // a text of exactly the limit is delivered whole. Skipped (exit status
 // 77) without DISPLAY.
@@ -32,8 +35,10 @@
 #include <xcb/xcb.h>
 
 #define DEADLINE_NS 5000000000ull
-#define SETTLE_NS   50000000ull
-#define MAX_RECORDS 32
+// The late answer's phase waits out a drop's five seconds first.
+#define LATE_DEADLINE_NS 15000000000ull
+#define SETTLE_NS        50000000ull
+#define MAX_RECORDS      32
 
 enum
 {
@@ -96,6 +101,10 @@ typedef struct Source
     bool hold;
     bool held;
     xcb_selection_request_event_t request;
+    // Once late, the next conversion is answered by serving the held one,
+    // then held in its place.
+    bool late;
+    bool lateSent;
 } Source;
 
 typedef enum Phase
@@ -115,6 +124,11 @@ typedef enum Phase
     phaseGoneCreated,
     phaseGoneStale,
     phaseTwice,
+    phaseLateEnter,
+    phaseLateTimeout,
+    phaseLateEnterAgain,
+    phaseLateAnswered,
+    phaseLateFresh,
     phaseDone,
 } Phase;
 
@@ -128,6 +142,10 @@ typedef struct Program
     int count;
     // The run under the drop limit: a drag of text dropped at once.
     bool limited;
+    // When the late answer went, and whether a drop came before the
+    // conversion it is late for was answered.
+    uint64_t lateNs;
+    bool lateDropped;
     bool timedOut;
 } Program;
 
@@ -258,6 +276,14 @@ static void SourcePump(Source* source)
             source->finished = true;
             memcpy(source->finish, message->data.data32, sizeof(source->finish));
         }
+        else if (type == XCB_SELECTION_REQUEST && source->late && source->held)
+        {
+            // The late answer to the held conversion, then this one held.
+            Serve(source, &source->request);
+            source->request = *(const xcb_selection_request_event_t*)event;
+            source->late = false;
+            source->lateSent = true;
+        }
         else if (type == XCB_SELECTION_REQUEST && source->hold && !source->held)
         {
             source->request = *(const xcb_selection_request_event_t*)event;
@@ -382,6 +408,20 @@ static bool Ready(Program* program)
     const Source* source = program->source;
     switch (program->phase)
     {
+    case phaseLateEnter:
+    case phaseLateEnterAgain:
+        return Find(program, mwin_eventDragEntered, 0) != nullptr;
+    case phaseLateTimeout:
+        return source->held && source->finished && Find(program, mwin_eventDropped, 0) != nullptr;
+    case phaseLateAnswered:
+        if (source->lateSent && program->lateNs == 0)
+        {
+            program->lateNs = NowNs();
+        }
+        return program->lateNs != 0 && NowNs() - program->lateNs >= SETTLE_NS;
+    case phaseLateFresh:
+        return source->finished &&
+               (program->lateDropped || Find(program, mwin_eventDropped, 0) != nullptr);
     case phaseCreate:
         // The backend's requests reach the server at its next flush,
         // before any source could ask.
@@ -552,7 +592,62 @@ static void Advance(Program* program, mwinContext* context)
                                                  6.0f, mwin_dragFiles | mwin_dragText),
               "a second enter without a leave leaves the first drag before it enters");
         Send(source, atomLeave, 0, 0, 0, 0);
+        {
+            static const int types[] = {atomUtf8};
+            Enter(source, types, 1);
+            Position(source, 10, 20);
+        }
         break;
+    case phaseLateEnter:
+        // The source holds the drop's conversion past its deadline.
+        source->hold = true;
+        source->held = false;
+        source->finished = false;
+        source->text = "late";
+        Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
+        break;
+    case phaseLateTimeout:
+    {
+        const mwinDropEvent* drop = &Find(program, mwin_eventDropped, 0)->data.drop;
+        char bytes[8];
+        size_t length = 1;
+        CHECK(drop->truncated &&
+                  mwinDrop_GetText(context, drop->drop, bytes, sizeof(bytes), &length) ==
+                      mwin_success &&
+                  length == 0,
+              "a drop its source does not answer delivered truncated, without its text");
+        // The next drop of the same type, at the same time: the source
+        // answers the first drop's conversion during it.
+        source->late = true;
+        source->finished = false;
+        static const int types[] = {atomUtf8};
+        Enter(source, types, 1);
+        Position(source, 10, 20);
+        break;
+    }
+    case phaseLateEnterAgain:
+        Send(source, atomDrop, 0, XCB_CURRENT_TIME, 0, 0);
+        break;
+    case phaseLateAnswered:
+        program->lateDropped = source->finished || Find(program, mwin_eventDropped, 0) != nullptr;
+        source->text = "fresh";
+        source->hold = false;
+        source->held = false;
+        Serve(source, &source->request);
+        xcb_flush(source->connection);
+        break;
+    case phaseLateFresh:
+    {
+        const mwinEvent* dropped = Find(program, mwin_eventDropped, 0);
+        char bytes[8];
+        size_t length = 0;
+        CHECK(!program->lateDropped && dropped != nullptr &&
+                  mwinDrop_GetText(context, dropped->data.drop.drop, bytes, sizeof(bytes),
+                                   &length) == mwin_success &&
+                  length == 5 && memcmp(bytes, "fresh", 5) == 0,
+              "a late answer to an earlier drop is not taken for the next drop of the same type");
+        break;
+    }
     default:
         break;
     }
@@ -589,7 +684,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
-    else if (NowNs() - program->startNs > DEADLINE_NS)
+    else if (NowNs() - program->startNs >
+             (program->phase == phaseLateTimeout ? LATE_DEADLINE_NS : DEADLINE_NS))
     {
         (void)printf("timed out in phase %d\n", (int)program->phase);
         program->timedOut = true;

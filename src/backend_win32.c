@@ -61,7 +61,7 @@ static PlatformParts PartsOf(const mwinLimits* limits)
         mwinLayoutAdd(layout, (size_t)limits->localeBytes + 2, sizeof(WCHAR), alignof(WCHAR));
     parts.imeAttributes = mwinLayoutAdd(layout, limits->textBytesPerWindow, 1, 1);
     parts.imeBytes = mwinLayoutAdd(layout, limits->textBytesPerWindow, 1, 1);
-    parts.localeText = mwinLayoutAdd(layout, limits->localeBytes, 1, 1);
+    parts.localeText = mwinLayoutAdd(layout, (size_t)limits->localeBytes + 1, 1, 1);
     return parts;
 }
 

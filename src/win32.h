@@ -160,7 +160,7 @@ struct mwinWin32Platform
     BYTE* imeAttributes;
     char* imeBytes;
     // The preferred languages as read, localeBytes + 2 units, and as
-    // UTF-8, localeBytes.
+    // UTF-8, localeBytes + 1.
     WCHAR* localeUnits;
     char* localeText;
     // One per window slot, and one per monitor slot.

@@ -37,14 +37,25 @@ static bool Plasma(const char* text, size_t length, size_t capacity, const char*
     char out[64];
     memset(out, '#', sizeof(out));
     size_t got = 99;
-    if (!mwinLinuxPlasmaLocales(text, length, out, capacity, &got))
+    bool full = false;
+    if (!mwinLinuxPlasmaLocales(text, length, out, capacity, &got, &full))
     {
         return strcmp(expected, "!") == 0;
     }
     return got == strlen(expected) && memcmp(out, expected, got) == 0 && out[capacity] == '#';
 }
 
+// Whether plasma-localerc's text has a tag that does not fit.
+static bool Full(const char* text, size_t length, size_t capacity)
+{
+    char out[64];
+    size_t got = 0;
+    bool full = false;
+    return mwinLinuxPlasmaLocales(text, length, out, capacity, &got, &full) && full;
+}
+
 #define PLASMA(text, capacity, expected) Plasma(text, sizeof(text) - 1, capacity, expected)
+#define FULL(text, capacity)             Full(text, sizeof(text) - 1, capacity)
 
 int main(void)
 {
@@ -94,8 +105,16 @@ int main(void)
               PLASMA("[Formats]\nLANG=de_DE\n", 32, "") && PLASMA("", 32, "") &&
               PLASMA("[Translations]\nLANGUAGEX=de\nLANGUAGE de\n", 32, ""),
           "no language where the key is missing, empty or names none");
-    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9, "de-DE"),
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9, "de-DE") &&
+              FULL("[Translations]\nLANGUAGE=de_DE:fr_FR:it\n", 9),
           "the first tag that does not fit ends the list");
+    CHECK(PLASMA("[Translations]\nLANGUAGE=de_DE:it\n", 4, "") &&
+              FULL("[Translations]\nLANGUAGE=de_DE:it\n", 4),
+          "a first tag that does not fit leaves none, and says so");
+    CHECK(!FULL("[Translations]\nLANGUAGE=C:x1\n", 4) &&
+              !FULL("[Translations]\nLANGUAGE=de\n", 4) &&
+              !FULL("[Translations]\nLANGUAGE=de_DE\nLANGUAGE=it\n", 4),
+          "a list that fits, names none, or is replaced by one that fits is not full");
     CHECK(PLASMA("[Translations]\nLANGUAGE=de\0\n", 32, "!"), "a NUL refused");
     char out[64];
     (void)unsetenv("LC_ALL");

@@ -14,7 +14,7 @@ The native backend tries Wayland where `WAYLAND_DISPLAY` names a display, then X
 
 ## The keyboard
 
-Both backends share one xkbcommon keyboard ([xkb_keyboard.c](../../src/xkb_keyboard.c)), fed by the compositor's keymap on Wayland and by XKB's state events on X11. A key's code comes from its evdev code ([evdev.c](../../src/evdev.c)), its meaning from the keymap's first level in the current layout group, and its text through the locale's compose table (`LC_ALL`, `LC_CTYPE`, `LANG`), so dead keys compose. Keys held when focus comes are not reported; focus that goes while keys are held posts a reset.
+Both backends share one xkbcommon keyboard ([xkb_keyboard.c](../../src/xkb_keyboard.c)), fed by the compositor's keymap on Wayland and by XKB's state events on X11. A key's code comes from its evdev code ([evdev.c](../../src/evdev.c)), its meaning from the keymap's first level in the current layout group, and its text through the locale's compose table (`LC_ALL`, `LC_CTYPE`, `LANG`), so dead keys compose. A compose sequence may type a long string, so a key's text is written into a room of `textBytesPerWindow` bytes, laid out at context creation; text past it is lost, and `mwin_eventInputStateReset` is posted after the key in its place, as for the input methods' text. Keys held when focus comes are not reported; focus that goes while keys are held posts a reset.
 
 ## Clicks
 

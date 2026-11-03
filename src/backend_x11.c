@@ -88,7 +88,8 @@ static mwinX11Platform* PlatformOf(const mwinContext* context)
 
 // Where the platform block's parts lie, laid out with checked
 // arithmetic: the platform, its windows and its outputs, and the room
-// of the services' languages and of the input method's text.
+// of the services' languages, of the input method's text and of the
+// text a key types.
 typedef struct PlatformParts
 {
     mwinLayout layout;
@@ -96,6 +97,7 @@ typedef struct PlatformParts
     size_t outputs;
     size_t languages;
     size_t ime;
+    size_t keyText;
 } PlatformParts;
 
 static PlatformParts PartsOf(const mwinLimits* limits)
@@ -109,6 +111,7 @@ static PlatformParts PartsOf(const mwinLimits* limits)
         mwinLayoutAdd(layout, limits->monitors, sizeof(mwinX11Output), alignof(mwinX11Output));
     parts.languages = mwinLayoutAdd(layout, MWIN_LINUX_LANGUAGE_PARTS, limits->localeBytes, 1);
     parts.ime = mwinLayoutAdd(layout, MWIN_LINUX_IME_PARTS, limits->textBytesPerWindow, 1);
+    parts.keyText = mwinLayoutAdd(layout, (size_t)limits->textBytesPerWindow + 1, 1, 1);
     return parts;
 }
 
@@ -311,6 +314,7 @@ static mwinResult Start(mwinContext* context)
     platform->scale = 1.0f;
     platform->pointer.focus = -1;
     platform->keyboard.focus = -1;
+    platform->keyText = (char*)(block + parts.keyText);
     platform->drag.slot = -1;
     mwinLinuxServicesStart(&platform->services, context, (char*)(block + parts.languages));
     mwinImeStart(&platform->ime, context, &platform->services.bus, (char*)(block + parts.ime));

@@ -5,6 +5,16 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.8.1](https://github.com/Rawframe-Project/maul-window/compare/v0.8.0...v0.8.1) (2026-11-03)
+
+
+### Fixed
+
+* **web:** pass every page string through one well-formed gate ([#413](https://github.com/Rawframe-Project/maul-window/issues/413)) ([b6432f6](https://github.com/Rawframe-Project/maul-window/commit/b6432f60d6d49d0f403fad2ee09a74854b51d7ef)), closes [#409](https://github.com/Rawframe-Project/maul-window/issues/409)
+* **win32:** count a composition's offsets as the other platforms do ([#412](https://github.com/Rawframe-Project/maul-window/issues/412)) ([2e83188](https://github.com/Rawframe-Project/maul-window/commit/2e831882ba7748f7be1f2523e73cb90ac836c9c9)), closes [#407](https://github.com/Rawframe-Project/maul-window/issues/407)
+* **win32:** turn away a HID device whose reports cannot be read ([#417](https://github.com/Rawframe-Project/maul-window/issues/417)) ([bd9de58](https://github.com/Rawframe-Project/maul-window/commit/bd9de58b03a53941478cf1957c4a348690151ac6)), closes [#414](https://github.com/Rawframe-Project/maul-window/issues/414)
+* **x11:** keep input method text up to the limit, a reset past it ([#410](https://github.com/Rawframe-Project/maul-window/issues/410)) ([430f9ce](https://github.com/Rawframe-Project/maul-window/commit/430f9ced6ca059fb5f4b59157a0a487c2e8d2cf3)), closes [#406](https://github.com/Rawframe-Project/maul-window/issues/406)
+
 ## [0.8.0](https://github.com/Rawframe-Project/maul-window/compare/v0.7.0...v0.8.0) (2026-11-03)
 
 The iOS device check, that a window shows no flash against the launch

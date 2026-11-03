@@ -8,8 +8,10 @@
 // other client in pieces (INCR) as text/plain;charset=utf-8, and one of
 // the largest piece whole; once the
 // other client owns CLIPBOARD, its text is read, repaired, whole and in
-// pieces, too large past the limit, and empty with no owner. Skipped
-// (exit status 77) without DISPLAY.
+// pieces, too large past the limit, and empty with no owner; answers
+// naming PRIMARY or another target, as late ones to other reads would,
+// are not taken for the read's. Skipped (exit status 77) without
+// DISPLAY.
 
 #include "test_harness.h"
 #include "x11_peer.h"
@@ -41,6 +43,7 @@ typedef enum Phase
     phaseWholeWrite,
     phasePeerWhole,
     phaseOtherText,
+    phaseStale,
     phaseTooLarge,
     phasePieces,
     phaseNoOwner,
@@ -59,6 +62,9 @@ typedef struct Program
     bool reading;
     // The large text's reads in pieces so far.
     int rounds;
+    // When the other client held its answer, and the read's outcome then.
+    uint64_t heldNs;
+    int staleOutcome;
     char* large;
     bool timedOut;
 } Program;
@@ -123,6 +129,23 @@ static bool Ready(Program* program, mwinContext* context)
     case phasePeerPieces:
     case phasePeerWhole:
         return program->peer->gotAll;
+    case phaseStale:
+        if (!program->reading && NowNs() - program->startNs >= SETTLE_NS)
+        {
+            Read(program, context);
+            program->reading = true;
+        }
+        if (program->peer->holding && program->heldNs == 0)
+        {
+            program->heldNs = NowNs();
+        }
+        // The wrong answers had time to arrive; the right one follows.
+        if (program->peer->holding && NowNs() - program->heldNs >= SETTLE_NS)
+        {
+            program->staleOutcome = program->outcome;
+            PeerServeHeld(program->peer);
+        }
+        return program->heldNs != 0 && !program->peer->holding && program->outcome >= 0;
     case phaseOtherText:
     case phaseTooLarge:
     case phasePieces:
@@ -209,6 +232,13 @@ static void Advance(Program* program, mwinContext* context)
     case phaseOtherText:
         CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "A\xEF\xBF\xBD(", 5),
               "another client's text read, repaired");
+        peer->stale = true;
+        PeerOwn(peer, peer->clipboard, peer->utf8, "fresh", 5);
+        break;
+    case phaseStale:
+        CHECK(program->staleOutcome < 0 && outcome == mwin_outcomeDone &&
+                  Found(context, program->request, "fresh", 5),
+              "answers naming PRIMARY or another target left, the read's own taken");
         memset(s_tooLarge, 'x', sizeof(s_tooLarge));
         PeerOwn(peer, peer->clipboard, peer->utf8, s_tooLarge, sizeof(s_tooLarge));
         break;
@@ -279,7 +309,7 @@ int main(void)
     }
     peer.got = s_got;
     unsetenv("WAYLAND_DISPLAY");
-    Program program = {.peer = &peer, .outcome = -1, .large = s_large};
+    Program program = {.peer = &peer, .outcome = -1, .staleOutcome = -1, .large = s_large};
     mwinAppDef def = mwinDefaultAppDef();
     def.context.limits.clipboardBytes = LIMIT;
     def.init = Init;

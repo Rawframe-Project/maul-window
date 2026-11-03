@@ -70,8 +70,10 @@ static int Start(mwinX11Platform* platform, const mwinRequest* request)
     // The last read ended and gave its bytes back.
     MWIN_ASSERT(!clipboard->incremental && clipboard->buffer == nullptr && clipboard->used == 0 &&
                 clipboard->capacity == 0);
+    clipboard->readSelection = mwinX11SelectionAtom(platform, selection);
+    clipboard->readTarget = target;
     platform->api.convertSelection(platform->connection, clipboard->window,
-                                   mwinX11SelectionAtom(platform, selection), target,
+                                   clipboard->readSelection, target,
                                    platform->atoms[mwin_atomSelection], platform->inputTime);
     clipboard->reading = true;
     mwinBeginSelectionRead(&clipboard->read, request);
@@ -201,7 +203,13 @@ static void TakePiece(mwinX11Platform* platform, bool answer)
 void mwinX11OnReadNotify(mwinX11Platform* platform, const xcb_selection_notify_event_t* notify)
 {
     const mwinX11Clipboard* clipboard = &platform->clipboard;
-    if (!clipboard->reading || clipboard->incremental)
+    // An answer for another selection or target, such as a late one to
+    // a read that ran out of time, or one to another property, is not
+    // this read's: its bytes would answer the wrong request.
+    if (!clipboard->reading || clipboard->incremental ||
+        notify->selection != clipboard->readSelection || notify->target != clipboard->readTarget ||
+        (notify->property != XCB_ATOM_NONE &&
+         notify->property != platform->atoms[mwin_atomSelection]))
     {
         return;
     }

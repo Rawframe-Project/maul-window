@@ -19,8 +19,9 @@
 #define PEER_PIECE (64u * 1024u)
 
 // The other client: its window and atoms; the selection it owns, the
-// type and bytes it serves, and a transfer of them in pieces; and what
-// its last read got, into a buffer of the test's.
+// type and bytes it serves, and a transfer of them in pieces; a request
+// it answers wrongly first and holds; and what its last read got, into
+// a buffer of the test's.
 typedef struct Peer
 {
     xcb_connection_t* connection;
@@ -37,6 +38,9 @@ typedef struct Peer
     xcb_window_t sendTo;
     xcb_atom_t sendProperty;
     size_t sendOffset;
+    bool stale;
+    bool holding;
+    xcb_selection_request_event_t held;
     bool incremental;
     bool gotAll;
     bool refused;
@@ -137,10 +141,33 @@ static inline void PeerNotify(Peer* peer, const xcb_selection_request_event_t* r
     xcb_send_event(peer->connection, 0, request->requestor, XCB_EVENT_MASK_NO_EVENT, event.bytes);
 }
 
+// Answers a request as a late answer to other reads would: other bytes
+// in its property, then answers naming PRIMARY and another target; the
+// request held until PeerServeHeld.
+static inline void PeerAnswerStale(Peer* peer, const xcb_selection_request_event_t* request)
+{
+    xcb_selection_request_event_t other = *request;
+    xcb_change_property(peer->connection, XCB_PROP_MODE_REPLACE, request->requestor,
+                        request->property, peer->utf8, 8, 5, "stale");
+    other.selection = XCB_ATOM_PRIMARY;
+    PeerNotify(peer, &other, request->property);
+    other.selection = request->selection;
+    other.target = request->target == peer->textPlain ? peer->utf8 : peer->textPlain;
+    PeerNotify(peer, &other, request->property);
+    peer->stale = false;
+    peer->holding = true;
+    peer->held = *request;
+}
+
 // Serves the peer's bytes as their type, whole or in pieces; refuses
 // any other target.
 static inline void PeerServe(Peer* peer, const xcb_selection_request_event_t* request)
 {
+    if (peer->stale)
+    {
+        PeerAnswerStale(peer, request);
+        return;
+    }
     if (request->target != peer->type)
     {
         PeerNotify(peer, request, XCB_ATOM_NONE);
@@ -208,6 +235,14 @@ static inline void PeerPump(Peer* peer)
         }
         free(event);
     }
+    xcb_flush(peer->connection);
+}
+
+// Serves the request PeerAnswerStale held.
+static inline void PeerServeHeld(Peer* peer)
+{
+    peer->holding = false;
+    PeerServe(peer, &peer->held);
     xcb_flush(peer->connection);
 }
 

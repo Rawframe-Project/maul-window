@@ -205,10 +205,13 @@ typedef struct mwinX11Clipboard
         uint32_t offset;
         uint64_t deadlineNs;
     } sends[MWIN_X11_SENDS];
-    // Waiting for the owner's answer, then for its pieces.
+    // Waiting for the owner's answer, then for its pieces; the selection
+    // and target asked, which its answer must name.
     bool reading;
     bool incremental;
     mwinSelectionRead read;
+    xcb_atom_t readSelection;
+    xcb_atom_t readTarget;
     uint64_t deadlineNs;
     char* buffer;
     uint32_t used;

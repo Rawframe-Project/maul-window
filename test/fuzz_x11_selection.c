@@ -317,6 +317,9 @@ static void Event(uint8_t op)
         xcb_selection_notify_event_t* notify = (xcb_selection_notify_event_t*)&event;
         notify->response_type = XCB_SELECTION_NOTIFY;
         notify->requestor = window;
+        // The read's own selection and target, or another target.
+        notify->selection = s_platform.clipboard.readSelection;
+        notify->target = s_platform.clipboard.readTarget + ((op & 0x20) != 0 ? 1 : 0);
         notify->property = (op & 0x40) != 0 ? XCB_ATOM_NONE : s_platform.atoms[mwin_atomSelection];
         break;
     }

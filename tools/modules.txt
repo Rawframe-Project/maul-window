@@ -154,7 +154,7 @@ win32_clipboard: clipboard_data core win32
 win32_dialog: allocator core dialog win32
 win32_drop: allocator core win32
 win32_icon: core icon win32
-win32_ime: core win32
+win32_ime: core utf8 win32
 win32_input: core cursor win32 win32_icon
 win32_message_box: message_box
 win32_occlusion: core win32

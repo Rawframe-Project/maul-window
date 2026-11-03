@@ -15,6 +15,7 @@
 #include "allocator.h"
 #include "apple_text.h"
 #include "ios.h"
+#include "utf8.h"
 
 // A place in the marked text, in UTF-16 units.
 @interface MwinIOSPosition : UITextPosition
@@ -134,8 +135,12 @@ void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* te
     preedit->text = bytes;
     preedit->length = (uint32_t)length;
     bool placed = selected.location != NSNotFound && NSMaxRange(selected) <= text.length;
-    uint32_t start = placed ? mwinAppleBytesBefore(text, selected.location) : (uint32_t)length;
-    uint32_t end = placed ? mwinAppleBytesBefore(text, NSMaxRange(selected)) : (uint32_t)length;
+    uint32_t start =
+        placed ? (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, selected.location)
+               : (uint32_t)length;
+    uint32_t end =
+        placed ? (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, NSMaxRange(selected))
+               : (uint32_t)length;
     preedit->caret = (int32_t)end;
     preedit->selectionStart = start;
     preedit->selectionEnd = end;

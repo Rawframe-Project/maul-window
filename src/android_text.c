@@ -22,6 +22,7 @@
 
 #include "allocator.h"
 #include "android.h"
+#include "utf8.h"
 
 #include "maul-unicode/encoding.h"
 
@@ -58,12 +59,8 @@ char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstri
                                      sizeOut);
         for (size_t i = 0; i < offsetCount; i++)
         {
-            size_t before = 0;
-            size_t taken = offsets[i] < 0       ? 0
-                           : offsets[i] > count ? (size_t)count
-                                                : (size_t)offsets[i];
-            (void)muniConvertUtf16ToUtf8(units, taken, muni_convertReplace, nullptr, 0, &before);
-            offsets[i] = (int32_t)before;
+            size_t taken = offsets[i] < 0 ? 0 : (size_t)offsets[i];
+            offsets[i] = (int32_t)mwinBytesBefore(bytes, size, muni_unitUtf16, taken);
         }
     }
     (*env)->ReleaseStringChars(env, text, units);

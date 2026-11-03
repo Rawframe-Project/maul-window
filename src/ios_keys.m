@@ -27,6 +27,8 @@
 #include "ios.h"
 #include "key_prints.h"
 
+#include "maul-unicode/encoding.h"
+
 #include <string.h>
 
 enum
@@ -60,20 +62,22 @@ static void Hold(mwinIOSPlatform* platform, mwinKeyCode code, bool down)
 static mwinKey CharacterOf(NSString* characters)
 {
     NSString* lower = characters.lowercaseString;
-    if (lower.length == 0 || lower.length > 2)
+    NSUInteger count = lower.length;
+    if (count == 0 || count > 2)
     {
         return 0;
     }
-    uint32_t unit = [lower characterAtIndex:0];
-    if (lower.length == 2)
+    uint16_t units[2];
+    [lower getCharacters:units range:NSMakeRange(0, count)];
+    uint32_t character = 0;
+    size_t size = 0;
+    if (muniDecodeUtf16(units, count, &character, &size) != muni_success || size != count)
     {
-        uint32_t low = [lower characterAtIndex:1];
-        bool pair = unit >= 0xD800 && unit <= 0xDBFF && low >= 0xDC00 && low <= 0xDFFF;
-        return pair ? 0x10000u + ((unit - 0xD800u) << 10) + (low - 0xDC00u) : 0;
+        return 0;
     }
-    bool printing = unit >= 0x20 && unit != 0x7F && (unit < 0xD800 || unit > 0xDFFF) &&
-                    (unit < 0xF700 || unit > 0xF8FF);
-    return printing ? unit : 0;
+    bool printing =
+        character >= 0x20 && character != 0x7F && (character < 0xF700 || character > 0xF8FF);
+    return printing ? character : 0;
 }
 
 mwinKey mwinIOSMapKeyCode(const mwinIOSPlatform* platform, mwinKeyCode code)

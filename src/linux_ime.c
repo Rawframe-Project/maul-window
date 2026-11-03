@@ -270,21 +270,6 @@ static bool EnterObject(const mwinDBusApi* api, mwinDBusIter* iter, const char* 
     return strcmp(found, name) == 0 && api->next(fields) && api->next(fields);
 }
 
-// The byte offset of a character of UTF-8 text, the end past its last.
-static uint32_t ByteOf(const char* text, uint32_t length, uint32_t character)
-{
-    uint32_t at = 0;
-    for (uint32_t seen = 0; at < length && seen < character; seen++)
-    {
-        at++;
-        while (at < length && ((unsigned char)text[at] & 0xC0u) == 0x80u)
-        {
-            at++;
-        }
-    }
-    return at;
-}
-
 // An IBusText's string, and the range its background attribute marks
 // in characters (its underline is taken as the whole).
 static const char* ReadIBusText(const mwinDBusApi* api, mwinDBusIter* iter, uint32_t* startOut,
@@ -359,8 +344,8 @@ static void TakeIBusPreedit(mwinLinuxIme* ime, DBusMessage* message)
     {
         // The marked part is the one being converted, the rest
         // underlined.
-        uint32_t from = ByteOf(text, (uint32_t)length, start);
-        uint32_t to = ByteOf(text, (uint32_t)length, end);
+        uint32_t from = (uint32_t)mwinBytesBefore(text, length, muni_unitCodePoint, start);
+        uint32_t to = (uint32_t)mwinBytesBefore(text, length, muni_unitCodePoint, end);
         memcpy(preedit.text, text, length);
         preedit.length = (uint32_t)length;
         uint32_t bounds[4] = {0, from, to, (uint32_t)length};
@@ -375,7 +360,7 @@ static void TakeIBusPreedit(mwinLinuxIme* ime, DBusMessage* message)
         }
         preedit.selectionStart = from < to ? from : 0;
         preedit.selectionEnd = from < to ? to : 0;
-        preedit.caret = (int32_t)ByteOf(text, (uint32_t)length, caret);
+        preedit.caret = (int32_t)mwinBytesBefore(text, length, muni_unitCodePoint, caret);
     }
     PostPreedit(ime, &preedit);
 }

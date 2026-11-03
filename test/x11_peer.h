@@ -19,9 +19,9 @@
 #define PEER_PIECE (64u * 1024u)
 
 // The other client: its window and atoms; the selection it owns, the
-// type and bytes it serves, and a transfer of them in pieces; a request
-// it answers wrongly first and holds; and what its last read got, into
-// a buffer of the test's.
+// type and bytes it serves, and a transfer of them in pieces; requests
+// it holds, answered wrongly first or not at all, to serve later; and
+// what its last read got, into a buffer of the test's.
 typedef struct Peer
 {
     xcb_connection_t* connection;
@@ -39,8 +39,9 @@ typedef struct Peer
     xcb_atom_t sendProperty;
     size_t sendOffset;
     bool stale;
-    bool holding;
-    xcb_selection_request_event_t held;
+    bool holdAll;
+    int heldCount;
+    xcb_selection_request_event_t held[2];
     bool incremental;
     bool gotAll;
     bool refused;
@@ -155,8 +156,8 @@ static inline void PeerAnswerStale(Peer* peer, const xcb_selection_request_event
     other.target = request->target == peer->textPlain ? peer->utf8 : peer->textPlain;
     PeerNotify(peer, &other, request->property);
     peer->stale = false;
-    peer->holding = true;
-    peer->held = *request;
+    peer->held[0] = *request;
+    peer->heldCount = 1;
 }
 
 // Serves the peer's bytes as their type, whole or in pieces; refuses
@@ -166,6 +167,11 @@ static inline void PeerServe(Peer* peer, const xcb_selection_request_event_t* re
     if (peer->stale)
     {
         PeerAnswerStale(peer, request);
+        return;
+    }
+    if (peer->holdAll && peer->heldCount < 2)
+    {
+        peer->held[peer->heldCount++] = *request;
         return;
     }
     if (request->target != peer->type)
@@ -238,11 +244,14 @@ static inline void PeerPump(Peer* peer)
     xcb_flush(peer->connection);
 }
 
-// Serves the request PeerAnswerStale held.
-static inline void PeerServeHeld(Peer* peer)
+// Serves a request held, the first or the second, with the peer's bytes.
+static inline void PeerServeHeld(Peer* peer, int index)
 {
-    peer->holding = false;
-    PeerServe(peer, &peer->held);
+    xcb_selection_request_event_t request = peer->held[index];
+    bool holdAll = peer->holdAll;
+    peer->holdAll = false;
+    PeerServe(peer, &request);
+    peer->holdAll = holdAll;
     xcb_flush(peer->connection);
 }
 

@@ -190,6 +190,11 @@ static xcb_void_cookie_t ConvertSelection(xcb_connection_t*, xcb_window_t, xcb_a
     return (xcb_void_cookie_t){1};
 }
 
+static xcb_void_cookie_t DeleteProperty(xcb_connection_t*, xcb_window_t, xcb_atom_t)
+{
+    return (xcb_void_cookie_t){1};
+}
+
 // The clipboard's requests go to the X11 code, as mwinX11Submit sends
 // them.
 static void Submit(mwinContext* context, uint32_t slot, uint32_t index)
@@ -317,10 +322,14 @@ static void Event(uint8_t op)
         xcb_selection_notify_event_t* notify = (xcb_selection_notify_event_t*)&event;
         notify->response_type = XCB_SELECTION_NOTIFY;
         notify->requestor = window;
-        // The read's own selection and target, or another target.
+        // The read's own selection, target and property, or another
+        // target and the first read property.
+        bool other = (op & 0x20) != 0;
         notify->selection = s_platform.clipboard.readSelection;
-        notify->target = s_platform.clipboard.readTarget + ((op & 0x20) != 0 ? 1 : 0);
-        notify->property = (op & 0x40) != 0 ? XCB_ATOM_NONE : s_platform.atoms[mwin_atomSelection];
+        notify->target = s_platform.clipboard.readTarget + (other ? 1 : 0);
+        notify->property = (op & 0x40) != 0 ? XCB_ATOM_NONE
+                           : other          ? s_platform.atoms[mwin_atomRead0]
+                                            : s_platform.clipboard.readProperty;
         break;
     }
     case 1:
@@ -328,7 +337,8 @@ static void Event(uint8_t op)
         xcb_property_notify_event_t* property = (xcb_property_notify_event_t*)&event;
         property->response_type = XCB_PROPERTY_NOTIFY;
         property->window = window;
-        property->atom = s_platform.atoms[mwin_atomSelection];
+        property->atom =
+            (op & 0x20) != 0 ? s_platform.atoms[mwin_atomRead0] : s_platform.clipboard.readProperty;
         property->state = (op & 0x40) != 0 ? XCB_PROPERTY_DELETE : XCB_PROPERTY_NEW_VALUE;
         break;
     }
@@ -415,6 +425,7 @@ static mwinResult Init(mwinContext* context, void* user)
     api->getSelectionOwner = GetSelectionOwner;
     api->getSelectionOwnerReply = GetSelectionOwnerReply;
     api->convertSelection = ConvertSelection;
+    api->deleteProperty = DeleteProperty;
     s_test = context->backend;
     s_ops = *s_test;
     s_ops.submit = Submit;

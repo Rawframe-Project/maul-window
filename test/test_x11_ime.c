@@ -9,7 +9,8 @@
 // sends at the context's path is left alone; "a" taken by the
 // method shows a composition and no key; Return commits it as text; a
 // commit of 2000 bytes arrives whole, and one a byte past the
-// textBytesPerWindow limit gives a reset and no text; "b",
+// textBytesPerWindow limit gives one reset and no text; a composition
+// past it, while one runs, gives one reset and its end; "b",
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away; a key the
 // method has not answered when its window goes reaches no window made
@@ -62,6 +63,8 @@ typedef enum Phase
     phaseCommit,
     phaseLong,
     phaseTooLong,
+    phaseComposing,
+    phaseLongPreedit,
     phasePassed,
     phaseDisabled,
     phaseRefocused,
@@ -103,6 +106,8 @@ typedef struct Program
     size_t lastText;
     int resets;
     int resetsBefore;
+    int preeditsBefore;
+    int endsBefore;
     // The focus the method was told of before text input came back, the
     // window that went with a key held, and when its slot was made again.
     int focusIns;
@@ -163,17 +168,20 @@ static void Collect(Program* program, mwinContext* context)
         {
             program->ends += 1;
         }
-        else if (event.kind == mwin_eventImePreedit &&
-                 event.data.preedit.length <= sizeof(program->preedit))
+        else if (event.kind == mwin_eventImePreedit)
         {
+            // Every composition counted, of any length; one that fits kept.
             program->preedits += 1;
-            memcpy(program->preedit, event.data.preedit.text, event.data.preedit.length);
-            program->preeditLength = event.data.preedit.length;
-            program->preeditCaret = event.data.preedit.caret;
-            program->segments = event.data.preedit.segmentCount;
-            program->style = event.data.preedit.segmentCount > 0
-                                 ? event.data.preedit.segments[0].style
-                                 : mwin_preeditPlain;
+            if (event.data.preedit.length <= sizeof(program->preedit))
+            {
+                memcpy(program->preedit, event.data.preedit.text, event.data.preedit.length);
+                program->preeditLength = event.data.preedit.length;
+                program->preeditCaret = event.data.preedit.caret;
+                program->segments = event.data.preedit.segmentCount;
+                program->style = event.data.preedit.segmentCount > 0
+                                     ? event.data.preedit.segments[0].style
+                                     : mwin_preeditPlain;
+            }
         }
         program->frames[program->count] = program->frame;
         program->records[program->count++] = event;
@@ -265,6 +273,10 @@ static bool Ready(const Program* program, const mwinContext* context)
         return program->lastText == LONG_BYTES;
     case phaseTooLong:
         return program->resets > program->resetsBefore;
+    case phaseComposing:
+        return program->preedits > program->preeditsBefore;
+    case phaseLongPreedit:
+        return program->resets > program->resetsBefore && program->ends > program->endsBefore;
     case phasePassed:
         return CountKeys(program, mwin_codeKeyB) >= 2;
     case phaseDisabled:
@@ -379,7 +391,26 @@ static void Advance(Program* program, mwinContext* context)
         Commit(program, TEXT_BYTES + 1);
         break;
     case phaseTooLong:
-        CHECK(program->lastText == 0, "a commit past the limit: a reset, no text");
+        CHECK(program->lastText == 0 && program->resets == program->resetsBefore + 1,
+              "a commit past the limit: one reset, no text");
+        program->preeditsBefore = program->preedits;
+        FakeImePreedit(program->bus, fcitx, true);
+        break;
+    case phaseComposing:
+    {
+        static char text[TEXT_BYTES + 2];
+        memset(text, 'x', TEXT_BYTES + 1);
+        program->resetsBefore = program->resets;
+        program->preeditsBefore = program->preedits;
+        program->endsBefore = program->ends;
+        FakeImePreeditText(program->bus, fcitx, text);
+        break;
+    }
+    case phaseLongPreedit:
+        CHECK(program->resets == program->resetsBefore + 1 &&
+                  program->ends == program->endsBefore + 1 &&
+                  program->preedits == program->preeditsBefore,
+              "a composition past the limit: one reset and its end");
         Press(program, KEYCODE_B);
         break;
     case phasePassed:

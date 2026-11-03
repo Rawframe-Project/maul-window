@@ -120,9 +120,10 @@ static inline void FakeImeIBusText(FakeBus* fake, void* iter, const char* text, 
     (void)fake->closeContainer(iter, variant);
 }
 
-// The composition "あ", or none, as the framework's signal.
-static inline void FakeImePreedit(FakeBus* fake, bool fcitx, bool composing)
+// A composition of text, or none for "", as the framework's signal.
+static inline void FakeImePreeditText(FakeBus* fake, bool fcitx, const char* text)
 {
+    bool composing = text[0] != '\0';
     void* arguments[16];
     void* parts[16];
     void* part[16];
@@ -132,7 +133,6 @@ static inline void FakeImePreedit(FakeBus* fake, bool fcitx, bool composing)
     fake->initAppend(signal, arguments);
     if (fcitx)
     {
-        const char* text = IME_KANA;
         int32_t format = 8 | 16;
         int32_t caret = composing ? 3 : -1;
         (void)fake->openContainer(arguments, imeArray, "(si)", parts);
@@ -150,11 +150,17 @@ static inline void FakeImePreedit(FakeBus* fake, bool fcitx, bool composing)
     {
         uint32_t caret = composing ? 1 : 0;
         unsigned visible = composing;
-        FakeImeIBusText(fake, arguments, composing ? IME_KANA : "", composing ? 1 : 0);
+        FakeImeIBusText(fake, arguments, text, composing ? 1 : 0);
         (void)fake->appendBasic(arguments, imeUint32, &caret);
         (void)fake->appendBasic(arguments, imeBoolean, &visible);
     }
     FakeImeEmit(fake, signal);
+}
+
+// The composition "あ", or none, as the framework's signal.
+static inline void FakeImePreedit(FakeBus* fake, bool fcitx, bool composing)
+{
+    FakeImePreeditText(fake, fcitx, composing ? IME_KANA : "");
 }
 
 // The framework's commit of text.

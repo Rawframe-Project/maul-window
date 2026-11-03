@@ -7,74 +7,257 @@ may change the API, the ABI and the behavior.
 
 ## [0.8.0](https://github.com/Rawframe-Project/maul-window/compare/v0.7.0...v0.8.0) (2026-11-03)
 
-
-### ⚠ BREAKING CHANGES
-
-* a build that provides Maul Unicode itself must provide 0.13.0.
-* **services:** `mwinRequest_GetDialogFiles` and `mwinContext_GetTestIcon` report their count in a `size_t*`.
-* **text:** `mwinWindow_RequestTextInput` takes no caret; `mwinWindow_RequestTextInputCaret` sets it, as its own request.
-* **drop:** a drop is named by an `mwinDropId`, and `mwinContext_GetDroppedFiles` and `mwinContext_GetDroppedText` are `mwinDrop_GetFiles` and `mwinDrop_GetText`.
-* **text:** the byte lengths of `mwinTextEvent`, `mwinPreeditEvent` and the web native handles, and a composition's segment and selection offsets, are `size_t`; `mwinPreeditEvent.caret` is `ptrdiff_t`.
-* **input:** `mwinPointerEvent.buttons` is an `mwinMouseButtons` (`uint32_t`) and `mwinPenEvent.button` an `mwinPenButton` (`int32_t`), so both records' layouts change.
-* **test-backend:** `mwinContext_HoldTestRequests` is now `mwinContext_EnableTestHold`, read back with the new `mwinContext_IsTestHoldEnabled`.
-* **core:** `mwinEvent.type` is now `mwinEvent.kind`, and `mwinEventType` is now `mwinEventKind`.
-* **gamepad:** `mwinGamepad_GetMotion` is now `mwinGamepad_TakeMotion`.
-* a build that provides Maul Unicode itself must provide 0.9.1.
-* **core:** the kind typedefs are int32_t and the flag typedefs uint32_t, which changes the layout of the event, info and def structs; mwinPointerEvent.clicks, mwinEvent.samples and mwinGamepadInfo.rawButtons and rawAxes are renamed clickCount, sampleCount, rawButtonCount and rawAxisCount.
-* **core:** a getter that fills a caller's buffer or list (the sixteen above) no longer zeroes it past the bytes or ids it reports when it succeeds; it leaves them as they were. It still zeroes the whole capacity when it fails.
-* **core:** mwinContext_NextEvent and mwinGamepad_GetMotion refused with mwin_errorBusy no longer zero their output; they leave it as it was.
-
-### Added
-
-* **core:** type the app def's functions, say what a failed box leaves ([#385](https://github.com/Rawframe-Project/maul-window/issues/385)) ([d75b9d2](https://github.com/Rawframe-Project/maul-window/commit/d75b9d295c9828981ac20eddbf6313ef97b0df71)), closes [#374](https://github.com/Rawframe-Project/maul-window/issues/374) [#377](https://github.com/Rawframe-Project/maul-window/issues/377)
-
-
-### Fixed
-
-* **android:** commit the composition when the keyboard is asked for ([#330](https://github.com/Rawframe-Project/maul-window/issues/330)) ([145f526](https://github.com/Rawframe-Project/maul-window/commit/145f5261192691a11154f5746eb24bb7ddda39c4)), closes [#328](https://github.com/Rawframe-Project/maul-window/issues/328)
-* **android:** cut a long document name without converting it per unit ([#362](https://github.com/Rawframe-Project/maul-window/issues/362)) ([8d55188](https://github.com/Rawframe-Project/maul-window/commit/8d55188fd4147c2f5e1407e8f12969694fe954a3)), closes [#361](https://github.com/Rawframe-Project/maul-window/issues/361)
-* **android:** keep a document whose provider name starts with U+0000 ([#341](https://github.com/Rawframe-Project/maul-window/issues/341)) ([25f4de3](https://github.com/Rawframe-Project/maul-window/commit/25f4de3d5e3bb64feaf39b2bac3130e2b7df359e)), closes [#340](https://github.com/Rawframe-Project/maul-window/issues/340)
-* **android:** show the on-screen keyboard only when the program asks ([#327](https://github.com/Rawframe-Project/maul-window/issues/327)) ([b895c76](https://github.com/Rawframe-Project/maul-window/commit/b895c76eb48dc37f6921f0cb43ea0825571fcf27)), closes [#235](https://github.com/Rawframe-Project/maul-window/issues/235)
-* **clipboard:** take Apple's text by its UTF-16 units, U+0000 and all ([#353](https://github.com/Rawframe-Project/maul-window/issues/353)) ([4f61167](https://github.com/Rawframe-Project/maul-window/commit/4f61167c6009a42cde937fb1cf25da4d7d8a44ac)), closes [#352](https://github.com/Rawframe-Project/maul-window/issues/352)
-* **core:** clear a caller's array only when the call fails ([#313](https://github.com/Rawframe-Project/maul-window/issues/313)) ([439df43](https://github.com/Rawframe-Project/maul-window/commit/439df43e3abeadb0dd688f76ea757dd709cccc49)), closes [#301](https://github.com/Rawframe-Project/maul-window/issues/301)
-* **core:** free a replaced payload only once no getter reaches it ([#303](https://github.com/Rawframe-Project/maul-window/issues/303)) ([ac6fec0](https://github.com/Rawframe-Project/maul-window/commit/ac6fec018c48809a03ef41a5a82c748fa391dbfa)), closes [#297](https://github.com/Rawframe-Project/maul-window/issues/297)
-* **core:** leave a busy call's event and motion outputs as they were ([#290](https://github.com/Rawframe-Project/maul-window/issues/290)) ([cc6d013](https://github.com/Rawframe-Project/maul-window/commit/cc6d0137c01c6878cb08ba14cc876728fc150855)), closes [#289](https://github.com/Rawframe-Project/maul-window/issues/289)
-* **core:** make a window or cursor stale before its destroy frees ([#309](https://github.com/Rawframe-Project/maul-window/issues/309)) ([1e120cb](https://github.com/Rawframe-Project/maul-window/commit/1e120cbeb7de3b9ae107f29f1e46234366f8112a)), closes [#302](https://github.com/Rawframe-Project/maul-window/issues/302)
-* **core:** make windows and cursors stale before a run's teardown frees ([#318](https://github.com/Rawframe-Project/maul-window/issues/318)) ([ca4fde6](https://github.com/Rawframe-Project/maul-window/commit/ca4fde650f24e50e51df2bb99041b714cf3e6807)), closes [#310](https://github.com/Rawframe-Project/maul-window/issues/310)
-* **core:** widen kinds to int32_t and flags to uint32_t, name counts ([#315](https://github.com/Rawframe-Project/maul-window/issues/315)) ([b62f423](https://github.com/Rawframe-Project/maul-window/commit/b62f4237e8492bb98d7ab8d26701d3fd770f41e4)), closes [#299](https://github.com/Rawframe-Project/maul-window/issues/299) [#300](https://github.com/Rawframe-Project/maul-window/issues/300)
-* **ios:** take typed and composed text by its UTF-16 units ([#358](https://github.com/Rawframe-Project/maul-window/issues/358)) ([e273032](https://github.com/Rawframe-Project/maul-window/commit/e27303287edb780ff909e16891140cade03003b9)), closes [#354](https://github.com/Rawframe-Project/maul-window/issues/354) [#357](https://github.com/Rawframe-Project/maul-window/issues/357)
-* **linux:** hold the preferred locales up to the localeBytes limit ([#368](https://github.com/Rawframe-Project/maul-window/issues/368)) ([f46d52e](https://github.com/Rawframe-Project/maul-window/commit/f46d52ef899623b9fe92173060d84dad8318a494)), closes [#367](https://github.com/Rawframe-Project/maul-window/issues/367)
-* **linux:** keep zenity's chosen paths whole ([#346](https://github.com/Rawframe-Project/maul-window/issues/346)) ([6b6d5da](https://github.com/Rawframe-Project/maul-window/commit/6b6d5dad23a864a229a88a9597776acec8b085f1)), closes [#344](https://github.com/Rawframe-Project/maul-window/issues/344)
-* **linux:** stop the locale list at the first tag that does not fit ([#370](https://github.com/Rawframe-Project/maul-window/issues/370)) ([0abf9dd](https://github.com/Rawframe-Project/maul-window/commit/0abf9dd579735997ad34208ee703fbe3b98f9f80)), closes [#369](https://github.com/Rawframe-Project/maul-window/issues/369)
-* **linux:** take a service's bus signals only from its owner ([#347](https://github.com/Rawframe-Project/maul-window/issues/347)) ([01faae5](https://github.com/Rawframe-Project/maul-window/commit/01faae57f91dc8e7cd227ef4ff666b922e179150)), closes [#345](https://github.com/Rawframe-Project/maul-window/issues/345)
-* **macos:** take typed and composed text by its UTF-16 units ([#360](https://github.com/Rawframe-Project/maul-window/issues/360)) ([fbf537d](https://github.com/Rawframe-Project/maul-window/commit/fbf537d2cf0f193185f2978519d3c14b2bfe8d89)), closes [#359](https://github.com/Rawframe-Project/maul-window/issues/359)
-* **system:** empty the locales when the first language does not fit ([#402](https://github.com/Rawframe-Project/maul-window/issues/402)) ([614d239](https://github.com/Rawframe-Project/maul-window/commit/614d239934ede41859b66bd29cdc11b37a4ed7b4)), closes [#398](https://github.com/Rawframe-Project/maul-window/issues/398)
-* **system:** keep the leading locales that fit a too-long list ([#366](https://github.com/Rawframe-Project/maul-window/issues/366)) ([a3178d6](https://github.com/Rawframe-Project/maul-window/commit/a3178d6288d01fd9668c25c4cc5467264adc8f85)), closes [#365](https://github.com/Rawframe-Project/maul-window/issues/365)
-* **test-backend:** clear the text input getters' outputs on a failure ([#283](https://github.com/Rawframe-Project/maul-window/issues/283)) ([d87d047](https://github.com/Rawframe-Project/maul-window/commit/d87d047fe32e26ab60a724ca1d8d7a39b8bcafce)), closes [#282](https://github.com/Rawframe-Project/maul-window/issues/282)
-* **text:** drop control characters; a committed tab or newline is a key ([#339](https://github.com/Rawframe-Project/maul-window/issues/339)) ([d03c5f8](https://github.com/Rawframe-Project/maul-window/commit/d03c5f820317c63ddeba3665816b36897a1d6d23)), closes [#338](https://github.com/Rawframe-Project/maul-window/issues/338)
-* **web:** give a lone surrogate as U+FFFD in text and pad names ([#408](https://github.com/Rawframe-Project/maul-window/issues/408)) ([cbbc17e](https://github.com/Rawframe-Project/maul-window/commit/cbbc17e5fa97780929d6468e9fd9b450bf362706)), closes [#405](https://github.com/Rawframe-Project/maul-window/issues/405)
-* **win32:** cut long pad names to whole characters ([#364](https://github.com/Rawframe-Project/maul-window/issues/364)) ([6bf103c](https://github.com/Rawframe-Project/maul-window/commit/6bf103cddfb372f40f0e1ec06136f96606ce7d4a)), closes [#363](https://github.com/Rawframe-Project/maul-window/issues/363)
-* **win32:** read a drop only from the medium asked for, up to its limit ([#351](https://github.com/Rawframe-Project/maul-window/issues/351)) ([6dab920](https://github.com/Rawframe-Project/maul-window/commit/6dab92035a1dcd0f15a25ee22b0474d396a98f6a)), closes [#350](https://github.com/Rawframe-Project/maul-window/issues/350)
-* **win32:** read a drop's file list once, past paths left out ([#356](https://github.com/Rawframe-Project/maul-window/issues/356)) ([1049b2a](https://github.com/Rawframe-Project/maul-window/commit/1049b2a3a62524c09284a0b3b09a3cb253a0fdaf)), closes [#355](https://github.com/Rawframe-Project/maul-window/issues/355)
-* **x11:** ignore a button event that names no button ([#395](https://github.com/Rawframe-Project/maul-window/issues/395)) ([86ca61e](https://github.com/Rawframe-Project/maul-window/commit/86ca61ed9f23cfa35b0f149f92a72682fe9df3f1)), closes [#390](https://github.com/Rawframe-Project/maul-window/issues/390)
-
+The iOS device check, that a window shows no flash against the launch
+screen before its first frame, is waived by the owner for this
+release, which ships on the iOS simulator suite: its iOS changes leave
+the launch and the first frame alone.
 
 ### Changed
 
-* **core:** name the event record's choice kind ([#384](https://github.com/Rawframe-Project/maul-window/issues/384)) ([7e8e0cf](https://github.com/Rawframe-Project/maul-window/commit/7e8e0cf3674d078954b4f3edc373e81a851f3711)), closes [#372](https://github.com/Rawframe-Project/maul-window/issues/372)
-* **drop:** name drops by a typed id ([#392](https://github.com/Rawframe-Project/maul-window/issues/392)) ([bb3462b](https://github.com/Rawframe-Project/maul-window/commit/bb3462b72099e423e063a9b68d79d7d17f8a0b5b)), closes [#378](https://github.com/Rawframe-Project/maul-window/issues/378)
-* **gamepad:** take a gamepad's motion, which starts its angle anew ([#386](https://github.com/Rawframe-Project/maul-window/issues/386)) ([9ef6bfb](https://github.com/Rawframe-Project/maul-window/commit/9ef6bfbd2b6e6fa44a93f843583eff1496132811)), closes [#379](https://github.com/Rawframe-Project/maul-window/issues/379)
-* **input:** type held buttons as flag sets, pen buttons as kinds ([#389](https://github.com/Rawframe-Project/maul-window/issues/389)) ([59dbfe5](https://github.com/Rawframe-Project/maul-window/commit/59dbfe524b772df9f9b712e6dc7f5ac73a76c226)), closes [#375](https://github.com/Rawframe-Project/maul-window/issues/375) [#381](https://github.com/Rawframe-Project/maul-window/issues/381)
-* **services:** report counts in size_t, as the listing calls do ([#394](https://github.com/Rawframe-Project/maul-window/issues/394)) ([75405a9](https://github.com/Rawframe-Project/maul-window/commit/75405a9593a77a570d748343ca6120e4695edb14)), closes [#376](https://github.com/Rawframe-Project/maul-window/issues/376)
-* **test-backend:** make the request hold a switch pair ([#387](https://github.com/Rawframe-Project/maul-window/issues/387)) ([0f86be5](https://github.com/Rawframe-Project/maul-window/commit/0f86be58437a818335aed669b6aa4d731b264fd8)), closes [#382](https://github.com/Rawframe-Project/maul-window/issues/382)
-* **text:** give text lengths and composition offsets size_t ([#388](https://github.com/Rawframe-Project/maul-window/issues/388)) ([03b4181](https://github.com/Rawframe-Project/maul-window/commit/03b4181e642fed44b66d76a18048c16e933e3355)), closes [#373](https://github.com/Rawframe-Project/maul-window/issues/373) [#383](https://github.com/Rawframe-Project/maul-window/issues/383)
-* **text:** split the caret from the text input request ([#393](https://github.com/Rawframe-Project/maul-window/issues/393)) ([ea9a360](https://github.com/Rawframe-Project/maul-window/commit/ea9a360399116a175c7f21153ebd20d57ef1655f)), closes [#380](https://github.com/Rawframe-Project/maul-window/issues/380)
+- **Breaking:** Maul Window needs Maul Unicode 0.13.0. A build that
+  provides Maul Unicode itself must provide 0.13.0. On macOS, iOS,
+  Android and the web, a UTF-16 index an input method gives inside a
+  surrogate pair, for a caret, a selection or a clause, now ends before
+  the pair; on macOS and iOS it fell after the pair, on Android a
+  selection's end did, and so did a caret on the web with Emscripten
+  ([#334](https://github.com/Rawframe-Project/maul-window/pull/334),
+  [#399](https://github.com/Rawframe-Project/maul-window/pull/399),
+  [#408](https://github.com/Rawframe-Project/maul-window/pull/408)).
+- **Breaking:** names settled for 1.0
+  ([#384](https://github.com/Rawframe-Project/maul-window/pull/384),
+  [#386](https://github.com/Rawframe-Project/maul-window/pull/386),
+  [#387](https://github.com/Rawframe-Project/maul-window/pull/387),
+  [#392](https://github.com/Rawframe-Project/maul-window/pull/392)):
 
+  | 0.7.0 | 0.8.0 |
+  |---|---|
+  | `mwinEvent.type`, `mwinEventType` | `mwinEvent.kind`, `mwinEventKind` |
+  | `mwinGamepad_GetMotion` | `mwinGamepad_TakeMotion` |
+  | `mwinContext_HoldTestRequests` | `mwinContext_EnableTestHold`, read back with the new `mwinContext_IsTestHoldEnabled` |
+  | `mwinContext_GetDroppedFiles`, `mwinContext_GetDroppedText` | `mwinDrop_GetFiles`, `mwinDrop_GetText` |
+  | a drop's `uint32_t` number (`mwinDropEvent.drop`) | an `mwinDropId` |
 
-### Build
+  The event kinds keep their names and numbers. A drop id answers
+  `mwin_errorStale` for the null id, another slot's id and a drop a
+  later one replaced, as the number did.
+- **Breaking:** `mwinWindow_RequestTextInput` takes no caret;
+  `mwinWindow_RequestTextInputCaret` sets it, as its own request kind
+  (`mwin_requestTextInputCaret`), so a newer caret supersedes an older
+  one and never a text input request. A window keeps its caret while
+  text input is off and on again. On Wayland, moving the caret no
+  longer sends text-input-v3's `enable` again, which reset the input
+  method's state on every move
+  ([#393](https://github.com/Rawframe-Project/maul-window/pull/393)).
+- **Breaking:** text lengths and composition offsets are `size_t`:
+  `mwinTextEvent.length`, `mwinPreeditEvent.length`, `selectionStart`
+  and `selectionEnd`, `mwinPreeditSegment.start` and `length`, and the
+  web handles' `selectorLength` and `accessibilityLength`.
+  `mwinPreeditEvent.caret` is `ptrdiff_t` and keeps -1 for a hidden
+  caret ([#388](https://github.com/Rawframe-Project/maul-window/pull/388)).
+- **Breaking:** `mwinRequest_GetDialogFiles` and
+  `mwinContext_GetTestIcon` report their count in a `size_t*`, as the
+  listing calls do
+  ([#394](https://github.com/Rawframe-Project/maul-window/pull/394)).
+- **Breaking:** `mwinPointerEvent.buttons` is an `mwinMouseButtons`
+  (`uint32_t`, a named bit for each button, `mwin_mouseLeft` to
+  `mwin_mouseForward`), `mwinGamepadState.buttons` an
+  `mwinGamepadButtons` (`uint32_t`), and `mwinPenEvent.button` an
+  `mwinPenButton` (`int32_t`, `mwin_penButtonNone` and
+  `mwin_penButtonBarrel`). The pointer and pen records' layouts change
+  ([#389](https://github.com/Rawframe-Project/maul-window/pull/389)).
+- **Breaking:** the kinds, modes and choices of the public structs and
+  calls are `int32_t`, and the sets of bit flags (`mwinModifiers`,
+  `mwinWindowStyle`, `mwinPenFlags`, `mwinDragContents`,
+  `mwinGamepadCapabilities`) are `uint32_t`. This changes the layout of
+  the event, info and def structs. A negative kind is refused with
+  `mwin_errorInvalid`, and counted as a misuse on a context; a cursor
+  mode, window mode, window kind, dialog kind, hit region's kind,
+  message box's kind or buttons, or test answer of `INT32_MIN` used to
+  become 0 and go ahead. `mwinGamepad_SetTestButton` and
+  `mwinGamepad_SetTestAxis` answer `mwin_errorInvalid` for a value
+  below 0 or past 255
+  ([#315](https://github.com/Rawframe-Project/maul-window/pull/315)).
+- **Breaking:** four counts are named by the family's `thingCount` rule
+  ([#315](https://github.com/Rawframe-Project/maul-window/pull/315)):
 
-* build against Maul Unicode 0.13.0 ([#399](https://github.com/Rawframe-Project/maul-window/issues/399)) ([e864509](https://github.com/Rawframe-Project/maul-window/commit/e8645095df29ed860efd32433e35852d08b2825a)), closes [#396](https://github.com/Rawframe-Project/maul-window/issues/396)
-* build against Maul Unicode 0.9.1 ([#334](https://github.com/Rawframe-Project/maul-window/issues/334)) ([6403715](https://github.com/Rawframe-Project/maul-window/commit/640371521de63586e711bf923db5ded356880be3)), closes [#333](https://github.com/Rawframe-Project/maul-window/issues/333)
+  | 0.7.0 | 0.8.0 |
+  |---|---|
+  | `mwinPointerEvent.clicks` | `mwinPointerEvent.clickCount` |
+  | `mwinEvent.samples` | `mwinEvent.sampleCount` |
+  | `mwinGamepadInfo.rawButtons` | `mwinGamepadInfo.rawButtonCount` |
+  | `mwinGamepadInfo.rawAxes` | `mwinGamepadInfo.rawAxisCount` |
+
+- **Breaking:** a getter that fills a caller's buffer or list leaves the
+  bytes or ids past those it reports as they were when it succeeds; it
+  used to zero them. A failure still zeroes the whole capacity. This
+  covers `mwinRequest_GetClipboardText`, `GetClipboardData`,
+  `GetPrimaryText` and `GetDialogFiles`; `mwinDrop_GetFiles` and
+  `mwinDrop_GetText`; `mwinContext_GetKeyboardLayout`,
+  `GetPreferredLocales`, `GetGamepads` and `GetMonitors`; and the test
+  platform's `mwinWindow_GetTestTitle`, `mwinContext_GetTestClipboard`,
+  `GetTestClipboardData`, `GetTestPrimary`, `GetTestOpened` and
+  `GetTestDialog`. Text is never NUL-terminated, so a program reads
+  only the length the call reports
+  ([#313](https://github.com/Rawframe-Project/maul-window/pull/313)).
+- **Breaking:** `mwinContext_NextEvent` and `mwinGamepad_TakeMotion`,
+  refused with `mwin_errorBusy` because they were called from inside
+  the context's allocator while another call uses the context, leave
+  their output as it was; they used to zero it. The id of what a call
+  makes (a window, a cursor, a request) is still the null id on every
+  failure
+  ([#290](https://github.com/Rawframe-Project/maul-window/pull/290)).
+- Control characters never reach text or compositions. A committed tab
+  arrives as Tab's press and release, and a line feed, a carriage
+  return, or a carriage return followed by a line feed in the same
+  commit as one Enter, with the text around them as text records, in
+  order. Every other
+  control character (C0, DEL, C1) is dropped from text and
+  compositions, and a composition's caret, selection and segments move
+  with the bytes that go. Before, the web, Wayland, IBus, Fcitx and the
+  Win32 input method passed them on, NUL included, and Android and iOS
+  took a carriage return and line feed as two Enters
+  ([#339](https://github.com/Rawframe-Project/maul-window/pull/339),
+  [#343](https://github.com/Rawframe-Project/maul-window/pull/343)).
+- The preferred locales keep the longest beginning of the user's list
+  that fits the `localeBytes` limit on every platform: the first tag
+  that does not fit is left out with every tag after it, and a list
+  whose first tag does not fit is empty. Windows hands over its list
+  only whole, so there a list that does not fit keeps only its first
+  language, the one Windows shows, where that fits. Before, Android,
+  the web and Windows left a list past the limit as it was, or empty,
+  without `mwin_eventLocaleChanged`. Linux held at most 256 bytes of
+  tags whatever the limit, and let a later, shorter tag in after one
+  that did not fit. When a desktop source named languages none of
+  which fit, it took AccountsService's `Language` or the starting list
+  instead; on Windows, a first language one byte past the limit kept
+  the old list
+  ([#366](https://github.com/Rawframe-Project/maul-window/pull/366),
+  [#368](https://github.com/Rawframe-Project/maul-window/pull/368),
+  [#370](https://github.com/Rawframe-Project/maul-window/pull/370),
+  [#402](https://github.com/Rawframe-Project/maul-window/pull/402)).
+- **Test platform:** `mwinContext_SetTestLocales` takes a list past the
+  `localeBytes` limit as a platform's list, keeping its leading tags
+  that fit; it answered `mwin_errorCapacity`
+  ([#366](https://github.com/Rawframe-Project/maul-window/pull/366)).
+
+### Added
+
+- `mwinInitFunction`, `mwinFrameFunction` and `mwinQuitFunction` type
+  `mwinAppDef`'s `init`, `frame` and `quit`, so a program can declare
+  them; the def's layout is unchanged. `mwinShowMessageBox` says that a
+  failure leaves `acceptedOut` as it was
+  ([#385](https://github.com/Rawframe-Project/maul-window/pull/385)).
+
+### Fixed
+
+- **Android:** the on-screen keyboard showed by itself over a window
+  that never asked for it, whenever the window gained the focus. In
+  landscape it covered the window's middle, so touches meant for the
+  program typed letters instead. It now shows only when the program
+  asks for it
+  ([#327](https://github.com/Rawframe-Project/maul-window/pull/327)).
+- **Android:** asking for the on-screen keyboard, or for it with another
+  purpose, while an input method composed (a hardware keyboard composes
+  through it while the window accepts text) threw the composition away,
+  and the program was not told it ended. The composition is now
+  committed; only stopping text input drops it
+  ([#330](https://github.com/Rawframe-Project/maul-window/pull/330)).
+- **Android:** a document whose provider gave a name starting with
+  U+0000 was lost, since its copy's file name was empty; a U+0000 later
+  in the name cut it short. Each U+0000 now becomes `_`, as each `/`
+  does
+  ([#341](https://github.com/Rawframe-Project/maul-window/pull/341)).
+- **Android:** a document name of a million UTF-16 units held the main
+  thread for minutes while it was cut to 255 bytes, and a cut that
+  ended at a lone low surrogate dropped one character too many
+  ([#362](https://github.com/Rawframe-Project/maul-window/pull/362)).
+- **Linux:** a file dialog run through zenity could hand the program
+  other paths than the one chosen: a name ending in a line feed lost
+  it, and a single choice was split at every byte 0x1E, so a path
+  holding one came back as two files. A dialog whose only path went
+  past the limits now answers `mwin_outcomeTooLarge`, on every backend,
+  as the header says; it answered `mwin_outcomeFailed`
+  ([#346](https://github.com/Rawframe-Project/maul-window/pull/346)).
+- **Linux:** power, settings, file dialogs and input methods took their
+  D-Bus signals from any program on the bus. Another local program
+  could set `onBattery`, choose a portal dialog's files, change
+  settings, or type text into the focused window. Each now hears only
+  the service's owner
+  ([#347](https://github.com/Rawframe-Project/maul-window/pull/347)).
+- **Windows:** a drop read a medium the dragging program handed over in
+  another form, such as a stream, as if it were global memory, and
+  read a file list past `droppedFiles` at a cost growing with the
+  square of its paths. A medium of another kind is now let go unread
+  and the drop marked truncated
+  ([#351](https://github.com/Rawframe-Project/maul-window/pull/351)).
+- **Windows:** a drop lost its files or text when the data object
+  answered with a success code other than `S_OK`, a path left out took
+  a file's place, and a file list whose header pointed past its memory
+  delivered nothing without marking the drop truncated. The file list
+  is now read once, past paths left out, and checked against its
+  memory
+  ([#356](https://github.com/Rawframe-Project/maul-window/pull/356)).
+- **Windows:** gamepad names were cut short or thrown away: a
+  Windows.Gaming.Input name lost everything past its 21st character
+  ("Xbox Wireless Control"), and a HID name of 22 or more characters
+  of most non-Latin scripts became "HID gamepad". Names are now cut to
+  whole characters within 64 bytes
+  ([#364](https://github.com/Rawframe-Project/maul-window/pull/364)).
+- **macOS and iOS:** clipboard and drop text was cut at a U+0000, and
+  text with a lone surrogate was left out of a macOS drop, failed a
+  clipboard read, and crashed the program in an iOS drop. Text is now
+  taken by its UTF-16 units, U+0000 kept and a lone surrogate as U+FFFD
+  ([#353](https://github.com/Rawframe-Project/maul-window/pull/353)).
+- **iOS and macOS:** typed text with a lone surrogate was lost without
+  a sign, and a composition with one was not shown; a U+0000 cut a
+  composition short. Typed and composed text is now taken by its UTF-16
+  units, and a reset is posted when there is no memory for it. A macOS
+  drop now marks itself truncated when it leaves out a file whose path
+  is not UTF-8, and a macOS or iOS file dialog fails a choice it cannot
+  convert, instead of answering with fewer files
+  ([#358](https://github.com/Rawframe-Project/maul-window/pull/358),
+  [#360](https://github.com/Rawframe-Project/maul-window/pull/360)).
+- **Web:** with Emscripten, typed or composed text holding a lone
+  surrogate, which another script on the page, an input method or a
+  device's name can give, was lost without a reset, and a gamepad's
+  name was cut short at it. Each lone surrogate is now U+FFFD, as on
+  every other platform and in the wasm32-wasi build
+  ([#408](https://github.com/Rawframe-Project/maul-window/pull/408)).
+- **X11:** a button event for button 0, which another program on the
+  display can send, posted a press of no button that never ended. It is
+  now ignored
+  ([#395](https://github.com/Rawframe-Project/maul-window/pull/395)).
+- A free function could read a block it had just freed. When a new
+  payload replaced an old one (a clipboard read's text, data or primary
+  text, a file dialog's files, a drop's files and text), the old block
+  went to the allocator's free function while the getters still read
+  it, and a getter called from there read freed memory. The replaced
+  request or drop is now stale before its block goes back, so such a
+  getter answers `mwin_errorStale`
+  ([#303](https://github.com/Rawframe-Project/maul-window/pull/303)).
+- While `mwinDestroyWindow` gave the window's blocks to the allocator's
+  free function, `mwinWindow_GetState` and `mwinWindow_GetNativeHandles`
+  called from there still answered for the window, and a cursor was
+  still found while `mwinDestroyCursor` freed its images. The window's
+  id is now stale before its blocks reach the free function, and the
+  cursor's before its images do
+  ([#309](https://github.com/Rawframe-Project/maul-window/pull/309)).
+- After `quit`, the context's teardown gave its blocks to the
+  allocator's free function while its windows, cursors and payloads
+  were still found and the platform could still be reached; a call from
+  there could read a freed block. Once `quit` returns, every window,
+  cursor, request and drop id is stale there,
+  `mwinContext_GetKeyReach` and `mwinContext_GetKeyboardLayout` answer
+  `mwin_errorState`, and `mwinContext_MapKeyCode` answers no key
+  ([#318](https://github.com/Rawframe-Project/maul-window/pull/318)).
+- **Test platform:** `mwinWindow_GetTestTextInput` and
+  `mwinWindow_GetTestVirtualKeyboard` left their outputs as they were
+  when they failed; they clear them now
+  ([#283](https://github.com/Rawframe-Project/maul-window/pull/283)).
+- **Build:** a version bump did not reach an existing build directory.
+  CMake did not configure again, so the build kept the old version in
+  its package version file, its pkg-config file and its ABI version
+  ([#324](https://github.com/Rawframe-Project/maul-window/pull/324)).
 
 ## [0.7.0](https://github.com/Rawframe-Project/maul-window/compare/v0.6.0...v0.7.0) (2026-10-29)
 

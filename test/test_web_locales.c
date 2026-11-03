@@ -3,8 +3,9 @@
 //
 // The web backend's preferred locales in headless Chrome, as the page's
 // languages change: every language of the list, in order; a list a byte
-// shorter than the backend's bytes taken whole; and of a list past them,
-// the leading language that fits.
+// shorter than the backend's bytes taken whole; of a list past them,
+// the leading language that fits; and a language with a lone surrogate,
+// which a page's script can give, with U+FFFD in its place.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -23,6 +24,7 @@ typedef enum Phase
     phaseList,
     phaseLongest,
     phaseTooLong,
+    phaseLone,
     phaseDone,
 } Phase;
 
@@ -40,6 +42,13 @@ typedef struct Program
 // would when its user changes them.
 EM_JS(void, SetLanguages, (const char* list, size_t length), {
     const languages = UTF8ToString(list, length).split(',');
+    Object.defineProperty(navigator, 'languages', {configurable: true, get: () => languages});
+    window.dispatchEvent(new Event('languagechange'));
+});
+
+// Gives the page "de-DE" and "x" with a lone U+D800 after it.
+EM_JS(void, SetLoneLanguages, (void), {
+    const languages = ['de-DE', 'x' + String.fromCharCode(0xD800)];
     Object.defineProperty(navigator, 'languages', {configurable: true, get: () => languages});
     window.dispatchEvent(new Event('languagechange'));
 });
@@ -91,8 +100,12 @@ static void Advance(Program* program, mwinContext* context)
         memset(s_list + 6, 'x', LIST_BYTES - 6);
         SetLanguages(s_list, LIST_BYTES);
         break;
-    default:
+    case phaseTooLong:
         CHECK(LocalesAre(context, "en-GB", 5), "of a list past them, the leading language");
+        SetLoneLanguages();
+        break;
+    default:
+        CHECK(LocalesAre(context, "de-DE,x\xEF\xBF\xBD", 10), "a lone surrogate as U+FFFD");
         break;
     }
     program->phase += 1;

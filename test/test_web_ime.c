@@ -8,7 +8,8 @@
 // caret, its result as text and the end of the composition; a commit of
 // the limit's length exactly as text, one byte past it as a reset of the
 // program's text state; a key typing once; text another script types
-// with a lone surrogate, which arrives with U+FFFD in its place;
+// with a lone surrogate, which arrives with U+FFFD in its place, and
+// likewise a commit it puts straight into the page's records;
 // stopping ends a composition and gives the canvas the focus back; an
 // on-screen keyboard's purpose.
 
@@ -41,6 +42,7 @@ typedef enum Phase
     phaseTooLong,
     phaseKey,
     phaseLone,
+    phaseOther,
     phaseRecompose,
     phaseDisable,
     phaseKeyboard,
@@ -87,6 +89,13 @@ EM_JS(void, TypeLone, (void), {
     const data = 'a' + String.fromCharCode(0xD800) + 'b';
     document.querySelector('textarea').dispatchEvent(
         new InputEvent('input', {inputType: 'insertText', data}));
+});
+// Puts "c" and a lone U+DFFF in the page's strings with a commit record
+// for the first window, as another script on the page can.
+EM_JS(void, PushLone, (void), {
+    const state = Module.mwinWeb.values().next().value;
+    state.strings.push('c' + String.fromCharCode(0xDFFF));
+    state.push(20, 0, 0);
 });
 // clang-format on
 
@@ -154,6 +163,7 @@ static bool Ready(const Program* program)
                Find(program, mwin_eventTextInput, 0) != nullptr;
     case phaseExact:
     case phaseLone:
+    case phaseOther:
         return Find(program, mwin_eventTextInput, 0) != nullptr;
     case phaseTooLong:
         return Find(program, mwin_eventInputStateReset, 0) != nullptr;
@@ -219,6 +229,10 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(TextIs(program, "a\xEF\xBF\xBD"
                               "b"),
               "a lone surrogate as U+FFFD, the text around it kept");
+        PushLone();
+        break;
+    case phaseOther:
+        CHECK(TextIs(program, "c\xEF\xBF\xBD"), "a commit another script put in the records too");
         (void)printf("mwin-test: compose " KANA " 1 1\n");
         break;
     case phaseRecompose:

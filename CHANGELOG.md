@@ -5,6 +5,36 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.8.1](https://github.com/Rawframe-Project/maul-window/compare/v0.8.0...v0.8.1) (2026-11-03)
+
+### Fixed
+
+- On X11, a commit or a composition from IBus or Fcitx is now held up to
+  the `textBytesPerWindow` limit. A commit past it posts
+  `mwin_eventInputStateReset`; before, one past 1024 bytes was dropped
+  with no reset. A composition past it posts the reset, then ends;
+  before, one past 512 bytes ended without the reset
+  ([#410](https://github.com/Rawframe-Project/maul-window/pull/410)).
+- On Windows, a UTF-16 index the input method gives inside a surrogate
+  pair, for a composition's caret, selection or clause, now ends before
+  the pair, as on the other platforms; it fell after the pair. A
+  composition string whose second read returns an error, no size or
+  more than the first read said is refused; an error could have been
+  taken as a count of about two billion units and read past the buffer
+  ([#412](https://github.com/Rawframe-Project/maul-window/pull/412)).
+- On the web with Emscripten, text another script pushes, a dropped
+  file's name, the page's languages and a typed key's character turn
+  each lone surrogate into U+FFFD, as text field strings and gamepad
+  names do since 0.8.0; before, such a commit or file name was lost and
+  the language list not taken. On the web, a page canvas whose id holds
+  a lone surrogate, which no CSS selector can name, is refused: the
+  window's creation answers `mwin_outcomeFailed`
+  ([#413](https://github.com/Rawframe-Project/maul-window/pull/413)).
+- On Windows, a HID gamepad whose input report does not fit a
+  1024-byte raw input read is turned away; before, it was added and
+  never moved, since none of its reports could be read
+  ([#417](https://github.com/Rawframe-Project/maul-window/pull/417)).
+
 ## [0.8.0](https://github.com/Rawframe-Project/maul-window/compare/v0.7.0...v0.8.0) (2026-11-03)
 
 The iOS device check, that a window shows no flash against the launch

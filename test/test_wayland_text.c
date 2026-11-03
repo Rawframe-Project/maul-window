@@ -77,9 +77,11 @@ static const mwinEvent* Find(const Program* program, mwinEventKind type)
 
 static void Enable(mwinContext* context, const Program* program, bool enabled)
 {
-    CHECK(mwinWindow_RequestTextInput(context, program->window, enabled,
-                                      (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                      nullptr) == mwin_success,
+    CHECK(mwinWindow_RequestTextInputCaret(context, program->window,
+                                           (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                           nullptr) == mwin_success &&
+              mwinWindow_RequestTextInput(context, program->window, enabled, nullptr) ==
+                  mwin_success,
           "text input");
 }
 

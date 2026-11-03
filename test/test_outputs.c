@@ -150,7 +150,8 @@ static void Requests(mwinContext* context, mwinWindowId window, mwinResult statu
     EXPECT(status, id, mwinWindow_RequestFileDialog, context, window, &dialog, &id);
     EXPECT(status, id, mwinWindow_RequestVirtualKeyboard, context, window, true, mwin_purposeText,
            &id);
-    EXPECT(status, id, mwinWindow_RequestTextInput, context, window, true,
+    EXPECT(status, id, mwinWindow_RequestTextInput, context, window, true, &id);
+    EXPECT(status, id, mwinWindow_RequestTextInputCaret, context, window,
            (mwinRect){0.0f, 0.0f, 1.0f, 1.0f}, &id);
     EXPECT(status, id, mwinWindow_RequestCursorMode, context, window, mwin_cursorVisible, &id);
     EXPECT(status, id, mwinWindow_RequestCursorShape, context, window, mwin_shapeDefault, &id);

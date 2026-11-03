@@ -630,10 +630,10 @@ extern "C"
     mwinWindow_GetTestVirtualKeyboard(const mwinContext* context, mwinWindowId window,
                                       bool* visibleOut, mwinInputPurpose* purposeOut);
 
-    /// Reads what a window last had carried out of its text input
-    /// requests: whether it accepts text, and the caret it gave, which a
-    /// platform places candidate windows by. Not accepting,
-    /// with an empty caret, before any.
+    /// Reads what a window last had carried out of its text input and
+    /// caret requests: whether it accepts text, and its caret, which a
+    /// platform places candidate windows by. Not accepting, with an empty
+    /// caret, before any.
     ///
     /// @param context     A context of the test backend.
     /// @param window      The window.

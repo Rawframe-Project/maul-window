@@ -764,6 +764,16 @@ static mwinOutcome Rebound(mwinWin32Window* window)
     return mwin_outcomeDone;
 }
 
+// Shows the title asked for and keeps it as the window's.
+static int SetTitle(mwinWin32Window* window, mwinWindow* core)
+{
+    SetWindowTextW(window->hwnd,
+                   WideTitle(window->platform, core->pendingTitle, core->pendingTitleLength));
+    memmove(core->title, core->pendingTitle, core->pendingTitleLength);
+    core->titleLength = core->pendingTitleLength;
+    return mwin_outcomeDone;
+}
+
 // Carries out a request now: its outcome, or -1 when it is answered
 // later.
 static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
@@ -772,11 +782,7 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
     switch (request->kind)
     {
     case mwin_requestTitle:
-        SetWindowTextW(window->hwnd,
-                       WideTitle(window->platform, core->pendingTitle, core->pendingTitleLength));
-        memmove(core->title, core->pendingTitle, core->pendingTitleLength);
-        core->titleLength = core->pendingTitleLength;
-        return mwin_outcomeDone;
+        return SetTitle(window, core);
     case mwin_requestSize:
         return SetSize(window, request->value.size);
     case mwin_requestPosition:
@@ -815,8 +821,9 @@ static int CarryOut(mwinWin32Window* window, mwinWindow* core, uint32_t index)
     case mwin_requestCursorImage:
         return mwinWin32SetCursorImage(window, request->value.cursor);
     case mwin_requestTextInput:
-        return mwinWin32SetTextInput(window, request->value.textInput.enabled,
-                                     request->value.textInput.caret);
+        return mwinWin32SetTextInput(window, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinWin32SetTextCaret(window, request->value.caret);
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardWriteData:
         return mwinWin32WriteClipboard(window);

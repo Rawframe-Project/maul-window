@@ -163,8 +163,8 @@ NSRect mwinMacCaretOnScreen(const mwinMacPlatform* platform, uint32_t slot);
 // Lets every input source compose into a view, or only Roman keyboard
 // layouts.
 void mwinMacLimitInputSources(NSView* view, bool all);
-mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool enabled,
-                                mwinRect caret);
+mwinOutcome mwinMacSetTextInput(mwinMacPlatform* platform, uint32_t slot, bool enabled);
+mwinOutcome mwinMacSetTextCaret(mwinMacPlatform* platform, uint32_t slot, mwinRect caret);
 
 // The cursor a window shows over its view (macos_cursor.m); a cursor
 // mode, shape or image request's outcome; the backend's releaseCursor;

@@ -265,8 +265,9 @@ static bool Ready(const Program* program, const mwinContext* context)
 static void AskForText(Program* program, mwinContext* context)
 {
     program->focusIns = s_fakeIme.focusIns;
-    CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
-              mwin_success,
+    CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success &&
+              mwinWindow_RequestTextInputCaret(context, program->window, s_caret, nullptr) ==
+                  mwin_success,
           "text input asked for in the new window");
 }
 
@@ -280,8 +281,10 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseFocus:
     {
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestTextInputCaret(context, program->window, s_caret, nullptr) ==
+                      mwin_success,
               "text input asked for");
         bool flag = false;
         mwinRect caret = {0};
@@ -305,7 +308,7 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(s_fakeIme.capabilities != 0, "a composition the program shows asked for");
         mwinRect wider = s_caret;
         wider.width = 4.0f;
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, wider, nullptr) ==
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window, wider, nullptr) ==
                   mwin_success,
               "the caret widened");
         break;
@@ -342,16 +345,14 @@ static void Advance(Program* program, mwinContext* context)
     case phasePassed:
         CHECK(program->textLength == 4 && program->text[3] == 'b',
               "a key the method left arrives with its text");
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, s_caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "text input given up");
         break;
     case phaseDisabled:
         CHECK(s_fakeIme.resets > 0, "the context reset");
         program->focusIns = s_fakeIme.focusIns;
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, s_caret, nullptr) ==
-                  mwin_success,
-              "text input asked for again");
+        CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success,
+              "text input asked for again, the caret kept");
         break;
     case phaseRefocused:
         s_fakeIme.hold = true;
@@ -392,8 +393,7 @@ static void Advance(Program* program, mwinContext* context)
     case phaseOrderHeld:
         // Without text input the method is not asked about C, which still
         // waits behind B.
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, s_caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "text input given up with B held");
         Press(program, KEYCODE_C);
         break;

@@ -112,9 +112,10 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
     {
     case 0:
         CHECK([view conformsToProtocol:@protocol(UITextInput)], "a text input client");
-        CHECK(mwinWindow_RequestTextInput(context, window, true,
-                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                          nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInputCaret(context, window,
+                                               (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                               nullptr) == mwin_success &&
+                  mwinWindow_RequestTextInput(context, window, true, nullptr) == mwin_success,
               "text taken");
         return;
     case 1:
@@ -215,8 +216,7 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
                   view.markedTextRange == nil,
               "a range past its end: the text accepted in its place");
         program->texts = 0;
-        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, nullptr) == mwin_success,
               "text no longer taken");
         return;
     case 14:

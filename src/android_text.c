@@ -258,7 +258,7 @@ bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activit
     return found;
 }
 
-mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled, mwinRect caret)
+mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled)
 {
     mwinAndroidWindow* window = &platform->window;
     if (!enabled && window->textInput)
@@ -275,7 +275,12 @@ mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled,
         }
     }
     window->textInput = enabled;
-    window->caret = caret;
+    return mwin_outcomeDone;
+}
+
+mwinOutcome mwinAndroidSetTextCaret(mwinAndroidPlatform* platform, mwinRect caret)
+{
+    platform->window.caret = caret;
     return mwin_outcomeDone;
 }
 

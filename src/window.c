@@ -72,7 +72,7 @@ static void Carried(mwinWindow* window, const mwinRequest* request)
         window->state.opacity = 1.0f;
         break;
     case mwin_requestTextInput:
-        window->state.textInput = request->value.textInput.enabled;
+        window->state.textInput = request->value.textInput;
         break;
     case mwin_requestStyle:
         window->state.style = request->value.code;

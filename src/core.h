@@ -97,11 +97,8 @@ typedef struct mwinRequest
         bool visible;
         // A cursor mode or shape.
         uint8_t code;
-        struct
-        {
-            bool enabled;
-            mwinRect caret;
-        } textInput;
+        bool textInput;
+        mwinRect caret;
         struct
         {
             mwinSize minimum;

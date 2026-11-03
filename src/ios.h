@@ -197,8 +197,8 @@ mwinResult mwinIOSKeyboardLayout(const mwinIOSPlatform* platform, char* buffer, 
 void mwinIOSWatchKeyboard(mwinIOSPlatform* platform);
 void mwinIOSUnwatchKeyboard(mwinIOSPlatform* platform);
 UIKeyboardType mwinIOSKeyboardTypeOf(mwinInputPurpose purpose);
-mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool enabled,
-                                mwinRect caret);
+mwinOutcome mwinIOSSetTextInput(mwinIOSPlatform* platform, uint32_t slot, bool enabled);
+mwinOutcome mwinIOSSetTextCaret(mwinIOSPlatform* platform, uint32_t slot, mwinRect caret);
 mwinOutcome mwinIOSSetVirtualKeyboard(mwinIOSPlatform* platform, uint32_t slot, bool visible,
                                       mwinInputPurpose purpose);
 

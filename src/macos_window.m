@@ -485,8 +485,9 @@ static int CarryOut(mwinContext* context, uint32_t slot, const mwinRequest* requ
     case mwin_requestCursorImage:
         return mwinMacSetCursorImage(platform, slot, request->value.cursor);
     case mwin_requestTextInput:
-        return mwinMacSetTextInput(platform, slot, request->value.textInput.enabled,
-                                   request->value.textInput.caret);
+        return mwinMacSetTextInput(platform, slot, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinMacSetTextCaret(platform, slot, request->value.caret);
     case mwin_requestClipboardWrite:
     case mwin_requestClipboardWriteData:
         return mwinMacWriteClipboard(platform);

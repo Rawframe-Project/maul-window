@@ -54,10 +54,11 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         return;
     case 1:
         Drain(program, context);
-        CHECK(mwinWindow_RequestTextInput(context, window, true,
-                                          (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
-                                          nullptr) == mwin_success,
-              "accept text");
+        CHECK(mwinWindow_RequestTextInput(context, window, true, nullptr) == mwin_success &&
+                  mwinWindow_RequestTextInputCaret(context, window,
+                                                   (mwinRect){10.0f, 20.0f, 1.0f, 16.0f},
+                                                   nullptr) == mwin_success,
+              "accept text, with the caret");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyB, 'b'));
         Post(context, Preedit(window, "\xE3\x81\x8B\xE3\x82\x93", 6, segments, 2));
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
@@ -69,10 +70,10 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
     case 2:
     {
         Drain(program, context);
-        static const mwinEventKind expected[] = {mwin_eventKeyDown, mwin_eventImePreedit,
-                                                 mwin_eventKeyUp, mwin_eventKeyDown,
-                                                 mwin_eventRequestCompleted};
-        CHECK(Types(program, expected, 5), "the composition consumes its character keys");
+        static const mwinEventKind expected[] = {
+            mwin_eventKeyDown, mwin_eventImePreedit,       mwin_eventKeyUp,
+            mwin_eventKeyDown, mwin_eventRequestCompleted, mwin_eventRequestCompleted};
+        CHECK(Types(program, expected, 6), "the composition consumes its character keys");
         CHECK(program->events[2].data.key.code == mwin_codeKeyB &&
                   program->events[3].data.key.code == mwin_codeEnter,
               "a key held from before is released; keys that type nothing pass");
@@ -114,8 +115,7 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
         return;
     case 4:
         Drain(program, context);
-        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, nullptr) == mwin_success,
               "stop accepting text mid-composition");
         return;
     default:
@@ -126,12 +126,12 @@ static void ComposeStep(Program* program, mwinContext* context, int step)
                   !state.textInput && !state.composing,
               "stopping ends the composition");
         bool enabled = true;
-        mwinRect caret = {1.0f, 1.0f, 1.0f, 1.0f};
+        mwinRect caret = {0};
         CHECK(mwinWindow_GetTestTextInput(context, window, &enabled, &caret) == mwin_success &&
-                  !enabled && caret.x == 0.0f && caret.height == 0.0f &&
+                  !enabled && caret.x == 10.0f && caret.height == 16.0f &&
                   mwinWindow_GetTestTextInput(context, window, &enabled, nullptr) ==
                       mwin_errorInvalid,
-              "and the test platform tells it stopped");
+              "and the test platform tells it stopped, the caret kept");
         program->done = true;
     }
 }
@@ -153,13 +153,13 @@ static void RefusalStep(Program* program, mwinContext* context, int step)
     event = Preedit(window, "abc", 1, many, 40);
     CHECK(mwinContext_PostTestEvent(context, &event) == mwin_errorLimit,
           "more segments than MWIN_MAX_PREEDIT_SEGMENTS");
-    CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
-                                      nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestTextInputCaret(context, window, (mwinRect){0.0f, 0.0f, -1.0f, 1.0f},
+                                           nullptr) == mwin_errorInvalid,
           "a negative caret");
-    CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){INFINITY, 0.0f, 1.0f, 1.0f},
-                                      nullptr) == mwin_errorInvalid &&
-              mwinWindow_RequestTextInput(context, window, true, (mwinRect){0.0f, NAN, 1.0f, 1.0f},
-                                          nullptr) == mwin_errorInvalid,
+    CHECK(mwinWindow_RequestTextInputCaret(context, window, (mwinRect){INFINITY, 0.0f, 1.0f, 1.0f},
+                                           nullptr) == mwin_errorInvalid &&
+              mwinWindow_RequestTextInputCaret(context, window, (mwinRect){0.0f, NAN, 1.0f, 1.0f},
+                                               nullptr) == mwin_errorInvalid,
           "a caret whose place is not finite");
     // "a", U+3042 in three bytes, "b": a caret inside the character, a
     // selection backwards and past the end, a segment reaching into the
@@ -258,8 +258,7 @@ static void LostStep(Program* program, mwinContext* context, int step)
         program->windows[0] = Create(context, nullptr);
         return;
     case 1:
-        CHECK(mwinWindow_RequestTextInput(context, window, true, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, true, nullptr) == mwin_success,
               "accept text");
         Post(context, Preedit(window, "ab", 2, nullptr, 0));
         return;
@@ -286,8 +285,7 @@ static void LostStep(Program* program, mwinContext* context, int step)
               "the reset ends the composition shown");
         Post(context, Key(window, mwin_eventKeyDown, mwin_codeKeyK, 'k'));
         Post(context, Key(window, mwin_eventKeyUp, mwin_codeKeyK, 'k'));
-        CHECK(mwinWindow_RequestTextInput(context, window, false, (mwinRect){0}, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, window, false, nullptr) == mwin_success,
               "stop accepting text");
         return;
     case 5:

@@ -38,7 +38,26 @@ mwinResult mwinWindow_RequestVirtualKeyboard(mwinContext* context, mwinWindowId 
 }
 
 mwinResult mwinWindow_RequestTextInput(mwinContext* context, mwinWindowId window, bool enabled,
-                                       mwinRect caret, mwinRequestId* requestOut)
+                                       mwinRequestId* requestOut)
+{
+    mwinClearOut(requestOut, sizeof *requestOut);
+    if (mwinIsBusy(context))
+    {
+        return mwinBusy(context);
+    }
+    uint32_t slot = 0;
+    int32_t request = 0;
+    mwinResult status = mwinBeginRequest(context, window, mwin_requestTextInput, &slot, &request);
+    if (status == mwin_success)
+    {
+        context->windows[slot].requests[request].value.textInput = enabled;
+        mwinSubmitRequest(context, slot, request, requestOut);
+    }
+    return status;
+}
+
+mwinResult mwinWindow_RequestTextInputCaret(mwinContext* context, mwinWindowId window,
+                                            mwinRect caret, mwinRequestId* requestOut)
 {
     mwinClearOut(requestOut, sizeof *requestOut);
     if (mwinIsBusy(context))
@@ -52,12 +71,11 @@ mwinResult mwinWindow_RequestTextInput(mwinContext* context, mwinWindowId window
     }
     uint32_t slot = 0;
     int32_t request = 0;
-    mwinResult status = mwinBeginRequest(context, window, mwin_requestTextInput, &slot, &request);
+    mwinResult status =
+        mwinBeginRequest(context, window, mwin_requestTextInputCaret, &slot, &request);
     if (status == mwin_success)
     {
-        mwinRequest* entry = &context->windows[slot].requests[request];
-        entry->value.textInput.enabled = enabled;
-        entry->value.textInput.caret = caret;
+        context->windows[slot].requests[request].value.caret = caret;
         mwinSubmitRequest(context, slot, request, requestOut);
     }
     return status;

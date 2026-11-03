@@ -215,6 +215,7 @@ extern "C"
         mwin_requestClipboardReadData = 26,
         mwin_requestPrimaryWrite = 27,
         mwin_requestPrimaryRead = 28,
+        mwin_requestTextInputCaret = 29,
     };
 
     // How a request ended.

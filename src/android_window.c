@@ -168,8 +168,9 @@ static int CarryOut(mwinAndroidPlatform* platform, uint32_t slot, uint32_t index
         // The window shows with its activity: asking it to show is done.
         return request->value.visible ? mwin_outcomeDone : mwin_outcomeUnsupported;
     case mwin_requestTextInput:
-        return mwinAndroidSetTextInput(platform, request->value.textInput.enabled,
-                                       request->value.textInput.caret);
+        return mwinAndroidSetTextInput(platform, request->value.textInput);
+    case mwin_requestTextInputCaret:
+        return mwinAndroidSetTextCaret(platform, request->value.caret);
     case mwin_requestFileDialog:
         return mwinAndroidAskDialog(platform, slot, index);
     case mwin_requestClipboardWrite:

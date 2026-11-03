@@ -132,9 +132,11 @@ static void Advance(Program* program, mwinContext* context)
         program->hwnd = handles.handles.win32.hwnd;
         CHECK(ImmGetContext(program->hwnd) == nullptr, "no input context before text is asked");
         SetForegroundWindow(program->hwnd);
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
-                  mwin_success,
-              "accept text");
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window, caret, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
+                      mwin_success,
+              "accept text, with the caret");
         break;
     }
     case phaseEnable:
@@ -163,8 +165,7 @@ static void Advance(Program* program, mwinContext* context)
     }
     case phaseRecompose:
         CHECK(Composing(&preedit->data.preedit), "composing again");
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "stop accepting text");
         break;
     default:

@@ -254,9 +254,11 @@ static void Advance(Program* program, mwinContext* context)
     {
     case 0:
         CHECK(view != nil && RomanOnly(view), "only Roman layouts without text input");
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true,
-                                          (mwinRect){10.0f, 20.0f, 2.0f, 16.0f},
-                                          nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window,
+                                               (mwinRect){10.0f, 20.0f, 2.0f, 16.0f},
+                                               nullptr) == mwin_success &&
+                  mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
+                      mwin_success,
               "text input on");
         break;
     case 1:
@@ -294,8 +296,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 6:
         CheckPlain(program);
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, (mwinRect){0},
-                                          nullptr) == mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "text input off");
         break;
     case 7:

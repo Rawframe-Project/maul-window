@@ -165,9 +165,11 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
         break;
     case phaseFocus:
-        CHECK(mwinWindow_RequestTextInput(context, program->window, true, caret, nullptr) ==
-                  mwin_success,
-              "accept text");
+        CHECK(mwinWindow_RequestTextInputCaret(context, program->window, caret, nullptr) ==
+                      mwin_success &&
+                  mwinWindow_RequestTextInput(context, program->window, true, nullptr) ==
+                      mwin_success,
+              "accept text, with the caret");
         break;
     case phaseEnable:
         CHECK(Focused() == 1 && FieldAt(10.0f, 20.0f) &&
@@ -203,8 +205,7 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseRecompose:
         CHECK(preedit->data.preedit.caret == 3, "a caret inside the composition");
-        CHECK(mwinWindow_RequestTextInput(context, program->window, false, caret, nullptr) ==
-                  mwin_success,
+        CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "stop accepting text");
         break;
     case phaseDisable:

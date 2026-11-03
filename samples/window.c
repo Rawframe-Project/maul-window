@@ -63,7 +63,8 @@ static void OnKey(Sample* sample, mwinContext* context, const mwinKeyEvent* key)
         sample->texting = true;
         // The caret near the top left, for the input method's windows.
         mwinRect caret = {20.0f, 20.0f, 2.0f, 20.0f};
-        (void)mwinWindow_RequestTextInput(context, sample->window, true, caret, nullptr);
+        (void)mwinWindow_RequestTextInputCaret(context, sample->window, caret, nullptr);
+        (void)mwinWindow_RequestTextInput(context, sample->window, true, nullptr);
         printf("accepting text; Escape stops\n");
     }
 }
@@ -97,8 +98,7 @@ static bool Show(Sample* sample, mwinContext* context, const mwinEvent* event)
         if (event->data.key.code == mwin_codeEscape && sample->texting)
         {
             sample->texting = false;
-            (void)mwinWindow_RequestTextInput(context, sample->window, false, (mwinRect){0},
-                                              nullptr);
+            (void)mwinWindow_RequestTextInput(context, sample->window, false, nullptr);
             printf("not accepting text\n");
             break;
         }

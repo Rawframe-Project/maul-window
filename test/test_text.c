@@ -129,18 +129,41 @@ static void TestCutUtf16(void)
           "an unpaired surrogate as U+FFFD");
     CHECK(mwinCutUtf16(nullptr, 0, out, 64) == 0 && Cut("abc", nullptr, 0, 0, nullptr) == 0,
           "nothing for no units or no room");
-    // Units said to be a million, held up to 66: a cut of 64 reads no
-    // more than capacity + 2, where AddressSanitizer would see it.
-    uint16_t* many = malloc(66 * sizeof(uint16_t));
+    // Units said to be a million, held up to 64: a cut of 64 reads no
+    // more than capacity, where AddressSanitizer would see it.
+    uint16_t* many = malloc(64 * sizeof(uint16_t));
     if (many != nullptr)
     {
-        for (size_t i = 0; i < 66; i++)
+        for (size_t i = 0; i < 64; i++)
         {
             many[i] = 'x';
         }
         CHECK(mwinCutUtf16(many, 1u << 20, out, 64) == 64, "no more read than the cut needs");
         free(many);
     }
+}
+
+static void TestBytesBefore(void)
+{
+    // a, e acute (2 bytes), U+1F3AE (4 bytes, a pair), U+FFFD for a
+    // stray continuation byte, b.
+    static const char text[] = "a\xC3\xA9\xF0\x9F\x8E\xAE\x80"
+                               "b";
+    size_t length = sizeof(text) - 1;
+    CHECK(mwinBytesBefore(text, length, muni_unitUtf16, 0) == 0 &&
+              mwinBytesBefore(text, length, muni_unitUtf16, 2) == 3 &&
+              mwinBytesBefore(text, length, muni_unitUtf16, 4) == 7,
+          "UTF-16 units, a pair as two");
+    CHECK(mwinBytesBefore(text, length, muni_unitUtf16, 3) == 3,
+          "a count inside a pair ends before it");
+    CHECK(mwinBytesBefore(text, length, muni_unitUtf16, 5) == 8 &&
+              mwinBytesBefore(text, length, muni_unitUtf16, 6) == 9 &&
+              mwinBytesBefore(text, length, muni_unitUtf16, 100) == 9,
+          "an ill-formed byte as one unit, and the whole text past its end");
+    CHECK(mwinBytesBefore(text, length, muni_unitCodePoint, 3) == 7 &&
+              mwinBytesBefore(text, length, muni_unitCodePoint, 4) == 8,
+          "code points, as IBus counts them");
+    CHECK(mwinBytesBefore(nullptr, 0, muni_unitUtf16, 3) == 0, "nothing in no text");
 }
 
 static void TestBackendText(void)
@@ -153,6 +176,7 @@ int main(void)
 {
     TestFitAtTheEnds();
     TestCutUtf16();
+    TestBytesBefore();
     TestBackendText();
     return s_failures == 0 ? 0 : 1;
 }

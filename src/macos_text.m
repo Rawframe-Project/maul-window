@@ -14,6 +14,7 @@
 #include "allocator.h"
 #include "apple_text.h"
 #include "macos.h"
+#include "utf8.h"
 
 static void Post(mwinMacPlatform* platform, uint32_t slot, mwinEvent* event)
 {
@@ -92,18 +93,21 @@ static mwinPreeditStyle StyleOf(id string, NSRange range)
                                                            : mwin_preeditUnderline;
 }
 
-// The clauses of marked text in bytes, neighbours of one style joined;
-// past the last segment the rest joins it. Returns the count, with the
-// target clauses' span in *preedit's selection when there is one.
+// The clauses of marked text in bytes of *preedit's text, neighbours of
+// one style joined; past the last segment the rest joins it. Returns the
+// count, with the target clauses' span in *preedit's selection when
+// there is one.
 static uint32_t Segment(id string, NSString* text, mwinPreeditSegment* segments,
                         mwinPreeditEvent* preedit)
 {
     __block uint32_t count = 0;
     __block bool targeted = false;
+    const char* bytes = preedit->text;
+    size_t length = preedit->length;
     void (^add)(NSRange) = ^(NSRange range) {
       mwinPreeditStyle style = StyleOf(string, range);
-      uint32_t start = mwinAppleBytesBefore(text, range.location);
-      uint32_t end = mwinAppleBytesBefore(text, NSMaxRange(range));
+      uint32_t start = (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, range.location);
+      uint32_t end = (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, NSMaxRange(range));
       if (count == 0 || (segments[count - 1].style != style && count < MWIN_MAX_PREEDIT_SEGMENTS))
       {
           segments[count++] = (mwinPreeditSegment){start, 0, style};
@@ -173,11 +177,13 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     preedit->length = (uint32_t)length;
     // The caret follows the method's selection, whose span is the
     // selection when no clause is marked as the target.
-    uint32_t start = selected.location != NSNotFound ? mwinAppleBytesBefore(text, selected.location)
-                                                     : (uint32_t)length;
-    uint32_t end = selected.location != NSNotFound
-                       ? mwinAppleBytesBefore(text, NSMaxRange(selected))
-                       : (uint32_t)length;
+    bool placed = selected.location != NSNotFound;
+    uint32_t start =
+        placed ? (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, selected.location)
+               : (uint32_t)length;
+    uint32_t end =
+        placed ? (uint32_t)mwinBytesBefore(bytes, length, muni_unitUtf16, NSMaxRange(selected))
+               : (uint32_t)length;
     preedit->caret = (int32_t)end;
     preedit->selectionStart = start;
     preedit->selectionEnd = end;

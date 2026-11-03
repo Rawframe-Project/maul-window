@@ -25,11 +25,6 @@
 // How long a key waits for the input method's answer.
 #define KEY_DEADLINE_NS 100000000u
 
-// The bytes of committed text and of a composition kept; more is cut
-// at a character's start.
-#define COMMIT_BYTES  1024
-#define PREEDIT_BYTES 512
-
 enum
 {
     frameworkNone = 0,
@@ -121,17 +116,29 @@ static void EndComposition(mwinLinuxIme* ime, int32_t slot)
     mwinPost(ime->context, (uint32_t)slot, &end);
 }
 
+// Tells the window with the focus that its text state could not follow
+// the input method's.
+static void PostReset(mwinLinuxIme* ime)
+{
+    mwinEvent reset = {0};
+    reset.kind = mwin_eventInputStateReset;
+    reset.timeNs = mwinMonotonicNow();
+    mwinPost(ime->context, (uint32_t)ime->focus, &reset);
+}
+
 static void PostText(mwinLinuxIme* ime, const char* bytes, size_t length)
 {
-    char text[COMMIT_BYTES];
+    char* text = ime->commit;
     if (ime->focus < 0 || bytes == nullptr)
     {
         return;
     }
-    // Repairing never shortens the text; what passes the bound is cut.
-    size_t needed = mwinRepairUtf8(bytes, length, nullptr);
-    if (needed > sizeof(text))
+    // Repairing never shortens the text, so text past the room is
+    // refused before it is read again.
+    size_t needed = length <= ime->capacity ? mwinRepairUtf8(bytes, length, nullptr) : length;
+    if (needed > ime->capacity)
     {
+        PostReset(ime);
         return;
     }
     (void)mwinRepairUtf8(bytes, length, text);
@@ -142,10 +149,12 @@ static void PostText(mwinLinuxIme* ime, const char* bytes, size_t length)
     mwinPost(ime->context, (uint32_t)ime->focus, &event);
 }
 
-// A composition being built: its text, segments, caret and selection.
+// A composition being built in the room for it, of capacity bytes: its
+// text, segments, caret and selection, and whether a part was left out.
 typedef struct Preedit
 {
-    char text[PREEDIT_BYTES];
+    char* text;
+    uint32_t capacity;
     uint32_t length;
     mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS];
     uint32_t count;
@@ -160,7 +169,7 @@ typedef struct Preedit
 static bool AddPart(Preedit* preedit, const char* bytes, mwinPreeditStyle style)
 {
     size_t length = bytes != nullptr ? strlen(bytes) : 0;
-    if (length > sizeof(preedit->text) - preedit->length ||
+    if (length > preedit->capacity - preedit->length ||
         preedit->count == MWIN_MAX_PREEDIT_SEGMENTS ||
         mwinRepairUtf8(bytes, length, nullptr) != length)
     {
@@ -183,6 +192,10 @@ static void PostPreedit(mwinLinuxIme* ime, const Preedit* preedit)
     {
         return;
     }
+    if (preedit->cut)
+    {
+        PostReset(ime);
+    }
     if (preedit->length == 0 || preedit->cut)
     {
         EndComposition(ime, ime->focus);
@@ -201,7 +214,7 @@ static void PostPreedit(mwinLinuxIme* ime, const Preedit* preedit)
 static void TakeFcitxPreedit(mwinLinuxIme* ime, DBusMessage* message)
 {
     const mwinDBusApi* api = &ime->bus->api;
-    Preedit preedit = {.caret = -1};
+    Preedit preedit = {.text = ime->preedit, .capacity = ime->capacity, .caret = -1};
     mwinDBusIter arguments;
     mwinDBusIter parts;
     if (!api->iterInit(message, &arguments) || api->argType(&arguments) != mwin_dbusTypeArray)
@@ -337,10 +350,11 @@ static void TakeIBusPreedit(mwinLinuxIme* ime, DBusMessage* message)
     {
         api->getBasic(&arguments, &visible);
     }
-    Preedit preedit = {.caret = -1};
+    Preedit preedit = {.text = ime->preedit, .capacity = ime->capacity, .caret = -1};
     size_t length = text != nullptr ? strlen(text) : 0;
-    if (visible && length > 0 && length <= sizeof(preedit.text) &&
-        mwinRepairUtf8(text, length, nullptr) == length)
+    bool fits = length <= preedit.capacity && mwinRepairUtf8(text, length, nullptr) == length;
+    preedit.cut = visible && length > 0 && !fits;
+    if (visible && length > 0 && fits)
     {
         // The marked part is the one being converted, the rest
         // underlined.
@@ -552,9 +566,15 @@ static void PumpCreate(mwinLinuxIme* ime, uint64_t nowNs)
     }
 }
 
-void mwinImeStart(mwinLinuxIme* ime, mwinContext* context, mwinLinuxBus* bus)
+void mwinImeStart(mwinLinuxIme* ime, mwinContext* context, mwinLinuxBus* bus, char* room)
 {
-    *ime = (mwinLinuxIme){.context = context, .bus = bus, .focus = -1};
+    uint32_t capacity = context->limits.textBytesPerWindow;
+    *ime = (mwinLinuxIme){.context = context,
+                          .bus = bus,
+                          .commit = room,
+                          .preedit = room + capacity,
+                          .capacity = capacity,
+                          .focus = -1};
 }
 
 void mwinImeFocus(mwinLinuxIme* ime, int32_t slot, mwinRect caret)

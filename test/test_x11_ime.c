@@ -7,7 +7,9 @@
 // gives it the focus and the caret in root coordinates, and a caret
 // that only widens is told again; a commit another program on the bus
 // sends at the context's path is left alone; "a" taken by the
-// method shows a composition and no key; Return commits it as text; "b",
+// method shows a composition and no key; Return commits it as text; a
+// commit of 2000 bytes arrives whole, and one a byte past the
+// textBytesPerWindow limit gives a reset and no text; "b",
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away; a key the
 // method has not answered when its window goes reaches no window made
@@ -38,6 +40,10 @@
 
 #define DEADLINE_NS 5000000000ull
 #define MAX_RECORDS 256
+// The context's textBytesPerWindow limit, and a commit within it past
+// what the input methods kept before.
+#define TEXT_BYTES 4096
+#define LONG_BYTES 2000
 // hygiene: C must beat B's 100 ms answer deadline, which a slow run misses
 #define ORDER_TRIES 5
 // X11 key codes on a US layout: evdev codes plus 8.
@@ -54,6 +60,8 @@ typedef enum Phase
     phaseMoved,
     phasePreedit,
     phaseCommit,
+    phaseLong,
+    phaseTooLong,
     phasePassed,
     phaseDisabled,
     phaseRefocused,
@@ -91,6 +99,10 @@ typedef struct Program
     mwinPreeditStyle style;
     int preedits;
     int ends;
+    // The length of the last text record, and the resets read.
+    size_t lastText;
+    int resets;
+    int resetsBefore;
     // The focus the method was told of before text input came back, the
     // window that went with a key held, and when its slot was made again.
     int focusIns;
@@ -104,6 +116,15 @@ typedef struct Program
 } Program;
 
 static const mwinRect s_caret = {10.0f, 20.0f, 2.0f, 16.0f};
+
+// Commits length bytes of "x" from the run's framework.
+static void Commit(Program* program, size_t length)
+{
+    static char text[TEXT_BYTES + 2];
+    memset(text, 'x', length);
+    text[length] = '\0';
+    FakeImeCommitText(program->bus, program->framework == 1, text);
+}
 
 static uint64_t NowNs(void)
 {
@@ -133,6 +154,11 @@ static void Collect(Program* program, mwinContext* context)
                    event.data.text.length);
             program->textLength += event.data.text.length;
         }
+        if (event.kind == mwin_eventTextInput)
+        {
+            program->lastText = event.data.text.length;
+        }
+        program->resets += event.kind == mwin_eventInputStateReset;
         if (event.kind == mwin_eventImePreedit && event.data.preedit.length == 0)
         {
             program->ends += 1;
@@ -235,6 +261,10 @@ static bool Ready(const Program* program, const mwinContext* context)
         return program->preedits > 0;
     case phaseCommit:
         return program->textLength > 0 && program->ends > 0;
+    case phaseLong:
+        return program->lastText == LONG_BYTES;
+    case phaseTooLong:
+        return program->resets > program->resetsBefore;
     case phasePassed:
         return CountKeys(program, mwin_codeKeyB) >= 2;
     case phaseDisabled:
@@ -340,6 +370,16 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(s_fakeIme.keycode == (fcitx ? KEYCODE_RETURN : KEYCODE_RETURN - 8u),
               "the key's code as the framework takes it");
         CHECK(s_fakeIme.releases > 0, "releases told as releases");
+        Commit(program, LONG_BYTES);
+        break;
+    case phaseLong:
+        CHECK(program->lastText == LONG_BYTES, "a commit past 1024 bytes arrives whole");
+        program->lastText = 0;
+        program->resetsBefore = program->resets;
+        Commit(program, TEXT_BYTES + 1);
+        break;
+    case phaseTooLong:
+        CHECK(program->lastText == 0, "a commit past the limit: a reset, no text");
         Press(program, KEYCODE_B);
         break;
     case phasePassed:
@@ -465,6 +505,7 @@ static void Run(xcb_connection_t* connection, FakeBus* bus, int framework)
                         .bus = bus,
                         .framework = framework};
     mwinAppDef def = mwinDefaultAppDef();
+    def.context.limits.textBytesPerWindow = TEXT_BYTES;
     def.init = Init;
     def.frame = Frame;
     def.user = &program;

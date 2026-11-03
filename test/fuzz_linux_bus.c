@@ -72,6 +72,9 @@
 #define FILES        8u
 #define DIALOG_BYTES 4096u
 #define LOCALE_BYTES 256
+// The context's textBytesPerWindow limit: the input method's commits and
+// compositions past it are refused.
+#define TEXT_BYTES 1024
 // The calls a run can make: more than an input of 256 bytes asks for.
 #define CALLS   512
 #define FILTERS 8
@@ -181,6 +184,8 @@ static mwinLinuxLanguages s_languages;
 static char s_languageRoom[MWIN_LINUX_LANGUAGE_PARTS * LOCALE_BYTES];
 static mwinLinuxDialogs s_dialogs;
 static mwinLinuxIme s_ime;
+// The input method's room, for the context's textBytesPerWindow limit.
+static char s_imeRoom[MWIN_LINUX_IME_PARTS * TEXT_BYTES];
 static mwinLinuxInhibit s_inhibit;
 // The wish to keep the display awake; whether inhibit's code runs, so
 // what it sends is told from the dialogs' Close; and the inhibition it
@@ -1373,7 +1378,7 @@ static void Start(mwinContext* context)
     // It finds the stand-in, and no configuration folder.
     mwinLanguagesStart(&s_languages, context, &s_system, s_languageRoom, "en-US", 5, now);
     mwinDialogsStart(&s_dialogs, context, &s_session);
-    mwinImeStart(&s_ime, context, &s_session);
+    mwinImeStart(&s_ime, context, &s_session, s_imeRoom);
     s_test = context->backend;
     s_ops = *s_test;
     s_ops.submit = Submit;
@@ -1595,6 +1600,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.dialogFiles = FILES;
     def.context.limits.dialogBytes = DIALOG_BYTES;
     def.context.limits.localeBytes = LOCALE_BYTES;
+    def.context.limits.textBytesPerWindow = TEXT_BYTES;
     def.init = Init;
     def.frame = Frame;
     Expect(mwinRun(&def) == mwin_success);

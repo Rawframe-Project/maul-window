@@ -32,6 +32,10 @@
 #include <hidpi.h>
 
 #define MWIN_WIN32_HID_PADS 8
+// The bytes of one raw input read at once: its header and its reports.
+// A device whose input report does not fit beside the header is turned
+// away, since none of its reports could be read.
+#define MWIN_WIN32_HID_INPUT_BYTES 1024
 // The Generic Desktop usage of a multi-axis controller, which MinGW's
 // headers do not name.
 #define MWIN_HID_MULTI_AXIS 0x08

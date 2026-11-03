@@ -40,6 +40,7 @@
 #define VENDOR   ((HANDLE)0x55)
 #define WHEEL    ((HANDLE)0x66)
 #define EMPTY    ((HANDLE)0x77)
+#define LARGE    ((HANDLE)0x88)
 
 // A report of the stand-in's: the Button page's usages down, as bits
 // from usage 1, and each Generic Desktop value by usage from X.
@@ -59,7 +60,7 @@ typedef struct Device
     DWORD product;
 } Device;
 
-#define DEVICES 7
+#define DEVICES 8
 
 static const Device s_devices[DEVICES] = {
     {PAD, L"\\\\?\\HID#VID_054C&PID_05C4#pad", HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_GAMEPAD,
@@ -77,6 +78,9 @@ static const Device s_devices[DEVICES] = {
      HID_USAGE_GENERIC_JOYSTICK, 0x7777, 0x8888},
     {EMPTY, L"\\\\?\\HID#VID_9999&PID_AAAA#empty", HID_USAGE_PAGE_GENERIC,
      HID_USAGE_GENERIC_GAMEPAD, 0x9999, 0xAAAA},
+    // The pad's buttons, in a report too long for a raw input read.
+    {LARGE, L"\\\\?\\HID#VID_BBBB&PID_CCCC#large", HID_USAGE_PAGE_GENERIC,
+     HID_USAGE_GENERIC_GAMEPAD, 0xBBBB, 0xCCCC},
 };
 
 static mwinWin32Hid s_hid;
@@ -193,7 +197,7 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
 // then Rx and Ry, and one of a vendor's page; the stick's buttons 3,
 // then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider, a
 // dial of one value and a hat of the widest range, no buttons; none for
-// the empty one.
+// the empty one; the stick's values for the large one.
 static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 {
     if (owner == EMPTY)
@@ -240,8 +244,10 @@ static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
 {
     HIDP_VALUE_CAPS values[8];
     HANDLE owner = Owner(data);
-    *caps = (HIDP_CAPS){.NumberInputButtonCaps = owner == PAD ? 1 : (owner == STICK ? 2 : 0),
-                        .NumberInputValueCaps = ValueCaps(Owner(data), values)};
+    *caps = (HIDP_CAPS){
+        .InputReportByteLength = owner == LARGE ? MWIN_WIN32_HID_INPUT_BYTES : sizeof(Report),
+        .NumberInputButtonCaps = owner == PAD || owner == LARGE ? 1 : (owner == STICK ? 2 : 0),
+        .NumberInputValueCaps = ValueCaps(Owner(data), values)};
     return HIDP_STATUS_SUCCESS;
 }
 
@@ -249,7 +255,7 @@ static NTSTATUS NTAPI ButtonCaps(HIDP_REPORT_TYPE type, PHIDP_BUTTON_CAPS caps, 
                                  PHIDP_PREPARSED_DATA data)
 {
     (void)type;
-    if (Owner(data) == PAD)
+    if (Owner(data) == PAD || Owner(data) == LARGE)
     {
         caps[0] = Buttons(1, 14);
         *count = 1;
@@ -397,7 +403,8 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
     CHECK(added == 3 && mwinGamepad_GetInfo(context, ids[0], &pad) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[1], &stick) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success,
-          "of the devices, the pad, the stick and the wheel gamepads, once");
+          "of the devices, the pad, the stick and the wheel gamepads, once, and not the one whose "
+          "report a raw input read cannot hold");
     CHECK(!wheel.mapped && wheel.rawButtonCount == 0 && wheel.rawAxisCount == 6,
           "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");

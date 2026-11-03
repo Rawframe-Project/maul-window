@@ -42,7 +42,7 @@ typedef struct mwinWebWindow
     mwinCursorMode cursorMode;
     mwinCursorShape cursorShape;
     mwinCursorId cursorImage;
-    uint8_t buttons;
+    mwinMouseButtons buttons;
     mwinClickCounter clickCounter;
     mwinPenFlags penFlags;
 } mwinWebWindow;

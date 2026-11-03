@@ -233,7 +233,7 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
         // Button 0, which names none; another program can send it.
         return;
     }
-    uint8_t bit = (uint8_t)(1u << (button - 1));
+    mwinMouseButtons bit = mwinMouseBit(button);
     if (pressed)
     {
         uint8_t clicks = mwinCountClick(&pointer->clickCounter, button, pointer->position, timeNs);
@@ -251,7 +251,7 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
     }
     else
     {
-        pointer->buttons &= (uint8_t)~bit;
+        pointer->buttons &= ~bit;
     }
     PostPointer(platform, (uint32_t)slot, pressed ? mwin_eventButtonDown : mwin_eventButtonUp,
                 button, timeNs);

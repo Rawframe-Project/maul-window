@@ -45,7 +45,7 @@ typedef struct mwinIOSWindow
     int32_t monitor;
     mwinWindowMode mode;
     // The pointer's buttons held over the view (bit b - 1 for button b).
-    uint8_t buttons;
+    mwinMouseButtons buttons;
     // Whether the window accepts text and where its caret is; whether
     // the program asked for the on-screen keyboard, for what; the part of
     // the window the keyboard covers, as last posted.

@@ -120,7 +120,7 @@ typedef struct mwinAndroidPointers
     bool penContact;
     bool penBarrel;
     bool cursorInside;
-    uint8_t buttons;
+    mwinMouseButtons buttons;
     uint32_t androidButtons;
     mwinClickCounter clickCounter;
     uint64_t doubleClickNs;

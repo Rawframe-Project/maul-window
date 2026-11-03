@@ -292,13 +292,13 @@ static void OnMouse(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecor
     }
     else if (pressed)
     {
-        window->buttons |= (uint8_t)(1u << (button - 1));
+        window->buttons |= mwinMouseBit(button);
         (void)mwinCountClick(&window->clickCounter, button, position,
                              mwinWebNanoseconds(record->timeMs));
     }
     else
     {
-        window->buttons &= (uint8_t)~(1u << (button - 1));
+        window->buttons &= ~mwinMouseBit(button);
     }
     if ((pressed || released) && button == 0)
     {

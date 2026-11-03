@@ -262,7 +262,7 @@ static void OnButton(mwinWin32Window* window, UINT message, WPARAM wParam, LPARA
     bool down = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN ||
                 message == WM_MBUTTONDOWN || message == WM_XBUTTONDOWN;
     mwinPosition position = PositionOf(window, place);
-    uint8_t bit = (uint8_t)(1u << (button - 1));
+    mwinMouseButtons bit = mwinMouseBit(button);
     if (down)
     {
         if (window->buttons == 0)
@@ -277,7 +277,7 @@ static void OnButton(mwinWin32Window* window, UINT message, WPARAM wParam, LPARA
     }
     else
     {
-        window->buttons &= (uint8_t)~bit;
+        window->buttons &= ~bit;
         if (window->buttons == 0)
         {
             ReleaseCapture();

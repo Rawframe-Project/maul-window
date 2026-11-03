@@ -12,10 +12,21 @@
 #include "maul-window/input.h"
 #include "maul-window/window.h"
 
+#include <limits.h>
 #include <math.h>
 
 #define MWIN_DOUBLE_CLICK_NS       500000000u
 #define MWIN_DOUBLE_CLICK_DISTANCE 4.0f
+
+static_assert(mwin_buttonForward <= (int)(sizeof(mwinMouseButtons) * CHAR_BIT),
+              "every mouse button has a bit of mwinMouseButtons");
+
+// A button's bit in a set of held buttons: bit b - 1 for button b, one
+// of the mwin_button values.
+static inline mwinMouseButtons mwinMouseBit(mwinMouseButton button)
+{
+    return (mwinMouseButtons)1u << (button - 1);
+}
 
 // The last press: its button, time and place, and the clicks it made.
 typedef struct mwinClickCounter

@@ -207,7 +207,7 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     // Motion of the same frame comes first.
     Flush(platform);
     uint64_t timeNs = mwinMonotonicFromMilliseconds(time);
-    uint8_t bit = (uint8_t)(1u << (button - 1));
+    mwinMouseButtons bit = mwinMouseBit(button);
     if (state == WL_POINTER_BUTTON_STATE_PRESSED)
     {
         uint8_t clicks = mwinCountClick(&pointer->clickCounter, button, pointer->position, timeNs);
@@ -226,7 +226,7 @@ static void OnButton(void* data, struct wl_pointer* object, uint32_t serial, uin
     }
     else
     {
-        pointer->buttons &= (uint8_t)~bit;
+        pointer->buttons &= ~bit;
         PostPointer(platform, mwin_eventButtonUp, button, timeNs);
     }
 }

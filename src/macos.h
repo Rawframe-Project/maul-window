@@ -38,7 +38,7 @@ typedef struct mwinMacWindow
     mwinWindowMode mode;
     // The mouse buttons held over the view (bit b - 1 for button b), and
     // whether the pointer is over it.
-    uint8_t buttons;
+    mwinMouseButtons buttons;
     bool pointerInside;
     // The cursor asked for: a shape, or a cursor made from images when
     // cursorImage is live.

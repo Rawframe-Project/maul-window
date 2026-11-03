@@ -5,10 +5,10 @@
 // which types, moves the mouse, touches and draws with a pen as the test
 // asks: a captured cursor refused before any gesture, keys with their
 // codes, meanings and text, Shift, a repeat, a
-// named key, the pointer entering and moving, a double click, a chord of
-// two buttons, the wheel,
-// cursor shapes, a cursor made from images and let go when destroyed, a hidden cursor, no
-// confinement, a touch, a pen, and a captured cursor with raw motion after a click.
+// named key, a key another script gives a lone surrogate typing U+FFFD, the pointer entering and
+// moving, a double click, a chord of two buttons, the wheel, cursor shapes, a cursor made from
+// images and let go when destroyed, a hidden cursor, no confinement, a touch, a pen, and a captured
+// cursor with raw motion after a click.
 
 #include "cursor_images.h"
 #include "test_harness.h"
@@ -31,6 +31,7 @@ typedef enum Phase
     phaseShift,
     phaseRepeat,
     phaseNamed,
+    phaseLone,
     phasePointer,
     phaseClicks,
     phaseChord,
@@ -69,6 +70,16 @@ typedef struct Program
 EM_JS_DEPS(test_web_input, "$UTF8ToString");
 
 // clang-format off
+// Dispatches a press and release of A on the canvas whose key is a lone
+// U+D800, as another script on the page can.
+EM_JS(void, PressLone, (const char* selector), {
+    const canvas = document.querySelector(UTF8ToString(selector));
+    const key = String.fromCharCode(0xD800);
+    for (const type of ['keydown', 'keyup']) {
+        canvas.dispatchEvent(new KeyboardEvent(type, {code: 'KeyA', key, bubbles: true}));
+    }
+});
+
 EM_JS(bool, CursorIs, (const char* selector, const char* cursor), {
     return document.querySelector(UTF8ToString(selector)).style.cursor === UTF8ToString(cursor);
 });
@@ -141,6 +152,7 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventFocusGained, 0) != nullptr;
     case phaseKeys:
     case phaseNamed:
+    case phaseLone:
         return Find(program, mwin_eventKeyUp, 0) != nullptr;
     case phaseShift:
         return Find(program, mwin_eventKeyUp, 1) != nullptr;
@@ -205,10 +217,15 @@ static void AdvanceKeys(Program* program, mwinContext* context)
               "a repeat, typing again");
         Ask(program, "key", "Enter");
         break;
-    default:
+    case phaseNamed:
         CHECK(down != nullptr && down->data.key.key == (MWIN_KEY_NAMED | mwin_codeEnter) &&
                   program->textLength == 0,
               "a named key, typing nothing");
+        PressLone(program->selector);
+        break;
+    default:
+        CHECK(TextIs(program, "\xEF\xBF\xBD"),
+              "a key whose character is a lone surrogate types U+FFFD");
         Ask(program, "move", " 100 50");
         break;
     }
@@ -418,7 +435,7 @@ static void Advance(Program* program, mwinContext* context)
               "the pointer not locked without a gesture");
         CHECK(mwinWindow_RequestFocus(context, program->window, nullptr) == mwin_success, "focus");
     }
-    else if (program->phase <= phaseNamed)
+    else if (program->phase <= phaseLone)
     {
         AdvanceKeys(program, context);
     }

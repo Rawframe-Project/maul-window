@@ -327,7 +327,7 @@ static bool AreSegmentsReadable(const mwinPreeditEvent* preedit)
 static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 {
     const char* text = record->data.text.text;
-    uint32_t length = record->data.text.length;
+    size_t length = record->data.text.length;
     bool preedit = record->kind == mwin_eventImePreedit;
     uint32_t segments = preedit ? record->data.preedit.segmentCount : 0;
     if ((text == nullptr && length != 0) || muniValidateUtf8(text, length).status != muni_success ||
@@ -335,12 +335,12 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
     {
         return false;
     }
-    uint32_t kept = mwinKeptTextBytes(text, length);
+    size_t kept = mwinKeptTextBytes(text, length);
     if (!preedit && kept == 0)
     {
         return false;
     }
-    uint32_t segmentBytes = segments * (uint32_t)sizeof(mwinPreeditSegment);
+    size_t segmentBytes = segments * sizeof(mwinPreeditSegment);
     if (kept + segmentBytes == 0)
     {
         record->data.text.text = "";
@@ -351,8 +351,13 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
         }
         return true;
     }
-    unsigned char* block = mwinReserveText(&context->windows[slot].text, segmentBytes + kept,
-                                           alignof(mwinPreeditSegment));
+    // Text past what a ring's sizes can name finds no room, as text past
+    // the ring's own room does.
+    unsigned char* block =
+        kept <= UINT32_MAX - segmentBytes
+            ? mwinReserveText(&context->windows[slot].text, (uint32_t)(segmentBytes + kept),
+                              alignof(mwinPreeditSegment))
+            : nullptr;
     if (block == nullptr)
     {
         PostReset(context, slot, record->timeNs);
@@ -401,8 +406,8 @@ static bool Consumed(mwinWindow* window, const mwinEvent* record)
 }
 
 // Posts a piece of a text record, if it holds any bytes.
-static void PostPiece(mwinContext* context, uint32_t slot, const mwinEvent* record, uint32_t start,
-                      uint32_t end)
+static void PostPiece(mwinContext* context, uint32_t slot, const mwinEvent* record, size_t start,
+                      size_t end)
 {
     if (end > start)
     {
@@ -431,7 +436,7 @@ static void PostTap(mwinContext* context, uint32_t slot, uint64_t timeNs, mwinKe
 static bool PostTyped(mwinContext* context, uint32_t slot, const mwinEvent* record)
 {
     const char* text = record->data.text.text;
-    uint32_t length = record->data.text.length;
+    size_t length = record->data.text.length;
     if (record->kind != mwin_eventTextInput || text == nullptr ||
         (memchr(text, '\t', length) == nullptr && memchr(text, '\n', length) == nullptr &&
          memchr(text, '\r', length) == nullptr) ||
@@ -439,8 +444,8 @@ static bool PostTyped(mwinContext* context, uint32_t slot, const mwinEvent* reco
     {
         return false;
     }
-    uint32_t start = 0;
-    for (uint32_t i = 0; i < length; i++)
+    size_t start = 0;
+    for (size_t i = 0; i < length; i++)
     {
         if (text[i] != '\t' && text[i] != '\n' && text[i] != '\r')
         {

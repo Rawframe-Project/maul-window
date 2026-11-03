@@ -235,7 +235,9 @@ static void TestStorage(void)
 {
     Program program = {.step = StorageStep};
     mwinContextDef def = mwinDefaultContextDef();
-    def.limits.textBytesPerWindow = 64;
+    // Room for two compositions of ten bytes and a segment each, aligned,
+    // since the older one is still stored while the newer replaces it.
+    def.limits.textBytesPerWindow = 96;
     CHECK(RunWith(&program, def) == mwin_success, "the program runs");
 }
 

@@ -36,10 +36,10 @@ typedef struct Record
 {
     mwinEventKind kind;
     char text[32];
-    uint32_t length;
-    int32_t caret;
-    uint32_t selectionStart;
-    uint32_t selectionEnd;
+    size_t length;
+    ptrdiff_t caret;
+    size_t selectionStart;
+    size_t selectionEnd;
     mwinPreeditSegment segments[4];
     uint32_t segmentCount;
     mwinOutcome outcome;
@@ -72,7 +72,7 @@ static void Keep(Record* record, const mwinEvent* event)
     }
     const char* text =
         event->kind == mwin_eventTextInput ? event->data.text.text : event->data.preedit.text;
-    uint32_t length =
+    size_t length =
         event->kind == mwin_eventTextInput ? event->data.text.length : event->data.preedit.length;
     record->length = length;
     memcpy(record->text, text, length < 31 ? length : 31);

@@ -410,7 +410,7 @@ static bool IsUtf8(const char* text, size_t length)
            (text != nullptr && muniValidateUtf8(text, length).status == muni_success);
 }
 
-static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
+static bool OnBoundary(const char* text, size_t length, size_t at)
 {
     return at <= length && (at == length || ((unsigned char)text[at] & 0xC0u) != 0x80u);
 }
@@ -428,9 +428,9 @@ static bool Unit(float value)
 static void CheckPreedit(const mwinPreeditEvent* preedit)
 {
     const char* text = preedit->text;
-    uint32_t length = preedit->length;
+    size_t length = preedit->length;
     Expect(length <= TEXT && IsUtf8(text, length));
-    Expect(preedit->caret == -1 || OnBoundary(text, length, (uint32_t)preedit->caret));
+    Expect(preedit->caret == -1 || OnBoundary(text, length, (size_t)preedit->caret));
     Expect(preedit->selectionStart <= preedit->selectionEnd &&
            OnBoundary(text, length, preedit->selectionStart) &&
            OnBoundary(text, length, preedit->selectionEnd));

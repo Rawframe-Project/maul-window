@@ -37,7 +37,7 @@ static void Take(const uint8_t** data, size_t* size, void* out, size_t bytes)
     *size -= taken;
 }
 
-static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
+static bool OnBoundary(const char* text, size_t length, size_t at)
 {
     return at <= length && (at == length || ((unsigned char)text[at] & 0xC0u) != 0x80u);
 }
@@ -45,15 +45,15 @@ static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
 static void Check(const mwinPreeditEvent* preedit)
 {
     const char* text = preedit->text;
-    uint32_t length = preedit->length;
-    for (uint32_t i = 0; i < length; i++)
+    size_t length = preedit->length;
+    for (size_t i = 0; i < length; i++)
     {
         unsigned char byte = (unsigned char)text[i];
         Expect(byte >= 0x20u && byte != 0x7Fu &&
                (byte != 0xC2u || i + 1 == length || (unsigned char)text[i + 1] >= 0xA0u));
     }
     Expect(preedit->caret >= -1 && preedit->caret <= (int64_t)length);
-    Expect(preedit->caret < 0 || OnBoundary(text, length, (uint32_t)preedit->caret));
+    Expect(preedit->caret < 0 || OnBoundary(text, length, (size_t)preedit->caret));
     Expect(preedit->selectionStart <= preedit->selectionEnd);
     Expect(OnBoundary(text, length, preedit->selectionStart) &&
            OnBoundary(text, length, preedit->selectionEnd));
@@ -90,8 +90,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     static char repaired[TEXT_BYTES * 3];
     static char text[TEXT_BYTES * 3];
     size_t raw = size < TEXT_BYTES ? size : TEXT_BYTES;
-    uint32_t length = (uint32_t)mwinRepairUtf8((const char*)data, raw, repaired);
-    uint32_t kept = mwinKeptTextBytes(repaired, length);
+    size_t length = mwinRepairUtf8((const char*)data, raw, repaired);
+    size_t kept = mwinKeptTextBytes(repaired, length);
     Expect(kept <= length);
     mwinPreeditEvent preedit = {text, kept, caret, selection[0], selection[1], segments, count};
     mwinCopyKeptText(text, repaired, length, &preedit, segments);

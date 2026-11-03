@@ -598,7 +598,7 @@ static mwinResult CheckText(const mwinEvent* event)
 // Copies a report, its text and its segments into the platform's queue.
 mwinResult mwinTestQueueReport(mwinTestPlatform* platform, const mwinEvent* event)
 {
-    uint32_t length = HasText(event->kind) ? event->data.text.length : 0;
+    size_t length = HasText(event->kind) ? event->data.text.length : 0;
     uint32_t segments = event->kind == mwin_eventImePreedit ? event->data.preedit.segmentCount : 0;
     if (platform->reportCount == MWIN_TEST_REPORTS ||
         MWIN_TEST_REPORT_TEXT - platform->reportTextUsed < length ||

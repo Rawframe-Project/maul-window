@@ -1198,7 +1198,7 @@ static bool IsTyped(const mwinEvent* event)
 }
 
 // Whether an offset falls on a character's start or the text's end.
-static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
+static bool OnBoundary(const char* text, size_t length, size_t at)
 {
     return at <= length && (at == length || ((unsigned char)text[at] & 0xC0u) != 0x80u);
 }
@@ -1206,9 +1206,9 @@ static bool OnBoundary(const char* text, uint32_t length, uint32_t at)
 static void CheckPreedit(const mwinPreeditEvent* preedit)
 {
     const char* text = preedit->text;
-    uint32_t length = preedit->length;
+    size_t length = preedit->length;
     Expect(IsUtf8(text, length) && !HasControl(text, length));
-    Expect(preedit->caret == -1 || OnBoundary(text, length, (uint32_t)preedit->caret));
+    Expect(preedit->caret == -1 || OnBoundary(text, length, (size_t)preedit->caret));
     Expect(preedit->selectionStart <= preedit->selectionEnd &&
            OnBoundary(text, length, preedit->selectionStart) &&
            OnBoundary(text, length, preedit->selectionEnd));

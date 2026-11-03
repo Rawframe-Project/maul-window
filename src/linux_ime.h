@@ -41,10 +41,18 @@ typedef struct mwinImeKey
     uint32_t length;
 } mwinImeKey;
 
+// The parts of an input method's room, each of the textBytesPerWindow
+// limit: a commit and a composition.
+#define MWIN_LINUX_IME_PARTS 2
+
 typedef struct mwinLinuxIme
 {
     mwinContext* context;
     mwinLinuxBus* bus;
+    // The room's parts, each of capacity bytes.
+    char* commit;
+    char* preedit;
+    uint32_t capacity;
     // The framework asked (0 none yet, then Fcitx or IBus), which ones
     // were tried, and whether the input context is made.
     uint8_t framework;
@@ -66,7 +74,9 @@ typedef struct mwinLinuxIme
     uint8_t taken[32];
 } mwinLinuxIme;
 
-void mwinImeStart(mwinLinuxIme* ime, mwinContext* context, mwinLinuxBus* bus);
+// Starts with a room of MWIN_LINUX_IME_PARTS times the context's
+// textBytesPerWindow limit.
+void mwinImeStart(mwinLinuxIme* ime, mwinContext* context, mwinLinuxBus* bus, char* room);
 
 // The window with the focus that takes text, or -1, and its caret in
 // root coordinates: the context is made the first time there is one.

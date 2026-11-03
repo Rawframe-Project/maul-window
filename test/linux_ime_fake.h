@@ -157,10 +157,10 @@ static inline void FakeImePreedit(FakeBus* fake, bool fcitx, bool composing)
     FakeImeEmit(fake, signal);
 }
 
-static inline void FakeImeCommit(FakeBus* fake, bool fcitx)
+// The framework's commit of text.
+static inline void FakeImeCommitText(FakeBus* fake, bool fcitx, const char* text)
 {
     void* arguments[16];
-    const char* text = IME_KANA;
     void* signal = fcitx ? fake->newSignal(IME_FCITX_PATH, IME_FCITX_CONTEXT, "CommitString")
                          : fake->newSignal(IME_IBUS_PATH, IME_IBUS_CONTEXT, "CommitText");
     fake->initAppend(signal, arguments);
@@ -173,6 +173,12 @@ static inline void FakeImeCommit(FakeBus* fake, bool fcitx)
         FakeImeIBusText(fake, arguments, text, 0);
     }
     FakeImeEmit(fake, signal);
+}
+
+// The framework's commit of "あ".
+static inline void FakeImeCommit(FakeBus* fake, bool fcitx)
+{
+    FakeImeCommitText(fake, fcitx, IME_KANA);
 }
 
 // ProcessKeyEvent: "a" composes, Return commits, the rest is left.

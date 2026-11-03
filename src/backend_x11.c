@@ -84,13 +84,14 @@ static mwinX11Platform* PlatformOf(const mwinContext* context)
 
 // Where the platform block's parts lie, laid out with checked
 // arithmetic: the platform, its windows and its outputs, and the room
-// of the services' languages.
+// of the services' languages and of the input method's text.
 typedef struct PlatformParts
 {
     mwinLayout layout;
     size_t windows;
     size_t outputs;
     size_t languages;
+    size_t ime;
 } PlatformParts;
 
 static PlatformParts PartsOf(const mwinLimits* limits)
@@ -103,6 +104,7 @@ static PlatformParts PartsOf(const mwinLimits* limits)
     parts.outputs =
         mwinLayoutAdd(layout, limits->monitors, sizeof(mwinX11Output), alignof(mwinX11Output));
     parts.languages = mwinLayoutAdd(layout, MWIN_LINUX_LANGUAGE_PARTS, limits->localeBytes, 1);
+    parts.ime = mwinLayoutAdd(layout, MWIN_LINUX_IME_PARTS, limits->textBytesPerWindow, 1);
     return parts;
 }
 
@@ -307,7 +309,7 @@ static mwinResult Start(mwinContext* context)
     platform->keyboard.focus = -1;
     platform->drag.slot = -1;
     mwinLinuxServicesStart(&platform->services, context, (char*)(block + parts.languages));
-    mwinImeStart(&platform->ime, context, &platform->services.bus);
+    mwinImeStart(&platform->ime, context, &platform->services.bus, (char*)(block + parts.ime));
     context->backendData = platform;
     mwinResult status = Connect(platform);
 #ifdef MAUL_WINDOW_GAMEPAD

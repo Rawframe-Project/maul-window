@@ -7,16 +7,29 @@ may change the API, the ABI and the behavior.
 
 ## [0.9.0](https://github.com/Rawframe-Project/maul-window/compare/v0.8.1...v0.9.0) (2026-11-03)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **x11:** on X11, each conversion of a drop goes into a read property of its own, the next of four, and takes only an answer to the drop's window that names its target and property, or no property. Another answer is left: the drop waits for its own or is delivered truncated after five seconds. A drop that ran out of time, or whose answer came in pieces, rests its property for a minute, and with all four resting a drop is delivered truncated at once.
-* **x11:** on X11, each clipboard or primary selection read uses a property of its own, the next of four, and takes only an answer that names its selection, target and property, or no property, and pieces only in that property. An answer for another read is left: the read waits for its own or fails after five seconds. A read that ran out of time or stopped taking pieces rests its property for a minute, and with all four resting a read fails at once.
-
-### Fixed
-
-* **x11:** take only a selection answer that names the read's own ([#423](https://github.com/Rawframe-Project/maul-window/issues/423)) ([72ccafc](https://github.com/Rawframe-Project/maul-window/commit/72ccafcb0ae9559c2ba10958ce5ca66211dfba35)), closes [#422](https://github.com/Rawframe-Project/maul-window/issues/422)
-* **x11:** take only the answer to a drop's own conversion ([#426](https://github.com/Rawframe-Project/maul-window/issues/426)) ([e4793e0](https://github.com/Rawframe-Project/maul-window/commit/e4793e0d29685e86857dc4ea396569fc5284ec4c)), closes [#424](https://github.com/Rawframe-Project/maul-window/issues/424)
+- **Breaking:** on X11, each clipboard or primary selection read uses a
+  property of its own, the next of four, and takes only an answer that
+  names its selection, target and property, or no property, and pieces
+  only in that property. Before, a read took any answer sent to its
+  window, so a late answer to a read that ran out of time answered the
+  next read with the earlier read's data. An answer for another read is
+  now left: the read waits for its own or fails after five seconds. A
+  read that ran out of time or stopped taking pieces rests its property
+  for a minute, and with all four resting a read fails at once
+  ([#423](https://github.com/Rawframe-Project/maul-window/pull/423)).
+- **Breaking:** on X11, each conversion of a drop goes into a property
+  of its own, the next of four, and takes only an answer to the drop's
+  window that names its target and property, or no property. Before,
+  any answer while a drop ran was taken, so a late answer to an earlier
+  drop delivered that drop's files or text with the next one. Another
+  answer is now left: the drop waits for its own or is delivered
+  truncated after five seconds. A drop that ran out of time, or whose
+  answer came in pieces, rests its property for a minute, and with all
+  four resting a drop is delivered at once with no files, no text and
+  `truncated` set
+  ([#426](https://github.com/Rawframe-Project/maul-window/pull/426)).
 
 ## [0.8.1](https://github.com/Rawframe-Project/maul-window/compare/v0.8.0...v0.8.1) (2026-11-03)
 

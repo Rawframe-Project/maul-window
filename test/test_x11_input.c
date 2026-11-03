@@ -18,6 +18,7 @@
 
 #include "maul-window/event.h"
 #include "maul-window/input.h"
+#include "maul-window/native.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,6 +88,31 @@ static void Fake(Program* program, uint8_t type, uint8_t detail, int16_t x, int1
 {
     xcb_test_fake_input(program->connection, type, detail, XCB_CURRENT_TIME, program->root, x, y,
                         0);
+    xcb_flush(program->connection);
+}
+
+// Sends the window a core press and release of a button, as another
+// program can.
+static void Send(Program* program, mwinContext* context, uint8_t detail)
+{
+    mwinNativeHandles handles;
+    CHECK(mwinWindow_GetNativeHandles(context, program->window, &handles) == mwin_success,
+          "the X window");
+    xcb_window_t window = (xcb_window_t)handles.handles.x11.window;
+    for (uint8_t type = XCB_BUTTON_PRESS; type <= XCB_BUTTON_RELEASE; type++)
+    {
+        union
+        {
+            xcb_button_press_event_t press;
+            char bytes[32];
+        } event = {0};
+        event.press.response_type = type;
+        event.press.detail = detail;
+        event.press.root = program->root;
+        event.press.event = window;
+        event.press.same_screen = 1;
+        xcb_send_event(program->connection, 0, window, XCB_EVENT_MASK_NO_EVENT, event.bytes);
+    }
     xcb_flush(program->connection);
 }
 
@@ -333,6 +359,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
         const mwinWheelEvent* right = &Find(program, mwin_eventWheel, 1)->data.wheel;
         CHECK(left->x == -1.0f && left->y == 0.0f && right->x == 1.0f && right->y == 0.0f,
               "buttons 6 and 7 turn it left and right");
+        // Button 0, which no device has but another program can send.
+        Send(program, context, 0);
         // The X server's pointer has ten buttons: the tenth is no one's.
         for (uint8_t button = 10; button >= 8; button -= 2)
         {
@@ -346,7 +374,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons ==
                       1u << (mwin_buttonBack - 1) &&
                   Find(program, mwin_eventButtonDown, 1) == nullptr,
-              "button 8 the back button, and the tenth left out");
+              "button 8 the back button, and button 0 and the tenth left out");
         CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==
                   mwin_success,
               "a text cursor");

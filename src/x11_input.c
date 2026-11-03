@@ -228,6 +228,11 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
         return;
     }
     mwinMouseButton button = buttons[event->detail];
+    if (button == 0)
+    {
+        // Button 0, which names none; another program can send it.
+        return;
+    }
     uint8_t bit = (uint8_t)(1u << (button - 1));
     if (pressed)
     {

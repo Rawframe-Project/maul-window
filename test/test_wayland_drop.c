@@ -14,7 +14,9 @@
 // drop for a window that goes while its reads are open, let go
 // unfinished and given to no window that takes the slot; a second enter
 // without a leave, which a compositor should not send, leaving the first
-// drag before it enters. Skipped (exit
+// drag before it enters; a drag that enters while a drop's reads are
+// open, refused and not reported, its drop reaching the program as
+// nothing, and the drop being read delivered after. Skipped (exit
 // status 77) without XDG_RUNTIME_DIR or xkb data.
 
 #include "test_harness.h"
@@ -45,6 +47,11 @@ typedef enum Phase
     phaseDropGone,
     phaseTwiceEnter,
     phaseTwice,
+    phaseBusyDrop,
+    phaseBusyEnter,
+    phaseBusyRefused,
+    phaseBusyDropped,
+    phaseBusyDone,
     phaseDone,
 } Phase;
 
@@ -192,6 +199,16 @@ static bool Ready(Program* program)
     case phaseTwiceEnter:
     case phaseTwice:
         return Find(program, mwin_eventDragEntered) != nullptr;
+    case phaseBusyDrop:
+        return Find(program, mwin_eventDragLeft) != nullptr;
+    case phaseBusyEnter:
+        return Find(program, mwin_eventDragEntered) != nullptr && DataHeldReads(program->data) == 2;
+    case phaseBusyRefused:
+        return NowNs() - program->startNs >= SETTLE_NS && DataDragState(program->data).accepts >= 1;
+    case phaseBusyDropped:
+        return NowNs() - program->startNs >= SETTLE_NS;
+    case phaseBusyDone:
+        return Find(program, mwin_eventDropped) != nullptr && DataDragState(program->data).finished;
     default:
         // The client's accept reaches the compositor at its next pump.
         return LeftAfterEntering(program) && DataDragState(program->data).accepts >= 1;
@@ -289,6 +306,34 @@ static void Advance(Program* program, mwinContext* context)
                                                  mwin_dragFiles | mwin_dragText),
               "a second enter without a leave leaves the first drag before it enters");
         DataDragEnd(data, false);
+        break;
+    case phaseBusyDrop:
+        // A drop whose reads stay open.
+        (void)DataHoldDrop(data, true);
+        DataDragEnter(data, 5.0, 5.0, "file:///tmp/x\r\n", "y");
+        DataDragEnd(data, true);
+        break;
+    case phaseBusyEnter:
+        CHECK(Find(program, mwin_eventDropped) == nullptr, "the drop waits for its reads");
+        // Another drag enters while they are open.
+        DataDragEnter(data, 8.0, 8.0, "file:///tmp/y\r\n", "z");
+        DataDragMotion(data, 9.0, 9.0);
+        break;
+    case phaseBusyRefused:
+    {
+        DataDrag drag = DataDragState(data);
+        CHECK(drag.accepted[0] == '\0' && DragRecords(program) == 0,
+              "a drag that enters while a drop's reads are open is refused and not reported");
+        DataDragEnd(data, true);
+        break;
+    }
+    case phaseBusyDropped:
+        CHECK(DragRecords(program) == 0 && DataHeldReads(data) == 2,
+              "and its drop reaches the program as nothing, with no read asked");
+        (void)DataHoldDrop(data, false);
+        break;
+    case phaseBusyDone:
+        CHECK(DragRecords(program) == 1, "the drop being read is delivered after");
         break;
     default:
         break;

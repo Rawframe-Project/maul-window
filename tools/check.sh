@@ -7,11 +7,13 @@
 #   tools/check.sh changed   the files changed against origin/main: the
 #                            source and test hygiene rules, formatting, the
 #                            documentation checks, clang-tidy in Release
-#                            and in Debug on the changed library sources,
-#                            and in the linux-clang-20-asan preset the
-#                            tests the changes reach, integration tests
-#                            left out. Under two minutes on built trees;
-#                            run it before every push.
+#                            and in Debug on the changed library sources
+#                            (on all of them when a library header
+#                            changed), and in the linux-clang-20-asan
+#                            preset the tests the changes reach,
+#                            integration tests left out. Under two
+#                            minutes on built trees; run it before every
+#                            push.
 #   tools/check.sh pr        what the pull request check runs on Linux:
 #                            every rule, the generated tables, the
 #                            documentation site, clang-tidy, the whole
@@ -166,9 +168,17 @@ if [ "$tier" = changed ]; then
         step "clang-format on ${#present[@]} changed files"
         clang-format --dry-run -Werror "${present[@]}"
     fi
+    # A changed header of the library's reaches sources that did not
+    # change, so it checks them all.
     sources=()
-    for f in "${present[@]+"${present[@]}"}"; do [[ $f == src/*.c ]] && sources+=("$f"); done
-    if [ ${#sources[@]} -gt 0 ]; then
+    headers=0
+    for f in "${present[@]+"${present[@]}"}"; do
+        [[ $f == src/*.c ]] && sources+=("$f")
+        [[ $f == src/*.h || $f == include/*.h ]] && headers=1
+    done
+    if [ $headers -eq 1 ]; then
+        tidy
+    elif [ ${#sources[@]} -gt 0 ]; then
         tidy "${sources[@]}"
     fi
     labels=""

@@ -105,7 +105,9 @@ EM_JS(uint32_t, mwinWebPadFacts, (uint32_t index, char* name, uint32_t capacity,
         actuator.effects.includes('trigger-rumble');
     HEAPU32[ids >> 2] = ((vendor << 16) | product) >>> 0;
     HEAPU32[(ids >> 2) + 1] = (rumble ? 1 : 0) | (triggers ? 2 : 0);
-    return stringToUTF8(text, name, capacity);
+    // Each lone surrogate as U+FFFD, which Emscripten's stringToUTF8
+    // would write as bytes that are not UTF-8.
+    return stringToUTF8(new TextDecoder().decode(new TextEncoder().encode(text)), name, capacity);
 });
 
 // Plays the four motors (heavy, light, left, right) as one effect, the

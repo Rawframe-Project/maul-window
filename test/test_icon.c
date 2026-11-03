@@ -90,7 +90,7 @@ static int Outcome(const Program* program, int request)
 
 static bool Holds(mwinContext* context, uint32_t expectedCount, uint64_t expectedChecksum)
 {
-    uint32_t count = 0;
+    size_t count = 0;
     uint64_t checksum = 0;
     return mwinContext_GetTestIcon(context, &count, &checksum) == mwin_success &&
            count == expectedCount && checksum == expectedChecksum;

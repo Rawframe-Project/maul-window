@@ -518,7 +518,7 @@ void mwinTestSetIcon(mwinContext* context, const mwinRequest* request)
     platform->iconChecksum = hash;
 }
 
-mwinResult mwinContext_GetTestIcon(const mwinContext* context, uint32_t* countOut,
+mwinResult mwinContext_GetTestIcon(const mwinContext* context, size_t* countOut,
                                    uint64_t* checksumOut)
 {
     mwinClearOut(countOut, sizeof *countOut);

@@ -589,7 +589,7 @@ extern "C"
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinContext_GetTestIcon(const mwinContext* context,
-                                                               uint32_t* countOut,
+                                                               size_t* countOut,
                                                                uint64_t* checksumOut);
 
     /// Reads the cursor made from images a window shows, with the image it

@@ -291,7 +291,7 @@ static void CheckCopies(Program* program, mwinContext* context)
 {
     char paths[2048];
     size_t length = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     CHECK(mwinRequest_GetDialogFiles(context, program->requests[0], paths, sizeof(paths), &length,
                                      &count) == mwin_success &&
               count == 2,

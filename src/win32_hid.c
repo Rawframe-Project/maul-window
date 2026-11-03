@@ -117,11 +117,14 @@ static void ReadValues(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
     mwinHidAddValues(&pad->hid, plain, count);
 }
 
-// The device's controls, in the numbering; false for a device with none.
+// The device's controls, in the numbering; false for a device with none,
+// or whose input report a raw input read cannot hold.
 static bool ReadControls(const mwinWin32Hid* hid, mwinHidPad* pad)
 {
     HIDP_CAPS caps;
-    if (hid->api.getCaps(pad->preparsed, &caps) != HIDP_STATUS_SUCCESS)
+    if (hid->api.getCaps(pad->preparsed, &caps) != HIDP_STATUS_SUCCESS ||
+        offsetof(RAWINPUT, data.hid.bRawData) + caps.InputReportByteLength >
+            MWIN_WIN32_HID_INPUT_BYTES)
     {
         return false;
     }
@@ -333,7 +336,7 @@ void mwinWin32HidInput(mwinWin32Hid* hid, HRAWINPUT input, uint64_t timeNs)
     union
     {
         RAWINPUT raw;
-        BYTE bytes[1024];
+        BYTE bytes[MWIN_WIN32_HID_INPUT_BYTES];
     } data;
     UINT size = sizeof(data);
     if (hid->api.inputData == nullptr ||

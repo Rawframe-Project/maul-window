@@ -28,6 +28,10 @@
 // - A restart right behind the new owner's answer to FindUserById: the
 //   user found once more from the owner after it, nothing told for the
 //   same list, and that owner's change followed.
+// - With a limit of 4 bytes and a starting list of nl, after a change
+//   to sv: Languages whose first tag does not fit, beside a Language
+//   that does, and then plasma-localerc's LANGUAGE likewise, each an
+//   empty list, not Language or the starting list.
 // - With no system bus and no configuration folder, or AccountsService
 //   refusing the user and plasma-localerc no file: the starting list,
 //   and nothing told; with a limit of 512 bytes, a starting list of 365
@@ -94,6 +98,18 @@ static const Expected s_steps[] = {
     {kindChange, "nl"},
 };
 
+// The run with a limit of 4 bytes, from a starting list of nl.
+static const Expected s_tightSteps[] = {
+    {kindChange, "sv"},
+    {kindChange, ""},
+    {kindChange, "de"},
+    {kindChange, ""},
+};
+
+// The run's steps and its starting list.
+static const Expected* s_table = s_steps;
+static const char* s_first = "en-US";
+
 typedef struct Program
 {
     FakeBus* system;
@@ -131,6 +147,31 @@ static void User(FakeBus* system, const char* languages, const char* language)
     (void)snprintf(system->language, sizeof(system->language), "%s", language);
 }
 
+// What the desktop does at the start of a step of the run with a limit
+// of 4 bytes.
+static void ActTight(Program* program)
+{
+    FakeBus* system = program->system;
+    switch (program->step)
+    {
+    case 0:
+        // A change first: the GetAll that Changed asks for would replace
+        // the one still on its way, and be the baseline.
+        FakeLanguagesChanged(system, "sv");
+        break;
+    case 1:
+        User(system, "fi_FI", "sv");
+        FakeUserChanged(system);
+        break;
+    case 2:
+        WRITE(s_file, "[Translations]\nLANGUAGE=de\n");
+        break;
+    default:
+        WRITE(s_file, "[Translations]\nLANGUAGE=de_DE:it\n");
+        break;
+    }
+}
+
 // What the desktop does at the start of a step.
 static void Act(Program* program)
 {
@@ -138,6 +179,11 @@ static void Act(Program* program)
     const char* text = "es";
     program->getAlls = system->getAlls;
     program->finds = system->finds;
+    if (s_table == s_tightSteps)
+    {
+        ActTight(program);
+        return;
+    }
     switch (program->step)
     {
     case 0:
@@ -278,13 +324,13 @@ static void Step(mwinContext* context, Program* program)
         {
             return;
         }
-        CHECK(LocalesAre(context, "en-US") && program->changes == 0,
+        CHECK(LocalesAre(context, s_first) && program->changes == 0,
               "the sources' first words only their baselines");
         program->step = 0;
         Act(program);
         return;
     }
-    const Expected* expected = &s_steps[program->step];
+    const Expected* expected = &s_table[program->step];
     const FakeBus* system = program->system;
     bool reached = expected->kind == kindChange     ? LocalesAre(context, expected->locales)
                    : expected->kind == kindQuietBus ? system->getAlls > program->getAlls
@@ -412,6 +458,18 @@ int main(void)
         WRITE(s_file, "[Translations]\nLANGUAGE=de\n");
         Run(&system, (int)(sizeof(s_steps) / sizeof(s_steps[0])),
             "the desktop's languages followed");
+        // A limit of 4 bytes: the starting list nl, from LANGUAGE.
+        (void)setenv("LANGUAGE", "nl", 1);
+        s_localeBytes = 4;
+        s_table = s_tightSteps;
+        s_first = "nl";
+        system.getAlls = 0;
+        User(&system, "fr", "");
+        WRITE(s_file, "[Translations]\nLANGUAGE=it\n");
+        Run(&system, (int)(sizeof(s_tightSteps) / sizeof(s_tightSteps[0])),
+            "a source whose first language does not fit gives an empty list");
+        (void)unsetenv("LANGUAGE");
+        s_localeBytes = 0;
         // plasma-localerc a folder, and AccountsService refusing the user.
         (void)remove(s_file);
         (void)mkdir(s_file, 0700);

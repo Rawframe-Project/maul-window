@@ -74,7 +74,9 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     Expect(length <= capacity);
     CheckList(out, length);
     length = capacity + 1;
-    bool read = mwinLinuxPlasmaLocales((const char*)data + 1, size - 1, out, capacity, &length);
+    bool full = false;
+    bool read =
+        mwinLinuxPlasmaLocales((const char*)data + 1, size - 1, out, capacity, &length, &full);
     Expect(read == (memchr(data + 1, '\0', size - 1) == nullptr));
     Expect(!read || length <= capacity);
     if (read)

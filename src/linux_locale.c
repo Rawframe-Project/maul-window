@@ -178,7 +178,7 @@ static bool IsBlank(char c)
 }
 
 bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out, size_t capacity,
-                            size_t* lengthOut)
+                            size_t* lengthOut, bool* fullOut)
 {
     if (text == nullptr || memchr(text, '\0', length) != nullptr)
     {
@@ -186,6 +186,7 @@ bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out, size_t c
     }
     bool translations = false;
     *lengthOut = 0;
+    *fullOut = false;
     for (size_t at = 0, next = 0; at < length; at = next)
     {
         size_t lineLength = LineOf(text, length, at, &next);
@@ -223,8 +224,8 @@ bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out, size_t c
             key += 1;
         }
         // The last LANGUAGE counts, as KConfig reads it.
-        bool full = false;
-        *lengthOut = mwinLinuxAddLocales(line + key, lineLength - key, out, 0, capacity, &full);
+        *fullOut = false;
+        *lengthOut = mwinLinuxAddLocales(line + key, lineLength - key, out, 0, capacity, fullOut);
     }
     return true;
 }

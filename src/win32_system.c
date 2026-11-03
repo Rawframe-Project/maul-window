@@ -109,10 +109,12 @@ static void ReadLocales(mwinWin32Platform* platform)
     {
         return;
     }
+    // A byte past the limit, as the first language may be: the context
+    // then leaves it out, and the list is empty.
     size_t bytes = 0;
     muniTextResult converted =
         muniConvertUtf16ToUtf8((const uint16_t*)platform->localeUnits, length, muni_convertReplace,
-                               platform->localeText, context->limits.localeBytes, &bytes);
+                               platform->localeText, context->limits.localeBytes + 1u, &bytes);
     if (converted.status == muni_success)
     {
         (void)mwinSetLocales(context, platform->localeText, bytes, mwinWin32Now());

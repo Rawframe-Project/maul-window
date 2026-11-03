@@ -42,10 +42,12 @@
 // work in, the starting list, and what GNOME and KDE last said.
 #define MWIN_LINUX_LANGUAGE_PARTS 5
 
-// What a source last said: nothing yet, or its tags.
+// What a source last said: nothing yet, or its tags, and whether it
+// named a language, which none may be left of where none fit.
 typedef struct mwinLinuxLanguageWord
 {
     bool said;
+    bool named;
     uint16_t length;
     char* tags;
 } mwinLinuxLanguageWord;

@@ -168,17 +168,20 @@ static void Collect(Program* program, mwinContext* context)
         {
             program->ends += 1;
         }
-        else if (event.kind == mwin_eventImePreedit &&
-                 event.data.preedit.length <= sizeof(program->preedit))
+        else if (event.kind == mwin_eventImePreedit)
         {
+            // Every composition counted, of any length; one that fits kept.
             program->preedits += 1;
-            memcpy(program->preedit, event.data.preedit.text, event.data.preedit.length);
-            program->preeditLength = event.data.preedit.length;
-            program->preeditCaret = event.data.preedit.caret;
-            program->segments = event.data.preedit.segmentCount;
-            program->style = event.data.preedit.segmentCount > 0
-                                 ? event.data.preedit.segments[0].style
-                                 : mwin_preeditPlain;
+            if (event.data.preedit.length <= sizeof(program->preedit))
+            {
+                memcpy(program->preedit, event.data.preedit.text, event.data.preedit.length);
+                program->preeditLength = event.data.preedit.length;
+                program->preeditCaret = event.data.preedit.caret;
+                program->segments = event.data.preedit.segmentCount;
+                program->style = event.data.preedit.segmentCount > 0
+                                     ? event.data.preedit.segments[0].style
+                                     : mwin_preeditPlain;
+            }
         }
         program->frames[program->count] = program->frame;
         program->records[program->count++] = event;

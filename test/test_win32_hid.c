@@ -244,10 +244,15 @@ static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
 {
     HIDP_VALUE_CAPS values[8];
     HANDLE owner = Owner(data);
-    *caps = (HIDP_CAPS){
-        .InputReportByteLength = owner == LARGE ? MWIN_WIN32_HID_INPUT_BYTES : sizeof(Report),
-        .NumberInputButtonCaps = owner == PAD || owner == LARGE ? 1 : (owner == STICK ? 2 : 0),
-        .NumberInputValueCaps = ValueCaps(Owner(data), values)};
+    // The wheel's report fills a raw input read exactly; the large one's
+    // would not fit beside the header.
+    USHORT fills = (USHORT)(MWIN_WIN32_HID_INPUT_BYTES - offsetof(RAWINPUT, data.hid.bRawData));
+    *caps = (HIDP_CAPS){.InputReportByteLength = owner == LARGE   ? MWIN_WIN32_HID_INPUT_BYTES
+                                                 : owner == WHEEL ? fills
+                                                                  : sizeof(Report),
+                        .NumberInputButtonCaps =
+                            owner == PAD || owner == LARGE ? 1 : (owner == STICK ? 2 : 0),
+                        .NumberInputValueCaps = ValueCaps(Owner(data), values)};
     return HIDP_STATUS_SUCCESS;
 }
 
@@ -403,8 +408,8 @@ static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], i
     CHECK(added == 3 && mwinGamepad_GetInfo(context, ids[0], &pad) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[1], &stick) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success,
-          "of the devices, the pad, the stick and the wheel gamepads, once, and not the one whose "
-          "report a raw input read cannot hold");
+          "of the devices, the pad, the stick and the wheel, whose report fills a raw input read, "
+          "gamepads, once, and not the one whose report a raw input read cannot hold");
     CHECK(!wheel.mapped && wheel.rawButtonCount == 0 && wheel.rawAxisCount == 6,
           "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");

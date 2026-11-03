@@ -3,9 +3,9 @@
 //
 // The macOS backend's gamepads against GameController (a CI runner's
 // session): the runtime watched from the start, its pads looked for and
-// read at each pump for half a second, and let go at the end; any pad
-// found is mapped and named. No pad is attached to the runner, so its
-// tracking runs against a stand-in in pad_tracker.
+// read at each pump for half a second from the first frame, and let go
+// at the end; any pad found is mapped and named. No pad is attached to
+// the runner, so its tracking runs against a stand-in in pad_tracker.
 
 #include "test_harness.h"
 
@@ -47,14 +47,16 @@ static void CheckPads(Program* program, mwinContext* context)
 static mwinResult Init(mwinContext* context, void* user)
 {
     (void)context;
-    Program* program = user;
-    program->startNs = NowNs();
+    (void)user;
     return mwin_success;
 }
 
 static mwinFrameResult Frame(mwinContext* context, void* user)
 {
     Program* program = user;
+    // The first frame may come long after init on a loaded runner: the
+    // half second counts from it.
+    program->startNs = program->frames == 0 ? NowNs() : program->startNs;
     program->frames += 1;
     if (NowNs() - program->startNs < RUN_NS)
     {

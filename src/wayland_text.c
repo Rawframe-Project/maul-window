@@ -29,8 +29,6 @@ static void EndComposition(mwinWaylandPlatform* platform, uint32_t slot)
     mwinPost(platform->context, slot, &end);
 }
 
-// Tells the input method whether the focused window takes text, and
-// where its caret is.
 // Sends the caret's rectangle, which the next commit applies.
 static void SendCaret(mwinWaylandPlatform* platform, mwinRect caret)
 {
@@ -42,6 +40,8 @@ static void SendCaret(mwinWaylandPlatform* platform, mwinRect caret)
                            (int32_t)lroundf(caret.height));
 }
 
+// Tells the input method whether the focused window takes text, and
+// where its caret is.
 static void Apply(mwinWaylandPlatform* platform)
 {
     const mwinWaylandApi* api = &platform->api;

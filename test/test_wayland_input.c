@@ -4,7 +4,8 @@
 // The Wayland backend's input against the test compositor of
 // wayland_server.h. The keyboard: keys with their codes, meanings and
 // text (a space's too), the modifiers, repeat, a compose sequence (a
-// dead key), a change of layout group with its record and new
+// dead key), a composed text longer than 64 bytes typed whole and one
+// past the window's text room lost with a reset, a change of layout group with its record and new
 // meanings, and the reset when focus goes while a key is held. A released key repeats no
 // more, a key without text types nothing, and a key pressed before the
 // focus came and released while it is here leaves nothing to reset. The
@@ -32,12 +33,21 @@
 #include "maul-window/input.h"
 
 #include <linux/input-event-codes.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define DEADLINE_NS 5000000000ull
 #define MAX_RECORDS 256
 #define TEXT_BYTES  1024
+// The window's text room, and composed texts within it and past it.
+#define TEXT_ROOM 128
+#define FIT_TEXT                                                                                   \
+    "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"  \
+    "123456789"
+#define PAST_TEXT FIT_TEXT FIT_TEXT
 
 typedef enum Phase
 {
@@ -48,6 +58,8 @@ typedef enum Phase
     phaseReleased,
     phaseArrow,
     phaseCompose,
+    phaseComposeFit,
+    phaseComposePast,
     phaseLayout,
     phaseLeave,
     phaseStray,
@@ -242,6 +254,9 @@ static bool Ready(const Program* program)
     case phaseShift:
     case phaseCompose:
         return CountOf(program, mwin_eventKeyUp, false) >= (program->phase == phaseCompose ? 2 : 1);
+    case phaseComposeFit:
+    case phaseComposePast:
+        return CountOf(program, mwin_eventKeyUp, false) >= 2;
     case phaseRepeat:
         return CountOf(program, mwin_eventKeyDown, true) >= 2;
     case phaseReleased:
@@ -666,6 +681,21 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case phaseCompose:
         CHECK(TextIs(program, " \xC3\xA9"), "a space types, and a dead key composes");
+        // The test's compose file: dead acute and x, 100 bytes.
+        Press(server, KEY_APOSTROPHE);
+        Press(server, KEY_X);
+        break;
+    case phaseComposeFit:
+        CHECK(TextIs(program, FIT_TEXT) && First(program, mwin_eventInputStateReset) == nullptr,
+              "a composed text of 100 bytes types whole");
+        // Dead acute and q, 200 bytes, past the room.
+        Press(server, KEY_APOSTROPHE);
+        Press(server, KEY_Q);
+        break;
+    case phaseComposePast:
+        CHECK(program->textLength == 0 && First(program, mwin_eventKeyDown) != nullptr &&
+                  First(program, mwin_eventInputStateReset) > First(program, mwin_eventKeyDown),
+              "a composed text past the window's text room is lost with a reset after its key");
         ServerModifiers(server, 0, 1);
         break;
     case phaseLayout:
@@ -750,10 +780,25 @@ int main(void)
     }
     // Cursors made from images are sized by a viewport.
     ServerAddViewporter(&server);
-    // The compose table of the locale.
+    // The compose table of the locale, and two long sequences of the
+    // test's.
     setenv("LANG", "en_US.UTF-8", 1);
+    char compose[] = "/tmp/mwin-compose-XXXXXX";
+    int file = mkstemp(compose);
+    static const char sequences[] = "include \"%L\"\n"
+                                    "<dead_acute> <x> : \"" FIT_TEXT "\"\n"
+                                    "<dead_acute> <q> : \"" PAST_TEXT "\"\n";
+    bool written = file >= 0 && write(file, sequences, sizeof(sequences) - 1) ==
+                                    (ssize_t)(sizeof(sequences) - 1);
+    if (file >= 0)
+    {
+        (void)close(file);
+    }
+    CHECK(written, "the compose file is written");
+    setenv("XCOMPOSEFILE", compose, 1);
     Program program = {.server = &server};
     mwinAppDef def = mwinDefaultAppDef();
+    def.context.limits.textBytesPerWindow = TEXT_ROOM;
     def.init = Init;
     def.frame = Frame;
     def.user = &program;
@@ -761,5 +806,6 @@ int main(void)
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
     ServerStop(&server);
+    (void)unlink(compose);
     return s_failures == 0 ? 0 : 1;
 }

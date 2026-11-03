@@ -18,7 +18,9 @@
 // in its slot by the answer's deadline (a fuzz finding); and a key the
 // method is not asked about, pressed while it holds others, comes after
 // them, in a try that reached that path (B's answer is due 100 ms after
-// it is asked, so a slow run tries again, up to ORDER_TRIES times). It
+// it is asked, so a slow run tries again, up to ORDER_TRIES times); and
+// a key typing 100 bytes through a compose sequence of the test's,
+// pressed while the method holds B, comes after B with its text. It
 // runs once with XMODIFIERS naming Fcitx and once naming IBus.
 // Skipped (exit status 77) without DISPLAY, dbus-daemon or libdbus-1; a
 // bus that cannot start fails it.
@@ -55,6 +57,13 @@
 #define KEYCODE_B      56
 #define KEYCODE_C      54
 #define KEYCODE_RETURN 36
+#define KEYCODE_X      53
+// Backslash and x type KEY_TEXT, 100 bytes, through the test's compose
+// file.
+#define KEYCODE_BACKSLASH 51
+#define KEY_TEXT                                                                                   \
+    "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"  \
+    "123456789"
 
 typedef enum Phase
 {
@@ -80,6 +89,8 @@ typedef enum Phase
     phaseOrderText,
     phaseOrderHeld,
     phaseOrdered,
+    phaseLongKeyText,
+    phaseLongKeyHeld,
     phaseDone,
 } Phase;
 
@@ -98,7 +109,7 @@ typedef struct Program
     int frames[MAX_RECORDS];
     int frame;
     int count;
-    char text[64];
+    char text[256];
     uint32_t textLength;
     char preedit[64];
     size_t preeditLength;
@@ -236,6 +247,11 @@ static bool Has(const Program* program, mwinEventKind type)
     return false;
 }
 
+static bool TextIs(const Program* program, const char* text)
+{
+    return program->textLength == strlen(text) && memcmp(program->text, text, strlen(text)) == 0;
+}
+
 // Where the caret is on the screen, as the input method should be told.
 static bool CaretOnScreen(Program* program, mwinContext* context, int32_t* xOut, int32_t* yOut)
 {
@@ -310,6 +326,10 @@ static bool Ready(const Program* program, const mwinContext* context)
         return s_fakeIme.held >= program->held + 2;
     case phaseOrdered:
         return CountKeys(program, mwin_codeKeyB) >= 2 && CountKeys(program, mwin_codeKeyC) >= 2;
+    case phaseLongKeyText:
+        return s_fakeIme.focusIns > program->focusIns;
+    case phaseLongKeyHeld:
+        return CountKeys(program, mwin_codeKeyX) >= 2;
     default:
         return false;
     }
@@ -493,7 +513,7 @@ static void Advance(Program* program, mwinContext* context)
               "text input given up with B held");
         Press(program, KEYCODE_C);
         break;
-    default:
+    case phaseOrdered:
     {
         int b = KeyAt(program, mwin_codeKeyB, true);
         int c = KeyAt(program, mwin_codeKeyC, false);
@@ -510,8 +530,26 @@ static void Advance(Program* program, mwinContext* context)
         }
         CHECK(program->frames[b] == program->frames[c],
               "C waited behind B in one of the tries (B's answer is due 100 ms after it)");
+        AskForText(program, context);
         break;
     }
+    case phaseLongKeyText:
+        // The method, still holding, is asked about B, then about the
+        // keys typing KEY_TEXT.
+        program->count = 0;
+        program->textLength = 0;
+        Press(program, KEYCODE_B);
+        Press(program, KEYCODE_BACKSLASH);
+        Press(program, KEYCODE_X);
+        break;
+    case phaseLongKeyHeld:
+        CHECK(TextIs(program, "b" KEY_TEXT) &&
+                  KeyAt(program, mwin_codeKeyB, true) < KeyAt(program, mwin_codeKeyX, false),
+              "a key typing 100 bytes, behind a key the method holds, comes after it with its "
+              "text");
+        break;
+    default:
+        break;
     }
     program->phase += 1;
     program->startNs = NowNs();
@@ -580,6 +618,17 @@ int main(void)
     {
         DisplayFail("cannot make the bus's folder");
     }
+    // The test's compose sequence, the only one.
+    char compose[64];
+    (void)snprintf(compose, sizeof(compose), "%s/Compose", directory);
+    FILE* file = fopen(compose, "w");
+    if (file == nullptr || fputs("<backslash> <x> : \"" KEY_TEXT "\"\n", file) < 0)
+    {
+        DisplayFail("cannot write the compose file");
+    }
+    (void)fclose(file);
+    (void)setenv("LANG", "en_US.UTF-8", 1);
+    (void)setenv("XCOMPOSEFILE", compose, 1);
     // The stand-in bus is a dbus-daemon of the test's: a machine without
     // one, or without libdbus-1, cannot run the test.
     static FakeBus bus;
@@ -587,6 +636,7 @@ int main(void)
     if (started != fakeRunning)
     {
         FakeStop(&bus);
+        (void)unlink(compose);
         FakeClean(directory);
         (void)rmdir(directory);
         xcb_disconnect(connection);
@@ -599,6 +649,7 @@ int main(void)
     }
     Run(connection, &bus, 1);
     Run(connection, &bus, 2);
+    (void)unlink(compose);
     FakeStop(&bus);
     FakeClean(directory);
     (void)rmdir(directory);

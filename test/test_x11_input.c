@@ -3,7 +3,9 @@
 //
 // The X11 backend's input against a real X server (Xvfb in CI), driven
 // through XTEST from a connection of the test's own: keys with their
-// codes, meanings and text, Shift, the X server's repeats, the pointer
+// codes, meanings and text, Shift, a compose sequence of the test's
+// typing 100 bytes whole and another past the window's text room lost
+// with a reset, the X server's repeats, the pointer
 // entering and moving, a double click with the buttons held, the
 // wheel's buttons up and to the sides, the back button and a tenth one
 // left out, cursor shapes other than the default, a cursor made from
@@ -24,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <xcb/xcb.h>
 #include <xcb/xfixes.h>
 #include <xcb/xtest.h>
@@ -32,8 +35,18 @@
 #define MAX_RECORDS 256
 
 // X11 key codes on a US layout: evdev codes plus 8.
-#define KEYCODE_A       38
-#define KEYCODE_SHIFT_L 50
+#define KEYCODE_A         38
+#define KEYCODE_SHIFT_L   50
+#define KEYCODE_Q         24
+#define KEYCODE_X         53
+#define KEYCODE_BACKSLASH 51
+
+// The window's text room, and composed texts within it and past it.
+#define TEXT_ROOM 128
+#define FIT_TEXT                                                                                   \
+    "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"  \
+    "123456789"
+#define PAST_TEXT FIT_TEXT FIT_TEXT
 
 typedef enum Phase
 {
@@ -41,6 +54,8 @@ typedef enum Phase
     phaseFocus,
     phaseKeys,
     phaseShift,
+    phaseComposeFit,
+    phaseComposePast,
     phaseRepeat,
     phasePointer,
     phaseClicks,
@@ -70,7 +85,7 @@ typedef struct Program
     mwinCursorId cursor;
     mwinEvent records[MAX_RECORDS];
     int count;
-    char text[64];
+    char text[256];
     uint32_t textLength;
     // The size and hotspot of the cursor the window shows by default.
     uint64_t defaultGlyph;
@@ -89,6 +104,13 @@ static void Fake(Program* program, uint8_t type, uint8_t detail, int16_t x, int1
     xcb_test_fake_input(program->connection, type, detail, XCB_CURRENT_TIME, program->root, x, y,
                         0);
     xcb_flush(program->connection);
+}
+
+// Presses and releases a key.
+static void Tap(Program* program, uint8_t keycode)
+{
+    Fake(program, XCB_KEY_PRESS, keycode, 0, 0);
+    Fake(program, XCB_KEY_RELEASE, keycode, 0, 0);
 }
 
 // Sends the window a core press and release of a button, as another
@@ -284,6 +306,9 @@ static bool Ready(const Program* program)
     case phaseKeys:
     case phaseShift:
         return Find(program, mwin_eventKeyUp, program->phase == phaseShift ? 1 : 0) != nullptr;
+    case phaseComposeFit:
+    case phaseComposePast:
+        return Find(program, mwin_eventKeyUp, 1) != nullptr;
     case phaseRepeat:
         return CountRepeats(program) >= 2;
     case phasePointer:
@@ -483,6 +508,24 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(a != nullptr && a->data.key.key == 'a' &&
                   (a->data.key.modifiers & mwin_modShift) != 0 && TextIs(program, "A"),
               "Shift changes the text, not the meaning");
+        // The test's compose file: backslash and x, 100 bytes.
+        Tap(program, KEYCODE_BACKSLASH);
+        Tap(program, KEYCODE_X);
+        break;
+    }
+    case phaseComposeFit:
+        CHECK(TextIs(program, FIT_TEXT) && Find(program, mwin_eventInputStateReset, 0) == nullptr,
+              "a composed text of 100 bytes types whole");
+        // Backslash and q, 200 bytes, past the room.
+        Tap(program, KEYCODE_BACKSLASH);
+        Tap(program, KEYCODE_Q);
+        break;
+    case phaseComposePast:
+    {
+        const mwinEvent* q = Find(program, mwin_eventKeyDown, 1);
+        const mwinEvent* reset = Find(program, mwin_eventInputStateReset, 0);
+        CHECK(program->textLength == 0 && q != nullptr && reset > q,
+              "a composed text past the window's text room is lost with a reset after its key");
         Fake(program, XCB_KEY_PRESS, KEYCODE_A, 0, 0);
         break;
     }
@@ -546,13 +589,29 @@ int main(void)
         program.connection, xcb_xfixes_query_version(program.connection, 4, 0), nullptr));
     // Nothing holds the pointer before the test.
     Fake(&program, XCB_MOTION_NOTIFY, 0, 1000, 700);
+    // Two compose sequences of the test's, the only ones.
+    setenv("LANG", "en_US.UTF-8", 1);
+    char compose[] = "/tmp/mwin-compose-XXXXXX";
+    int file = mkstemp(compose);
+    static const char sequences[] = "<backslash> <x> : \"" FIT_TEXT "\"\n"
+                                    "<backslash> <q> : \"" PAST_TEXT "\"\n";
+    bool written = file >= 0 && write(file, sequences, sizeof(sequences) - 1) ==
+                                    (ssize_t)(sizeof(sequences) - 1);
+    if (file >= 0)
+    {
+        (void)close(file);
+    }
+    CHECK(written, "the compose file is written");
+    setenv("XCOMPOSEFILE", compose, 1);
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;
     def.frame = Frame;
     def.user = &program;
+    def.context.limits.textBytesPerWindow = TEXT_ROOM;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on the X server");
     CHECK(!program.timedOut, "every phase completes in time");
     CHECK(program.phase == phaseDone, "every phase ran");
+    (void)unlink(compose);
     xcb_disconnect(program.connection);
     return s_failures == 0 ? 0 : 1;
 }

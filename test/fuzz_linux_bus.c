@@ -1102,7 +1102,7 @@ static void Key(mwinContext* context, mwinWindowId window, uint8_t op)
     const char* text = key.kind == mwin_eventKeyDown ? texts[Byte() & 3] : "";
     uint32_t keycode = 8u + (op >> 5);
     uint32_t slot = window.index1 - 1;
-    if (!mwinImeOffer(&s_ime, slot, 'a', keycode, 0, &key, text, (uint32_t)strlen(text),
+    if (!mwinImeOffer(&s_ime, slot, 'a', keycode, 0, &key, text, (int32_t)strlen(text),
                       mwinMonotonicNow()))
     {
         // The backend posts a key the input method does not hold.

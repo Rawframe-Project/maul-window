@@ -7,8 +7,10 @@
 // caret, with no focus record; a composition as a preedit with its
 // caret, its result as text and the end of the composition; a commit of
 // the limit's length exactly as text, one byte past it as a reset of the
-// program's text state; a key typing once; stopping ends a composition and gives the canvas the
-// focus back; an on-screen keyboard's purpose.
+// program's text state; a key typing once; text another script types
+// with a lone surrogate, which arrives with U+FFFD in its place;
+// stopping ends a composition and gives the canvas the focus back; an
+// on-screen keyboard's purpose.
 
 #include "test_harness.h"
 #include "web_js.h"
@@ -38,6 +40,7 @@ typedef enum Phase
     phaseExact,
     phaseTooLong,
     phaseKey,
+    phaseLone,
     phaseRecompose,
     phaseDisable,
     phaseKeyboard,
@@ -76,6 +79,14 @@ EM_JS(bool, FieldAt, (float x, float y), {
 
 EM_JS(bool, InputModeIs, (const char* mode), {
     return document.querySelector('textarea').getAttribute('inputmode') === UTF8ToString(mode);
+});
+
+// Types "a", a lone U+D800 and "b" into the field, as another script
+// on the page can: InputEvent.data is a DOMString.
+EM_JS(void, TypeLone, (void), {
+    const data = 'a' + String.fromCharCode(0xD800) + 'b';
+    document.querySelector('textarea').dispatchEvent(
+        new InputEvent('input', {inputType: 'insertText', data}));
 });
 // clang-format on
 
@@ -142,6 +153,7 @@ static bool Ready(const Program* program)
         return Find(program, mwin_eventImePreedit, 0) != nullptr &&
                Find(program, mwin_eventTextInput, 0) != nullptr;
     case phaseExact:
+    case phaseLone:
         return Find(program, mwin_eventTextInput, 0) != nullptr;
     case phaseTooLong:
         return Find(program, mwin_eventInputStateReset, 0) != nullptr;
@@ -201,6 +213,12 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(Find(program, mwin_eventKeyDown, 0)->data.key.code == mwin_codeKeyB &&
                   TextIs(program, "b"),
               "a key in the field, typing once");
+        TypeLone();
+        break;
+    case phaseLone:
+        CHECK(TextIs(program, "a\xEF\xBF\xBD"
+                              "b"),
+              "a lone surrogate as U+FFFD, the text around it kept");
         (void)printf("mwin-test: compose " KANA " 1 1\n");
         break;
     case phaseRecompose:

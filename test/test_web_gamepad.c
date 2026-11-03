@@ -4,7 +4,8 @@
 // The web backend's gamepads in headless Chrome (test/web_runner.cjs),
 // against a stand-in for navigator.getGamepads() the test plays between
 // frames: a standard pad and a raw one found with their names, vendors
-// and products from Chrome's and Firefox's ids; their controls posted
+// and products from Chrome's and Firefox's ids, a lone surrogate in a
+// name as U+FFFD; their controls posted
 // when their timestamps move and not before, the standard mapping's
 // buttons, sticks and analog triggers placed, a trigger held not posted
 // again, raw values kept in range;
@@ -61,7 +62,7 @@ EM_JS(void, Install, (void), {
     const pads = [
         pad(0, 'Xbox 360 Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)', 'standard', 17,
             4, actuator),
-        pad(1, '54c-9cc-Wireless Controller', "", 3, 2, null),
+        pad(1, '54c-9cc-Wireless Controller' + String.fromCharCode(0xDC00), "", 3, 2, null),
         pad(2, 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)',
             'standard', 17, 4, triggers)];
     // The standard pad's left trigger held from the start.
@@ -196,10 +197,10 @@ static void CheckFound(Program* program, mwinContext* context)
           "the standard pad: Chrome's id, mapped, with rumble");
     CHECK(Axis(program, program->standard, mwin_padTriggerLeft, 0.25f),
           "its trigger held from the start, posted as it is found");
-    CHECK(Named(context, program->raw, "Wireless Controller", &info) && !info.mapped &&
+    CHECK(Named(context, program->raw, "Wireless Controller\xEF\xBF\xBD", &info) && !info.mapped &&
               info.rawButtonCount == 3 && info.rawAxisCount == 2 && info.vendor == 0x054c &&
               info.product == 0x09cc && info.capabilities == 0,
-          "the raw pad: Firefox's id, its buttons and axes");
+          "the raw pad: Firefox's id, a lone surrogate as U+FFFD, its buttons and axes");
     const mwinEvent* third = Find(program, mwin_eventGamepadAdded, 2);
     program->triggers = third != nullptr ? third->data.gamepad : (mwinGamepadId){0};
     CHECK(third != nullptr &&

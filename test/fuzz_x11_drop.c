@@ -167,6 +167,11 @@ static xcb_void_cookie_t SendEvent(xcb_connection_t*, uint8_t, xcb_window_t dest
     return (xcb_void_cookie_t){1};
 }
 
+static xcb_void_cookie_t DeleteProperty(xcb_connection_t*, xcb_window_t, xcb_atom_t)
+{
+    return (xcb_void_cookie_t){1};
+}
+
 static xcb_void_cookie_t ConvertSelection(xcb_connection_t*, xcb_window_t requestor, xcb_atom_t,
                                           xcb_atom_t, xcb_atom_t, xcb_timestamp_t)
 {
@@ -275,16 +280,25 @@ static void Message(uint8_t op)
     (void)mwinX11HandleDropEvent(&s_platform, (const xcb_generic_event_t*)&message);
 }
 
-// An answer to a conversion: into a window, of the drop's selection or
-// another, with the property or none, which the stand-in then holds.
+// An answer to a conversion: to the drop's window, of its target, in its
+// property, or to another window, of another selection, target or
+// property; with the property or none, which the stand-in then holds.
 static void Answer(uint8_t op)
 {
+    const mwinX11Drag* drag = &s_platform.drag;
     xcb_selection_notify_event_t notify = {0};
     notify.response_type = XCB_SELECTION_NOTIFY;
     notify.requestor = NextWindow(Byte());
+    if ((op & 0x40) == 0 && drag->dropping)
+    {
+        notify.requestor = s_platform.windows[drag->slot].window;
+    }
     notify.selection = (op & 0x08) != 0 ? s_platform.atoms[mwin_atomXdndSelection]
                                         : s_platform.atoms[mwin_atomClipboard];
-    notify.property = (op & 0x10) != 0 ? XCB_ATOM_NONE : s_platform.atoms[mwin_atomSelection];
+    notify.target = drag->converting + ((op & 0x20) != 0 ? 1 : 0);
+    notify.property = (op & 0x10) != 0   ? XCB_ATOM_NONE
+                      : (op & 0x80) != 0 ? s_platform.atoms[mwin_atomRead0]
+                                         : drag->property;
     NextProperty();
     (void)mwinX11HandleDropEvent(&s_platform, (const xcb_generic_event_t*)&notify);
 }
@@ -382,6 +396,7 @@ static mwinResult Init(mwinContext* context, void* user)
     api->translateCoordinatesReply = TranslateCoordinatesReply;
     api->sendEvent = SendEvent;
     api->convertSelection = ConvertSelection;
+    api->deleteProperty = DeleteProperty;
     s_nextWindow = 0;
     s_finished = 0;
     memset(bySlot, 0, sizeof(bySlot));
@@ -409,8 +424,13 @@ static mwinResult Init(mwinContext* context, void* user)
             Answer(op);
             break;
         case 6:
-            // A drop past its deadline ends truncated.
+            // A drop past its deadline ends truncated; or a minute
+            // passes, and the properties rest no longer.
             mwinX11CheckDrop(&s_platform, (op & 0x08) != 0 ? UINT64_MAX : 0);
+            if ((op & 0x10) != 0)
+            {
+                s_platform.dropProperties = (mwinX11DropProperties){0};
+            }
             break;
         default:
         {

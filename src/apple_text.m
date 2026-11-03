@@ -9,22 +9,6 @@
 
 #include "maul-unicode/encoding.h"
 
-uint32_t mwinAppleBytesBefore(NSString* string, NSUInteger index)
-{
-    NSUInteger count = string.length;
-    uint32_t bytes = 0;
-    for (NSUInteger i = 0; i < index && i < count; i++)
-    {
-        unichar unit = [string characterAtIndex:i];
-        bool pair = unit >= 0xD800 && unit <= 0xDBFF && i + 1 < count &&
-                    [string characterAtIndex:i + 1] >= 0xDC00 &&
-                    [string characterAtIndex:i + 1] <= 0xDFFF;
-        bytes += unit < 0x80 ? 1u : (unit < 0x800 ? 2u : (pair ? 4u : 3u));
-        i += pair ? 1 : 0;
-    }
-    return bytes;
-}
-
 // The units of a string in a block of the context's, of *bytesOut bytes;
 // NULL for an empty string, or with no memory.
 static uint16_t* Units(mwinContext* context, NSString* string, size_t* bytesOut)

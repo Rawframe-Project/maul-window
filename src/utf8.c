@@ -57,23 +57,25 @@ mwinResult mwinCheckText(const char* text, size_t length, size_t limit, mwinResu
 
 size_t mwinCutUtf16(const uint16_t* units, size_t count, char* out, size_t capacity)
 {
-    // The units of the characters that fit, with what each takes in UTF-8.
-    size_t taken = 0;
-    size_t bytes = 0;
-    while (taken < count)
-    {
-        uint16_t unit = units[taken];
-        bool pair = unit >= 0xD800 && unit <= 0xDBFF && taken + 1 < count &&
-                    units[taken + 1] >= 0xDC00 && units[taken + 1] <= 0xDFFF;
-        size_t size = pair ? 4 : unit < 0x80 ? 1 : unit < 0x800 ? 2 : 3;
-        if (size > capacity - bytes)
-        {
-            break;
-        }
-        bytes += size;
-        taken += pair ? 2 : 1;
-    }
+    // Each unit takes at least a byte, so one past capacity never fits,
+    // and a high surrogate cut from its pair there, as U+FFFD, never
+    // does either.
+    size_t taken = count < capacity ? count : capacity;
     size_t written = 0;
-    (void)muniConvertUtf16ToUtf8(units, taken, muni_convertReplace, out, bytes, &written);
+    muniTextResult result =
+        muniConvertUtf16ToUtf8(units, taken, muni_convertReplace, out, capacity, &written);
+    if (result.status == muni_errorCapacity)
+    {
+        // Out already holds the units before the stop; this counts them.
+        (void)muniConvertUtf16ToUtf8(units, result.offset, muni_convertReplace, out, capacity,
+                                     &written);
+    }
     return written;
+}
+
+size_t mwinBytesBefore(const char* text, size_t length, muniTextUnit unit, size_t count)
+{
+    size_t bytes = 0;
+    (void)muniMeasureUtf8(text, length, unit, SIZE_MAX, count, &bytes, nullptr);
+    return bytes;
 }

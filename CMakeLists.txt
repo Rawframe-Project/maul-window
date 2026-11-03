@@ -79,7 +79,7 @@ option(MAUL_WINDOW_GAMEPAD "Build the gamepad component" ON)
 # whose copies then serve this project. The version is also in the cache,
 # so a project that builds Maul Window from source (add_subdirectory or
 # FetchContent) can read the one it is built and tested with.
-set(MAUL_WINDOW_UNICODE_VERSION 0.9.1)
+set(MAUL_WINDOW_UNICODE_VERSION 0.13.0)
 set(MAUL_WINDOW_UNICODE_VERSION ${MAUL_WINDOW_UNICODE_VERSION}
     CACHE INTERNAL "the Maul Unicode version Maul Window is built and tested with")
 find_package(maul-unicode ${MAUL_WINDOW_UNICODE_VERSION} CONFIG QUIET)
@@ -336,6 +336,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(key_reach WHITEBOX)
     maul_add_test(edid WHITEBOX)
         maul_add_test(text WHITEBOX)
+        if(TARGET test_text)
+            # utf8.h names Maul Unicode's units of text.
+            target_link_libraries(test_text PRIVATE maul-unicode::maul-unicode)
+        endif()
         maul_add_test(file_list WHITEBOX)
         maul_add_test(selection WHITEBOX)
         # Android's pointers as records, on every platform: elsewhere the test

@@ -2,7 +2,9 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The web backend in headless Chrome (test/web_runner.cjs): a canvas
-// the library makes and one of the page's, their CSS sizes and device
+// the library makes and one of the page's, and one of the page's whose
+// id has a lone surrogate, which no selector can name, refused; their
+// CSS sizes and device
 // pixels at the page's ratio and after it changes, a size, a title, a
 // canvas the page collapses to no width not resized, focus, fullscreen
 // refused without a user's gesture and granted after a click, then
@@ -55,6 +57,7 @@ typedef struct Program
     mwinWindowId made;
     mwinWindowId page;
     mwinWindowId full;
+    mwinRequestId odd;
     char madeSelector[128];
     char madeHost[160];
     mwinEvent records[MAX_RECORDS];
@@ -153,6 +156,15 @@ EM_JS(bool, LanguagesAre, (const char* text, size_t length), {
     return navigator.languages.join(',') === UTF8ToString(text, length);
 });
 
+// A canvas of the page's, of the class "mwin-odd", whose id is "odd"
+// and a lone U+D800.
+EM_JS(void, AddOddCanvas, (void), {
+    const canvas = document.createElement('canvas');
+    canvas.className = 'mwin-odd';
+    canvas.id = 'odd' + String.fromCharCode(0xD800);
+    document.body.appendChild(canvas);
+});
+
 EM_JS(bool, TitleIs, (const char* title), {
     return document.title === UTF8ToString(title);
 });
@@ -163,7 +175,7 @@ static bool Ready(Program* program)
     switch (program->phase)
     {
     case phaseCreate:
-        return Find(program, mwin_eventRequestCompleted, s_any, 1) != nullptr;
+        return Find(program, mwin_eventRequestCompleted, s_any, 2) != nullptr;
     case phaseScale:
     {
         const mwinEvent* pixels = Last(program, mwin_eventPixelSizeChanged, program->made);
@@ -199,8 +211,26 @@ static bool Ready(Program* program)
     }
 }
 
+// The outcome of a request's completion among the records, or -1.
+static int OutcomeOf(const Program* program, mwinRequestId request)
+{
+    for (int i = 0; i < program->count; i++)
+    {
+        const mwinEvent* event = &program->records[i];
+        if (event->kind == mwin_eventRequestCompleted &&
+            event->data.completion.request.index1 == request.index1 &&
+            event->data.completion.request.generation == request.generation)
+        {
+            return (int)event->data.completion.outcome;
+        }
+    }
+    return -1;
+}
+
 static void CheckCreated(Program* program, mwinContext* context)
 {
+    CHECK(OutcomeOf(program, program->odd) == mwin_outcomeFailed,
+          "a page canvas whose id no selector can name refused");
     CHECK(SizeIs(program, program->made, 320.0f, 200.0f, 640, 400) &&
               SizeIs(program, program->page, 200.0f, 100.0f, 400, 200),
           "CSS sizes, and device pixels at a ratio of 2");
@@ -429,7 +459,14 @@ static mwinResult Init(mwinContext* context, void* user)
     def.canvas = "#page-canvas";
     def.canvasLength = 12;
     program->startMs = mwinWebNow();
-    return mwinCreateWindow(context, &def, &program->page, nullptr);
+    mwinResult page = mwinCreateWindow(context, &def, &program->page, nullptr);
+    AddOddCanvas();
+    mwinWindowId odd = {0};
+    def.canvas = ".mwin-odd";
+    def.canvasLength = 9;
+    CHECK(mwinCreateWindow(context, &def, &odd, &program->odd) == mwin_success,
+          "a canvas whose id has a lone surrogate asked for");
+    return page;
 }
 
 static mwinFrameResult Frame(mwinContext* context, void* user)

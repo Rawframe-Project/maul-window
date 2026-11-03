@@ -8,8 +8,9 @@
 // reported again, a drop delivering its files' names and its text; a
 // drag that leaves; a drag of neither files nor text left alone; and a
 // drop at the limits: a name of the window's text bytes kept, one a
-// byte longer left out, text of the drop bytes kept; and the same drop
-// again holding no more memory.
+// byte longer left out, text of the drop bytes kept; the same drop
+// again holding no more memory; and a name another script put in the
+// page's drop with a lone surrogate, delivered with U+FFFD in its place.
 
 #include "counting_allocator.h"
 #include "test_harness.h"
@@ -34,6 +35,7 @@ typedef enum Phase
     phaseOther,
     phaseLimits,
     phaseAgain,
+    phaseLone,
     phaseDone,
 } Phase;
 
@@ -82,8 +84,9 @@ EM_JS(bool, DragEvents, (const char* selector, int which), {
         [['dragenter', 5, 5], ['dragleave', 5, 5]],
         [['dragenter', 5, 5], ['drop', 5, 5]],
         [['dragenter', 5, 5], ['drop', 5, 5]],
+        [['dragenter', 5, 5], ['drop', 5, 5]],
     ];
-    const kinds = [['files', 'text'], ['files', 'text'], ['html'], ['limits']][which];
+    const kinds = [['files', 'text'], ['files', 'text'], ['html'], ['limits'], ['files']][which];
     let kept = false;
     sequences[which].forEach(([type, x, y]) => {
         const event = new DragEvent(type, {bubbles: true, cancelable: true,
@@ -91,6 +94,12 @@ EM_JS(bool, DragEvents, (const char* selector, int which), {
                                            dataTransfer: transfer(kinds)});
         kept = !canvas.dispatchEvent(event);
     });
+    if (which === 4) {
+        // Another script reaches the page's drop before the backend reads
+        // it: its first name "a" and a lone U+D800.
+        const drops = Module.mwinWeb.values().next().value.drops;
+        drops[drops.length - 1].names[0] = 'a' + String.fromCharCode(0xD800);
+    }
     return kept;
 });
 // clang-format on
@@ -168,6 +177,21 @@ static void CheckLimits(const Program* program, mwinContext* context)
           "text of the drop bytes kept");
 }
 
+// The name another script gave a lone surrogate: U+FFFD in its place,
+// the other name as it was.
+static void CheckLone(const Program* program, mwinContext* context)
+{
+    const mwinEvent* dropped = Find(program, mwin_eventDropped, 0);
+    char bytes[DROP_BYTES];
+    size_t length = 0;
+    mwinDropId drop = dropped != nullptr ? dropped->data.drop.drop : (mwinDropId){0};
+    CHECK(dropped != nullptr && dropped->data.drop.fileCount == 2 &&
+              !dropped->data.drop.truncated &&
+              mwinDrop_GetFiles(context, drop, bytes, sizeof(bytes), &length) == mwin_success &&
+              length == 12 && memcmp(bytes, "a\xEF\xBF\xBD\0\xC3\xA9.png\0", 12) == 0,
+          "a lone surrogate in a name as U+FFFD");
+}
+
 static bool Ready(Program* program)
 {
     switch (program->phase)
@@ -180,6 +204,7 @@ static bool Ready(Program* program)
         return Find(program, mwin_eventDragLeft, 0) != nullptr;
     case phaseLimits:
     case phaseAgain:
+    case phaseLone:
         return Find(program, mwin_eventDropped, 0) != nullptr;
     default:
         // Nothing comes: a few frames show it.
@@ -220,9 +245,13 @@ static void Advance(Program* program, mwinContext* context)
         s_baseline = s_countedBytes;
         (void)DragEvents(program->selector, 3);
         break;
-    default:
+    case phaseAgain:
         CheckLimits(program, context);
         CHECK(s_countedBytes == s_baseline, "the same drop again, holding no more memory");
+        (void)DragEvents(program->selector, 4);
+        break;
+    default:
+        CheckLone(program, context);
         break;
     }
     program->phase += 1;

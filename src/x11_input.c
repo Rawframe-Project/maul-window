@@ -157,11 +157,11 @@ static void OnKey(mwinX11Platform* platform, const xcb_key_press_event_t* event,
                                           platform->context->limits.textBytesPerWindow + 1u)
                             : 0;
     uint32_t length = typed > 0 ? (uint32_t)typed : 0;
-    // An input method may take the key: it answers later. A key whose
-    // text was lost goes to the program with the reset.
+    // An input method may take the key: it answers later, and the key
+    // goes in order with its text or its reset.
     uint32_t keysym = platform->xkbApi.stateKeyGetOneSym(keyboard->xkb.state, event->detail);
-    if (typed >= 0 && mwinImeOffer(&platform->ime, (uint32_t)slot, keysym, event->detail,
-                                   event->state, &record, text, length, mwinMonotonicNow()))
+    if (mwinImeOffer(&platform->ime, (uint32_t)slot, keysym, event->detail, event->state, &record,
+                     text, typed, mwinMonotonicNow()))
     {
         return;
     }

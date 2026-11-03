@@ -10,7 +10,8 @@
 // method shows a composition and no key; Return commits it as text; a
 // commit of 2000 bytes arrives whole, and one a byte past the
 // textBytesPerWindow limit gives one reset and no text; a composition
-// past it, while one runs, gives one reset and its end; "b",
+// past it, while one runs, gives one reset and its end; one of 100
+// bytes, past the program's own copy, arrives whole and ends; "b",
 // which the method leaves, arrives as a key with its text; text input
 // disabled resets the context and takes its focus away; a key the
 // method has not answered when its window goes reaches no window made
@@ -45,6 +46,8 @@
 // what the input methods kept before.
 #define TEXT_BYTES 4096
 #define LONG_BYTES 2000
+// A composition longer than the program's copy of one, which it counts.
+#define FIT_BYTES 100
 // hygiene: C must beat B's 100 ms answer deadline, which a slow run misses
 #define ORDER_TRIES 5
 // X11 key codes on a US layout: evdev codes plus 8.
@@ -65,6 +68,8 @@ typedef enum Phase
     phaseTooLong,
     phaseComposing,
     phaseLongPreedit,
+    phaseFitting,
+    phaseFitEnded,
     phasePassed,
     phaseDisabled,
     phaseRefocused,
@@ -102,6 +107,8 @@ typedef struct Program
     mwinPreeditStyle style;
     int preedits;
     int ends;
+    // The length of the last composition, of any length.
+    size_t lastPreedit;
     // The length of the last text record, and the resets read.
     size_t lastText;
     int resets;
@@ -172,6 +179,7 @@ static void Collect(Program* program, mwinContext* context)
         {
             // Every composition counted, of any length; one that fits kept.
             program->preedits += 1;
+            program->lastPreedit = event.data.preedit.length;
             if (event.data.preedit.length <= sizeof(program->preedit))
             {
                 memcpy(program->preedit, event.data.preedit.text, event.data.preedit.length);
@@ -277,6 +285,10 @@ static bool Ready(const Program* program, const mwinContext* context)
         return program->preedits > program->preeditsBefore;
     case phaseLongPreedit:
         return program->resets > program->resetsBefore && program->ends > program->endsBefore;
+    case phaseFitting:
+        return program->preedits > program->preeditsBefore;
+    case phaseFitEnded:
+        return program->ends > program->endsBefore;
     case phasePassed:
         return CountKeys(program, mwin_codeKeyB) >= 2;
     case phaseDisabled:
@@ -411,6 +423,19 @@ static void Advance(Program* program, mwinContext* context)
                   program->ends == program->endsBefore + 1 &&
                   program->preedits == program->preeditsBefore,
               "a composition past the limit: one reset and its end");
+        {
+            static char text[FIT_BYTES + 1];
+            memset(text, 'y', FIT_BYTES);
+            program->preeditsBefore = program->preedits;
+            FakeImePreeditText(program->bus, fcitx, text);
+        }
+        break;
+    case phaseFitting:
+        CHECK(program->lastPreedit == FIT_BYTES, "a composition of 100 bytes arrives whole");
+        program->endsBefore = program->ends;
+        FakeImePreeditText(program->bus, fcitx, "");
+        break;
+    case phaseFitEnded:
         Press(program, KEYCODE_B);
         break;
     case phasePassed:

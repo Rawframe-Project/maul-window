@@ -8,8 +8,11 @@
 // other client in pieces (INCR) as text/plain;charset=utf-8, and one of
 // the largest piece whole; once the
 // other client owns CLIPBOARD, its text is read, repaired, whole and in
-// pieces, too large past the limit, and empty with no owner. Skipped
-// (exit status 77) without DISPLAY.
+// pieces, too large past the limit, and empty with no owner; answers
+// naming PRIMARY or another target, as late ones to other reads would,
+// are not taken for the read's, and neither is the late answer to a read
+// that ran out of time, during the next read of the same selection and
+// target. Skipped (exit status 77) without DISPLAY.
 
 #include "test_harness.h"
 #include "x11_peer.h"
@@ -23,9 +26,11 @@
 #include <time.h>
 
 #define DEADLINE_NS 5000000000ull
-#define SETTLE_NS   50000000ull
-#define LIMIT       (256u * 1024u)
-#define LARGE       (200u * 1024u)
+// The late answer's phase waits out a read's five seconds first.
+#define LATE_DEADLINE_NS 15000000000ull
+#define SETTLE_NS        50000000ull
+#define LIMIT            (256u * 1024u)
+#define LARGE            (200u * 1024u)
 // The largest text sent whole.
 #define WHOLE (64u * 1024u)
 
@@ -41,6 +46,8 @@ typedef enum Phase
     phaseWholeWrite,
     phasePeerWhole,
     phaseOtherText,
+    phaseStale,
+    phaseLate,
     phaseTooLarge,
     phasePieces,
     phaseNoOwner,
@@ -59,6 +66,14 @@ typedef struct Program
     bool reading;
     // The large text's reads in pieces so far.
     int rounds;
+    // When the other client held its answer, and the read's outcome then.
+    uint64_t heldNs;
+    int staleOutcome;
+    // The read that ran out of time's outcome, and when the late answer to
+    // it went, and the next read's outcome then.
+    int firstOutcome;
+    uint64_t lateNs;
+    int lateOutcome;
     char* large;
     bool timedOut;
 } Program;
@@ -109,6 +124,39 @@ static void Read(Program* program, mwinContext* context)
           "a read");
 }
 
+// The late answer's phase: a read the other client holds runs out of
+// time; during the next, the other client answers the first, then, once
+// that answer had time to arrive, the second.
+static bool LateReady(Program* program, mwinContext* context)
+{
+    Peer* peer = program->peer;
+    if (!program->reading && NowNs() - program->startNs >= SETTLE_NS)
+    {
+        Read(program, context);
+        program->reading = true;
+    }
+    if (program->reading && program->firstOutcome < 0 && program->outcome >= 0)
+    {
+        program->firstOutcome = program->outcome;
+        program->outcome = -1;
+        Read(program, context);
+    }
+    if (peer->heldCount == 2 && program->lateNs == 0)
+    {
+        PeerServeHeld(peer, 0);
+        program->lateNs = NowNs();
+    }
+    if (program->lateNs != 0 && peer->heldCount == 2 && NowNs() - program->lateNs >= SETTLE_NS)
+    {
+        program->lateOutcome = program->outcome;
+        peer->text = "fresh";
+        PeerServeHeld(peer, 1);
+        peer->heldCount = 0;
+        peer->holdAll = false;
+    }
+    return program->lateNs != 0 && peer->heldCount == 0 && program->outcome >= 0;
+}
+
 // Whether the phase is done: its request answered, the other client's
 // read finished, or, once the program has heard the other client took
 // CLIPBOARD, its read answered.
@@ -123,6 +171,26 @@ static bool Ready(Program* program, mwinContext* context)
     case phasePeerPieces:
     case phasePeerWhole:
         return program->peer->gotAll;
+    case phaseStale:
+        if (!program->reading && NowNs() - program->startNs >= SETTLE_NS)
+        {
+            Read(program, context);
+            program->reading = true;
+        }
+        if (program->peer->heldCount > 0 && program->heldNs == 0)
+        {
+            program->heldNs = NowNs();
+        }
+        // The wrong answers had time to arrive; the right one follows.
+        if (program->peer->heldCount > 0 && NowNs() - program->heldNs >= SETTLE_NS)
+        {
+            program->staleOutcome = program->outcome;
+            PeerServeHeld(program->peer, 0);
+            program->peer->heldCount = 0;
+        }
+        return program->heldNs != 0 && program->peer->heldCount == 0 && program->outcome >= 0;
+    case phaseLate:
+        return LateReady(program, context);
     case phaseOtherText:
     case phaseTooLarge:
     case phasePieces:
@@ -209,6 +277,21 @@ static void Advance(Program* program, mwinContext* context)
     case phaseOtherText:
         CHECK(outcome == mwin_outcomeDone && Found(context, program->request, "A\xEF\xBF\xBD(", 5),
               "another client's text read, repaired");
+        peer->stale = true;
+        PeerOwn(peer, peer->clipboard, peer->utf8, "fresh", 5);
+        break;
+    case phaseStale:
+        CHECK(program->staleOutcome < 0 && outcome == mwin_outcomeDone &&
+                  Found(context, program->request, "fresh", 5),
+              "answers naming PRIMARY or another target left, the read's own taken");
+        peer->holdAll = true;
+        PeerOwn(peer, peer->clipboard, peer->utf8, "stale", 5);
+        break;
+    case phaseLate:
+        CHECK(program->firstOutcome == mwin_outcomeFailed && program->lateOutcome < 0 &&
+                  outcome == mwin_outcomeDone && Found(context, program->request, "fresh", 5),
+              "a read out of time fails, and its late answer is not taken for the next read of "
+              "the same selection and target");
         memset(s_tooLarge, 'x', sizeof(s_tooLarge));
         PeerOwn(peer, peer->clipboard, peer->utf8, s_tooLarge, sizeof(s_tooLarge));
         break;
@@ -251,7 +334,8 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         Advance(program, context);
     }
-    else if (NowNs() - program->startNs > DEADLINE_NS)
+    else if (NowNs() - program->startNs >
+             (program->phase == phaseLate ? LATE_DEADLINE_NS : DEADLINE_NS))
     {
         (void)printf("timed out in phase %d\n", (int)program->phase);
         program->timedOut = true;
@@ -279,7 +363,12 @@ int main(void)
     }
     peer.got = s_got;
     unsetenv("WAYLAND_DISPLAY");
-    Program program = {.peer = &peer, .outcome = -1, .large = s_large};
+    Program program = {.peer = &peer,
+                       .outcome = -1,
+                       .staleOutcome = -1,
+                       .firstOutcome = -1,
+                       .lateOutcome = -1,
+                       .large = s_large};
     mwinAppDef def = mwinDefaultAppDef();
     def.context.limits.clipboardBytes = LIMIT;
     def.init = Init;

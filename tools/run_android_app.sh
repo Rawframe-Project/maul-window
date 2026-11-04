@@ -30,8 +30,10 @@
 # application are tried up to three times. The application's data is
 # cleared and its result file removed before it starts, so a result an
 # earlier run left cannot be read as this one's. A command the test asks
-# for is not tried again, and the test fails when adb loses it. Once the
-# verdict is reached, putting the device back cannot change it.
+# for is not tried again, and the test fails when adb loses it. The
+# device is put back however the script ends, without changing its
+# status; a setting whose read stayed lost is left as it is, rather than
+# set to nothing.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -46,6 +48,60 @@ again() {
         tries=$((tries + 1))
         sleep 1
     done
+}
+
+# A setting read through again, or "lost" when the read stayed lost.
+setting() {
+    if value=$(again shell "$@"); then
+        printf '%s\n' "$value" | tr -d '\r'
+    else
+        echo lost
+    fi
+}
+
+# Puts a setting back to the value read, appended to the command, unless
+# its read stayed lost.
+# shellcheck disable=SC2317 # called by restore
+put_back() {
+    value=$1
+    shift
+    [ "$value" = lost ] || again shell "$@" "$value" > /dev/null
+}
+
+# Puts the device back as the run found it, whatever ended the run.
+# shellcheck disable=SC2317 # called by the EXIT trap
+restore() {
+    set +e
+    again shell am force-stop "$package"
+    # A finger the console left down, by a test that ended early, is lifted.
+    if [ -n "$out" ] && grep -q '^emu: event mouse' "$out"; then
+        again emu event mouse 0 0 0 0 > /dev/null
+    fi
+    # A new device has neither set: the defaults are put back.
+    [ "$rotation" = null ] && rotation=0
+    [ "$rotating" = null ] && rotating=1
+    put_back "$rotation" settings put system user_rotation
+    put_back "$rotating" settings put system accelerometer_rotation
+    for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
+        eval "value=\$old_$scale"
+        [ "$value" = null ] && value=1
+        put_back "$value" settings put global "$scale"
+    done
+    put_back "$night" cmd uimode night
+    [ "$font" = null ] && font=1.0
+    put_back "$font" settings put system font_scale
+    [ "$saver" = null ] && saver=0
+    put_back "$saver" settings put global low_power
+    again shell dumpsys battery reset
+    if [ "$services" = null ] || [ -z "$services" ]; then
+        again shell settings delete secure enabled_accessibility_services > /dev/null
+    else
+        put_back "$services" settings put secure enabled_accessibility_services
+    fi
+    [ "$accessible" = null ] && accessible=0
+    put_back "$accessible" settings put secure accessibility_enabled
+    again uninstall "$package" > /dev/null
+    [ -z "$out" ] || rm -f "$out"
 }
 # A few seconds after a fresh boot, SystemUI takes its theme's overlays
 # off, and at times puts them back (Android 12 and later): each a change
@@ -83,17 +139,23 @@ if "$adb" shell cmd overlay list | grep -qE '\[x\] com\.android\.systemui:(neutr
     fi
 fi
 start=$(date +%s)
-rotating=$(again shell settings get system accelerometer_rotation | tr -d '\r')
-rotation=$(again shell settings get system user_rotation | tr -d '\r')
+out=
+rotating=lost rotation=lost night=lost font=lost saver=lost services=lost accessible=lost
+# shellcheck disable=SC2034 # read through eval
+old_window_animation_scale=lost old_transition_animation_scale=lost old_animator_duration_scale=lost
+trap restore EXIT
+trap 'exit 1' HUP INT TERM
+rotating=$(setting settings get system accelerometer_rotation)
+rotation=$(setting settings get system user_rotation)
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
-    eval "old_$scale=\$(\"\$adb\" shell settings get global $scale | tr -d '\\r')"
+    eval "old_$scale=\$(setting settings get global $scale)"
     again shell settings put global "$scale" 0
 done
-night=$(again shell cmd uimode night | tr -d '\r' | sed 's/^Night mode: //')
-font=$(again shell settings get system font_scale | tr -d '\r')
-saver=$(again shell settings get global low_power | tr -d '\r')
-services=$(again shell settings get secure enabled_accessibility_services | tr -d '\r')
-accessible=$(again shell settings get secure accessibility_enabled | tr -d '\r')
+night=$(setting cmd uimode night | sed 's/^Night mode: //')
+font=$(setting settings get system font_scale)
+saver=$(setting settings get global low_power)
+services=$(setting settings get secure enabled_accessibility_services)
+accessible=$(setting settings get secure accessibility_enabled)
 again install -r "$apk" > /dev/null
 # install -r keeps the data, files/out among it, of a run whose
 # uninstall was lost. pm clear can say it failed and still exit 0, so
@@ -180,36 +242,5 @@ fi
 if [ "$status" = 0 ] && [ -n "$log" ]; then
     rm -f "$log"
 fi
-# The verdict stands whatever putting the device back does.
-set +e
-again shell am force-stop "$package"
-# A finger the console left down, by a test that ended early, is lifted.
-if grep -q '^emu: event mouse' "$out"; then
-    again emu event mouse 0 0 0 0 > /dev/null
-fi
-# A new device has neither set: the defaults are put back.
-[ "$rotation" = null ] && rotation=0
-[ "$rotating" = null ] && rotating=1
-again shell settings put system user_rotation "$rotation"
-again shell settings put system accelerometer_rotation "$rotating"
-for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
-    eval "value=\$old_$scale"
-    [ "$value" = null ] && value=1
-    again shell settings put global "$scale" "$value"
-done
-again shell cmd uimode night "$night" > /dev/null
-[ "$font" = null ] && font=1.0
-again shell settings put system font_scale "$font"
-[ "$saver" = null ] && saver=0
-again shell settings put global low_power "$saver"
-again shell dumpsys battery reset
-if [ "$services" = null ] || [ -z "$services" ]; then
-    again shell settings delete secure enabled_accessibility_services > /dev/null
-else
-    again shell settings put secure enabled_accessibility_services "$services"
-fi
-[ "$accessible" = null ] && accessible=0
-again shell settings put secure accessibility_enabled "$accessible"
-again uninstall "$package" > /dev/null
-rm -f "$out"
+# restore puts the device back as the script exits; the status stands.
 exit $status

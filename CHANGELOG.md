@@ -5,6 +5,28 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.11.0](https://github.com/Rawframe-Project/maul-window/compare/v0.10.0...v0.11.0) (2026-11-04)
+
+### Changed
+
+- **Breaking:** on Windows, a generic HID gamepad gets its controls from
+  the first 32 capabilities its descriptor gives of the Button page and
+  the first 32 of the Generic Desktop page, whatever other pages it
+  has. Before, a pad with more than 32 button capabilities got no
+  buttons, and one with more than 32 value capabilities got no axes and
+  no hats. Capabilities of other pages, such as a vendor's, counted
+  toward the 32, so a descriptor that gave more than 32 of them ahead
+  of its controls got none either. A pad left with no controls of
+  either kind was not added as a gamepad
+  ([#441](https://github.com/Rawframe-Project/maul-window/pull/441),
+  [#443](https://github.com/Rawframe-Project/maul-window/pull/443)).
+- Maul Window builds against Maul Unicode 1.0.0, which has the API and
+  the results of 0.13.0, so nothing a program gets from Maul Window
+  changes. The installed CMake config and pkg-config file ask for
+  Maul Unicode 1.0.0, and a build on a machine with only Maul Unicode
+  0.13 installed fetches 1.0.0 instead of using it
+  ([#439](https://github.com/Rawframe-Project/maul-window/pull/439)).
+
 ## [0.10.0](https://github.com/Rawframe-Project/maul-window/compare/v0.9.0...v0.10.0) (2026-11-04)
 
 ### Changed

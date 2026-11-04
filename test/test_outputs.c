@@ -283,11 +283,12 @@ static void Copies(mwinContext* context, mwinWindowId window, mwinRequestId requ
     {
         size_t length;
         size_t count;
-        char bytes[8];
+        char bytes[7];
+        bool truncated;
     } paths;
     static_assert(sizeof(paths) == 2 * sizeof(size_t) + 8, "no padding");
     EXPECT(status, paths, mwinRequest_GetDialogFiles, context, request, paths.bytes,
-           sizeof(paths.bytes), &paths.length, &paths.count);
+           sizeof(paths.bytes), &paths.length, &paths.count, &paths.truncated);
 }
 
 // The calls that read the context alone, given no context.
@@ -390,7 +391,7 @@ static void Shorts(Program* program, mwinContext* context, mwinDropId drop)
     size_t count = 0;
     Fill(paths, sizeof(paths));
     status = mwinRequest_GetDialogFiles(context, program->requests[4], paths, sizeof(paths),
-                                        &length, &count);
+                                        &length, &count, nullptr);
     CHECK(status == mwin_errorCapacity && length == sizeof(s_chosen) && count == 2 &&
               Zeroed(paths, sizeof(paths)),
           "a dialog's paths: their bytes and count kept, none of them in a buffer too short");
@@ -450,7 +451,7 @@ static void Longs(Program* program, mwinContext* context, mwinDropId drop)
     size_t count = 0;
     Fill(paths, sizeof(paths));
     status = mwinRequest_GetDialogFiles(context, program->requests[4], paths, sizeof(paths),
-                                        &length, &count);
+                                        &length, &count, nullptr);
     CHECK(status == mwin_success && length == sizeof(s_chosen) && count == 2 &&
               Untouched(paths + length, sizeof(paths) - length),
           "a dialog's paths, the rest of the buffer kept");

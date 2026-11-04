@@ -10,7 +10,8 @@
 // closed by the user; a folder, after another program sent the program
 // a Response of its own at the request's path; a dialog closed when its
 // window goes;
-// a URI of no local file failed; results keyed by numbers (a{dv}, the
+// a URI of no local file failed, and one beside a local file left out,
+// the answer done and marked truncated; results keyed by numbers (a{dv}, the
 // shape of a fuzz finding) failed; zenity where the portal refuses.
 // Without a bus, zenity: its arguments, a choice of several with a name
 // holding U+001E, one file whose name holds it and ends in a line feed,
@@ -54,11 +55,13 @@ typedef struct Step
     bool refuse;
     const char* output;
     const char* status;
-    // How it ends, the paths it chose (NULL not to look), and what the
-    // portal (with the parent as %s) or zenity was asked.
+    // How it ends, the paths it chose (NULL not to look) and whether it
+    // left one out, and what the portal (with the parent as %s) or
+    // zenity was asked.
     mwinOutcome outcome;
     const char* files;
     size_t filesLength;
+    bool truncated;
     const char* asked;
     // The window is destroyed while the portal shows the dialog.
     bool destroy;
@@ -207,10 +210,12 @@ static bool Chose(mwinContext* context, const Program* program, const Step* step
 {
     char paths[256];
     size_t length = 0;
+    bool truncated = !step->truncated;
     return step->files == nullptr ||
            (mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                       nullptr) == mwin_success &&
-            length == step->filesLength && memcmp(paths, step->files, length) == 0);
+                                       nullptr, &truncated) == mwin_success &&
+            length == step->filesLength && truncated == step->truncated &&
+            memcmp(paths, step->files, length) == 0);
 }
 
 // Ends a step once it completed, and its dialog closed if it should.
@@ -307,6 +312,7 @@ static void Run(const Step* steps, int count, FakeBus* fake, uint32_t dialogByte
 static const char* const s_chosen[] = {"file:///tmp/a%20b/x.png", "file:///tmp/%C3%A9.JPG"};
 static const char* const s_folder[] = {"file:///tmp"};
 static const char* const s_web[] = {"https://example.com/x"};
+static const char* const s_mixed[] = {"file:///tmp/x", "https://example.com/x"};
 
 static const Step s_portal[] = {
     {.what = "many files through the portal, over the window, with the filters and folder",
@@ -342,6 +348,15 @@ static const Step s_portal[] = {
      .uris = s_web,
      .uriCount = 1,
      .outcome = mwin_outcomeFailed,
+     .asked = nullptr},
+    {.what = "a URI of no local file beside a local file left out, the answer marked truncated",
+     .kind = mwin_dialogOpenMany,
+     .uris = s_mixed,
+     .uriCount = 2,
+     .outcome = mwin_outcomeDone,
+     .files = "/tmp/x",
+     .filesLength = 7,
+     .truncated = true,
      .asked = nullptr},
     {.what = "results keyed by numbers failed",
      .kind = mwin_dialogOpen,

@@ -107,7 +107,7 @@ static bool PathIs(const Program* program, mwinContext* context, const char* exp
     size_t length = 0;
     size_t count = 0;
     return mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                      &count) == mwin_success &&
+                                      &count, nullptr) == mwin_success &&
            count == 1 && strcmp(paths, expected) == 0;
 }
 

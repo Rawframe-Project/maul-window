@@ -8,6 +8,7 @@ The services around a program's windows are requests of a window, answered by a 
 
 - Filters are extensions without dots, separated by `;` (`"png;jpg"`), matched in any case, so they mean the same everywhere. Folder dialogs ignore them; no filters offers every file.
 - After a done completion, `mwinRequest_GetDialogFiles` copies out the chosen paths under the request's id, absolute, UTF-8, each ended by a NUL. Closing the dialog completes the request cancelled; more than `dialogFiles` paths or `dialogBytes` bytes completes it too large.
+- A chosen file the platform cannot hand over as a path is left out, and the getter's `truncatedOut` says so, as a drop's `truncated` does. That covers a path that is not UTF-8, a portal's choice that is no local file, an item with no file system path on Windows, and a document Android could not read or copy. When no chosen file is left, the dialog completes failed. The limits work differently: a choice past them completes too large as a whole, because a limit says nothing about which files to keep.
 
 | Platform | The dialog |
 |---|---|

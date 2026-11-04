@@ -92,8 +92,8 @@ static void ReadBack(void)
         Count(status, Same(bytes, length, "One", 3));
         break;
     case CASE_DIALOG:
-        status =
-            mwinRequest_GetDialogFiles(s_context, s_first, bytes, sizeof(bytes), &length, &count);
+        status = mwinRequest_GetDialogFiles(s_context, s_first, bytes, sizeof(bytes), &length,
+                                            &count, nullptr);
         Count(status, count == 1 && Same(bytes, length, s_firstFiles, sizeof(s_firstFiles)));
         break;
     case CASE_DROP:

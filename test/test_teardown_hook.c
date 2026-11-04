@@ -60,8 +60,8 @@ static int Payloads(bool live)
     wrong += mwinRequest_GetClipboardData(s_context, s_data, bytes, sizeof(bytes), &length) != want;
     wrong +=
         mwinRequest_GetPrimaryText(s_context, s_primary, bytes, sizeof(bytes), &length) != want;
-    wrong += mwinRequest_GetDialogFiles(s_context, s_dialog, bytes, sizeof(bytes), &length,
-                                        &count) != want;
+    wrong += mwinRequest_GetDialogFiles(s_context, s_dialog, bytes, sizeof(bytes), &length, &count,
+                                        nullptr) != want;
     wrong += mwinDrop_GetFiles(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
     wrong += mwinDrop_GetText(s_context, s_drop, bytes, sizeof(bytes), &length) != want;
     return wrong;

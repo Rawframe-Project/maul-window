@@ -7,17 +7,24 @@ may change the API, the ABI and the behavior.
 
 ## [0.10.0](https://github.com/Rawframe-Project/maul-window/compare/v0.9.0...v0.10.0) (2026-11-04)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **linux:** on X11 and Wayland, a compose sequence that types 64 bytes or more now types its text when it fits the window's text room (`textBytesPerWindow`), and posts `mwin_eventInputStateReset` after its key past it; it used to type nothing, with no reset.
-* **wayland:** on Wayland, a drag that enters while a drop is still being read is refused and brings no records; it used to bring `mwin_eventDragEntered`, its moves and, when dropped, `mwin_eventDragLeft`.
-
-### Fixed
-
-* **build:** pass clang-tidy its header filter, so headers are checked ([#433](https://github.com/Rawframe-Project/maul-window/issues/433)) ([4991ded](https://github.com/Rawframe-Project/maul-window/commit/4991dedf3096e89e1ff448c9745eda9b376ec80a)), closes [#431](https://github.com/Rawframe-Project/maul-window/issues/431)
-* **linux:** type a long composed text, a reset past the text room ([#430](https://github.com/Rawframe-Project/maul-window/issues/430)) ([c66f35b](https://github.com/Rawframe-Project/maul-window/commit/c66f35bc6150308920b32d40c9cc0e30ff727726)), closes [#429](https://github.com/Rawframe-Project/maul-window/issues/429)
-* **wayland:** refuse a drag that enters while a drop is still read ([#428](https://github.com/Rawframe-Project/maul-window/issues/428)) ([15c38c5](https://github.com/Rawframe-Project/maul-window/commit/15c38c5228a9ff812793d7e4f2ead28bff7845f2)), closes [#427](https://github.com/Rawframe-Project/maul-window/issues/427)
+- **Breaking:** on Wayland, a drag that enters while a drop is still
+  being read from the dragging program is refused, accepted as no type,
+  and brings no records. Before, it brought `mwin_eventDragEntered` and
+  its moves, the source was told the window would take it, and its drop
+  brought `mwin_eventDragLeft` instead of `mwin_eventDropped`, since the
+  reads belonged to the drop before it. The drop being read is
+  delivered as before
+  ([#428](https://github.com/Rawframe-Project/maul-window/pull/428)).
+- **Breaking:** on X11 and Wayland, a compose sequence that types 64
+  bytes or more types its text when it fits the window's text room
+  (`textBytesPerWindow`), and posts `mwin_eventInputStateReset` after
+  its key past it. Before, it typed nothing, with no reset. On X11, a key
+  held for IBus's or Fcitx's answer keeps such a text in order behind
+  the keys before it, and a key whose text was lost goes through the
+  input method too, its reset posted after it
+  ([#430](https://github.com/Rawframe-Project/maul-window/pull/430)).
 
 ## [0.9.0](https://github.com/Rawframe-Project/maul-window/compare/v0.8.1...v0.9.0) (2026-11-03)
 

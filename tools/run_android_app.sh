@@ -97,9 +97,15 @@ accessible=$(again shell settings get secure accessibility_enabled | tr -d '\r')
 again install -r "$apk" > /dev/null
 # install -r keeps the data, files/out among it, of a run whose
 # uninstall was lost. pm clear can say it failed and still exit 0, so
-# the result file is removed by name too.
+# the result file is removed by name too, and the device asked whether
+# it is gone: anything but "absent" (run-as failing among it) fails the
+# test, whose result could be the earlier one.
 again shell pm clear "$package" > /dev/null
-again shell run-as "$package" rm -f files/out
+again shell run-as "$package" rm -f files/out || true
+gone=$(again shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" 2>&1 | tr -d '\r' || true)
+if [ "$gone" != absent ]; then
+    echo "an earlier run's result may be left: the device answered '$gone'"
+fi
 began_assets=$(assets)
 server=$(again shell pidof system_server | tr -d '\r')
 again logcat -b all -c
@@ -148,7 +154,8 @@ if [ "$server_now" != "$server" ]; then
     done
 fi
 status=1
-if [ -z "$restarted" ] && [ -z "$lost" ] && grep -qx 'result: 0 failures' "$out"; then
+if [ -z "$restarted" ] && [ -z "$lost" ] && [ "$gone" = absent ] &&
+    grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E libc:F ActivityManager:W | tail -60

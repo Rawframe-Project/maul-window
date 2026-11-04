@@ -10,7 +10,9 @@
 // - the pad is mapped by the database's Windows entry, its product
 //   string its name, longer than 31 units and cut to the whole
 //   characters within 64 bytes, its axes numbered by usage, not by the
-//   order its descriptor gives them;
+//   order its descriptor gives them, and its controls read although its
+//   descriptor has more capabilities of each kind than the library has
+//   room for;
 // - its report: buttons, sticks, triggers from whole axes, and the hat
 //   as the d-pad;
 // - the stick is raw: its buttons in usage order, a signed axis, and a
@@ -107,6 +109,10 @@ static const Device* DeviceOf(HANDLE handle)
 // A device unplugged, which the list leaves out.
 static HANDLE s_gone;
 
+// The pad's capabilities of each kind: its own, then a vendor's buttons
+// and values, past the 32 the library asks for.
+#define PAD_CAPS 40
+
 static UINT WINAPI DeviceList(PRAWINPUTDEVICELIST list, PUINT count, UINT size)
 {
     (void)size;
@@ -194,7 +200,7 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
 }
 
 // The pad's controls in its descriptor's order: X, Y, Z and Rz, the hat,
-// then Rx and Ry, and one of a vendor's page; the stick's buttons 3,
+// then Rx and Ry, and a vendor's to PAD_CAPS; the stick's buttons 3,
 // then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider, a
 // dial of one value and a hat of the widest range, no buttons; none for
 // the empty one; the stick's values for the large one.
@@ -232,7 +238,11 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
             Value(0xFF00, 0x20, 0x20, 8, 0, 255),
         };
         memcpy(caps, pad, sizeof(pad));
-        return 8;
+        for (USHORT i = 8; i < PAD_CAPS; i++)
+        {
+            caps[i] = Value(0xFF00, (USAGE)(0x20 + i), (USAGE)(0x20 + i), 8, 0, 255);
+        }
+        return PAD_CAPS;
     }
     caps[0] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_X, HID_USAGE_GENERIC_Y, 8, -128, 127);
     caps[1] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_HATSWITCH,
@@ -240,9 +250,43 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
     return 2;
 }
 
+// The pad's buttons 1 to 14, then a vendor's to PAD_CAPS; the large
+// one's 1 to 14; the stick's 3, then 1 and 2.
+static USHORT ButtonCapsOf(HANDLE owner, HIDP_BUTTON_CAPS* caps)
+{
+    if (owner == PAD || owner == LARGE)
+    {
+        caps[0] = Buttons(1, 14);
+        for (USHORT i = 1; owner == PAD && i < PAD_CAPS; i++)
+        {
+            caps[i] = Buttons(i, i);
+            caps[i].UsagePage = 0xFF00;
+        }
+        return owner == PAD ? PAD_CAPS : 1;
+    }
+    if (owner != STICK)
+    {
+        return 0;
+    }
+    caps[0] = Buttons(3, 3);
+    caps[1] = Buttons(1, 2);
+    return 2;
+}
+
+// Hands over the capabilities that fit, as Windows' parser does: too
+// small a room filled and said, and, as Wine's does, all of them counted.
+static NTSTATUS Give(const void* all, size_t size, USHORT total, void* caps, PUSHORT count)
+{
+    USHORT fit = total < *count ? total : *count;
+    memcpy(caps, all, fit * size);
+    *count = total;
+    return fit < total ? HIDP_STATUS_BUFFER_TOO_SMALL : HIDP_STATUS_SUCCESS;
+}
+
 static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
 {
-    HIDP_VALUE_CAPS values[8];
+    HIDP_BUTTON_CAPS buttons[PAD_CAPS];
+    HIDP_VALUE_CAPS values[PAD_CAPS];
     HANDLE owner = Owner(data);
     // The wheel's report fills a raw input read exactly; the large one's
     // would not fit beside the header.
@@ -250,8 +294,7 @@ static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
     *caps = (HIDP_CAPS){.InputReportByteLength = owner == LARGE   ? MWIN_WIN32_HID_INPUT_BYTES
                                                  : owner == WHEEL ? fills
                                                                   : sizeof(Report),
-                        .NumberInputButtonCaps =
-                            owner == PAD || owner == LARGE ? 1 : (owner == STICK ? 2 : 0),
+                        .NumberInputButtonCaps = ButtonCapsOf(owner, buttons),
                         .NumberInputValueCaps = ValueCaps(Owner(data), values)};
     return HIDP_STATUS_SUCCESS;
 }
@@ -260,29 +303,16 @@ static NTSTATUS NTAPI ButtonCaps(HIDP_REPORT_TYPE type, PHIDP_BUTTON_CAPS caps, 
                                  PHIDP_PREPARSED_DATA data)
 {
     (void)type;
-    if (Owner(data) == PAD || Owner(data) == LARGE)
-    {
-        caps[0] = Buttons(1, 14);
-        *count = 1;
-        return HIDP_STATUS_SUCCESS;
-    }
-    if (Owner(data) != STICK)
-    {
-        *count = 0;
-        return HIDP_STATUS_SUCCESS;
-    }
-    caps[0] = Buttons(3, 3);
-    caps[1] = Buttons(1, 2);
-    *count = 2;
-    return HIDP_STATUS_SUCCESS;
+    HIDP_BUTTON_CAPS all[PAD_CAPS];
+    return Give(all, sizeof(all[0]), ButtonCapsOf(Owner(data), all), caps, count);
 }
 
 static NTSTATUS NTAPI ValueCapsOf(HIDP_REPORT_TYPE type, PHIDP_VALUE_CAPS caps, PUSHORT count,
                                   PHIDP_PREPARSED_DATA data)
 {
     (void)type;
-    *count = ValueCaps(Owner(data), caps);
-    return HIDP_STATUS_SUCCESS;
+    HIDP_VALUE_CAPS all[PAD_CAPS];
+    return Give(all, sizeof(all[0]), ValueCaps(Owner(data), all), caps, count);
 }
 
 static NTSTATUS NTAPI Usages(HIDP_REPORT_TYPE type, USAGE page, USHORT link, PUSAGE list,

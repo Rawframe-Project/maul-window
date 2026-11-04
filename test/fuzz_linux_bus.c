@@ -1243,8 +1243,8 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
     static char bytes[DIALOG_BYTES + 1];
     size_t length = 0;
     size_t count = 0;
-    Expect(mwinRequest_GetDialogFiles(context, request, bytes, sizeof(bytes), &length, &count) ==
-               mwin_success &&
+    Expect(mwinRequest_GetDialogFiles(context, request, bytes, sizeof(bytes), &length, &count,
+                                      nullptr) == mwin_success &&
            length <= DIALOG_BYTES && count <= FILES);
     uint32_t paths = 0;
     for (size_t at = 0; at < length; paths++)

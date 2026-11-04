@@ -110,7 +110,8 @@ int mwinAndroidAskDialog(mwinAndroidPlatform* platform, uint32_t slot, uint32_t 
     return -1;
 }
 
-// Answers the dialog with how it went: done with its copies' paths.
+// Answers the dialog with how it went: done with its copies' paths, a
+// document left out (its path empty) marking the answer truncated.
 static void Finish(mwinAndroidPlatform* platform, mwinOutcome outcome)
 {
     mwinContext* context = platform->context;
@@ -153,10 +154,8 @@ static void JNICALL Documents(JNIEnv* env, jclass type, jlong program, jint numb
         }
         return;
     }
-    // A document left out fails the dialog.
     if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors,
-                              names) ||
-        platform->documents.copy.leftOut > 0)
+                              names))
     {
         Finish(platform, mwin_outcomeFailed);
     }
@@ -169,7 +168,7 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget)
     {
         if (mwinAndroidStepCopy(&documents->copy, budget))
         {
-            Finish(platform, documents->copy.leftOut == 0 ? mwin_outcomeDone : mwin_outcomeFailed);
+            Finish(platform, mwin_outcomeDone);
         }
     }
 }

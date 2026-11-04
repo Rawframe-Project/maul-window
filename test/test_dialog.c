@@ -9,7 +9,9 @@
 // paths copied out under its request and stale under any other; a
 // cancelled dialog, one past the limits and one choosing nothing,
 // which keep the last paths; a folder dialog without filters, whose
-// paths replace them; and dialogs cancelled with their window or never
+// paths replace them; a choice holding a path that is not UTF-8, done
+// with the other path and marked truncated, every other done answer
+// not marked; and dialogs cancelled with their window or never
 // answered, their defs given back (the sanitizer builds would report a
 // leak).
 
@@ -167,21 +169,22 @@ static bool Described(mwinContext* context, const char* expected)
 }
 
 static bool Chose(mwinContext* context, mwinRequestId request, const char* expected,
-                  size_t expectedLength, uint32_t expectedCount)
+                  size_t expectedLength, uint32_t expectedCount, bool expectedTruncated)
 {
     char paths[64];
     size_t length = 0;
     size_t count = 0;
-    return mwinRequest_GetDialogFiles(context, request, paths, sizeof(paths), &length, &count) ==
-               mwin_success &&
-           length == expectedLength && count == expectedCount &&
+    bool truncated = !expectedTruncated;
+    return mwinRequest_GetDialogFiles(context, request, paths, sizeof(paths), &length, &count,
+                                      &truncated) == mwin_success &&
+           length == expectedLength && count == expectedCount && truncated == expectedTruncated &&
            memcmp(paths, expected, length) == 0;
 }
 
 static bool Stale(mwinContext* context, mwinRequestId request)
 {
     size_t length = 0;
-    return mwinRequest_GetDialogFiles(context, request, nullptr, 0, &length, nullptr) ==
+    return mwinRequest_GetDialogFiles(context, request, nullptr, 0, &length, nullptr, nullptr) ==
            mwin_errorStale;
 }
 
@@ -205,9 +208,9 @@ static void CheckChosen(Program* program, mwinContext* context)
     size_t count = 0;
     char small[4];
     Fill(small, sizeof(small));
-    CHECK(Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&
+    CHECK(Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2, false) &&
               mwinRequest_GetDialogFiles(context, program->requests[1], small, sizeof(small),
-                                         &length, &count) == mwin_errorCapacity &&
+                                         &length, &count, nullptr) == mwin_errorCapacity &&
               length == sizeof(s_chosen) && count == 2 && Zeroed(small, sizeof(small)) &&
               Stale(context, program->requests[0]) && Stale(context, (mwinRequestId){0}),
           "its paths copied out under its request, none into a buffer too short, stale under "
@@ -226,7 +229,7 @@ static void CheckUnchosen(Program* program, mwinContext* context, int step)
                                        "a choice of nothing failed"};
     int at = step - 3;
     CHECK(Outcome(program, 2 + at) == outcomes[at] &&
-              Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2) &&
+              Chose(context, program->requests[1], s_chosen, sizeof(s_chosen), 2, false) &&
               Stale(context, program->requests[2 + at]),
           what[at]);
     CHECK(mwinContext_SetTestAnswer(context, mwin_requestFileDialog, mwin_outcomeDone) ==
@@ -258,15 +261,28 @@ static void CheckFolder(Program* program, mwinContext* context)
     CHECK(Outcome(program, 5) == mwin_outcomeDone &&
               Described(context, "3\n\xC3\x96"
                                  "ffnen\n" ROOT "/tmp\nx.txt\n") &&
-              Chose(context, program->requests[5], ROOT "/tmp", sizeof(ROOT "/tmp"), 1) &&
+              Chose(context, program->requests[5], ROOT "/tmp", sizeof(ROOT "/tmp"), 1, false) &&
               Stale(context, program->requests[1]),
           "a folder dialog without filters, whose paths replace the last");
+    // A path that is not UTF-8 among them.
+    static const char mixed[] = ROOT "/ok\0/\xFF";
+    CHECK(mwinContext_SetTestDialogFiles(context, mixed, sizeof(mixed)) == mwin_success,
+          "a path and one that is not UTF-8");
+    Ask(program, context, 6, mwin_dialogOpenMany);
+}
+
+static void CheckLeftOut(Program* program, mwinContext* context)
+{
+    CHECK(Outcome(program, 6) == mwin_outcomeDone &&
+              Chose(context, program->requests[6], ROOT "/ok", sizeof(ROOT "/ok"), 1, true),
+          "a path that is not UTF-8 left out, the answer done with the other and marked "
+          "truncated");
     // Held: one dialog is cancelled with its window, one never answered.
     program->windows[1] = Create(context, nullptr);
     mwinFileDialogDef def = Def(mwin_dialogOpen);
     CHECK(mwinContext_EnableTestHold(context, true) == mwin_success &&
               mwinWindow_RequestFileDialog(context, program->windows[0], &def,
-                                           &program->requests[6]) == mwin_success &&
+                                           &program->requests[7]) == mwin_success &&
               mwinWindow_RequestFileDialog(context, program->windows[1], &def, nullptr) ==
                   mwin_success &&
               mwinDestroyWindow(context, program->windows[0]) == mwin_success,
@@ -298,8 +314,11 @@ static void Step(Program* program, mwinContext* context, int step)
     case 6:
         CheckFolder(program, context);
         break;
+    case 7:
+        CheckLeftOut(program, context);
+        break;
     default:
-        CHECK(Outcome(program, 6) == mwin_outcomeCancelled, "cancelled with its window");
+        CHECK(Outcome(program, 7) == mwin_outcomeCancelled, "cancelled with its window");
         program->done = true;
         break;
     }

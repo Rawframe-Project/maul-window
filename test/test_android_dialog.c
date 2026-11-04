@@ -8,9 +8,11 @@
 // not the second's, and Back closes it, cancelling. Then the picker's
 // result is handed to the activity as the picker hands it
 // (onActivityResult), with two documents the test makes in Downloads
-// through MediaStore: their copies, under the names their provider
-// gives, read back the same, a large one copied over several frames; and
-// a picker's OK with no document in it fails.
+// through MediaStore and after them the address of one deleted before:
+// their copies, under the names their provider gives, read back the
+// same, a large one copied over several frames, the deleted one left out
+// and the answer marked truncated; and a picker's OK with no document in
+// it fails.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -61,9 +63,10 @@ typedef struct Program
     // once its surface went.
     ANativeActivity* activity;
     // The two documents (global references to their addresses), and
-    // their names.
+    // their names; and the address of one deleted before it is chosen.
     jobject documents[2];
     char names[2][64];
+    jobject gone;
 } Program;
 
 static uint64_t NowNs(void)
@@ -210,7 +213,8 @@ static void Result(const Program* program, jint request, jint code, jobject inte
     (*env)->DeleteLocalRef(env, activities);
 }
 
-// Hands the activity the picker's result, the two documents chosen.
+// Hands the activity the picker's result, the two documents chosen and
+// the deleted one's address after them.
 static void Choose(const Program* program)
 {
     ANativeActivity* activity = program->activity;
@@ -224,6 +228,7 @@ static void Choose(const Program* program)
     jclass items = (*env)->FindClass(env, "android/content/ClipData$Item");
     jmethodID item = (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V");
     jobject first = (*env)->NewObject(env, items, item, program->documents[0]);
+    jobject gone = (*env)->NewObject(env, items, item, program->gone);
     jobject second = (*env)->NewObject(env, items, item, program->documents[1]);
     jstring label = (*env)->NewStringUTF(env, "documents");
     jclass strings = (*env)->FindClass(env, "java/lang/String");
@@ -235,9 +240,10 @@ static void Choose(const Program* program)
             env, clips, "<init>",
             "(Ljava/lang/CharSequence;[Ljava/lang/String;Landroid/content/ClipData$Item;)V"),
         label, types, first);
-    (*env)->CallVoidMethod(
-        env, clip, (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V"),
-        second);
+    jmethodID add =
+        (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
+    (*env)->CallVoidMethod(env, clip, add, second);
+    (*env)->CallVoidMethod(env, clip, add, gone);
     jclass intents = (*env)->FindClass(env, "android/content/Intent");
     jobject intent =
         (*env)->NewObject(env, intents, (*env)->GetMethodID(env, intents, "<init>", "()V"));
@@ -245,7 +251,8 @@ static void Choose(const Program* program)
         env, intent,
         (*env)->GetMethodID(env, intents, "setClipData", "(Landroid/content/ClipData;)V"), clip);
     Result(program, PICKER, RESULT_OK, intent);
-    jobject locals[] = {clips, items, first, second, label, strings, types, clip, intents, intent};
+    jobject locals[] = {clips,   items, first, gone,    second, label,
+                        strings, types, clip,  intents, intent};
     for (size_t i = 0; i < sizeof(locals) / sizeof(locals[0]); i++)
     {
         (*env)->DeleteLocalRef(env, locals[i]);
@@ -292,10 +299,11 @@ static void CheckCopies(Program* program, mwinContext* context)
     char paths[2048];
     size_t length = 0;
     size_t count = 0;
+    bool truncated = false;
     CHECK(mwinRequest_GetDialogFiles(context, program->requests[0], paths, sizeof(paths), &length,
-                                     &count) == mwin_success &&
-              count == 2,
-          "two paths");
+                                     &count, &truncated) == mwin_success &&
+              count == 2 && truncated,
+          "two paths, the deleted document left out and the answer marked truncated");
     const char* path = paths;
     for (uint32_t i = 0; i < count && i < 2; i++)
     {
@@ -366,6 +374,16 @@ static void Advance(Program* program, mwinContext* context)
         program->documents[1] = MakeDocument(activity->env, activity, program->names[1], true);
         CHECK(program->documents[0] != nullptr && program->documents[1] != nullptr,
               "two documents made");
+        {
+            char goneName[64];
+            (void)snprintf(goneName, sizeof(goneName), "maul-gone-%d.txt", (int)getpid());
+            program->gone = MakeDocument(activity->env, activity, goneName, false);
+            CHECK(program->gone != nullptr, "a document made to delete");
+            if (program->gone != nullptr)
+            {
+                DeleteDocument(activity->env, activity, program->gone);
+            }
+        }
         CHECK(Ask(program, context, mwin_dialogSave) == mwin_success &&
                   Ask(program, context, mwin_dialogFolder) == mwin_success &&
                   Ask(program, context, mwin_dialogOpenMany) == mwin_success,

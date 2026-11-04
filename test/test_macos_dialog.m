@@ -146,7 +146,7 @@ static void CheckSaved(const Program* program, mwinContext* context)
     size_t name = strlen(program->name);
     CHECK(program->outcome == mwin_outcomeDone &&
               mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                         &count) == mwin_success &&
+                                         &count, nullptr) == mwin_success &&
               count == 1 && length > name + 1 &&
               memcmp(paths + length - name - 1, program->name, name) == 0 && paths[0] == '/',
           "the save panel's path, in the folder asked for");

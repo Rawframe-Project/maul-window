@@ -216,7 +216,7 @@ static bool Chose(mwinContext* context, const Program* program, const char* cons
     size_t length = 0;
     size_t count = 0;
     bool got = mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths), &length,
-                                          &count) == mwin_success;
+                                          &count, nullptr) == mwin_success;
     bool same = got && count == wanted;
     size_t at = 0;
     uint32_t seen = 0;
@@ -271,7 +271,7 @@ static void Check(mwinContext* context, Program* program)
         size_t length = 0;
         bool chosen = program->outcome == mwin_outcomeDone &&
                       mwinRequest_GetDialogFiles(context, program->request, paths, sizeof(paths),
-                                                 &length, nullptr) == mwin_success &&
+                                                 &length, nullptr, nullptr) == mwin_success &&
                       _stricmp(paths, trimmed) == 0;
         if (!chosen)
         {

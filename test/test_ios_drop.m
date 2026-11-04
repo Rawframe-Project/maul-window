@@ -3,12 +3,12 @@
 //
 // Drag and drop on iOS, in the simulator (tools/run_ios_app.sh). The
 // test hands the view's drop interaction what UIKit would, a drop
-// session of its own over real item providers: a file, a string, and a
-// file whose load fails. It
+// session of its own over real item providers: a file, a string, a
+// file whose load fails and a text whose load fails. It
 // enters, moves, leaves, enters again and drops; each record comes at
 // its place, and the drop, once its items loaded, gives the file's copy
 // with its contents and the text, the file under the name its source
-// suggests, the one that failed left out and the drop marked truncated. The file's extension is one
+// suggests, the two that failed left out and the drop marked truncated. The file's extension is one
 // the system does not know, whose provider can also give its address as a string: it is a file
 // still. The simulator cannot drag itself.
 
@@ -150,8 +150,8 @@ static id<UIDropInteractionDelegate> DropperOf(UIView* view)
     return nil;
 }
 
-// A session carrying a file of three bytes, a string, and a file whose
-// load fails.
+// A session carrying a file of three bytes, a string, a file whose load
+// fails and a text whose load fails.
 static FakeSession* SessionOf(void)
 {
     NSString* path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"drop-test.dat"];
@@ -174,11 +174,24 @@ static FakeSession* SessionOf(void)
                                                                      userInfo:nil]);
                                           return nil;
                                         }];
+    NSItemProvider* unread = [[[NSItemProvider alloc] init] autorelease];
+    [unread
+        registerDataRepresentationForTypeIdentifier:@"public.utf8-plain-text"
+                                         visibility:NSItemProviderRepresentationVisibilityAll
+                                        loadHandler:^NSProgress*(
+                                            void (^completion)(NSData*, NSError*)) {
+                                          completion(nil,
+                                                     [NSError errorWithDomain:NSCocoaErrorDomain
+                                                                         code:NSFileReadUnknownError
+                                                                     userInfo:nil]);
+                                          return nil;
+                                        }];
     FakeSession* session = [[FakeSession alloc] init];
     session->dragged = [@[
         [[[UIDragItem alloc] initWithItemProvider:file] autorelease],
         [[[UIDragItem alloc] initWithItemProvider:text] autorelease],
-        [[[UIDragItem alloc] initWithItemProvider:broken] autorelease]
+        [[[UIDragItem alloc] initWithItemProvider:broken] autorelease],
+        [[[UIDragItem alloc] initWithItemProvider:unread] autorelease]
     ] retain];
     return session;
 }
@@ -224,8 +237,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
     CHECK(r[4].kind == mwin_eventDropped && drop->position.x == 40.0f &&
               drop->position.y == 50.0f && drop->fileCount == 1 && drop->textLength == 12 &&
               drop->truncated,
-          "dropped where it was let go, a file and text, the file that failed to load left out "
-          "and the drop marked truncated");
+          "dropped where it was let go, a file and text, the file and the text that failed to "
+          "load left out and the drop marked truncated");
     char files[1024];
     size_t length = 0;
     CHECK(mwinDrop_GetFiles(context, drop->drop, files, sizeof(files), &length) == mwin_success &&

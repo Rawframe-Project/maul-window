@@ -13,8 +13,10 @@
 // gave it (its source's suggestion, or "Document"), and the drop gives
 // those paths;
 // the system empties that directory in time. The first text item is the
-// drop's text. An item that did not load, or whose file could not be
-// copied, is left out and the drop marked truncated. The drop is posted
+// drop's text. An item that is neither a file nor text, that did not
+// load, or whose file could not be copied, is left out and the drop
+// marked truncated: the user dropped something the program did not get.
+// The drop is posted
 // once every item has loaded, at the place it was made; one whose window
 // or program went since is dropped.
 
@@ -198,7 +200,8 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
             [provider loadObjectOfClass:[NSString class]
                       completionHandler:^(id<NSItemProviderReading> text, NSError* error) {
                         (void)error;
-                        settle(@[ text != nil ? (NSString*)text : @"" ]);
+                        // A text that did not load is left out, as a file.
+                        settle(text != nil ? @[ (NSString*)text ] : nil);
                       }];
         }
         else if (type != nil)
@@ -244,7 +247,7 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
           }
           else if (value == [NSNull null])
           {
-              // It did not load, or its file could not be kept.
+              // Neither a file nor text, not loaded, or its file not kept.
               context->dropping.truncated = true;
           }
       }

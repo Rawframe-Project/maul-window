@@ -291,9 +291,11 @@ struct mwinX11Platform
     // touch records (x11_touch.h).
     bool touch;
     mwinX11Touches touches;
-    // libxkbcommon, and the keyboard, where both load.
+    // libxkbcommon, and the keyboard, where both load, and the room of
+    // the text a key types: textBytesPerWindow bytes and a NUL.
     mwinXkbApi xkbApi;
     mwinX11Keyboard keyboard;
+    char* keyText;
     mwinX11Pointer pointer;
     mwinX11Cursors cursors;
     mwinX11Clipboard clipboard;

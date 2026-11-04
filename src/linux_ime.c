@@ -573,6 +573,7 @@ void mwinImeStart(mwinLinuxIme* ime, mwinContext* context, mwinLinuxBus* bus, ch
                           .bus = bus,
                           .commit = room,
                           .preedit = room + capacity,
+                          .keys = room + 2 * (size_t)capacity,
                           .capacity = capacity,
                           .focus = -1};
 }
@@ -612,13 +613,15 @@ static void Deliver(mwinLinuxIme* ime, const mwinImeKey* held)
     }
     uint32_t slot = held->window.index1 - 1;
     mwinPost(ime->context, slot, &held->key);
+    mwinEvent after = {.kind = held->lost ? mwin_eventInputStateReset : mwin_eventTextInput,
+                       .timeNs = held->key.timeNs};
     if (held->length > 0)
     {
-        mwinEvent typed = {0};
-        typed.kind = mwin_eventTextInput;
-        typed.timeNs = held->key.timeNs;
-        typed.data.text = (mwinTextEvent){held->text, held->length};
-        mwinPost(ime->context, slot, &typed);
+        after.data.text = (mwinTextEvent){held->text, held->length};
+    }
+    if (held->lost || held->length > 0)
+    {
+        mwinPost(ime->context, slot, &after);
     }
 }
 
@@ -682,11 +685,12 @@ static void Ask(mwinLinuxIme* ime, mwinImeKey* held, uint32_t keysym, uint32_t k
 }
 
 bool mwinImeOffer(mwinLinuxIme* ime, uint32_t slot, uint32_t keysym, uint32_t keycode,
-                  uint32_t state, const mwinEvent* key, const char* text, uint32_t length,
+                  uint32_t state, const mwinEvent* key, const char* text, int32_t length,
                   uint64_t nowNs)
 {
+    MWIN_ASSERT(length <= (int32_t)ime->capacity);
     bool ask = ime->ready && ime->focus == (int32_t)slot && keycode >= 8;
-    if ((!ask && ime->count == 0) || length > MWIN_IME_TEXT_BYTES)
+    if (!ask && ime->count == 0)
     {
         return false;
     }
@@ -694,14 +698,17 @@ bool mwinImeOffer(mwinLinuxIme* ime, uint32_t slot, uint32_t keysym, uint32_t ke
     {
         Release(ime, false);
     }
-    mwinImeKey* held = &ime->held[(ime->first + ime->count) % MWIN_IME_HELD];
+    uint32_t index = (ime->first + ime->count) % MWIN_IME_HELD;
+    mwinImeKey* held = &ime->held[index];
     *held = (mwinImeKey){.window = mwinWindowIdOf(ime->context, slot),
                          .keycode = (uint8_t)keycode,
                          .key = *key,
-                         .length = length};
+                         .text = ime->keys + (size_t)index * ime->capacity,
+                         .length = length > 0 ? (uint32_t)length : 0,
+                         .lost = length < 0};
     if (length > 0)
     {
-        memcpy(held->text, text, length);
+        memcpy(held->text, text, (size_t)length);
     }
     ime->count += 1;
     if (ask)

@@ -14,8 +14,11 @@
 //   folder per drop (android_copy.h), and its first text item, as text,
 //   is its text. The drop is told once every copy is whole, at the place
 //   it was made, as on iOS; a document that could not be opened or
-//   copied is left out, and the drop marked truncated. The window takes
-//   no drag while the last drop's documents are still copied.
+//   copied is left out, and the drop marked truncated. A drag that
+//   enters the window while the last drop's documents are still copied
+//   supersedes the copy: that drop is told first, with the copies already
+//   whole and marked truncated, then the new drag as it comes. A drag
+//   that never enters the window leaves the copy alone.
 
 #include "allocator.h"
 #include "android.h"
@@ -45,30 +48,13 @@ static mwinPosition PlaceOf(const mwinAndroidPlatform* platform, jfloat x, jfloa
     return (mwinPosition){x / platform->window.scale, y / platform->window.scale};
 }
 
+// Every drag on the device starts here, so one is taken while the last
+// drop copies too; it supersedes that copy only once it enters (Drag).
 static jboolean JNICALL Takes(JNIEnv* env, jclass type, jlong program)
 {
     (void)env;
     (void)type;
-    mwinAndroidPlatform* platform = Taking(program);
-    return platform != nullptr && !platform->drops.copy.copying;
-}
-
-static void JNICALL Drag(JNIEnv* env, jclass type, jlong program, jint how, jfloat x, jfloat y,
-                         jint contents)
-{
-    (void)env;
-    (void)type;
-    mwinAndroidPlatform* platform = Taking(program);
-    if (platform == nullptr)
-    {
-        return;
-    }
-    mwinEvent event = {.timeNs = mwinAndroidNow()};
-    event.kind = how == DRAG_ENTERED ? mwin_eventDragEntered
-                 : how == DRAG_MOVED ? mwin_eventDragMoved
-                                     : mwin_eventDragLeft;
-    event.data.drag = (mwinDragEvent){PlaceOf(platform, x, y), (mwinDragContents)contents};
-    mwinPost(platform->context, (uint32_t)platform->slot, &event);
+    return Taking(program) != nullptr;
 }
 
 // Tells the drop with its whole copies' paths, unless its copy could not
@@ -106,15 +92,53 @@ static void Finish(mwinAndroidPlatform* platform, bool started)
     }
 }
 
+// Ends the last drop's copy with what it has and tells it, truncated
+// for the documents not yet whole.
+static void Supersede(mwinAndroidPlatform* platform)
+{
+    mwinAndroidCutCopy(&platform->drops.copy);
+    Finish(platform, true);
+}
+
+static void JNICALL Drag(JNIEnv* env, jclass type, jlong program, jint how, jfloat x, jfloat y,
+                         jint contents)
+{
+    (void)env;
+    (void)type;
+    mwinAndroidPlatform* platform = Taking(program);
+    if (platform == nullptr)
+    {
+        return;
+    }
+    // A drag that enters while the last drop copies supersedes it: that
+    // drop is told first, so the records stay in order.
+    if (how == DRAG_ENTERED && platform->drops.copy.copying)
+    {
+        Supersede(platform);
+    }
+    mwinEvent event = {.timeNs = mwinAndroidNow()};
+    event.kind = how == DRAG_ENTERED ? mwin_eventDragEntered
+                 : how == DRAG_MOVED ? mwin_eventDragMoved
+                                     : mwin_eventDragLeft;
+    event.data.drag = (mwinDragEvent){PlaceOf(platform, x, y), (mwinDragContents)contents};
+    mwinPost(platform->context, (uint32_t)platform->slot, &event);
+}
+
 static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jfloat y,
                          jintArray descriptors, jobjectArray names, jstring text)
 {
     (void)type;
     mwinAndroidPlatform* platform = Taking(program);
-    if (platform == nullptr || platform->drops.copy.copying)
+    if (platform == nullptr)
     {
         mwinAndroidCloseAll(env, descriptors);
         return;
+    }
+    // Android tells a drag's entering before its drop; should it not,
+    // the copy is superseded here.
+    if (platform->drops.copy.copying)
+    {
+        Supersede(platform);
     }
     mwinAndroidDrops* drops = &platform->drops;
     drops->place = PlaceOf(platform, x, y);

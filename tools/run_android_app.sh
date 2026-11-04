@@ -28,9 +28,10 @@
 # adb can lose its connection to the device ("error: closed"). The steps
 # that only read or set the device's state, install, clear or start the
 # application are tried up to three times. The application's data is
-# cleared before it starts, so a result an earlier run left cannot be
-# read as this one's. Once the verdict is reached, putting the device
-# back cannot change it.
+# cleared and its result file removed before it starts, so a result an
+# earlier run left cannot be read as this one's. A command the test asks
+# for is not tried again, and the test fails when adb loses it. Once the
+# verdict is reached, putting the device back cannot change it.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -95,8 +96,10 @@ services=$(again shell settings get secure enabled_accessibility_services | tr -
 accessible=$(again shell settings get secure accessibility_enabled | tr -d '\r')
 again install -r "$apk" > /dev/null
 # install -r keeps the data, files/out among it, of a run whose
-# uninstall was lost.
+# uninstall was lost. pm clear can say it failed and still exit 0, so
+# the result file is removed by name too.
 again shell pm clear "$package" > /dev/null
+again shell run-as "$package" rm -f files/out
 began_assets=$(assets)
 server=$(again shell pidof system_server | tr -d '\r')
 again logcat -b all -c
@@ -104,6 +107,7 @@ again shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)
 done=0
+lost=
 while [ $(($(date +%s) - start)) -lt 60 ]; do
     "$adb" shell run-as "$package" cat files/out > "$out" 2> /dev/null || true
     commands=$(grep -E '^(adb|emu): ' "$out" || true)
@@ -114,9 +118,15 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
         command=${line#*: }
         echo "running: $line"
         case $line in
-            emu:*) "$adb" emu $command > /dev/null || echo "adb lost the device running: $line" ;;
-            *) "$adb" shell "$command" > /dev/null || echo "adb lost the device running: $line" ;;
+            emu:*) set -- emu $command ;;
+            *) set -- shell "$command" ;;
         esac
+        # Not tried again, since it need not be idempotent: the test did
+        # not get what it asked for, so it fails.
+        if ! "$adb" "$@" > /dev/null; then
+            lost=$line
+            echo "adb lost the device running: $line"
+        fi
     done
     grep -q '^result: ' "$out" && break
     sleep 0.1
@@ -138,7 +148,7 @@ if [ "$server_now" != "$server" ]; then
     done
 fi
 status=1
-if [ -z "$restarted" ] && grep -qx 'result: 0 failures' "$out"; then
+if [ -z "$restarted" ] && [ -z "$lost" ] && grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E libc:F ActivityManager:W | tail -60

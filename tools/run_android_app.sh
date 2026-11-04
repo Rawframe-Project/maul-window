@@ -24,11 +24,98 @@
 # test's failures. With a third argument, a failed run's whole log since
 # the start, every buffer, is saved to that file, and a passed run
 # removes it.
+#
+# adb can lose its connection to the device ("error: closed"). The steps
+# that only read or set the device's state, install, clear or start the
+# application are tried up to three times. The application's data is
+# cleared and its result file removed before it starts, so a result an
+# earlier run left cannot be read as this one's. A command the test asks
+# for is not tried again, and the test fails when adb loses it. The
+# device is put back however the script ends, without changing its
+# status; a setting whose read stayed lost is left as it is, rather than
+# set to nothing.
 set -eu
 adb=${ADB:-adb}
 apk=$1
 package=$2
 log=${3:-}
+
+# An idempotent adb step, tried up to three times while adb fails.
+again() {
+    tries=1
+    until "$adb" "$@"; do
+        [ "$tries" -lt 3 ] || return 1
+        tries=$((tries + 1))
+        sleep 1
+    done
+}
+
+# An idempotent adb step's output, tried up to three times while adb
+# fails: only the try that succeeded is kept, so an answer a lost try
+# printed before its connection dropped is not given twice.
+ask() {
+    tries=1
+    until output=$("$adb" "$@"); do
+        [ "$tries" -lt 3 ] || return 1
+        tries=$((tries + 1))
+        sleep 1
+    done
+    printf '%s\n' "$output"
+}
+
+# A setting read through ask, or "lost" when the read stayed lost.
+setting() {
+    if value=$(ask shell "$@"); then
+        printf '%s\n' "$value" | tr -d '\r'
+    else
+        echo lost
+    fi
+}
+
+# Puts a setting back to the value read, appended to the command, unless
+# its read stayed lost.
+# shellcheck disable=SC2317 # called by restore
+put_back() {
+    value=$1
+    shift
+    [ "$value" = lost ] || again shell "$@" "$value" > /dev/null
+}
+
+# Puts the device back as the run found it, whatever ended the run.
+# shellcheck disable=SC2317 # called by the EXIT trap
+restore() {
+    set +e
+    again shell am force-stop "$package"
+    # A finger the console left down, by a test that ended early, is lifted.
+    if [ -n "$out" ] && grep -q '^emu: event mouse' "$out"; then
+        again emu event mouse 0 0 0 0 > /dev/null
+    fi
+    # A new device has neither set: the defaults are put back.
+    [ "$rotation" = null ] && rotation=0
+    [ "$rotating" = null ] && rotating=1
+    put_back "$rotation" settings put system user_rotation
+    put_back "$rotating" settings put system accelerometer_rotation
+    for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
+        eval "value=\$old_$scale"
+        [ "$value" = null ] && value=1
+        put_back "$value" settings put global "$scale"
+    done
+    put_back "$night" cmd uimode night
+    [ "$font" = null ] && font=1.0
+    put_back "$font" settings put system font_scale
+    [ "$saver" = null ] && saver=0
+    put_back "$saver" settings put global low_power
+    again shell dumpsys battery reset
+    if [ "$services" = null ] || [ -z "$services" ]; then
+        again shell settings delete secure enabled_accessibility_services > /dev/null
+    else
+        put_back "$services" settings put secure enabled_accessibility_services
+    fi
+    [ "$accessible" = null ] && accessible=0
+    put_back "$accessible" settings put secure accessibility_enabled
+    again uninstall "$package" > /dev/null
+    [ -z "$out" ] || rm -f "$out"
+}
 # A few seconds after a fresh boot, SystemUI takes its theme's overlays
 # off, and at times puts them back (Android 12 and later): each a change
 # of the resources that makes the activity in front anew, so that input
@@ -65,25 +152,43 @@ if "$adb" shell cmd overlay list | grep -qE '\[x\] com\.android\.systemui:(neutr
     fi
 fi
 start=$(date +%s)
-rotating=$("$adb" shell settings get system accelerometer_rotation | tr -d '\r')
-rotation=$("$adb" shell settings get system user_rotation | tr -d '\r')
+out=
+rotating=lost rotation=lost night=lost font=lost saver=lost services=lost accessible=lost
+# shellcheck disable=SC2034 # read through eval
+old_window_animation_scale=lost old_transition_animation_scale=lost old_animator_duration_scale=lost
+trap restore EXIT
+trap 'exit 1' HUP INT TERM
+rotating=$(setting settings get system accelerometer_rotation)
+rotation=$(setting settings get system user_rotation)
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
-    eval "old_$scale=\$(\"\$adb\" shell settings get global $scale | tr -d '\\r')"
-    "$adb" shell settings put global "$scale" 0
+    eval "old_$scale=\$(setting settings get global $scale)"
+    again shell settings put global "$scale" 0
 done
-night=$("$adb" shell cmd uimode night | tr -d '\r' | sed 's/^Night mode: //')
-font=$("$adb" shell settings get system font_scale | tr -d '\r')
-saver=$("$adb" shell settings get global low_power | tr -d '\r')
-services=$("$adb" shell settings get secure enabled_accessibility_services | tr -d '\r')
-accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r')
-"$adb" install -r "$apk" > /dev/null
+night=$(setting cmd uimode night | sed 's/^Night mode: //')
+font=$(setting settings get system font_scale)
+saver=$(setting settings get global low_power)
+services=$(setting settings get secure enabled_accessibility_services)
+accessible=$(setting settings get secure accessibility_enabled)
+again install -r "$apk" > /dev/null
+# install -r keeps the data, files/out among it, of a run whose
+# uninstall was lost. pm clear can say it failed and still exit 0, so
+# the result file is removed by name too, and the device asked whether
+# it is gone: anything but "absent" (run-as failing among it) fails the
+# test, whose result could be the earlier one.
+again shell pm clear "$package" > /dev/null
+again shell run-as "$package" rm -f files/out || true
+gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" | tr -d '\r')
+if [ "$gone" != absent ]; then
+    echo "an earlier run's result may be left: the device answered '$gone'"
+fi
 began_assets=$(assets)
-server=$("$adb" shell pidof system_server | tr -d '\r')
-"$adb" logcat -b all -c
-"$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
+server=$(ask shell pidof system_server | tr -d '\r')
+again logcat -b all -c
+again shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)
 done=0
+lost=
 while [ $(($(date +%s) - start)) -lt 60 ]; do
     "$adb" shell run-as "$package" cat files/out > "$out" 2> /dev/null || true
     commands=$(grep -E '^(adb|emu): ' "$out" || true)
@@ -94,9 +199,15 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
         command=${line#*: }
         echo "running: $line"
         case $line in
-            emu:*) "$adb" emu $command > /dev/null ;;
-            *) "$adb" shell "$command" > /dev/null ;;
+            emu:*) set -- emu $command ;;
+            *) set -- shell "$command" ;;
         esac
+        # Not tried again, since it need not be idempotent: the test did
+        # not get what it asked for, so it fails.
+        if ! "$adb" "$@" > /dev/null; then
+            lost=$line
+            echo "adb lost the device running: $line"
+        fi
     done
     grep -q '^result: ' "$out" && break
     sleep 0.1
@@ -105,7 +216,7 @@ echo "waited until $(($(date +%s) - start)) s"
 grep -v -E '^(adb|emu): ' "$out" || true
 # The system's crash takes the test with it: said as such, once the
 # system is back.
-server_now=$("$adb" shell pidof system_server | tr -d '\r' || true)
+server_now=$(ask shell pidof system_server | tr -d '\r')
 restarted=
 if [ "$server_now" != "$server" ]; then
     restarted=1
@@ -118,7 +229,8 @@ if [ "$server_now" != "$server" ]; then
     done
 fi
 status=1
-if [ -z "$restarted" ] && grep -qx 'result: 0 failures' "$out"; then
+if [ -z "$restarted" ] && [ -z "$lost" ] && [ "$gone" = absent ] &&
+    grep -qx 'result: 0 failures' "$out"; then
     status=0
 else
     "$adb" logcat -d -s AndroidRuntime:E libc:F ActivityManager:W | tail -60
@@ -143,34 +255,5 @@ fi
 if [ "$status" = 0 ] && [ -n "$log" ]; then
     rm -f "$log"
 fi
-"$adb" shell am force-stop "$package"
-# A finger the console left down, by a test that ended early, is lifted.
-if grep -q '^emu: event mouse' "$out"; then
-    "$adb" emu event mouse 0 0 0 0 > /dev/null
-fi
-# A new device has neither set: the defaults are put back.
-[ "$rotation" = null ] && rotation=0
-[ "$rotating" = null ] && rotating=1
-"$adb" shell settings put system user_rotation "$rotation"
-"$adb" shell settings put system accelerometer_rotation "$rotating"
-for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
-    eval "value=\$old_$scale"
-    [ "$value" = null ] && value=1
-    "$adb" shell settings put global "$scale" "$value"
-done
-"$adb" shell cmd uimode night "$night" > /dev/null
-[ "$font" = null ] && font=1.0
-"$adb" shell settings put system font_scale "$font"
-[ "$saver" = null ] && saver=0
-"$adb" shell settings put global low_power "$saver"
-"$adb" shell dumpsys battery reset
-if [ "$services" = null ] || [ -z "$services" ]; then
-    "$adb" shell settings delete secure enabled_accessibility_services > /dev/null
-else
-    "$adb" shell settings put secure enabled_accessibility_services "$services"
-fi
-[ "$accessible" = null ] && accessible=0
-"$adb" shell settings put secure accessibility_enabled "$accessible"
-"$adb" uninstall "$package" > /dev/null
-rm -f "$out"
+# restore puts the device back as the script exits; the status stands.
 exit $status

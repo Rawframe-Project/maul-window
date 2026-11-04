@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Sirac Ozmen
 //
-// The version and result names.
+// The version, result names, and the result attribute.
 
 #include "test_harness.h"
 
 #include "maul-window/base.h"
 
 #include <string.h>
+
+// The suites build as C23, where every compiler the family takes has
+// [[nodiscard]], so MWIN_NODISCARD expands to it and a dropped status
+// warns (GCC 14 reports its C23 as 202000L).
+#define TEXT(x)     #x
+#define EXPANDED(x) TEXT(x)
+static_assert(sizeof(EXPANDED(MWIN_NODISCARD)) > 1, "MWIN_NODISCARD is the attribute in C23");
 
 static void TestVersionMatchesHeader(void)
 {

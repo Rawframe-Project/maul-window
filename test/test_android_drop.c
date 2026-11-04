@@ -19,9 +19,10 @@
 // bar) leaves it alone, with no record; a drag that enters and leaves
 // supersedes it, its drop told first, truncated, then the drag's entering
 // and leaving; and, for a second such drop, a drag dropped on the window
-// supersedes it the same way and is dropped after it. Last, a drag of two
+// supersedes it the same way and is dropped after it. Then a drag of two
 // texts is dropped with the first, the second left out and the drop
-// marked truncated.
+// marked truncated. Last, a drag of a text the test's allocator refuses
+// room for is dropped with no text, marked truncated.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -35,6 +36,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,10 +45,12 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  19
+#define LAST_PHASE  21
 #define CONTENT     "the dropped document"
 #define WORDS       "dropped w\xc3\xb6rds"
 #define MOVE_BY     200
+// A text whose UTF-8 copy the allocator refuses, by its length.
+#define REFUSED "a text with no room for its copy"
 
 // View.DRAG_FLAG_GLOBAL and DRAG_FLAG_GLOBAL_URI_READ.
 #define DRAG_FLAGS (256 | 1)
@@ -69,6 +73,8 @@ enum
     DRAG_TRICKLES,
     // Two texts.
     DRAG_TEXTS,
+    // The text the allocator refuses.
+    DRAG_REFUSED,
 };
 
 // The most drag records and drops a phase keeps, in order.
@@ -107,6 +113,31 @@ typedef struct Program
     uint64_t droppedNs;
     char name[64];
 } Program;
+
+// While armed, the allocator refuses a block of REFUSED's length, the
+// one its UTF-8 copy takes.
+static bool s_refusing;
+
+static void* Allocate(size_t size, size_t alignment, void* user)
+{
+    (void)user;
+    if (s_refusing && size == strlen(REFUSED) && alignment == 1)
+    {
+        return nullptr;
+    }
+    // aligned_alloc takes no alignment under a pointer's.
+    return alignment <= alignof(max_align_t)
+               ? malloc(size)
+               : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
+}
+
+static void Release(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+}
 
 static uint64_t NowNs(void)
 {
@@ -260,7 +291,7 @@ static jobject CallObject(JNIEnv* env, jobject object, const char* name, const c
 // carrying what the kind says.
 static bool StartDrag(const Program* program, int kind)
 {
-    bool documents = kind != DRAG_TEXT && kind != DRAG_TEXTS;
+    bool documents = kind != DRAG_TEXT && kind != DRAG_TEXTS && kind != DRAG_REFUSED;
     JNIEnv* env = program->activity->env;
     jobject window =
         CallObject(env, program->activity->clazz, "getWindow", "()Landroid/view/Window;");
@@ -277,7 +308,7 @@ static bool StartDrag(const Program* program, int kind)
     jobject stalled = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
         kind == DRAG_TRICKLES ? program->trickles : program->stalled);
-    jstring words = (*env)->NewStringUTF(env, WORDS);
+    jstring words = (*env)->NewStringUTF(env, kind == DRAG_REFUSED ? REFUSED : WORDS);
     jobject text = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
         words);
@@ -494,7 +525,10 @@ static bool Ready(Program* program, mwinContext* context)
     case 18:
         return program->touched;
     case 19:
+    case 21:
         return program->dropped;
+    case 20:
+        return program->touched;
     default:
         return true;
     }
@@ -634,8 +668,20 @@ static void Advance(Program* program, mwinContext* context)
                   length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
               "a drag of two texts dropped with the first, the second left out and the drop "
               "marked truncated");
+        // A drag of the text the allocator refuses.
+        Again(program);
         break;
     }
+    case 20:
+        s_refusing = true;
+        DragInside(program, DRAG_REFUSED);
+        break;
+    case 21:
+        s_refusing = false;
+        CHECK(program->drop.fileCount == 0 && program->drop.textLength == 0 &&
+                  program->drop.truncated,
+              "a drag of a text with no room for its copy dropped with no text, marked truncated");
+        break;
     default:
         break;
     }
@@ -721,5 +767,6 @@ mwinAppDef mwinAndroidMain(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
+    def.context.allocator = (mwinAllocator){Allocate, Release, nullptr};
     return def;
 }

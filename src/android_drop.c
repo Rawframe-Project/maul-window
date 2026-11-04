@@ -14,8 +14,8 @@
 //   folder per drop (android_copy.h), and its first text item, as text,
 //   is its text. The drop is told once every copy is whole, at the place
 //   it was made, as on iOS; a document that could not be opened or
-//   copied, or a text item after the first, is left out, and the drop
-//   marked truncated. A drag that
+//   copied, a text item after the first, or a text with no room for its
+//   copy, is left out, and the drop marked truncated. A drag that
 //   enters the window while the last drop's documents are still copied
 //   supersedes the copy: that drop is told first, with the copies already
 //   whole and marked truncated, then the new drag as it comes. A drag
@@ -149,7 +149,9 @@ static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jflo
     drops->text = text != nullptr
                       ? mwinAndroidBytesOf(platform, env, text, &drops->textLength, nullptr, 0)
                       : nullptr;
-    drops->textLeftOut = textLeftOut;
+    // A text the allocator had no room for is left out too.
+    drops->textLeftOut = textLeftOut || (text != nullptr && drops->text == nullptr &&
+                                         (*env)->GetStringLength(env, text) > 0);
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;
     if (count == 0)
     {

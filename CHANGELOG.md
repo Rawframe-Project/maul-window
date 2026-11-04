@@ -7,16 +7,25 @@ may change the API, the ABI and the behavior.
 
 ## [0.11.0](https://github.com/Rawframe-Project/maul-window/compare/v0.10.0...v0.11.0) (2026-11-04)
 
+### Changed
 
-### ⚠ BREAKING CHANGES
-
-* **win32:** a generic HID gamepad whose descriptor gives more than 32 capabilities of other pages ahead of its Button or Generic Desktop capabilities now gets those controls; it got none of that kind, and was not added when it had neither.
-* **win32:** a generic HID gamepad whose input report has more than 32 button or value capabilities now gets the controls in the first 32 of each kind; it got none of that kind, and was not added when it had neither.
-
-### Fixed
-
-* **win32:** read a HID pad with more than 32 capabilities ([#441](https://github.com/Rawframe-Project/maul-window/issues/441)) ([034569e](https://github.com/Rawframe-Project/maul-window/commit/034569e32589078b9ddbc5b01d92e5f4e7498397)), closes [#440](https://github.com/Rawframe-Project/maul-window/issues/440)
-* **win32:** read a HID pad's controls after many vendor caps ([#443](https://github.com/Rawframe-Project/maul-window/issues/443)) ([7d5a868](https://github.com/Rawframe-Project/maul-window/commit/7d5a868b7db0f914162cab8fe9fd7ceb4a1505f1)), closes [#442](https://github.com/Rawframe-Project/maul-window/issues/442)
+- **Breaking:** on Windows, a generic HID gamepad gets its controls from
+  the first 32 capabilities its descriptor gives of the Button page and
+  the first 32 of the Generic Desktop page, whatever other pages it
+  has. Before, a pad with more than 32 button capabilities got no
+  buttons, and one with more than 32 value capabilities got no axes and
+  no hats. Capabilities of other pages, such as a vendor's, counted
+  toward the 32, so a descriptor that gave more than 32 of them ahead
+  of its controls got none either. A pad left with no controls of
+  either kind was not added as a gamepad
+  ([#441](https://github.com/Rawframe-Project/maul-window/pull/441),
+  [#443](https://github.com/Rawframe-Project/maul-window/pull/443)).
+- Maul Window builds against Maul Unicode 1.0.0, which has the API and
+  the results of 0.13.0, so nothing a program gets from Maul Window
+  changes. The installed CMake config and pkg-config file ask for
+  Maul Unicode 1.0.0, and a build on a machine with only Maul Unicode
+  0.13 installed fetches 1.0.0 instead of using it
+  ([#439](https://github.com/Rawframe-Project/maul-window/pull/439)).
 
 ## [0.10.0](https://github.com/Rawframe-Project/maul-window/compare/v0.9.0...v0.10.0) (2026-11-04)
 

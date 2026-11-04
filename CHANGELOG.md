@@ -5,6 +5,20 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.10.0](https://github.com/Rawframe-Project/maul-window/compare/v0.9.0...v0.10.0) (2026-11-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **linux:** on X11 and Wayland, a compose sequence that types 64 bytes or more now types its text when it fits the window's text room (`textBytesPerWindow`), and posts `mwin_eventInputStateReset` after its key past it; it used to type nothing, with no reset.
+* **wayland:** on Wayland, a drag that enters while a drop is still being read is refused and brings no records; it used to bring `mwin_eventDragEntered`, its moves and, when dropped, `mwin_eventDragLeft`.
+
+### Fixed
+
+* **build:** pass clang-tidy its header filter, so headers are checked ([#433](https://github.com/Rawframe-Project/maul-window/issues/433)) ([4991ded](https://github.com/Rawframe-Project/maul-window/commit/4991dedf3096e89e1ff448c9745eda9b376ec80a)), closes [#431](https://github.com/Rawframe-Project/maul-window/issues/431)
+* **linux:** type a long composed text, a reset past the text room ([#430](https://github.com/Rawframe-Project/maul-window/issues/430)) ([c66f35b](https://github.com/Rawframe-Project/maul-window/commit/c66f35bc6150308920b32d40c9cc0e30ff727726)), closes [#429](https://github.com/Rawframe-Project/maul-window/issues/429)
+* **wayland:** refuse a drag that enters while a drop is still read ([#428](https://github.com/Rawframe-Project/maul-window/issues/428)) ([15c38c5](https://github.com/Rawframe-Project/maul-window/commit/15c38c5228a9ff812793d7e4f2ead28bff7845f2)), closes [#427](https://github.com/Rawframe-Project/maul-window/issues/427)
+
 ## [0.9.0](https://github.com/Rawframe-Project/maul-window/compare/v0.8.1...v0.9.0) (2026-11-03)
 
 ### Changed

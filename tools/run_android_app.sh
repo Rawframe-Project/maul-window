@@ -79,7 +79,7 @@ accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r'
 "$adb" install -r "$apk" > /dev/null
 began_assets=$(assets)
 server=$("$adb" shell pidof system_server | tr -d '\r')
-"$adb" logcat -c
+"$adb" logcat -b all -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)

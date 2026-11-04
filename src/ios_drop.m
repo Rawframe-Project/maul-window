@@ -13,9 +13,10 @@
 // gave it (its source's suggestion, or "Document"), and the drop gives
 // those paths;
 // the system empties that directory in time. The first text item is the
-// drop's text. An item that is neither a file nor text, that did not
-// load, or whose file could not be copied, is left out and the drop
-// marked truncated: the user dropped something the program did not get.
+// drop's text. A text item after it, an item that is neither a file nor
+// text, that did not load, or whose file could not be copied, is left
+// out and the drop marked truncated: the user dropped something the
+// program did not get.
 // The drop is posted
 // once every item has loaded, at the place it was made; one whose window
 // or program went since is dropped.
@@ -245,9 +246,10 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
               mwinAppleSetDroppedText(context, (NSString*)((NSArray*)value).firstObject);
               texted = true;
           }
-          else if (value == [NSNull null])
+          else
           {
-              // Neither a file nor text, not loaded, or its file not kept.
+              // Text after the first, neither a file nor text, not loaded,
+              // or its file not kept.
               context->dropping.truncated = true;
           }
       }

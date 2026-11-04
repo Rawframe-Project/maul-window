@@ -7,9 +7,10 @@
 // leaving; then entering again and dropped, with the file's path and the
 // text read back, a U+0000 within it kept. Then a drop of text with a lone
 // surrogate, from a pasteboard of the test's that answers what the
-// backend asks: the text arrives with U+FFFD in its place, not truncated. No drag can be made on
-// the runner, so the test hands the view a drag of its own: a private pasteboard and a place, what
-// the backend asks a drag for.
+// backend asks: the text arrives with U+FFFD in its place, not truncated. Then a drop of a file,
+// two texts and an image: the file and the first text, the second text and the image left out
+// and the drop marked truncated. No drag can be made on the runner, so the test hands the view a
+// drag of its own: a private pasteboard and a place, what the backend asks a drag for.
 
 #include "test_harness.h"
 
@@ -48,28 +49,20 @@
 @end
 
 // A pasteboard of only text, which no real one stores as it is: "a", a
-// lone surrogate, "b". It answers the messages the backend sends.
+// lone surrogate, "b". It answers the messages the backend sends, as its
+// own one item.
 @interface FakeTextPasteboard : NSObject
 @end
 
 @implementation FakeTextPasteboard
-- (BOOL)canReadObjectForClasses:(NSArray*)classes options:(NSDictionary*)options
+- (NSArray*)pasteboardItems
 {
-    (void)classes;
-    (void)options;
-    return NO;
+    return @[ self ];
 }
 
 - (NSPasteboardType)availableTypeFromArray:(NSArray<NSPasteboardType>*)types
 {
     return [types containsObject:NSPasteboardTypeString] ? NSPasteboardTypeString : nil;
-}
-
-- (NSArray*)readObjectsForClasses:(NSArray*)classes options:(NSDictionary*)options
-{
-    (void)classes;
-    (void)options;
-    return @[];
 }
 
 - (NSString*)stringForType:(NSPasteboardType)type
@@ -131,12 +124,15 @@ static id<NSDraggingInfo> At(FakeDrag* drag, NSView* view, CGFloat x, CGFloat y)
     return (id<NSDraggingInfo>)drag;
 }
 
-// A file and text, each an item of the pasteboard.
-static NSPasteboard* FileAndText(const char* path)
+// A file and text, each an item of the pasteboard; with more, a second
+// text and an image after them.
+static NSPasteboard* FileAndText(const char* path, bool more)
 {
     NSPasteboard* pasteboard = [NSPasteboard pasteboardWithUniqueName];
-    NSPasteboardItem* file = [[NSPasteboardItem alloc] init];
-    NSPasteboardItem* text = [[NSPasteboardItem alloc] init];
+    NSPasteboardItem* file = [[[NSPasteboardItem alloc] init] autorelease];
+    NSPasteboardItem* text = [[[NSPasteboardItem alloc] init] autorelease];
+    NSPasteboardItem* second = [[[NSPasteboardItem alloc] init] autorelease];
+    NSPasteboardItem* image = [[[NSPasteboardItem alloc] init] autorelease];
     NSURL* address = [NSURL fileURLWithPath:@(path)];
     [file setString:address.absoluteString forType:NSPasteboardTypeFileURL];
     NSString* string = [[NSString alloc] initWithBytes:TEXT
@@ -144,10 +140,10 @@ static NSPasteboard* FileAndText(const char* path)
                                               encoding:NSUTF8StringEncoding];
     [text setString:string forType:NSPasteboardTypeString];
     [string release];
+    [second setString:@"more text" forType:NSPasteboardTypeString];
+    [image setData:[NSData dataWithBytes:"\x89PNG" length:4] forType:NSPasteboardTypePNG];
     [pasteboard clearContents];
-    [pasteboard writeObjects:@[ file, text ]];
-    [file release];
-    [text release];
+    [pasteboard writeObjects:more ? @[ file, text, second, image ] : @[ file, text ]];
     return pasteboard;
 }
 
@@ -161,7 +157,7 @@ static void Drag(Program* program, NSView<NSDraggingDestination>* view)
     CHECK([view draggingEntered:At(drag, view, 20.0, 10.0)] == NSDragOperationNone,
           "a drag of only an image refused");
     [drag->pasteboard releaseGlobally];
-    drag->pasteboard = FileAndText(program->path);
+    drag->pasteboard = FileAndText(program->path, false);
     CHECK([view draggingEntered:At(drag, view, 20.0, 10.0)] == NSDragOperationCopy &&
               [view draggingUpdated:At(drag, view, 20.0, 10.0)] == NSDragOperationCopy &&
               [view draggingUpdated:At(drag, view, 25.0, 15.0)] == NSDragOperationCopy,
@@ -227,6 +223,33 @@ static void CheckSurrogate(const Program* program, mwinContext* context)
           "the text with U+FFFD for the lone surrogate, not truncated");
 }
 
+// Drops a file, two texts and an image.
+static void DropMore(const Program* program, NSView<NSDraggingDestination>* view)
+{
+    FakeDrag* drag = [[FakeDrag alloc] init];
+    drag->pasteboard = FileAndText(program->path, true);
+    CHECK([view draggingEntered:At(drag, view, 10.0, 10.0)] == NSDragOperationCopy &&
+              [view performDragOperation:At(drag, view, 10.0, 10.0)],
+          "a drag of a file, two texts and an image taken and dropped");
+    [drag->pasteboard releaseGlobally];
+    [drag release];
+}
+
+static void CheckMore(const Program* program, mwinContext* context)
+{
+    const mwinDropEvent* drop = program->count == 2 && program->records[1].kind == mwin_eventDropped
+                                    ? &program->records[1].data.drop
+                                    : nullptr;
+    char text[32];
+    size_t length = 0;
+    CHECK(drop != nullptr && drop->fileCount == 1 && drop->textLength == sizeof(TEXT) - 1 &&
+              drop->truncated &&
+              mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
+              length == sizeof(TEXT) - 1 && memcmp(text, TEXT, length) == 0,
+          "the file and the first text, the second text and the image left out and the drop "
+          "marked truncated");
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
@@ -258,9 +281,15 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
                 program->count = 0;
                 DropSurrogate((NSView<NSDraggingDestination>*)handles.handles.apple.view);
             }
-            else
+            else if (program->phase == 2)
             {
                 CheckSurrogate(program, context);
+                program->count = 0;
+                DropMore(program, (NSView<NSDraggingDestination>*)handles.handles.apple.view);
+            }
+            else
+            {
+                CheckMore(program, context);
             }
         }
         program->phase += 1;
@@ -270,7 +299,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 3 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase == 4 ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -290,6 +319,6 @@ int main(void)
     def.user = &program;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 3, "every phase ran");
+    CHECK(program.phase == 4, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

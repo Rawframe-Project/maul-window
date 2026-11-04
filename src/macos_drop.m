@@ -3,25 +3,32 @@
 //
 // macOS drag and drop (macos.h): each window's view is a dragging
 // destination for file URLs and text, taking a drag that carries either
-// with the copy operation and reporting a drag over that has moved. A
-// drop's files are the file URLs' paths, and its text the pasteboard's
-// string.
+// with the copy operation and reporting a drag over that has moved. Each
+// item of a drop's pasteboard that carries a file URL is a file, its
+// path; the first other item that carries a string is its text. Any
+// other item, text after the first or neither, is left out and the drop
+// marked truncated.
 
 #include "apple_text.h"
 #include "macos.h"
 
 #include <string.h>
 
-static NSDictionary* FilesOnly(void)
-{
-    return @{NSPasteboardURLReadingFileURLsOnlyKey : @YES};
-}
-
 static mwinDragContents ContentsOf(NSPasteboard* pasteboard)
 {
-    bool files = [pasteboard canReadObjectForClasses:@[ [NSURL class] ] options:FilesOnly()];
-    bool text = [pasteboard availableTypeFromArray:@[ NSPasteboardTypeString ]] != nil;
-    return (mwinDragContents)((files ? mwin_dragFiles : 0) | (text ? mwin_dragText : 0));
+    mwinDragContents contents = 0;
+    for (NSPasteboardItem* item in pasteboard.pasteboardItems)
+    {
+        if ([item availableTypeFromArray:@[ NSPasteboardTypeFileURL ]] != nil)
+        {
+            contents |= mwin_dragFiles;
+        }
+        else if ([item availableTypeFromArray:@[ NSPasteboardTypeString ]] != nil)
+        {
+            contents |= mwin_dragText;
+        }
+    }
+    return contents;
 }
 
 static mwinPosition PositionOf(const mwinMacWindow* window, id<NSDraggingInfo> drag)
@@ -89,25 +96,37 @@ bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> dr
         return false;
     }
     window->dragContents = 0;
-    NSPasteboard* pasteboard = drag.draggingPasteboard;
     mwinBeginDrop(context);
-    for (NSURL* file in [pasteboard readObjectsForClasses:@[ [NSURL class] ] options:FilesOnly()])
+    bool texted = false;
+    for (NSPasteboardItem* item in drag.draggingPasteboard.pasteboardItems)
     {
-        // Another program's URL may name a path that is not UTF-8.
-        const char* path = file.path.UTF8String;
-        if (path != nullptr)
+        NSString* address = [item stringForType:NSPasteboardTypeFileURL];
+        NSString* text =
+            address == nil && !texted ? [item stringForType:NSPasteboardTypeString] : nil;
+        if (address != nil)
         {
-            mwinAddDroppedFile(context, path, strlen(path));
+            // Another program's URL may not be a file's, or name a path
+            // that is not UTF-8. A file reference URL gives its path.
+            NSURL* file = [NSURL URLWithString:address];
+            const char* path = file.isFileURL ? file.filePathURL.path.UTF8String : nullptr;
+            if (path != nullptr)
+            {
+                mwinAddDroppedFile(context, path, strlen(path));
+            }
+            else
+            {
+                context->dropping.truncated = true;
+            }
+        }
+        else if (text != nil)
+        {
+            mwinAppleSetDroppedText(context, text);
+            texted = true;
         }
         else
         {
             context->dropping.truncated = true;
         }
-    }
-    NSString* text = [pasteboard stringForType:NSPasteboardTypeString];
-    if (text != nil)
-    {
-        mwinAppleSetDroppedText(context, text);
     }
     mwinFinishDrop(context, slot, PositionOf(window, drag), mwinMacNow());
     return true;

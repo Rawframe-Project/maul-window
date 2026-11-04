@@ -174,12 +174,14 @@ typedef struct mwinAndroidDocuments
 } mwinAndroidDocuments;
 
 // Drops: while the last drop's documents are copied, the copy, its
-// text (UTF-8 from the allocator, or null) and the place it was made.
+// text (UTF-8 from the allocator, or null), whether a text item was left
+// out, and the place it was made.
 typedef struct mwinAndroidDrops
 {
     mwinAndroidCopy copy;
     char* text;
     size_t textLength;
+    bool textLeftOut;
     mwinPosition place;
 } mwinAndroidDrops;
 

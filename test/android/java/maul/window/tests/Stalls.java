@@ -17,9 +17,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 /**
- * A provider that stalls mid-document, for test_android_drop: its one
- * document, opened, sends its first bytes through a pipe and then
- * nothing, the pipe's other end held open while the process runs.
+ * A provider whose documents never end, for test_android_drop: opened,
+ * each sends its first bytes through a pipe, the pipe's other end held
+ * open while the process runs. "stalled" then sends nothing; "trickles"
+ * goes on sending a byte a second, so its copy never waits five seconds.
  */
 public final class Stalls extends ContentProvider {
     /** The bytes the document sends before it stalls. */
@@ -41,17 +42,37 @@ public final class Stalls extends ContentProvider {
             synchronized (held) {
                 held.add(pipe[1]);
             }
+            if ("trickles".equals(uri.getLastPathSegment())) {
+                trickle(pipe[1]);
+            }
             return pipe[0];
         } catch (IOException | ErrnoException e) {
             throw new FileNotFoundException(e.toString());
         }
     }
 
+    // A byte a second into the pipe, from a thread of its own, until the
+    // process ends or the copy closes its end.
+    private static void trickle(ParcelFileDescriptor end) {
+        Thread thread = new Thread(() -> {
+            try {
+                while (true) {
+                    Thread.sleep(1000);
+                    Os.write(end.getFileDescriptor(), new byte[1], 0, 1);
+                }
+            } catch (InterruptedException | ErrnoException | IOException e) {
+                // The copy's end closed.
+            }
+        });
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] arguments,
             String order) {
         MatrixCursor cursor = new MatrixCursor(new String[] {OpenableColumns.DISPLAY_NAME});
-        cursor.addRow(new Object[] {"stalled.bin"});
+        cursor.addRow(new Object[] {uri.getLastPathSegment() + ".bin"});
         return cursor;
     }
 

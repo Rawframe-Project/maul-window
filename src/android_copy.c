@@ -277,6 +277,19 @@ bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget, uint64_t nowNs
     return copy->next == copy->count;
 }
 
+void mwinAndroidCutCopy(mwinAndroidCopy* copy)
+{
+    for (uint32_t i = copy->next; i < copy->count; i++)
+    {
+        // One left out at the start has its empty path already.
+        if (copy->from[i] >= 0)
+        {
+            LeaveOutKept(copy, i);
+        }
+    }
+    copy->next = copy->count;
+}
+
 void mwinAndroidEndCopy(const mwinAllocator* allocator, mwinAndroidCopy* copy)
 {
     for (uint32_t i = copy->next; i < copy->count; i++)

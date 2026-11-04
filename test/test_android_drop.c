@@ -13,7 +13,13 @@
 // truncated; and a drag of a document whose provider (the test's
 // Stalls) sends its first bytes and then nothing, and text, is dropped
 // once the copy has waited five seconds for more, with its text, the
-// document left out and the drop marked truncated.
+// document left out and the drop marked truncated. Then the drop of a
+// document that never stops trickling (Stalls' "trickles"), which keeps
+// copying: a drag that never enters the window (started over the status
+// bar) leaves it alone, with no record; a drag that enters and leaves
+// supersedes it, its drop told first, truncated, then the drag's entering
+// and leaving; and, for a second such drop, a drag dropped on the window
+// supersedes it the same way and is dropped after it.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -35,15 +41,17 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  6
+#define LAST_PHASE  17
 #define CONTENT     "the dropped document"
 #define WORDS       "dropped w\xc3\xb6rds"
 #define MOVE_BY     200
 
 // View.DRAG_FLAG_GLOBAL and DRAG_FLAG_GLOBAL_URI_READ.
 #define DRAG_FLAGS (256 | 1)
-// The stalled document's address, and how long the copy waits for it.
+// The stalled and the trickling documents' addresses, and how long the
+// copy waits for the stalled one.
 #define STALLED  "content://" MWIN_TEST_PACKAGE ".stalls/stalled"
+#define TRICKLES "content://" MWIN_TEST_PACKAGE ".stalls/trickles"
 #define STALL_NS 5000000000ull
 
 // What a drag carries.
@@ -55,7 +63,12 @@ enum
     DRAG_TEXT,
     // The stalled document and text.
     DRAG_STALLED,
+    // The trickling document and text.
+    DRAG_TRICKLES,
 };
+
+// The most drag records and drops a phase keeps, in order.
+#define ORDER 16
 
 typedef struct Program
 {
@@ -77,6 +90,13 @@ typedef struct Program
     // A document's address that no longer opens, and the stalled one's.
     jobject gone;
     jobject stalled;
+    jobject trickles;
+    // Since the last drag began: its records' kinds in order, moves left
+    // out, and its drops.
+    mwinEventKind order[ORDER];
+    int orderCount;
+    mwinDropEvent drops[ORDER];
+    int dropCount;
     // When the finger lifted to drop the stalled document, and when its
     // drop came.
     uint64_t liftedNs;
@@ -108,6 +128,16 @@ static void Collect(Program* program, mwinContext* context)
         {
             program->dropped = true;
             program->drop = event.data.drop;
+            if (program->dropCount < ORDER)
+            {
+                program->drops[program->dropCount++] = event.data.drop;
+            }
+        }
+        bool kept = event.kind == mwin_eventDragEntered || event.kind == mwin_eventDragLeft ||
+                    event.kind == mwin_eventDropped;
+        if (kept && program->orderCount < ORDER)
+        {
+            program->order[program->orderCount++] = event.kind;
         }
     }
 }
@@ -242,7 +272,7 @@ static bool StartDrag(const Program* program, int kind)
         program->gone);
     jobject stalled = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
-        program->stalled);
+        kind == DRAG_TRICKLES ? program->trickles : program->stalled);
     jstring words = (*env)->NewStringUTF(env, WORDS);
     jobject text = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
@@ -264,8 +294,8 @@ static bool StartDrag(const Program* program, int kind)
                                               "Landroid/content/ClipData$Item;)V"),
                           label, types,
                           kind == DRAG_DOCUMENTS ? document
-                          : kind == DRAG_STALLED ? stalled
-                                                 : text);
+                          : kind == DRAG_TEXT    ? text
+                                                 : stalled);
     jmethodID add =
         (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
     if (kind == DRAG_DOCUMENTS)
@@ -371,7 +401,48 @@ static void Again(Program* program)
     program->moved = false;
     program->left = false;
     program->dropped = false;
+    program->orderCount = 0;
+    program->dropCount = 0;
     printf("adb: input motionevent DOWN %d %d\n", program->x, program->y);
+}
+
+// Whether the records since the last drag began are these kinds, in order.
+static bool InOrder(const Program* program, const mwinEventKind* kinds, int count)
+{
+    if (program->orderCount != count)
+    {
+        return false;
+    }
+    for (int i = 0; i < count; i++)
+    {
+        if (program->order[i] != kinds[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// A trickling drop superseded: told with no file, its text, truncated.
+static bool Superseded(const mwinDropEvent* drop)
+{
+    return drop->fileCount == 0 && drop->textLength == strlen(WORDS) && drop->truncated;
+}
+
+// A drag started under the finger, moved and lifted in the window.
+static void DragInside(Program* program, int kind)
+{
+    CHECK(StartDrag(program, kind), "a drag started under the finger");
+    printf("adb: input motionevent MOVE %d %d\n", program->x + MOVE_BY / 2,
+           program->y + MOVE_BY / 2);
+    printf("adb: input motionevent MOVE %d %d\n", program->x + MOVE_BY, program->y + MOVE_BY);
+    printf("adb: input motionevent UP %d %d\n", program->x + MOVE_BY, program->y + MOVE_BY);
+}
+
+// How long a phase that waits for nothing to come waits.
+static bool Waited(const Program* program, uint64_t ns)
+{
+    return NowNs() - program->startNs > ns;
 }
 
 static bool Ready(Program* program, mwinContext* context)
@@ -391,6 +462,23 @@ static bool Ready(Program* program, mwinContext* context)
     case 4:
     case 6:
         return program->dropped;
+    case 7:
+    case 9:
+    case 12:
+    case 14:
+    case 16:
+        return program->touched;
+    case 8:
+    case 15:
+        return Waited(program, 1500000000ull);
+    case 10:
+        return Waited(program, 1000000000ull);
+    case 11:
+        return Waited(program, 2000000000ull);
+    case 13:
+        return program->left;
+    case 17:
+        return program->dropCount >= 2;
     default:
         return true;
     }
@@ -425,6 +513,7 @@ static void Advance(Program* program, mwinContext* context)
             DeleteDocument(program->activity->env, program->activity, program->gone);
         }
         program->stalled = Address(program->activity->env, STALLED);
+        program->trickles = Address(program->activity->env, TRICKLES);
         printf("adb: input motionevent DOWN %d %d\n", program->x, program->y);
         break;
     }
@@ -455,7 +544,64 @@ static void Advance(Program* program, mwinContext* context)
     case 6:
         program->droppedNs = NowNs();
         CheckStalledDrop(program, context);
+        // The drop of the trickling document.
+        Again(program);
         break;
+    case 7:
+    case 14:
+        DragInside(program, DRAG_TRICKLES);
+        break;
+    case 8:
+    case 15:
+        CHECK(program->dropCount == 0, "the trickling document still copying, its drop not told");
+        Again(program);
+        break;
+    case 9:
+        // Into the status bar, outside the window, before the drag starts.
+        printf("adb: input motionevent MOVE %d 5\n", program->x);
+        break;
+    case 10:
+        CHECK(StartDrag(program, DRAG_TEXT), "a drag started over the status bar");
+        printf("adb: input motionevent UP %d 5\n", program->x);
+        break;
+    case 11:
+        CHECK(program->orderCount == 0,
+              "a drag that never entered the window: no record, the copy left alone");
+        // A drag that enters and leaves.
+        Again(program);
+        break;
+    case 12:
+        CHECK(StartDrag(program, DRAG_TEXT), "a drag started under the finger");
+        printf("adb: input motionevent MOVE %d %d\n", program->x + MOVE_BY / 2,
+               program->y + MOVE_BY / 2);
+        printf("adb: input motionevent MOVE %d 5\n", program->x);
+        printf("adb: input motionevent UP %d 5\n", program->x);
+        break;
+    case 13:
+    {
+        static const mwinEventKind told[] = {mwin_eventDropped, mwin_eventDragEntered,
+                                             mwin_eventDragLeft};
+        CHECK(InOrder(program, told, 3) && Superseded(&program->drops[0]),
+              "a drag that entered and left superseded the copy: its drop told first, with no "
+              "file, its text and truncated, then the drag's entering and leaving");
+        // A second trickling drop.
+        Again(program);
+        break;
+    }
+    case 16:
+        DragInside(program, DRAG_TEXT);
+        break;
+    case 17:
+    {
+        static const mwinEventKind told[] = {mwin_eventDropped, mwin_eventDragEntered,
+                                             mwin_eventDropped};
+        const mwinDropEvent* text = &program->drops[1];
+        CHECK(InOrder(program, told, 3) && Superseded(&program->drops[0]) && text->fileCount == 0 &&
+                  text->textLength == strlen(WORDS) && !text->truncated,
+              "a drag dropped on the window superseded the copy: its drop told first, truncated, "
+              "then the drag's entering and its own drop, whole");
+        break;
+    }
     default:
         break;
     }

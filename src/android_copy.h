@@ -69,6 +69,9 @@ bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* e
 // once every document is copied or left out.
 bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget, uint64_t nowNs);
 
+// Ends a job with what it has: every document not yet whole is left out.
+void mwinAndroidCutCopy(mwinAndroidCopy* copy);
+
 // Closes what the job still holds and frees its paths.
 void mwinAndroidEndCopy(const mwinAllocator* allocator, mwinAndroidCopy* copy);
 

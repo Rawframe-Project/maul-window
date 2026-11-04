@@ -78,14 +78,25 @@ static void UsagesOf(BOOLEAN isRange, USAGE usage, USAGE minimum, USAGE maximum,
     cap->last = isRange ? maximum : usage;
 }
 
+// How many capabilities a read gave, of the room it had; none for a
+// failed one. For a device with more than the room, the parser fills it
+// and says it was too small (Wine also sets the count to all of them).
+static USHORT CapsRead(NTSTATUS status, USHORT count, USHORT room)
+{
+    if (status != HIDP_STATUS_SUCCESS && status != HIDP_STATUS_BUFFER_TOO_SMALL)
+    {
+        return 0;
+    }
+    return count < room ? count : room;
+}
+
 static void ReadButtons(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
 {
     HIDP_BUTTON_CAPS caps[CAPS];
-    count = count < CAPS ? count : CAPS;
-    if (hid->api.buttonCaps(HidP_Input, caps, &count, pad->preparsed) != HIDP_STATUS_SUCCESS)
-    {
-        return;
-    }
+    USHORT room = count < CAPS ? count : CAPS;
+    USHORT read = room;
+    NTSTATUS status = hid->api.buttonCaps(HidP_Input, caps, &read, pad->preparsed);
+    count = CapsRead(status, read, room);
     mwinHidCap plain[CAPS];
     for (USHORT i = 0; i < count; i++)
     {
@@ -99,11 +110,10 @@ static void ReadButtons(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
 static void ReadValues(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
 {
     HIDP_VALUE_CAPS caps[CAPS];
-    count = count < CAPS ? count : CAPS;
-    if (hid->api.valueCaps(HidP_Input, caps, &count, pad->preparsed) != HIDP_STATUS_SUCCESS)
-    {
-        return;
-    }
+    USHORT room = count < CAPS ? count : CAPS;
+    USHORT read = room;
+    NTSTATUS status = hid->api.valueCaps(HidP_Input, caps, &read, pad->preparsed);
+    count = CapsRead(status, read, room);
     mwinHidCap plain[CAPS];
     for (USHORT i = 0; i < count; i++)
     {

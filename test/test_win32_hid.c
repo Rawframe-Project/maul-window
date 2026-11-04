@@ -11,8 +11,9 @@
 //   string its name, longer than 31 units and cut to the whole
 //   characters within 64 bytes, its axes numbered by usage, not by the
 //   order its descriptor gives them, and its controls read although its
-//   descriptor has more capabilities of each kind than the library has
-//   room for;
+//   descriptor gives more of a vendor's capabilities of each kind ahead
+//   of them, and more of the Button page, than the library reads of a
+//   page;
 // - its report: buttons, sticks, triggers from whole axes, and the hat
 //   as the d-pad;
 // - the stick is raw: its buttons in usage order, a signed axis, and a
@@ -109,9 +110,12 @@ static const Device* DeviceOf(HANDLE handle)
 // A device unplugged, which the list leaves out.
 static HANDLE s_gone;
 
-// The pad's capabilities of each kind: its own, then a vendor's buttons
-// and values, past the 32 the library asks for.
-#define PAD_CAPS 40
+// The pad's descriptor: a vendor's buttons and values ahead of its own,
+// and its buttons given again after them, each past the 32 capabilities
+// the library reads of a page.
+#define VENDOR_CAPS  33
+#define MORE_BUTTONS 32
+#define PAD_CAPS     (VENDOR_CAPS + 1 + MORE_BUTTONS)
 
 static UINT WINAPI DeviceList(PRAWINPUTDEVICELIST list, PUINT count, UINT size)
 {
@@ -199,8 +203,8 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
     return caps;
 }
 
-// The pad's controls in its descriptor's order: X, Y, Z and Rz, the hat,
-// then Rx and Ry, and a vendor's to PAD_CAPS; the stick's buttons 3,
+// The pad's controls in its descriptor's order: a vendor's, then X, Y,
+// Z and Rz, the hat, Rx and Ry, and one more vendor's; the stick's buttons 3,
 // then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider, a
 // dial of one value and a hat of the widest range, no buttons; none for
 // the empty one; the stick's values for the large one.
@@ -237,12 +241,12 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
             Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_RY, HID_USAGE_GENERIC_RY, 8, 0, 255),
             Value(0xFF00, 0x20, 0x20, 8, 0, 255),
         };
-        memcpy(caps, pad, sizeof(pad));
-        for (USHORT i = 8; i < PAD_CAPS; i++)
+        for (USHORT i = 0; i < VENDOR_CAPS; i++)
         {
-            caps[i] = Value(0xFF00, (USAGE)(0x20 + i), (USAGE)(0x20 + i), 8, 0, 255);
+            caps[i] = Value(0xFF00, (USAGE)(0x40 + i), (USAGE)(0x40 + i), 8, 0, 255);
         }
-        return PAD_CAPS;
+        memcpy(&caps[VENDOR_CAPS], pad, sizeof(pad));
+        return VENDOR_CAPS + 8;
     }
     caps[0] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_X, HID_USAGE_GENERIC_Y, 8, -128, 127);
     caps[1] = Value(HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_HATSWITCH,
@@ -250,19 +254,28 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
     return 2;
 }
 
-// The pad's buttons 1 to 14, then a vendor's to PAD_CAPS; the large
-// one's 1 to 14; the stick's 3, then 1 and 2.
+// The pad's: a vendor's, then 1 to 14, then each of those again; the
+// large one's 1 to 14; the stick's 3, then 1 and 2.
 static USHORT ButtonCapsOf(HANDLE owner, HIDP_BUTTON_CAPS* caps)
 {
-    if (owner == PAD || owner == LARGE)
+    if (owner == LARGE)
     {
         caps[0] = Buttons(1, 14);
-        for (USHORT i = 1; owner == PAD && i < PAD_CAPS; i++)
+        return 1;
+    }
+    if (owner == PAD)
+    {
+        for (USHORT i = 0; i < VENDOR_CAPS; i++)
         {
-            caps[i] = Buttons(i, i);
+            caps[i] = Buttons(i + 1, i + 1);
             caps[i].UsagePage = 0xFF00;
         }
-        return owner == PAD ? PAD_CAPS : 1;
+        caps[VENDOR_CAPS] = Buttons(1, 14);
+        for (USHORT i = 0; i < MORE_BUTTONS; i++)
+        {
+            caps[VENDOR_CAPS + 1 + i] = Buttons(i % 14 + 1, i % 14 + 1);
+        }
+        return PAD_CAPS;
     }
     if (owner != STICK)
     {
@@ -273,10 +286,16 @@ static USHORT ButtonCapsOf(HANDLE owner, HIDP_BUTTON_CAPS* caps)
     return 2;
 }
 
-// Hands over the capabilities that fit, as Windows' parser does: too
-// small a room filled and said, and, as Wine's does, all of them counted.
+// Hands over a page's capabilities that fit, as Windows' parser does:
+// too small a room filled and said, and, as Wine's does, all of them
+// counted and none not found.
 static NTSTATUS Give(const void* all, size_t size, USHORT total, void* caps, PUSHORT count)
 {
+    if (total == 0)
+    {
+        *count = 0;
+        return HIDP_STATUS_USAGE_NOT_FOUND;
+    }
     USHORT fit = total < *count ? total : *count;
     memcpy(caps, all, fit * size);
     *count = total;
@@ -299,20 +318,40 @@ static NTSTATUS NTAPI GetCaps(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps)
     return HIDP_STATUS_SUCCESS;
 }
 
-static NTSTATUS NTAPI ButtonCaps(HIDP_REPORT_TYPE type, PHIDP_BUTTON_CAPS caps, PUSHORT count,
-                                 PHIDP_PREPARSED_DATA data)
+// The capabilities of one page, or of all for page 0; the library asks
+// for any link collection and usage.
+static NTSTATUS NTAPI ButtonCaps(HIDP_REPORT_TYPE type, USAGE page, USHORT link, USAGE usage,
+                                 PHIDP_BUTTON_CAPS caps, PUSHORT count, PHIDP_PREPARSED_DATA data)
 {
     (void)type;
+    (void)link;
+    (void)usage;
     HIDP_BUTTON_CAPS all[PAD_CAPS];
-    return Give(all, sizeof(all[0]), ButtonCapsOf(Owner(data), all), caps, count);
+    USHORT total = ButtonCapsOf(Owner(data), all);
+    USHORT kept = 0;
+    for (USHORT i = 0; i < total; i++)
+    {
+        all[kept] = all[i];
+        kept += page == 0 || all[i].UsagePage == page ? 1 : 0;
+    }
+    return Give(all, sizeof(all[0]), kept, caps, count);
 }
 
-static NTSTATUS NTAPI ValueCapsOf(HIDP_REPORT_TYPE type, PHIDP_VALUE_CAPS caps, PUSHORT count,
-                                  PHIDP_PREPARSED_DATA data)
+static NTSTATUS NTAPI ValueCapsOf(HIDP_REPORT_TYPE type, USAGE page, USHORT link, USAGE usage,
+                                  PHIDP_VALUE_CAPS caps, PUSHORT count, PHIDP_PREPARSED_DATA data)
 {
     (void)type;
+    (void)link;
+    (void)usage;
     HIDP_VALUE_CAPS all[PAD_CAPS];
-    return Give(all, sizeof(all[0]), ValueCaps(Owner(data), all), caps, count);
+    USHORT total = ValueCaps(Owner(data), all);
+    USHORT kept = 0;
+    for (USHORT i = 0; i < total; i++)
+    {
+        all[kept] = all[i];
+        kept += page == 0 || all[i].UsagePage == page ? 1 : 0;
+    }
+    return Give(all, sizeof(all[0]), kept, caps, count);
 }
 
 static NTSTATUS NTAPI Usages(HIDP_REPORT_TYPE type, USAGE page, USHORT link, PUSAGE list,

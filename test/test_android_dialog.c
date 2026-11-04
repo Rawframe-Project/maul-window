@@ -38,6 +38,14 @@
 #define LARGE_BYTES (20u << 20)
 #define SMALL       "the first document"
 
+// Back, once the picker is the activity in front: the test's activity
+// is suspended as the picker starts, and Back sent before the picker is
+// in front reaches no picker, which then stays, the test's activity
+// stopped. At most 300 looks.
+#define BACK_TO_PICKER                                                                             \
+    "adb: sh -c 'for i in $(seq 300); do dumpsys activity activities | "                           \
+    "grep -qE \"ResumedActivity.*documentsui\" && break; done; input keyevent KEYCODE_BACK'\n"
+
 // Documents.REQUEST with the number of the test's third dialog, and
 // Activity.RESULT_OK.
 #define PICKER          (0x4d00 | 3)
@@ -399,7 +407,7 @@ static void Advance(Program* program, mwinContext* context)
         Collect(program, context);
         CHECK(program->completions == 3 && program->outcomes[2] == mwin_outcomeSuperseded,
               "the first superseded; its late answer not the second's");
-        printf("adb: input keyevent KEYCODE_BACK\n");
+        printf("%s", BACK_TO_PICKER);
         break;
     case 2:
         CHECK(program->outcomes[0] == mwin_outcomeCancelled, "Back cancels the second");
@@ -412,7 +420,7 @@ static void Advance(Program* program, mwinContext* context)
         // The picker shows: its result comes as the picker gives it, and
         // the picker itself goes with Back (its own result unheard).
         Choose(program);
-        printf("adb: input keyevent KEYCODE_BACK\n");
+        printf("%s", BACK_TO_PICKER);
         break;
     case 4:
         CHECK(program->outcomes[0] == mwin_outcomeDone, "the documents chosen");
@@ -438,7 +446,7 @@ static void Advance(Program* program, mwinContext* context)
         Result(program, EMPTY_PICKER, RESULT_OK, intent);
         (*env)->DeleteLocalRef(env, intent);
         (*env)->DeleteLocalRef(env, intents);
-        printf("adb: input keyevent KEYCODE_BACK\n");
+        printf("%s", BACK_TO_PICKER);
         break;
     }
     case 6:

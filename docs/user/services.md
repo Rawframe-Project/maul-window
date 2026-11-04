@@ -16,7 +16,7 @@ The services around a program's windows are requests of a window, answered by a 
 | macOS | An open or save panel as a sheet on its window, with the filters as a menu under it. |
 | Linux | The desktop portal's file chooser over the session bus, else zenity. |
 | iOS | The document picker. Opened files are the application's copies; a save exports an empty file to the place chosen, which the program then writes. |
-| Android | The document picker; documents are copied into the application's cache between frames. No save and no folder. |
+| Android | The document picker; documents are copied into the application's cache between frames, and one whose application sends nothing for five seconds is left out, the answer marked truncated. A later dialog, or destroying the window, stops a copy. No save and no folder. |
 | The web | None: a page's file input gives contents, never paths. |
 
 ## Addresses, files and keeping awake

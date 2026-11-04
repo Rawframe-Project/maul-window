@@ -174,7 +174,7 @@ static void LeaveOutKept(mwinAndroidCopy* copy, uint32_t index)
 }
 
 bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* env,
-                          jintArray descriptors, jobjectArray names)
+                          jintArray descriptors, jobjectArray names, uint64_t nowNs)
 {
     const mwinAllocator* allocator = &context->allocator;
     uint32_t count = (uint32_t)(*env)->GetArrayLength(env, descriptors);
@@ -203,6 +203,7 @@ bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* e
     copy->into = into;
     copy->count = count;
     copy->next = 0;
+    copy->progressNs = nowNs;
     copy->leftOut = 0;
     copy->pathsLength = 0;
     copy->copying = true;
@@ -226,7 +227,7 @@ bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* e
     return kept;
 }
 
-bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget)
+bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget, uint64_t nowNs)
 {
     uint8_t block[BLOCK_BYTES];
     while (copy->next < copy->count && *budget > 0)
@@ -241,8 +242,17 @@ bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget)
         ssize_t got = read(copy->from[i], block, sizeof(block));
         if (got < 0 && (errno == EAGAIN || errno == EINTR))
         {
-            return false;
+            if (nowNs - copy->progressNs < MWIN_ANDROID_STALL_NS)
+            {
+                return false;
+            }
+            // Its provider stalled: the next document gets the time anew.
+            LeaveOutKept(copy, i);
+            copy->next += 1;
+            copy->progressNs = nowNs;
+            continue;
         }
+        copy->progressNs = nowNs;
         if (got < 0 || (got > 0 && write(copy->into[i], block, (size_t)got) != got))
         {
             LeaveOutKept(copy, i);

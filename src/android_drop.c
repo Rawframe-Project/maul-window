@@ -127,7 +127,8 @@ static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jflo
         Finish(platform, true);
         return;
     }
-    if (!mwinAndroidStartCopy(platform->context, &drops->copy, env, descriptors, names))
+    if (!mwinAndroidStartCopy(platform->context, &drops->copy, env, descriptors, names,
+                              mwinAndroidNow()))
     {
         Finish(platform, false);
     }
@@ -166,7 +167,7 @@ void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget)
     mwinAndroidDrops* drops = &platform->drops;
     if (drops->copy.copying)
     {
-        if (mwinAndroidStepCopy(&drops->copy, budget))
+        if (mwinAndroidStepCopy(&drops->copy, budget, mwinAndroidNow()))
         {
             Finish(platform, true);
         }

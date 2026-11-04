@@ -53,6 +53,12 @@ bool mwinAndroidFindDialogs(mwinAndroidPlatform* platform, ANativeActivity* acti
     return found && mwinAndroidCopyFolder(&documents->copy, env, activity, "maul-documents");
 }
 
+void mwinAndroidEndDialogCopy(mwinAndroidPlatform* platform)
+{
+    mwinAndroidEndCopy(&platform->context->allocator, &platform->documents.copy);
+    platform->documents.to.waiting = false;
+}
+
 void mwinAndroidStopDialogs(mwinAndroidPlatform* platform)
 {
     mwinAndroidDocuments* documents = &platform->documents;
@@ -154,8 +160,8 @@ static void JNICALL Documents(JNIEnv* env, jclass type, jlong program, jint numb
         }
         return;
     }
-    if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors,
-                              names))
+    if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors, names,
+                              mwinAndroidNow()))
     {
         Finish(platform, mwin_outcomeFailed);
     }
@@ -166,7 +172,7 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget)
     mwinAndroidDocuments* documents = &platform->documents;
     if (documents->copy.copying)
     {
-        if (mwinAndroidStepCopy(&documents->copy, budget))
+        if (mwinAndroidStepCopy(&documents->copy, budget, mwinAndroidNow()))
         {
             Finish(platform, mwin_outcomeDone);
         }

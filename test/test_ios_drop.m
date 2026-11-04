@@ -10,7 +10,8 @@
 // with its contents and the text, the file under the name its source
 // suggests, the two that failed left out and the drop marked truncated. The file's extension is one
 // the system does not know, whose provider can also give its address as a string: it is a file
-// still. The simulator cannot drag itself.
+// still. Then a drop of two strings gives the first as its text, the second left out and the drop
+// marked truncated. The simulator cannot drag itself.
 
 #include "test_harness.h"
 
@@ -98,6 +99,7 @@ typedef struct Program
     int count;
     mwinEvent records[8];
     FakeSession* session;
+    FakeSession* texts;
     id<UIDropInteractionDelegate> dropper;
 } Program;
 
@@ -197,6 +199,19 @@ static FakeSession* SessionOf(void)
     return session;
 }
 
+// A session carrying two strings.
+static FakeSession* TextsOf(void)
+{
+    NSItemProvider* first = [[[NSItemProvider alloc] initWithObject:@"dropped text"] autorelease];
+    NSItemProvider* second = [[[NSItemProvider alloc] initWithObject:@"more text"] autorelease];
+    FakeSession* session = [[FakeSession alloc] init];
+    session->dragged = [@[
+        [[[UIDragItem alloc] initWithItemProvider:first] autorelease],
+        [[[UIDragItem alloc] initWithItemProvider:second] autorelease]
+    ] retain];
+    return session;
+}
+
 static void Drag(Program* program)
 {
     UIDropInteraction* none = nil;
@@ -255,6 +270,33 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the text");
 }
 
+// Enters with the two strings and drops them.
+static void DropTexts(Program* program)
+{
+    UIDropInteraction* none = nil;
+    FakeSession* session = program->texts;
+    id<UIDropInteractionDelegate> dropper = program->dropper;
+    session->place = CGPointMake(10.0, 10.0);
+    [dropper dropInteraction:none sessionDidEnter:session];
+    [dropper dropInteraction:none performDrop:session];
+}
+
+static void CheckTexts(const Program* program, mwinContext* context)
+{
+    const mwinEvent* r = program->records;
+    const mwinDropEvent* drop = &r[1].data.drop;
+    CHECK(program->count == 2 && r[0].kind == mwin_eventDragEntered &&
+              r[0].data.drag.contents == mwin_dragText && r[1].kind == mwin_eventDropped,
+          "the two strings entered as text and dropped");
+    CHECK(drop->fileCount == 0 && drop->textLength == 12 && drop->truncated,
+          "the first string as the text, the second left out and the drop marked truncated");
+    char text[32];
+    size_t length = 0;
+    CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
+              length == 12 && memcmp(text, "dropped text", 12) == 0,
+          "the first string");
+}
+
 static mwinResult Init(mwinContext* context, void* user)
 {
     Program* program = user;
@@ -287,7 +329,22 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         printf("phase 1 at %.2f s\n", Since());
         CheckDrop(program, context);
+        program->count = 0;
+        program->texts = TextsOf();
+        if (program->dropper != nil)
+        {
+            @autoreleasepool
+            {
+                DropTexts(program);
+            }
+        }
         program->phase = 2;
+    }
+    else if (program->phase == 2 && program->count >= 2)
+    {
+        printf("phase 2 at %.2f s\n", Since());
+        CheckTexts(program, context);
+        program->phase = 3;
         return mwin_frameStop;
     }
     if (NowNs() - program->startNs > DEADLINE_NS)
@@ -304,7 +361,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 2, "every phase ran");
+    CHECK(program->phase == 3, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 

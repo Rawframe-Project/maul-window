@@ -14,7 +14,8 @@
 //   folder per drop (android_copy.h), and its first text item, as text,
 //   is its text. The drop is told once every copy is whole, at the place
 //   it was made, as on iOS; a document that could not be opened or
-//   copied is left out, and the drop marked truncated. A drag that
+//   copied, or a text item after the first, is left out, and the drop
+//   marked truncated. A drag that
 //   enters the window while the last drop's documents are still copied
 //   supersedes the copy: that drop is told first, with the copies already
 //   whole and marked truncated, then the new drag as it comes. A drag
@@ -58,7 +59,7 @@ static jboolean JNICALL Takes(JNIEnv* env, jclass type, jlong program)
 }
 
 // Tells the drop with its whole copies' paths, unless its copy could not
-// start, and its text; truncated when a document was left out.
+// start, and its text; truncated when a document or a text was left out.
 static void Finish(mwinAndroidPlatform* platform, bool started)
 {
     mwinContext* context = platform->context;
@@ -77,7 +78,8 @@ static void Finish(mwinAndroidPlatform* platform, bool started)
             }
             at += length + 1;
         }
-        context->dropping.truncated = context->dropping.truncated || !started || copy->leftOut > 0;
+        context->dropping.truncated =
+            context->dropping.truncated || !started || copy->leftOut > 0 || drops->textLeftOut;
         if (drops->text != nullptr)
         {
             mwinSetDroppedText(context, drops->text, drops->textLength);
@@ -90,6 +92,7 @@ static void Finish(mwinAndroidPlatform* platform, bool started)
         mwinRelease(&context->allocator, drops->text, drops->textLength, 1);
         drops->text = nullptr;
     }
+    drops->textLeftOut = false;
 }
 
 // Ends the last drop's copy with what it has and tells it, truncated
@@ -125,7 +128,8 @@ static void JNICALL Drag(JNIEnv* env, jclass type, jlong program, jint how, jflo
 }
 
 static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jfloat y,
-                         jintArray descriptors, jobjectArray names, jstring text)
+                         jintArray descriptors, jobjectArray names, jstring text,
+                         jboolean textLeftOut)
 {
     (void)type;
     mwinAndroidPlatform* platform = Taking(program);
@@ -145,6 +149,7 @@ static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jflo
     drops->text = text != nullptr
                       ? mwinAndroidBytesOf(platform, env, text, &drops->textLength, nullptr, 0)
                       : nullptr;
+    drops->textLeftOut = textLeftOut;
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;
     if (count == 0)
     {
@@ -163,7 +168,7 @@ bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activi
     static const JNINativeMethod methods[] = {
         {"nativeTakes", "(J)Z", (void*)Takes},
         {"nativeDrag", "(JIFFI)V", (void*)Drag},
-        {"nativeDrop", "(JFF[I[Ljava/lang/String;Ljava/lang/String;)V", (void*)Drop},
+        {"nativeDrop", "(JFF[I[Ljava/lang/String;Ljava/lang/String;Z)V", (void*)Drop},
     };
     JNIEnv* env = activity->env;
     jclass type = mwinAndroidLoadClass(env, activity, "maul.window.Drops");
@@ -184,6 +189,7 @@ void mwinAndroidStopDrops(mwinAndroidPlatform* platform)
         mwinRelease(&platform->context->allocator, drops->text, drops->textLength, 1);
         drops->text = nullptr;
     }
+    drops->textLeftOut = false;
 }
 
 void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget)

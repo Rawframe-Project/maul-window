@@ -19,7 +19,9 @@
 // bar) leaves it alone, with no record; a drag that enters and leaves
 // supersedes it, its drop told first, truncated, then the drag's entering
 // and leaving; and, for a second such drop, a drag dropped on the window
-// supersedes it the same way and is dropped after it.
+// supersedes it the same way and is dropped after it. Last, a drag of two
+// texts is dropped with the first, the second left out and the drop
+// marked truncated.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -41,7 +43,7 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  17
+#define LAST_PHASE  19
 #define CONTENT     "the dropped document"
 #define WORDS       "dropped w\xc3\xb6rds"
 #define MOVE_BY     200
@@ -65,6 +67,8 @@ enum
     DRAG_STALLED,
     // The trickling document and text.
     DRAG_TRICKLES,
+    // Two texts.
+    DRAG_TEXTS,
 };
 
 // The most drag records and drops a phase keeps, in order.
@@ -256,7 +260,7 @@ static jobject CallObject(JNIEnv* env, jobject object, const char* name, const c
 // carrying what the kind says.
 static bool StartDrag(const Program* program, int kind)
 {
-    bool documents = kind != DRAG_TEXT;
+    bool documents = kind != DRAG_TEXT && kind != DRAG_TEXTS;
     JNIEnv* env = program->activity->env;
     jobject window =
         CallObject(env, program->activity->clazz, "getWindow", "()Landroid/view/Window;");
@@ -277,6 +281,10 @@ static bool StartDrag(const Program* program, int kind)
     jobject text = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
         words);
+    jstring moreWords = (*env)->NewStringUTF(env, "more words");
+    jobject more = (*env)->NewObject(
+        env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
+        moreWords);
     jclass strings = (*env)->FindClass(env, "java/lang/String");
     jobjectArray types = (*env)->NewObjectArray(env, documents ? 2 : 1, strings, nullptr);
     jstring plain = (*env)->NewStringUTF(env, "text/plain");
@@ -294,8 +302,8 @@ static bool StartDrag(const Program* program, int kind)
                                               "Landroid/content/ClipData$Item;)V"),
                           label, types,
                           kind == DRAG_DOCUMENTS ? document
-                          : kind == DRAG_TEXT    ? text
-                                                 : stalled);
+                          : documents            ? stalled
+                                                 : text);
     jmethodID add =
         (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
     if (kind == DRAG_DOCUMENTS)
@@ -305,6 +313,10 @@ static bool StartDrag(const Program* program, int kind)
     if (documents)
     {
         (*env)->CallVoidMethod(env, clip, add, text);
+    }
+    if (kind == DRAG_TEXTS)
+    {
+        (*env)->CallVoidMethod(env, clip, add, more);
     }
     jclass shadows = (*env)->FindClass(env, "android/view/View$DragShadowBuilder");
     jobject shadow = (*env)->NewObject(
@@ -318,9 +330,9 @@ static bool StartDrag(const Program* program, int kind)
         clip, shadow, nullptr, DRAG_FLAGS);
     bool thrown = (*env)->ExceptionCheck(env);
     (*env)->ExceptionClear(env);
-    jobject locals[] = {window,  decor, view,    clips,   items, document, gone,
-                        stalled, words, text,    strings, types, plain,    octets,
-                        label,   clip,  shadows, shadow,  views};
+    jobject locals[] = {window,  decor,  view,  clips,     items,   document, gone,
+                        stalled, words,  text,  moreWords, more,    strings,  types,
+                        plain,   octets, label, clip,      shadows, shadow,   views};
     for (size_t i = 0; i < sizeof(locals) / sizeof(locals[0]); i++)
     {
         (*env)->DeleteLocalRef(env, locals[i]);
@@ -479,6 +491,10 @@ static bool Ready(Program* program, mwinContext* context)
         return program->left;
     case 17:
         return program->dropCount >= 2;
+    case 18:
+        return program->touched;
+    case 19:
+        return program->dropped;
     default:
         return true;
     }
@@ -600,6 +616,24 @@ static void Advance(Program* program, mwinContext* context)
                   text->textLength == strlen(WORDS) && !text->truncated,
               "a drag dropped on the window superseded the copy: its drop told first, truncated, "
               "then the drag's entering and its own drop, whole");
+        // A drag of two texts.
+        Again(program);
+        break;
+    }
+    case 18:
+        DragInside(program, DRAG_TEXTS);
+        break;
+    case 19:
+    {
+        char text[64] = {0};
+        size_t length = 0;
+        CHECK(program->drop.fileCount == 0 && program->drop.textLength == strlen(WORDS) &&
+                  program->drop.truncated &&
+                  mwinDrop_GetText(context, program->drop.drop, text, sizeof(text), &length) ==
+                      mwin_success &&
+                  length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
+              "a drag of two texts dropped with the first, the second left out and the drop "
+              "marked truncated");
         break;
     }
     default:

@@ -16,7 +16,8 @@ import java.util.ArrayList;
  * Drags over the activity's view, for the library's drops: their places
  * and contents go to the library, and a drop's documents as open
  * descriptors with their names, which the library copies into the
- * application's cache, and its first text. Called on the main thread.
+ * application's cache, its first text, and whether a text after it was
+ * left out. Called on the main thread.
  */
 final class Drops implements View.OnDragListener {
     // What a drag carries (mwinDragContents), and how it moves.
@@ -83,6 +84,7 @@ final class Drops implements View.OnDragListener {
         ArrayList<Integer> descriptors = new ArrayList<>();
         ArrayList<String> names = new ArrayList<>();
         String text = null;
+        boolean leftOut = false;
         for (int i = 0; clip != null && i < clip.getItemCount(); i++) {
             ClipData.Item item = clip.getItemAt(i);
             if (item.getUri() != null) {
@@ -91,6 +93,9 @@ final class Drops implements View.OnDragListener {
             } else if (text == null) {
                 CharSequence words = item.coerceToText(activity);
                 text = words != null ? words.toString() : null;
+                leftOut |= text == null;
+            } else {
+                leftOut = true;
             }
         }
         if (permissions != null) {
@@ -101,18 +106,18 @@ final class Drops implements View.OnDragListener {
             opened[i] = descriptors.get(i);
         }
         nativeDrop(program, event.getX(), event.getY(), opened, names.toArray(new String[0]),
-                text);
+                text, leftOut);
     }
 
     // The library's functions, registered by it at its start: whether the
     // window takes a drag now; a drag entering, moving or leaving, at a
     // place in pixels; a drop at a place, with its documents' descriptors
-    // (-1 for one that could not be opened) and names, and its text or
-    // null.
+    // (-1 for one that could not be opened) and names, its text or null,
+    // and whether a text item was left out.
     static native boolean nativeTakes(long program);
 
     static native void nativeDrag(long program, int how, float x, float y, int contents);
 
     static native void nativeDrop(long program, float x, float y, int[] descriptors,
-            String[] names, String text);
+            String[] names, String text, boolean leftOut);
 }

@@ -50,9 +50,22 @@ again() {
     done
 }
 
-# A setting read through again, or "lost" when the read stayed lost.
+# An idempotent adb step's output, tried up to three times while adb
+# fails: only the try that succeeded is kept, so an answer a lost try
+# printed before its connection dropped is not given twice.
+ask() {
+    tries=1
+    until output=$("$adb" "$@"); do
+        [ "$tries" -lt 3 ] || return 1
+        tries=$((tries + 1))
+        sleep 1
+    done
+    printf '%s\n' "$output"
+}
+
+# A setting read through ask, or "lost" when the read stayed lost.
 setting() {
-    if value=$(again shell "$@"); then
+    if value=$(ask shell "$@"); then
         printf '%s\n' "$value" | tr -d '\r'
     else
         echo lost
@@ -164,12 +177,12 @@ again install -r "$apk" > /dev/null
 # test, whose result could be the earlier one.
 again shell pm clear "$package" > /dev/null
 again shell run-as "$package" rm -f files/out || true
-gone=$(again shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" 2>&1 | tr -d '\r' || true)
+gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" | tr -d '\r')
 if [ "$gone" != absent ]; then
     echo "an earlier run's result may be left: the device answered '$gone'"
 fi
 began_assets=$(assets)
-server=$(again shell pidof system_server | tr -d '\r')
+server=$(ask shell pidof system_server | tr -d '\r')
 again logcat -b all -c
 again shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
@@ -203,7 +216,7 @@ echo "waited until $(($(date +%s) - start)) s"
 grep -v -E '^(adb|emu): ' "$out" || true
 # The system's crash takes the test with it: said as such, once the
 # system is back.
-server_now=$(again shell pidof system_server | tr -d '\r' || true)
+server_now=$(ask shell pidof system_server | tr -d '\r')
 restarted=
 if [ "$server_now" != "$server" ]; then
     restarted=1

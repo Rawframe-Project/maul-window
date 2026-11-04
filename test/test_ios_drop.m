@@ -3,8 +3,8 @@
 //
 // Drag and drop on iOS, in the simulator (tools/run_ios_app.sh). The
 // test hands the view's drop interaction what UIKit would, a drop
-// session of its own over real item providers: a file, a string, a
-// file whose load fails and a text whose load fails. It
+// session of its own over real item providers: a file, a text whose
+// load fails ahead of a string, and a file whose load fails. It
 // enters, moves, leaves, enters again and drops; each record comes at
 // its place, and the drop, once its items loaded, gives the file's copy
 // with its contents and the text, the file under the name its source
@@ -150,8 +150,9 @@ static id<UIDropInteractionDelegate> DropperOf(UIView* view)
     return nil;
 }
 
-// A session carrying a file of three bytes, a string, a file whose load
-// fails and a text whose load fails.
+// A session carrying a file of three bytes, a text whose load fails, a
+// string, and a file whose load fails: the string is the first text that
+// loads, so the drop's text.
 static FakeSession* SessionOf(void)
 {
     NSString* path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"drop-test.dat"];
@@ -189,9 +190,9 @@ static FakeSession* SessionOf(void)
     FakeSession* session = [[FakeSession alloc] init];
     session->dragged = [@[
         [[[UIDragItem alloc] initWithItemProvider:file] autorelease],
+        [[[UIDragItem alloc] initWithItemProvider:unread] autorelease],
         [[[UIDragItem alloc] initWithItemProvider:text] autorelease],
-        [[[UIDragItem alloc] initWithItemProvider:broken] autorelease],
-        [[[UIDragItem alloc] initWithItemProvider:unread] autorelease]
+        [[[UIDragItem alloc] initWithItemProvider:broken] autorelease]
     ] retain];
     return session;
 }

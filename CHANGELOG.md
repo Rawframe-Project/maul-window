@@ -5,6 +5,45 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.12.0](https://github.com/Rawframe-Project/maul-window/compare/v0.11.0...v0.12.0) (2026-11-04)
+
+The iOS device check, that a window shows no flash against the launch
+screen before its first frame, is waived by the owner for this
+release, which ships on the iOS simulator suite: its iOS changes leave
+the launch and the first frame alone.
+
+### Changed
+
+- **Breaking:** `mwinRequest_GetDialogFiles` takes a `truncatedOut`
+  argument after `countOut`. A dialog choice holding a file the
+  platform cannot give as a path now completes done with the other
+  paths and marked truncated; before, the whole dialog failed. Such a
+  file is a path that is not UTF-8, a portal's choice that is no local
+  file, an item with no file system path on Windows, or a document
+  Android could not read or copy. A choice where no chosen file can be
+  given as a path still fails. A choice past the `dialogFiles` or
+  `dialogBytes` limits is still too large as a whole
+  ([#452](https://github.com/Rawframe-Project/maul-window/pull/452)).
+- **Breaking:** on Android, a drop of a document address the program
+  cannot be granted no longer ends the program; before,
+  `requestDragAndDropPermissions` threw and nothing caught it. The drop
+  goes on without the drag's permissions. A drop with a document that
+  cannot be opened or copied now brings the other documents and is
+  marked truncated; before, it brought no files and was not marked
+  ([#449](https://github.com/Rawframe-Project/maul-window/pull/449)).
+- **Breaking:** on Android, a dropped or chosen document whose
+  provider sends nothing for five seconds is left out, and the drop or
+  the dialog's answer is marked truncated; before, the copy waited for
+  it without end. The five seconds start again with each piece the
+  provider sends. Destroying the window now stops a drop's or a
+  dialog's copy
+  ([#457](https://github.com/Rawframe-Project/maul-window/pull/457)).
+- **Breaking:** on iOS, a drop with an item it does not deliver is
+  now marked truncated: an item that is neither a file nor text, that
+  failed to load, or whose file could not be copied. A text item that
+  fails to load is left out rather than given as an empty text
+  ([#454](https://github.com/Rawframe-Project/maul-window/pull/454)).
+
 ## [0.11.0](https://github.com/Rawframe-Project/maul-window/compare/v0.10.0...v0.11.0) (2026-11-04)
 
 ### Changed

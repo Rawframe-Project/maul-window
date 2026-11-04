@@ -5,6 +5,19 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.11.0](https://github.com/Rawframe-Project/maul-window/compare/v0.10.0...v0.11.0) (2026-11-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **win32:** a generic HID gamepad whose descriptor gives more than 32 capabilities of other pages ahead of its Button or Generic Desktop capabilities now gets those controls; it got none of that kind, and was not added when it had neither.
+* **win32:** a generic HID gamepad whose input report has more than 32 button or value capabilities now gets the controls in the first 32 of each kind; it got none of that kind, and was not added when it had neither.
+
+### Fixed
+
+* **win32:** read a HID pad with more than 32 capabilities ([#441](https://github.com/Rawframe-Project/maul-window/issues/441)) ([034569e](https://github.com/Rawframe-Project/maul-window/commit/034569e32589078b9ddbc5b01d92e5f4e7498397)), closes [#440](https://github.com/Rawframe-Project/maul-window/issues/440)
+* **win32:** read a HID pad's controls after many vendor caps ([#443](https://github.com/Rawframe-Project/maul-window/issues/443)) ([7d5a868](https://github.com/Rawframe-Project/maul-window/commit/7d5a868b7db0f914162cab8fe9fd7ceb4a1505f1)), closes [#442](https://github.com/Rawframe-Project/maul-window/issues/442)
+
 ## [0.10.0](https://github.com/Rawframe-Project/maul-window/compare/v0.9.0...v0.10.0) (2026-11-04)
 
 ### Changed

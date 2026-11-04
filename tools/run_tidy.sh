@@ -40,13 +40,20 @@ if ! grep -q . "$logs/files.txt"; then
 fi
 
 # One file: its output in its log, and a marker beside it when it failed.
+# The library's own headers are checked too, the filter named on the
+# command line: clang-tidy 20 run from the repository takes it from the
+# working directory's parent, which has no configuration, not from the
+# .clang-tidy beside the sources, and so left every header out. Anchored
+# at the repository, it leaves out the dependencies' headers.
 tidy_one() {
     local log
     log=$2/$(basename "$1").log
-    clang-tidy-20 -p "$3" --quiet --warnings-as-errors='*' "$1" >"$log" 2>&1 || : >"$log.failed"
+    clang-tidy-20 -p "$3" --quiet --warnings-as-errors='*' --header-filter="^$4/(src|include)/" \
+        "$1" >"$log" 2>&1 || : >"$log.failed"
 }
 export -f tidy_one
-xargs -P "$jobs" -I {} bash -c 'tidy_one "$1" "$2" "$3"' _ {} "$logs" "$build" <"$logs/files.txt"
+xargs -P "$jobs" -I {} bash -c 'tidy_one "$1" "$2" "$3" "$4"' _ {} "$logs" "$build" "$root" \
+    <"$logs/files.txt"
 
 failed=0
 while read -r file; do

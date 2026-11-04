@@ -21,11 +21,14 @@
 # described there, what the clipboard service said, each ANR whole, the
 # activity made anew or input dropped, and the resources' changes, and a
 # restart of the system with Android's own abort message, apart from the
-# test's failures.
+# test's failures. With a third argument, a failed run's whole log since
+# the start, every buffer, is saved to that file, and a passed run
+# removes it.
 set -eu
 adb=${ADB:-adb}
 apk=$1
 package=$2
+log=${3:-}
 # A few seconds after a fresh boot, SystemUI takes its theme's overlays
 # off, and at times puts them back (Android 12 and later): each a change
 # of the resources that makes the activity in front anew, so that input
@@ -76,7 +79,7 @@ accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r'
 "$adb" install -r "$apk" > /dev/null
 began_assets=$(assets)
 server=$("$adb" shell pidof system_server | tr -d '\r')
-"$adb" logcat -c
+"$adb" logcat -b all -c
 "$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)
@@ -132,6 +135,13 @@ else
     "$adb" logcat -d -s ActivityTaskManager:I WindowManager:I InputDispatcher:W |
         grep -E 'Config changes|relaunch|NO_INPUT_CHANNEL|no input channel' | tail -20 || true
     echo "assets from ${began_assets:-as.0} to $(assets | grep . || echo as.0)"
+    if [ -n "$log" ]; then
+        "$adb" logcat -d -b all -v threadtime > "$log" || true
+        echo "the whole log: $log"
+    fi
+fi
+if [ "$status" = 0 ] && [ -n "$log" ]; then
+    rm -f "$log"
 fi
 "$adb" shell am force-stop "$package"
 # A finger the console left down, by a test that ended early, is lifted.

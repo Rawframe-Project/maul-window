@@ -697,8 +697,11 @@ if(MAUL_WINDOW_BUILD_TESTS)
                         ${PROJECT_SOURCE_DIR}/tools/build_android_app.sh
                 VERBATIM)
             add_custom_target(test_${name}_apk ALL DEPENDS ${PROJECT_BINARY_DIR}/test_${name}.apk)
+            # A failed run's whole log goes beside ctest's own, which CI
+            # keeps when the job fails.
             add_test(NAME ${name} COMMAND ${PROJECT_SOURCE_DIR}/tools/run_android_app.sh
-                     ${PROJECT_BINARY_DIR}/test_${name}.apk ${package})
+                     ${PROJECT_BINARY_DIR}/test_${name}.apk ${package}
+                     ${PROJECT_BINARY_DIR}/Testing/Temporary/logcat-${name}.txt)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK emulator
                                  LABELS "${name};integration")
         endforeach()

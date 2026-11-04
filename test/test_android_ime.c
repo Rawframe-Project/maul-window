@@ -306,15 +306,16 @@ static bool Ready(const Program* program, mwinContext* context)
     case 1:
         return state.virtualKeyboard.height > 0.0f;
     case 7:
-    case 10:
-    case 11:
+    case 13:
+    case 14:
         return program->completions >= 1;
     case 8:
         return state.virtualKeyboard.height == 0.0f;
-    // Android's own insets settled, half a second without a change.
-    case 12:
+    // Android's own insets settled, half a second without a change: the
+    // keyboard was seen shown and then hidden, so no report of it is due.
+    case 9:
         return state.virtualKeyboard.height == 0.0f && NowNs() - program->insetsNs > 500000000u;
-    case 13:
+    case 10:
         return program->safeAreas >= 1 && program->keyboards >= 1;
     default:
         return true;
@@ -503,13 +504,31 @@ static void Advance(Program* program, mwinContext* context)
     case 8:
         CHECK(count == 1 && IsText(&records[0], "zz"),
               "no composition told while not accepting text, its text committed");
+        break;
+    case 9:
+        TellInsets(program, activity);
+        break;
+    case 10:
+        CHECK(program->safeAreas == 1 && program->keyboards == 1,
+              "insets told: one change of each");
+        // Again, alike, in a frame of its own: the queue merges a frame's
+        // changes of one kind.
+        TellInsets(program, activity);
+        break;
+    case 11:
+        if (program->safeAreas != 0 || program->keyboards != 0)
+        {
+            printf("changes: %d of the safe area, %d of the keyboard\n", program->safeAreas,
+                   program->keyboards);
+        }
+        CHECK(program->safeAreas == 0 && program->keyboards == 0, "insets told alike: no change");
         // Composing from hardware keys, the keyboard hidden.
         CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success,
               "text input asked for again");
         Text(env, connection, "setComposingText", "kn");
         program->composing = (*env)->NewGlobalRef(env, connection);
         break;
-    case 9:
+    case 12:
         CHECK(count == 1 && IsPreedit(&records[0], "kn", 2), "composing, the keyboard hidden");
         program->completions = 0;
         // For the purpose it had: only the keyboard is new.
@@ -521,7 +540,7 @@ static void Advance(Program* program, mwinContext* context)
         Finish(env, program->composing);
         (*env)->DeleteGlobalRef(env, program->composing);
         break;
-    case 10:
+    case 13:
         CheckCommitted(program, context, "kn",
                        "the composition committed when the keyboard is asked for, and ended");
         Text(env, connection, "setComposingText", "pq");
@@ -533,31 +552,10 @@ static void Advance(Program* program, mwinContext* context)
         // old connection, which finishes the composition.
         Finish(env, connection);
         break;
-    case 11:
+    case 14:
         CheckCommitted(program, context, "pq",
                        "the composition committed when another purpose is asked for, and ended");
         CheckType(program, context, 0x3002, "a number, signed and decimal");
-        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
-                                                nullptr) == mwin_success,
-              "the keyboard hidden again");
-        break;
-    case 12:
-        TellInsets(program, activity);
-        break;
-    case 13:
-        CHECK(program->safeAreas == 1 && program->keyboards == 1,
-              "insets told: one change of each");
-        // Again, alike, in a frame of its own: the queue merges a frame's
-        // changes of one kind.
-        TellInsets(program, activity);
-        break;
-    case 14:
-        if (program->safeAreas != 0 || program->keyboards != 0)
-        {
-            printf("changes: %d of the safe area, %d of the keyboard\n", program->safeAreas,
-                   program->keyboards);
-        }
-        CHECK(program->safeAreas == 0 && program->keyboards == 0, "insets told alike: no change");
         break;
     default:
         break;

@@ -24,11 +24,28 @@
 # test's failures. With a third argument, a failed run's whole log since
 # the start, every buffer, is saved to that file, and a passed run
 # removes it.
+#
+# adb can lose its connection to the device ("error: closed"). The steps
+# that only read or set the device's state, install, clear or start the
+# application are tried up to three times. The application's data is
+# cleared before it starts, so a result an earlier run left cannot be
+# read as this one's. Once the verdict is reached, putting the device
+# back cannot change it.
 set -eu
 adb=${ADB:-adb}
 apk=$1
 package=$2
 log=${3:-}
+
+# An idempotent adb step, tried up to three times while adb fails.
+again() {
+    tries=1
+    until "$adb" "$@"; do
+        [ "$tries" -lt 3 ] || return 1
+        tries=$((tries + 1))
+        sleep 1
+    done
+}
 # A few seconds after a fresh boot, SystemUI takes its theme's overlays
 # off, and at times puts them back (Android 12 and later): each a change
 # of the resources that makes the activity in front anew, so that input
@@ -65,22 +82,25 @@ if "$adb" shell cmd overlay list | grep -qE '\[x\] com\.android\.systemui:(neutr
     fi
 fi
 start=$(date +%s)
-rotating=$("$adb" shell settings get system accelerometer_rotation | tr -d '\r')
-rotation=$("$adb" shell settings get system user_rotation | tr -d '\r')
+rotating=$(again shell settings get system accelerometer_rotation | tr -d '\r')
+rotation=$(again shell settings get system user_rotation | tr -d '\r')
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
     eval "old_$scale=\$(\"\$adb\" shell settings get global $scale | tr -d '\\r')"
-    "$adb" shell settings put global "$scale" 0
+    again shell settings put global "$scale" 0
 done
-night=$("$adb" shell cmd uimode night | tr -d '\r' | sed 's/^Night mode: //')
-font=$("$adb" shell settings get system font_scale | tr -d '\r')
-saver=$("$adb" shell settings get global low_power | tr -d '\r')
-services=$("$adb" shell settings get secure enabled_accessibility_services | tr -d '\r')
-accessible=$("$adb" shell settings get secure accessibility_enabled | tr -d '\r')
-"$adb" install -r "$apk" > /dev/null
+night=$(again shell cmd uimode night | tr -d '\r' | sed 's/^Night mode: //')
+font=$(again shell settings get system font_scale | tr -d '\r')
+saver=$(again shell settings get global low_power | tr -d '\r')
+services=$(again shell settings get secure enabled_accessibility_services | tr -d '\r')
+accessible=$(again shell settings get secure accessibility_enabled | tr -d '\r')
+again install -r "$apk" > /dev/null
+# install -r keeps the data, files/out among it, of a run whose
+# uninstall was lost.
+again shell pm clear "$package" > /dev/null
 began_assets=$(assets)
-server=$("$adb" shell pidof system_server | tr -d '\r')
-"$adb" logcat -b all -c
-"$adb" shell am start -W -n "$package/maul.window.Activity" > /dev/null
+server=$(again shell pidof system_server | tr -d '\r')
+again logcat -b all -c
+again shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)
 done=0
@@ -94,8 +114,8 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
         command=${line#*: }
         echo "running: $line"
         case $line in
-            emu:*) "$adb" emu $command > /dev/null ;;
-            *) "$adb" shell "$command" > /dev/null ;;
+            emu:*) "$adb" emu $command > /dev/null || echo "adb lost the device running: $line" ;;
+            *) "$adb" shell "$command" > /dev/null || echo "adb lost the device running: $line" ;;
         esac
     done
     grep -q '^result: ' "$out" && break
@@ -105,7 +125,7 @@ echo "waited until $(($(date +%s) - start)) s"
 grep -v -E '^(adb|emu): ' "$out" || true
 # The system's crash takes the test with it: said as such, once the
 # system is back.
-server_now=$("$adb" shell pidof system_server | tr -d '\r' || true)
+server_now=$(again shell pidof system_server | tr -d '\r' || true)
 restarted=
 if [ "$server_now" != "$server" ]; then
     restarted=1
@@ -143,34 +163,36 @@ fi
 if [ "$status" = 0 ] && [ -n "$log" ]; then
     rm -f "$log"
 fi
-"$adb" shell am force-stop "$package"
+# The verdict stands whatever putting the device back does.
+set +e
+again shell am force-stop "$package"
 # A finger the console left down, by a test that ended early, is lifted.
 if grep -q '^emu: event mouse' "$out"; then
-    "$adb" emu event mouse 0 0 0 0 > /dev/null
+    again emu event mouse 0 0 0 0 > /dev/null
 fi
 # A new device has neither set: the defaults are put back.
 [ "$rotation" = null ] && rotation=0
 [ "$rotating" = null ] && rotating=1
-"$adb" shell settings put system user_rotation "$rotation"
-"$adb" shell settings put system accelerometer_rotation "$rotating"
+again shell settings put system user_rotation "$rotation"
+again shell settings put system accelerometer_rotation "$rotating"
 for scale in window_animation_scale transition_animation_scale animator_duration_scale; do
     eval "value=\$old_$scale"
     [ "$value" = null ] && value=1
-    "$adb" shell settings put global "$scale" "$value"
+    again shell settings put global "$scale" "$value"
 done
-"$adb" shell cmd uimode night "$night" > /dev/null
+again shell cmd uimode night "$night" > /dev/null
 [ "$font" = null ] && font=1.0
-"$adb" shell settings put system font_scale "$font"
+again shell settings put system font_scale "$font"
 [ "$saver" = null ] && saver=0
-"$adb" shell settings put global low_power "$saver"
-"$adb" shell dumpsys battery reset
+again shell settings put global low_power "$saver"
+again shell dumpsys battery reset
 if [ "$services" = null ] || [ -z "$services" ]; then
-    "$adb" shell settings delete secure enabled_accessibility_services > /dev/null
+    again shell settings delete secure enabled_accessibility_services > /dev/null
 else
-    "$adb" shell settings put secure enabled_accessibility_services "$services"
+    again shell settings put secure enabled_accessibility_services "$services"
 fi
 [ "$accessible" = null ] && accessible=0
-"$adb" shell settings put secure accessibility_enabled "$accessible"
-"$adb" uninstall "$package" > /dev/null
+again shell settings put secure accessibility_enabled "$accessible"
+again uninstall "$package" > /dev/null
 rm -f "$out"
 exit $status

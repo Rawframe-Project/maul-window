@@ -13,7 +13,8 @@
 #include <wchar.h>
 
 // USB, as SDL names DirectInput devices in its database.
-#define BUS_USB    0x0003
+#define BUS_USB 0x0003
+// The capabilities read of the Button page, and of Generic Desktop.
 #define CAPS       32
 #define PATH_UNITS 512
 
@@ -39,8 +40,8 @@ static bool LoadParser(mwinHidApi* api)
         return false;
     }
     LOAD(getCaps, "HidP_GetCaps");
-    LOAD(buttonCaps, "HidP_GetButtonCaps");
-    LOAD(valueCaps, "HidP_GetValueCaps");
+    LOAD(buttonCaps, "HidP_GetSpecificButtonCaps");
+    LOAD(valueCaps, "HidP_GetSpecificValueCaps");
     LOAD(usages, "HidP_GetUsages");
     LOAD(usageValue, "HidP_GetUsageValue");
     LOAD(productString, "HidD_GetProductString");
@@ -79,8 +80,9 @@ static void UsagesOf(BOOLEAN isRange, USAGE usage, USAGE minimum, USAGE maximum,
 }
 
 // How many capabilities a read gave, of the room it had; none for a
-// failed one. For a device with more than the room, the parser fills it
-// and says it was too small (Wine also sets the count to all of them).
+// failed one, or for a page the device has none of. For a device with
+// more than the room, the parser fills it and says it was too small
+// (Wine also sets the count to all of them).
 static USHORT CapsRead(NTSTATUS status, USHORT count, USHORT room)
 {
     if (status != HIDP_STATUS_SUCCESS && status != HIDP_STATUS_BUFFER_TOO_SMALL)
@@ -95,7 +97,9 @@ static void ReadButtons(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
     HIDP_BUTTON_CAPS caps[CAPS];
     USHORT room = count < CAPS ? count : CAPS;
     USHORT read = room;
-    NTSTATUS status = hid->api.buttonCaps(HidP_Input, caps, &read, pad->preparsed);
+    // Of the Button page alone, so that no other page's take the room.
+    NTSTATUS status =
+        hid->api.buttonCaps(HidP_Input, HID_USAGE_PAGE_BUTTON, 0, 0, caps, &read, pad->preparsed);
     count = CapsRead(status, read, room);
     mwinHidCap plain[CAPS];
     for (USHORT i = 0; i < count; i++)
@@ -112,7 +116,8 @@ static void ReadValues(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
     HIDP_VALUE_CAPS caps[CAPS];
     USHORT room = count < CAPS ? count : CAPS;
     USHORT read = room;
-    NTSTATUS status = hid->api.valueCaps(HidP_Input, caps, &read, pad->preparsed);
+    NTSTATUS status =
+        hid->api.valueCaps(HidP_Input, HID_USAGE_PAGE_GENERIC, 0, 0, caps, &read, pad->preparsed);
     count = CapsRead(status, read, room);
     mwinHidCap plain[CAPS];
     for (USHORT i = 0; i < count; i++)

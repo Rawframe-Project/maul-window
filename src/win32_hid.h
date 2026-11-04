@@ -52,10 +52,10 @@ typedef struct mwinHidApi
                              HANDLE model);
     BOOL(WINAPI* closeFile)(HANDLE file);
     NTSTATUS(NTAPI* getCaps)(PHIDP_PREPARSED_DATA data, PHIDP_CAPS caps);
-    NTSTATUS(NTAPI* buttonCaps)(HIDP_REPORT_TYPE type, PHIDP_BUTTON_CAPS caps, PUSHORT count,
-                                PHIDP_PREPARSED_DATA data);
-    NTSTATUS(NTAPI* valueCaps)(HIDP_REPORT_TYPE type, PHIDP_VALUE_CAPS caps, PUSHORT count,
-                               PHIDP_PREPARSED_DATA data);
+    NTSTATUS(NTAPI* buttonCaps)(HIDP_REPORT_TYPE type, USAGE page, USHORT link, USAGE usage,
+                                PHIDP_BUTTON_CAPS caps, PUSHORT count, PHIDP_PREPARSED_DATA data);
+    NTSTATUS(NTAPI* valueCaps)(HIDP_REPORT_TYPE type, USAGE page, USHORT link, USAGE usage,
+                               PHIDP_VALUE_CAPS caps, PUSHORT count, PHIDP_PREPARSED_DATA data);
     NTSTATUS(NTAPI* usages)(HIDP_REPORT_TYPE type, USAGE page, USHORT link, PUSAGE list,
                             PULONG length, PHIDP_PREPARSED_DATA data, PCHAR report,
                             ULONG reportLength);

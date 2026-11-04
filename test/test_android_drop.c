@@ -8,7 +8,9 @@
 // text, goes through Android's own drag and drop: the window hears it
 // enter and move with both contents, and the drop at the place the
 // finger lifted, with the document copied under its name, the deleted
-// one left out and the drop marked truncated, and the text.
+// one left out and the drop marked truncated, and the text; a drag of
+// text alone after it is dropped with its text, and not marked
+// truncated.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -30,7 +32,7 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  2
+#define LAST_PHASE  4
 #define CONTENT     "the dropped document"
 #define WORDS       "dropped w\xc3\xb6rds"
 #define MOVE_BY     200
@@ -182,8 +184,9 @@ static jobject CallObject(JNIEnv* env, jobject object, const char* name, const c
 }
 
 // Starts a drag from the activity's view, under the finger that is down,
-// carrying the document, the deleted one's address and text.
-static bool StartDrag(const Program* program)
+// carrying the document, the deleted one's address and text, or text
+// alone.
+static bool StartDrag(const Program* program, bool documents)
 {
     JNIEnv* env = program->activity->env;
     jobject window =
@@ -203,22 +206,28 @@ static bool StartDrag(const Program* program)
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
         words);
     jclass strings = (*env)->FindClass(env, "java/lang/String");
-    jobjectArray types = (*env)->NewObjectArray(env, 2, strings, nullptr);
+    jobjectArray types = (*env)->NewObjectArray(env, documents ? 2 : 1, strings, nullptr);
     jstring plain = (*env)->NewStringUTF(env, "text/plain");
     jstring octets = (*env)->NewStringUTF(env, "application/octet-stream");
-    (*env)->SetObjectArrayElement(env, types, 0, octets);
-    (*env)->SetObjectArrayElement(env, types, 1, plain);
+    if (documents)
+    {
+        (*env)->SetObjectArrayElement(env, types, 0, octets);
+    }
+    (*env)->SetObjectArrayElement(env, types, documents ? 1 : 0, plain);
     jstring label = (*env)->NewStringUTF(env, "drag");
     jobject clip =
         (*env)->NewObject(env, clips,
                           (*env)->GetMethodID(env, clips, "<init>",
                                               "(Ljava/lang/CharSequence;[Ljava/lang/String;"
                                               "Landroid/content/ClipData$Item;)V"),
-                          label, types, document);
+                          label, types, documents ? document : text);
     jmethodID add =
         (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
-    (*env)->CallVoidMethod(env, clip, add, gone);
-    (*env)->CallVoidMethod(env, clip, add, text);
+    if (documents)
+    {
+        (*env)->CallVoidMethod(env, clip, add, gone);
+        (*env)->CallVoidMethod(env, clip, add, text);
+    }
     jclass shadows = (*env)->FindClass(env, "android/view/View$DragShadowBuilder");
     jobject shadow = (*env)->NewObject(
         env, shadows, (*env)->GetMethodID(env, shadows, "<init>", "(Landroid/view/View;)V"), view);
@@ -274,6 +283,21 @@ static void CheckDrop(const Program* program, mwinContext* context)
           "the text");
 }
 
+// The drag of text alone, after the one that left a document out.
+static void CheckTextDrop(const Program* program, mwinContext* context)
+{
+    const mwinDropEvent* drop = &program->drop;
+    CHECK(program->entered && program->contents == mwin_dragText,
+          "the drag of text alone entered with text");
+    CHECK(drop->fileCount == 0 && drop->textLength == strlen(WORDS) && !drop->truncated,
+          "the drop of text alone: its text, no file, and not marked truncated");
+    char text[64] = {0};
+    size_t length = 0;
+    CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
+              length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
+          "the text dropped alone");
+}
+
 static bool Ready(Program* program, mwinContext* context)
 {
     mwinWindowState state = {0};
@@ -284,8 +308,10 @@ static bool Ready(Program* program, mwinContext* context)
     case 0:
         return state.focused && HasSurface(context, program->window);
     case 1:
+    case 3:
         return program->touched;
     case 2:
+    case 4:
         return program->dropped;
     default:
         return true;
@@ -324,7 +350,8 @@ static void Advance(Program* program, mwinContext* context)
         break;
     }
     case 1:
-        CHECK(StartDrag(program), "a drag started under the finger");
+    case 3:
+        CHECK(StartDrag(program, program->phase == 1), "a drag started under the finger");
         printf("adb: input motionevent MOVE %d %d\n", program->x + MOVE_BY / 2,
                program->y + MOVE_BY / 2);
         printf("adb: input motionevent MOVE %d %d\n", program->x + MOVE_BY, program->y + MOVE_BY);
@@ -333,6 +360,16 @@ static void Advance(Program* program, mwinContext* context)
     case 2:
         CheckDrop(program, context);
         DeleteDocument(program->activity->env, program->activity, program->document);
+        // The drag of text alone, under a finger put down again.
+        program->touched = false;
+        program->entered = false;
+        program->moved = false;
+        program->left = false;
+        program->dropped = false;
+        printf("adb: input motionevent DOWN %d %d\n", program->x, program->y);
+        break;
+    case 4:
+        CheckTextDrop(program, context);
         break;
     default:
         break;

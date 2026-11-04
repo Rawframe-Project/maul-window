@@ -297,6 +297,7 @@ void mwinAndroidEndCopy(const mwinAllocator* allocator, mwinAndroidCopy* copy)
     copy->paths = nullptr;
     copy->count = 0;
     copy->next = 0;
+    copy->leftOut = 0;
     copy->pathsLength = 0;
     copy->pathsCapacity = 0;
     copy->copying = false;

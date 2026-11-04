@@ -4,10 +4,11 @@
 // Drag and drop on Android, in the emulator (tools/run_android_app.sh):
 // a drag the test starts from its own window, under a finger the runner
 // puts down, moves and lifts, carrying a document it made in Downloads
-// through MediaStore and text, goes through Android's own drag and drop:
-// the window hears it enter and move with both contents, and the drop at
-// the place the finger lifted, with the document copied under its name
-// and the text.
+// through MediaStore, the address of one deleted before the drag, and
+// text, goes through Android's own drag and drop: the window hears it
+// enter and move with both contents, and the drop at the place the
+// finger lifted, with the document copied under its name, the deleted
+// one left out and the drop marked truncated, and the text.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -54,6 +55,8 @@ typedef struct Program
     bool dropped;
     mwinDropEvent drop;
     jobject document;
+    // A document's address that no longer opens.
+    jobject gone;
     char name[64];
 } Program;
 
@@ -179,7 +182,7 @@ static jobject CallObject(JNIEnv* env, jobject object, const char* name, const c
 }
 
 // Starts a drag from the activity's view, under the finger that is down,
-// carrying the document and text.
+// carrying the document, the deleted one's address and text.
 static bool StartDrag(const Program* program)
 {
     JNIEnv* env = program->activity->env;
@@ -192,6 +195,9 @@ static bool StartDrag(const Program* program)
     jobject document = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
         program->document);
+    jobject gone = (*env)->NewObject(
+        env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
+        program->gone);
     jstring words = (*env)->NewStringUTF(env, WORDS);
     jobject text = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Ljava/lang/CharSequence;)V"),
@@ -209,9 +215,10 @@ static bool StartDrag(const Program* program)
                                               "(Ljava/lang/CharSequence;[Ljava/lang/String;"
                                               "Landroid/content/ClipData$Item;)V"),
                           label, types, document);
-    (*env)->CallVoidMethod(
-        env, clip, (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V"),
-        text);
+    jmethodID add =
+        (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
+    (*env)->CallVoidMethod(env, clip, add, gone);
+    (*env)->CallVoidMethod(env, clip, add, text);
     jclass shadows = (*env)->FindClass(env, "android/view/View$DragShadowBuilder");
     jobject shadow = (*env)->NewObject(
         env, shadows, (*env)->GetMethodID(env, shadows, "<init>", "(Landroid/view/View;)V"), view);
@@ -224,8 +231,8 @@ static bool StartDrag(const Program* program)
         clip, shadow, nullptr, DRAG_FLAGS);
     bool thrown = (*env)->ExceptionCheck(env);
     (*env)->ExceptionClear(env);
-    jobject locals[] = {window, decor, view,   clips, items, document, words,  text, strings,
-                        types,  plain, octets, label, clip,  shadows,  shadow, views};
+    jobject locals[] = {window,  decor, view,  clips,  items, document, gone,    words,  text,
+                        strings, types, plain, octets, label, clip,     shadows, shadow, views};
     for (size_t i = 0; i < sizeof(locals) / sizeof(locals[0]); i++)
     {
         (*env)->DeleteLocalRef(env, locals[i]);
@@ -242,8 +249,8 @@ static void CheckDrop(const Program* program, mwinContext* context)
     CHECK(fabsf(drop->position.x - (float)(program->x + MOVE_BY) / program->scale) < 2.0f &&
               fabsf(drop->position.y - (float)(program->y + MOVE_BY) / program->scale) < 2.0f,
           "dropped where the finger lifted, in logical units");
-    CHECK(drop->fileCount == 1 && drop->textLength == strlen(WORDS) && !drop->truncated,
-          "one file and the text");
+    CHECK(drop->fileCount == 1 && drop->textLength == strlen(WORDS) && drop->truncated,
+          "one file, the deleted document left out and the drop marked truncated, and the text");
     char paths[1024] = {0};
     size_t length = 0;
     CHECK(mwinDrop_GetFiles(context, drop->drop, paths, sizeof(paths), &length) == mwin_success,
@@ -305,6 +312,14 @@ static void Advance(Program* program, mwinContext* context)
         (void)snprintf(program->name, sizeof(program->name), "maul-drop-%d.txt", (int)getpid());
         program->document = MakeDocument(program->activity->env, program->activity, program->name);
         CHECK(program->document != nullptr, "a document made");
+        char goneName[64];
+        (void)snprintf(goneName, sizeof(goneName), "maul-gone-%d.txt", (int)getpid());
+        program->gone = MakeDocument(program->activity->env, program->activity, goneName);
+        CHECK(program->gone != nullptr, "a document made to delete");
+        if (program->gone != nullptr)
+        {
+            DeleteDocument(program->activity->env, program->activity, program->gone);
+        }
         printf("adb: input motionevent DOWN %d %d\n", program->x, program->y);
         break;
     }

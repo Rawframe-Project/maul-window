@@ -153,8 +153,10 @@ static void JNICALL Documents(JNIEnv* env, jclass type, jlong program, jint numb
         }
         return;
     }
+    // A document left out fails the dialog.
     if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors,
-                              names))
+                              names) ||
+        platform->documents.copy.leftOut > 0)
     {
         Finish(platform, mwin_outcomeFailed);
     }
@@ -165,10 +167,9 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget)
     mwinAndroidDocuments* documents = &platform->documents;
     if (documents->copy.copying)
     {
-        int state = mwinAndroidStepCopy(&documents->copy, budget);
-        if (state != 0)
+        if (mwinAndroidStepCopy(&documents->copy, budget))
         {
-            Finish(platform, state > 0 ? mwin_outcomeDone : mwin_outcomeFailed);
+            Finish(platform, documents->copy.leftOut == 0 ? mwin_outcomeDone : mwin_outcomeFailed);
         }
     }
 }

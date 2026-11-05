@@ -175,8 +175,10 @@ accessible=$(setting settings get secure accessibility_enabled)
 # the documents the package owns then, the ones a test made since among
 # them. So the runner waits, 60 s at most, until the system has delivered
 # its broadcasts, the removal's and the install's, before the test starts.
-installed=$(ask shell pm list packages "$package" | tr -d '\r')
-if printf '%s\n' "$installed" | grep -qx "package:$package"; then
+# Each answer is read whole first: a lost read ends the run here (set -e),
+# where a pipe would give its last command's status and an empty answer.
+installed=$(ask shell pm list packages "$package")
+if printf '%s\n' "$installed" | tr -d '\r' | grep -qx "package:$package"; then
     again uninstall "$package" > /dev/null
 fi
 again install -r "$apk" > /dev/null
@@ -188,12 +190,14 @@ fi
 # asked whether it is gone: anything but "absent" (run-as failing among
 # it) fails the test, whose result could be the earlier one.
 again shell run-as "$package" rm -f files/out || true
-gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" | tr -d '\r')
+gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'")
+gone=$(printf '%s' "$gone" | tr -d '\r')
 if [ "$gone" != absent ]; then
     echo "an earlier run's result may be left: the device answered '$gone'"
 fi
 began_assets=$(assets)
-server=$(ask shell pidof system_server | tr -d '\r')
+server=$(ask shell pidof system_server)
+server=$(printf '%s' "$server" | tr -d '\r')
 again logcat -b all -c
 # The minute for the result counts from the start, whatever the steps
 # before it took.
@@ -230,11 +234,17 @@ echo "waited until $(($(date +%s) - launched)) s after the start"
 grep -v -E '^(adb|emu): ' "$out" || true
 # The system's crash takes the test with it: said as such, once the
 # system is back.
-server_now=$(ask shell pidof system_server | tr -d '\r')
+# A pid that cannot be read, the system down or adb lost, fails the test
+# as a restart would.
+if server_now=$(ask shell pidof system_server); then
+    server_now=$(printf '%s' "$server_now" | tr -d '\r')
+else
+    server_now=
+fi
 restarted=
 if [ "$server_now" != "$server" ]; then
     restarted=1
-    echo "the system restarted during the test: system_server was pid $server, now ${server_now:-gone}"
+    echo "the system restarted during the test: system_server was pid $server, now ${server_now:-not read}"
     "$adb" logcat -d -b crash | grep -E 'Fatal signal|Abort message' | head -6 || true
     began=$(date +%s)
     while [ $(($(date +%s) - began)) -lt 60 ] &&

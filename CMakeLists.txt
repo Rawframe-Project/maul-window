@@ -673,9 +673,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
     if(MAUL_WINDOW_ANDROID AND DEFINED ENV{ANDROID_HOME})
         # Applications in the emulator, built by tools/build_android_app.sh
         # without Gradle and run by tools/run_android_app.sh.
-        set(MWIN_ANDROID_TESTS android android_input android_cursor android_ime android_pad
-            android_services android_clipboard android_dialog android_drop android_system
-            android_access android_pad_ds4 android_touch)
+        set(MWIN_ANDROID_TESTS android android_input android_cursor android_ime android_ime_purpose
+            android_pad android_services android_clipboard android_dialog android_drop
+            android_system android_access android_pad_ds4 android_touch)
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)
@@ -712,6 +712,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Intermittent in the Android 15 emulator: every clipboard write and
         # read failing for a whole run (issue #256).
         maul_quarantine(android_clipboard)
+        # Intermittent in the Android 11 emulator: a keyboard asked for as
+        # input starts anew for another purpose never shown (issue #466).
+        maul_quarantine(android_ime_purpose)
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,

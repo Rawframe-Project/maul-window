@@ -22,6 +22,7 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -219,10 +220,20 @@ static inline FakeStarted FakeStart(FakeBus* fake, const char* directory)
     {
         return FakeBroke(fake, "the bus's configuration cannot be written");
     }
+    // The daemon writes its address to a pipe once it listens: its socket
+    // exists from bind(), before it listens, when a connection is refused.
+    // Only the daemon keeps the pipe's writing end.
+    int ready[2];
+    if (pipe(ready) != 0)
+    {
+        return FakeBroke(fake, "the bus's pipe cannot be made");
+    }
     char argument[300];
+    char printing[40];
     (void)snprintf(argument, sizeof(argument), "--config-file=%s", path);
+    (void)snprintf(printing, sizeof(printing), "--print-address=%d", ready[1]);
     char* arguments[] = {(char*)"/usr/bin/dbus-daemon", argument, (char*)"--nofork",
-                         (char*)"--nopidfile", nullptr};
+                         (char*)"--nopidfile",          printing, nullptr};
     // The bus dies with the thread that starts it, the test's main one: a
     // test a sanitizer or a timeout ends never stops it, and orphaned
     // buses each hold an inotify instance until the user has none left
@@ -246,24 +257,36 @@ static inline FakeStarted FakeStart(FakeBus* fake, const char* directory)
         (void)execve(arguments[0], arguments, environ);
         _exit(127);
     }
+    (void)close(ready[1]);
     if (child < 0)
     {
+        (void)close(ready[0]);
         fake->daemon = 0;
         return FakeBroke(fake, "dbus-daemon cannot be forked");
     }
     fake->daemon = child;
+    // The address ends with a newline; the pipe closes without one where
+    // the daemon exits first.
+    char address[256];
+    size_t length = 0;
+    bool listening = false;
+    struct pollfd pending = {.fd = ready[0], .events = POLLIN};
+    while (!listening && length < sizeof(address) && poll(&pending, 1, 5000) == 1)
+    {
+        ssize_t got = read(ready[0], address + length, sizeof(address) - length);
+        if (got <= 0)
+        {
+            break;
+        }
+        length += (size_t)got;
+        listening = memchr(address, '\n', length) != nullptr;
+    }
+    (void)close(ready[0]);
+    if (!listening)
+    {
+        return FakeBroke(fake, "dbus-daemon did not listen in 5 s");
+    }
     (void)snprintf(path, sizeof(path), "%s/bus", directory);
-    struct stat status;
-    for (int i = 0; i < 500 && stat(path, &status) != 0; i++)
-    {
-        struct timespec pause = {0, 10000000};
-        // hygiene: polls for the socket the daemon makes in its own time
-        (void)nanosleep(&pause, nullptr);
-    }
-    if (stat(path, &status) != 0)
-    {
-        return FakeBroke(fake, "dbus-daemon made no socket in 5 s");
-    }
     (void)snprintf(config, sizeof(config), "unix:path=%s", path);
     (void)setenv(fake->system ? "DBUS_SYSTEM_BUS_ADDRESS" : "DBUS_SESSION_BUS_ADDRESS", config, 1);
     // libdbus keeps the addresses it saw first for its buses, so the

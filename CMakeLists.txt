@@ -712,9 +712,6 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # Intermittent in the Android 15 emulator: every clipboard write and
         # read failing for a whole run (issue #256).
         maul_quarantine(android_clipboard)
-        # Intermittent in the Android 11 emulator: a keyboard asked for as
-        # input starts anew for another purpose never shown (issue #466).
-        maul_quarantine(android_ime_purpose)
     endif()
     if(MAUL_WINDOW_IOS)
         # Applications in the simulator, run by tools/run_ios_app.sh; ios_input,

@@ -2,11 +2,13 @@
 // Copyright (c) 2026 Sirac Ozmen
 //
 // The on-screen keyboard asked for another purpose on Android, in the
-// emulator (tools/run_android_app.sh): from hidden, the keyboard is asked
-// for text, then a number, then an address, each once the last request
-// completed, so that input starts anew for each; it shows, for an
-// address. Android 11's input method can drop a keyboard shown as input
-// starts anew, so the test is quarantined (CMakeLists.txt).
+// emulator (tools/run_android_app.sh): the keyboard, shown, is hidden,
+// then asked for text, then a number, then an address, so that input
+// starts anew for each, in rounds: each request once the last completed,
+// or all three in one frame. Each round, once the requests completed, the
+// view gives input methods an address's input type. Whether the keyboard
+// then shows is the input method's: Gboard on Android 11, running behind,
+// can hide it by itself, so the test does not wait for it.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -24,7 +26,10 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  3
+#define ROUNDS      6
+// The phases of a round, after the keyboard first shown.
+#define ROUND      4
+#define LAST_PHASE (1 + ROUNDS * ROUND)
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
@@ -124,20 +129,40 @@ static void Paint(const Program* program, mwinContext* context)
     }
 }
 
+// A round's step: 0 waits for the keyboard hidden and asks for it for
+// text, 1 and 2 for a number and an address, and 3 checks the address's
+// input type and hides it for the next round.
+static int StepOf(const Program* program)
+{
+    return (program->phase - 2) % ROUND;
+}
+
+// Odd rounds ask for every purpose in one frame.
+static bool AtOnce(const Program* program)
+{
+    return (program->phase - 2) / ROUND % 2 == 1;
+}
+
 static bool Ready(const Program* program, mwinContext* context)
 {
-    mwinWindowState state = StateOf(program, context);
-    switch (program->phase)
+    float height = StateOf(program, context).virtualKeyboard.height;
+    if (program->phase == 0)
+    {
+        return program->shown && HasSurface(context, program->window);
+    }
+    if (program->phase == 1)
+    {
+        return program->completions >= 1 && height > 0.0f;
+    }
+    switch (StepOf(program))
     {
     case 0:
-        return program->shown && HasSurface(context, program->window);
+        return program->completions >= 1 && height == 0.0f;
     case 1:
     case 2:
-        return program->completions >= 1;
-    case 3:
-        return program->completions >= 1 && state.virtualKeyboard.height > 0.0f;
+        return AtOnce(program) || program->completions >= 1;
     default:
-        return true;
+        return program->completions >= (AtOnce(program) ? 3 : 1);
     }
 }
 
@@ -150,34 +175,56 @@ static void Ask(Program* program, mwinContext* context, mwinInputPurpose purpose
           what);
 }
 
+// Checks the view gives input methods an address's input type.
+static void CheckAddress(mwinContext* context, const Program* program)
+{
+    ANativeActivity* activity = ActivityWithSurface(context, program->window);
+    CHECK(activity != nullptr, "the activity, to ask its connection");
+    CHECK(activity != nullptr &&
+              TypeOf(activity->env, activity) ==
+                  (TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_EMAIL | TYPE_TEXT_FLAG_NO_SUGGESTIONS),
+          "an address's input type");
+}
+
 static void Advance(Program* program, mwinContext* context)
 {
-    switch (program->phase)
+    if (program->phase == 0)
     {
-    case 0:
         Paint(program, context);
         CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success,
               "text input asked for");
         Ask(program, context, mwin_purposeText, "a keyboard for text");
-        break;
-    case 1:
-        Ask(program, context, mwin_purposeNumber, "a keyboard for a number");
-        break;
-    case 2:
-        Ask(program, context, mwin_purposeEmail, "a keyboard for an address");
-        break;
-    case 3:
-    {
-        ANativeActivity* activity = ActivityWithSurface(context, program->window);
-        CHECK(activity != nullptr, "the activity, to ask its connection");
-        CHECK(activity != nullptr &&
-                  TypeOf(activity->env, activity) ==
-                      (TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_EMAIL | TYPE_TEXT_FLAG_NO_SUGGESTIONS),
-              "the keyboard shown, for an address");
-        break;
     }
-    default:
-        break;
+    else if (program->phase == 1 || StepOf(program) == 3)
+    {
+        if (program->phase > 1)
+        {
+            CheckAddress(context, program);
+        }
+        if (program->phase < LAST_PHASE)
+        {
+            program->completions = 0;
+            CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false,
+                                                    mwin_purposeEmail, nullptr) == mwin_success,
+                  "the keyboard hidden");
+        }
+    }
+    else if (StepOf(program) == 0)
+    {
+        Ask(program, context, mwin_purposeText, "a keyboard for text");
+        if (AtOnce(program))
+        {
+            CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true,
+                                                    mwin_purposeNumber, nullptr) == mwin_success &&
+                      mwinWindow_RequestVirtualKeyboard(context, program->window, true,
+                                                        mwin_purposeEmail, nullptr) == mwin_success,
+                  "a keyboard for a number and an address, in the same frame");
+        }
+    }
+    else if (!AtOnce(program))
+    {
+        Ask(program, context, StepOf(program) == 1 ? mwin_purposeNumber : mwin_purposeEmail,
+            StepOf(program) == 1 ? "a keyboard for a number" : "a keyboard for an address");
     }
     program->phase += 1;
     program->startNs = NowNs();
@@ -206,8 +253,10 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (NowNs() - program->startNs > DEADLINE_NS)
     {
-        printf("timed out in phase %d, %d completions, the keyboard %.0f high\n", program->phase,
-               program->completions, (double)StateOf(program, context).virtualKeyboard.height);
+        printf(
+            "timed out in phase %d (round %d, step %d), %d completions, the keyboard %.0f high\n",
+            program->phase, (program->phase - 2) / ROUND, StepOf(program), program->completions,
+            (double)StateOf(program, context).virtualKeyboard.height);
         s_failures += 1;
         return mwin_frameStop;
     }

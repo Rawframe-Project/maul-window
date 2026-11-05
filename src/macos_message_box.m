@@ -37,9 +37,9 @@ mwinResult mwinPlatformMessageBox(const mwinMessageBoxDef* def, bool* acceptedOu
         NSString* message = StringOf(def->message, def->messageLength);
         alert.messageText = title.length > 0 ? title : message;
         alert.informativeText = title.length > 0 ? message : @"";
-        for (int i = 0; i < 2 && buttons[def->buttons][i] != nil; i++)
+        for (int i = 0; i < 2 && buttons[def->choice][i] != nil; i++)
         {
-            [alert addButtonWithTitle:buttons[def->buttons][i]];
+            [alert addButtonWithTitle:buttons[def->choice][i]];
         }
         // Escape answers the second button.
         if (alert.buttons.count > 1)

@@ -102,14 +102,14 @@ extern "C"
         mwin_messageError = 2,
     };
 
-    // The buttons a message box offers.
-    typedef int32_t mwinMessageButtons;
+    // Which buttons a message box offers, one choice of them.
+    typedef int32_t mwinMessageChoice;
 
     enum
     {
-        mwin_buttonsOk = 0,
-        mwin_buttonsOkCancel = 1,
-        mwin_buttonsYesNo = 2,
+        mwin_choiceOk = 0,
+        mwin_choiceOkCancel = 1,
+        mwin_choiceYesNo = 2,
     };
 
     // A message box. Build it with mwinDefaultMessageBoxDef.
@@ -127,7 +127,7 @@ extern "C"
         const char* message;
         size_t messageLength;
         mwinMessageKind kind;
-        mwinMessageButtons buttons;
+        mwinMessageChoice choice;
     } mwinMessageBoxDef;
 
 // The cookie of a message box def, which its default sets and
@@ -152,7 +152,7 @@ extern "C"
         def.cookie = MWIN_MESSAGE_BOX_DEF_COOKIE;
         def.version = MWIN_ABI_VERSION;
         def.kind = mwin_messageError;
-        def.buttons = mwin_buttonsOk;
+        def.choice = mwin_choiceOk;
         return def;
     }
 

@@ -82,10 +82,10 @@ mwinResult mwinPlatformMessageBox(const mwinMessageBoxDef* def, bool* acceptedOu
                                                 message:message.length > 0 ? message : nil
                                          preferredStyle:UIAlertControllerStyleAlert];
         __block int answer = -1;
-        for (int i = 0; i < 2 && buttons[def->buttons][i] != nil; i++)
+        for (int i = 0; i < 2 && buttons[def->choice][i] != nil; i++)
         {
             bool second = i == 1;
-            [alert addAction:[UIAlertAction actionWithTitle:buttons[def->buttons][i]
+            [alert addAction:[UIAlertAction actionWithTitle:buttons[def->choice][i]
                                                       style:second ? UIAlertActionStyleCancel
                                                                    : UIAlertActionStyleDefault
                                                     handler:^(UIAlertAction* action) {

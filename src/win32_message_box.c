@@ -33,7 +33,7 @@ mwinResult mwinPlatformMessageBox(const mwinMessageBoxDef* def, bool* acceptedOu
     Wide(def->message, def->messageLength, text, MWIN_MAX_MESSAGE_BYTES + 1);
     int answer =
         MessageBoxW(nullptr, text, title,
-                    icons[def->kind] | buttons[def->buttons] | MB_TASKMODAL | MB_SETFOREGROUND);
+                    icons[def->kind] | buttons[def->choice] | MB_TASKMODAL | MB_SETFOREGROUND);
     if (answer == 0)
     {
         return mwin_errorPlatform;

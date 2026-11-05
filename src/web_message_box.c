@@ -31,7 +31,7 @@ EM_JS(int, mwinWebShowMessage, (const char* title, uint32_t titleLength, const c
 mwinResult mwinPlatformMessageBox(const mwinMessageBoxDef* def, bool* acceptedOut)
 {
     int answer = mwinWebShowMessage(def->title, (uint32_t)def->titleLength, def->message,
-                                    (uint32_t)def->messageLength, def->buttons != mwin_buttonsOk);
+                                    (uint32_t)def->messageLength, def->choice != mwin_choiceOk);
     if (answer < 0)
     {
         return mwin_errorUnsupported;

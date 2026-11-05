@@ -117,7 +117,7 @@ static bool Box(bool press)
     def.titleLength = 4;
     def.message = "A question";
     def.messageLength = 10;
-    def.buttons = mwin_buttonsOkCancel;
+    def.choice = mwin_choiceOkCancel;
     bool accepted = !press;
     Answer(press);
     CHECK(mwinShowMessageBox(&def, &accepted) == mwin_success, "a message box shown");

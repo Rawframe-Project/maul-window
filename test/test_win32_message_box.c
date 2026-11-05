@@ -154,7 +154,7 @@ static DWORD WINAPI Answer(void* data)
 
 // Shows the box, the second thread answering it: whether it was shown as
 // asked and accepted as expected.
-static bool Shows(const char* title, const char* message, mwinMessageButtons buttons, Box* asked,
+static bool Shows(const char* title, const char* message, mwinMessageChoice buttons, Box* asked,
                   bool accepted)
 {
     mwinMessageBoxDef def = mwinDefaultMessageBoxDef();
@@ -163,7 +163,7 @@ static bool Shows(const char* title, const char* message, mwinMessageButtons but
     def.message = message;
     def.messageLength = strlen(message);
     def.kind = mwin_messageWarning;
-    def.buttons = buttons;
+    def.choice = buttons;
     asked->thread = GetCurrentThreadId();
     HANDLE thread = CreateThread(nullptr, 0, Answer, asked, 0, nullptr);
     bool answered = !accepted;
@@ -176,16 +176,16 @@ static bool Shows(const char* title, const char* message, mwinMessageButtons but
 int main(void)
 {
     Box ok = {L"Saved", L"Café ☃", {IDOK, IDOK}, IDOK, 0, false};
-    CHECK(Shows("Saved", "Caf\xC3\xA9 \xE2\x98\x83", mwin_buttonsOk, &ok, true),
+    CHECK(Shows("Saved", "Caf\xC3\xA9 \xE2\x98\x83", mwin_choiceOk, &ok, true),
           "OK alone, the text outside ASCII as given, accepted");
     Box cancel = {L"Quit", L"Leave?", {IDOK, IDCANCEL}, IDCANCEL, 0, false};
-    CHECK(Shows("Quit", "Leave?", mwin_buttonsOkCancel, &cancel, false), "Cancel not accepted");
+    CHECK(Shows("Quit", "Leave?", mwin_choiceOkCancel, &cancel, false), "Cancel not accepted");
     Box okay = {L"Quit", L"Leave?", {IDOK, IDCANCEL}, IDOK, 0, false};
-    CHECK(Shows("Quit", "Leave?", mwin_buttonsOkCancel, &okay, true), "OK beside Cancel accepted");
+    CHECK(Shows("Quit", "Leave?", mwin_choiceOkCancel, &okay, true), "OK beside Cancel accepted");
     Box yes = {L"Keep", L"Keep it?", {IDYES, IDNO}, IDYES, 0, false};
-    CHECK(Shows("Keep", "Keep it?", mwin_buttonsYesNo, &yes, true), "Yes accepted");
+    CHECK(Shows("Keep", "Keep it?", mwin_choiceYesNo, &yes, true), "Yes accepted");
     Box no = {L"Keep", L"Keep it?", {IDYES, IDNO}, IDNO, 0, false};
-    CHECK(Shows("Keep", "Keep it?", mwin_buttonsYesNo, &no, false), "No not accepted");
+    CHECK(Shows("Keep", "Keep it?", mwin_choiceYesNo, &no, false), "No not accepted");
     // The longest title and message a def holds, in ASCII, shown whole.
     static char title[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
     static char message[MWIN_MAX_MESSAGE_BYTES + 1];
@@ -196,7 +196,7 @@ int main(void)
     wmemset(wideTitle, L't', MWIN_MAX_MESSAGE_TITLE_BYTES);
     wmemset(wideMessage, L'm', MWIN_MAX_MESSAGE_BYTES);
     Box longest = {wideTitle, wideMessage, {IDOK, IDOK}, IDOK, 0, false};
-    CHECK(Shows(title, message, mwin_buttonsOk, &longest, true),
+    CHECK(Shows(title, message, mwin_choiceOk, &longest, true),
           "the longest title and message whole");
     return s_failures == 0 ? 0 : 1;
 }

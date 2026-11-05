@@ -118,9 +118,9 @@ static void Defs(mwinContext* context, mwinWindowId window)
         CHECK(mwinShowMessageBox(&box, &accepted) == mwin_errorInvalid,
               "a message box def's kind below the range");
         box = mwinDefaultMessageBoxDef();
-        box.buttons = v;
+        box.choice = v;
         CHECK(mwinShowMessageBox(&box, &accepted) == mwin_errorInvalid,
-              "a message box def's buttons below the range");
+              "a message box def's choice below the range");
     }
     mwinWindowDef def = mwinDefaultWindowDef();
     def.style = UINT32_MAX;

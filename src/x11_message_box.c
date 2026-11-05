@@ -249,9 +249,9 @@ static void Measure(Box* box, const mwinMessageBoxDef* def, xcb_font_t font, int
     Wrap(def->message, def->messageLength, &box->lines);
     static const char* const accepts[] = {"OK", "OK", "Yes"};
     static const char* const refuses[] = {"", "Cancel", "No"};
-    box->labels[0] = accepts[def->buttons];
-    box->labels[1] = refuses[def->buttons];
-    box->buttons = def->buttons == mwin_buttonsOk ? 1 : 2;
+    box->labels[0] = accepts[def->choice];
+    box->labels[1] = refuses[def->choice];
+    box->buttons = def->choice == mwin_choiceOk ? 1 : 2;
     int widest = 0;
     for (int line = 0; line < box->lines.count; line++)
     {

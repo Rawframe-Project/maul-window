@@ -51,7 +51,7 @@ static uint64_t NowNs(void)
 }
 
 // Shows a message box that a timer in the modal loop answers.
-static bool Answered(NSModalResponse answer, mwinMessageButtons buttons)
+static bool Answered(NSModalResponse answer, mwinMessageChoice choice)
 {
     NSTimer* timer = [NSTimer timerWithTimeInterval:0.3
                                             repeats:NO
@@ -66,7 +66,7 @@ static bool Answered(NSModalResponse answer, mwinMessageButtons buttons)
     def.message = "Go on?";
     def.messageLength = 6;
     def.kind = mwin_messageWarning;
-    def.buttons = buttons;
+    def.choice = choice;
     bool accepted = true;
     CHECK(mwinShowMessageBox(&def, &accepted) == mwin_success, "a message box shows");
     return accepted;
@@ -176,7 +176,7 @@ static void Advance(Program* program, mwinContext* context)
     switch (program->phase)
     {
     case 0:
-        CHECK(Answered(NSAlertFirstButtonReturn, mwin_buttonsOkCancel),
+        CHECK(Answered(NSAlertFirstButtonReturn, mwin_choiceOkCancel),
               "inside a frame too, with no frame inside it");
         CHECK(Ask(program, context, mwin_dialogSave) == mwin_success, "a save dialog");
         break;
@@ -262,8 +262,8 @@ int main(void)
     (void)snprintf(program.name, sizeof(program.name), "maul-save-%d.txt", (int)getpid());
     @autoreleasepool
     {
-        CHECK(!Answered(NSAlertSecondButtonReturn, mwin_buttonsYesNo), "No, before any context");
-        CHECK(Answered(NSAlertFirstButtonReturn, mwin_buttonsYesNo), "Yes");
+        CHECK(!Answered(NSAlertSecondButtonReturn, mwin_choiceYesNo), "No, before any context");
+        CHECK(Answered(NSAlertFirstButtonReturn, mwin_choiceYesNo), "Yes");
     }
     mwinAppDef def = mwinDefaultAppDef();
     def.init = Init;

@@ -259,27 +259,27 @@ static void Advance(mwinContext* context, Program* program)
     program->phase++;
 }
 
-static mwinMessageBoxDef Box(const char* title, const char* message, mwinMessageButtons buttons)
+static mwinMessageBoxDef Box(const char* title, const char* message, mwinMessageChoice buttons)
 {
     mwinMessageBoxDef def = mwinDefaultMessageBoxDef();
     def.title = title;
     def.titleLength = strlen(title);
     def.message = message;
     def.messageLength = strlen(message);
-    def.buttons = buttons;
+    def.choice = buttons;
     return def;
 }
 
 static void CheckMessageBoxes(void)
 {
     bool accepted = false;
-    mwinMessageBoxDef box = Box("Maul", "Saved [alert titled]", mwin_buttonsOk);
+    mwinMessageBoxDef box = Box("Maul", "Saved [alert titled]", mwin_choiceOk);
     CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && accepted, "OK, as an alert");
-    box = Box("Maul", "Quit? [confirm titled]", mwin_buttonsYesNo);
+    box = Box("Maul", "Quit? [confirm titled]", mwin_choiceYesNo);
     accepted = false;
     CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && accepted,
           "a question, as a confirm, accepted");
-    box = Box("", "Quit? [confirm dismiss]", mwin_buttonsOkCancel);
+    box = Box("", "Quit? [confirm dismiss]", mwin_choiceOkCancel);
     accepted = true;
     CHECK(mwinShowMessageBox(&box, &accepted) == mwin_success && !accepted,
           "dismissed, without a title");

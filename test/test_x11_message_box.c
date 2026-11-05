@@ -178,7 +178,7 @@ typedef enum Answer
 
 // Shows a box titled `title` with `buttons`, answers it as `answer`
 // says, and gives what the box said; whether the window was found.
-static bool Answered(const char* title, mwinMessageButtons buttons, Answer answer, Shown* shown)
+static bool Answered(const char* title, mwinMessageChoice buttons, Answer answer, Shown* shown)
 {
     shown->def = mwinDefaultMessageBoxDef();
     shown->def.title = title;
@@ -187,7 +187,7 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
         "The graphics device could not be started: a long line that has to wrap at a "
         "space\nand a second line, caf\xC3\xA9 \xE2\x9C\x93";
     shown->def.messageLength = strlen(shown->def.message);
-    shown->def.buttons = buttons;
+    shown->def.choice = buttons;
     pthread_t thread;
     if (pthread_create(&thread, nullptr, Show, shown) != 0)
     {
@@ -207,7 +207,7 @@ static bool Answered(const char* title, mwinMessageButtons buttons, Answer answe
             Close(window);
             break;
         case kFirst:
-            Click(window, buttons == mwin_buttonsOk ? 50 : 16 + 68 + 10 + 34, 28);
+            Click(window, buttons == mwin_choiceOk ? 50 : 16 + 68 + 10 + 34, 28);
             break;
         case kSecond:
             Click(window, 50, 28);
@@ -230,16 +230,16 @@ int main(void)
     // Neither zenity nor kdialog.
     setenv("PATH", s_directory, 1);
     Shown shown;
-    CHECK(Answered("Maul one", mwin_buttonsOk, kReturn, &shown) && shown.result == mwin_success &&
+    CHECK(Answered("Maul one", mwin_choiceOk, kReturn, &shown) && shown.result == mwin_success &&
               shown.accepted,
           "Return accepts, and the box is gone");
-    CHECK(Answered("Maul two", mwin_buttonsYesNo, kClose, &shown) && shown.result == mwin_success &&
+    CHECK(Answered("Maul two", mwin_choiceYesNo, kClose, &shown) && shown.result == mwin_success &&
               !shown.accepted,
           "closing the window refuses");
-    CHECK(Answered("Maul three", mwin_buttonsOkCancel, kFirst, &shown) &&
+    CHECK(Answered("Maul three", mwin_choiceOkCancel, kFirst, &shown) &&
               shown.result == mwin_success && shown.accepted,
           "a click on OK accepts");
-    CHECK(Answered("Maul four", mwin_buttonsYesNo, kSecond, &shown) &&
+    CHECK(Answered("Maul four", mwin_choiceYesNo, kSecond, &shown) &&
               shown.result == mwin_success && !shown.accepted,
           "a click on No refuses");
     xcb_disconnect(s_connection);

@@ -29,7 +29,6 @@ MWIN_NODISCARD static bool FindCore(mwinX11Api* api)
            FIND(library, connectionHasError, xcb_connection_has_error) &&
            FIND(library, getSetup, xcb_get_setup) &&
            FIND(library, setupRootsIterator, xcb_setup_roots_iterator) &&
-           FIND(library, screenNext, xcb_screen_next) &&
            FIND(library, generateId, xcb_generate_id) && FIND(library, flush, xcb_flush) &&
            FIND(library, pollForEvent, xcb_poll_for_event) &&
            FIND(library, getExtensionData, xcb_get_extension_data) &&
@@ -161,13 +160,7 @@ MWIN_NODISCARD static bool FindXinput(mwinX11Api* api)
            FIND(xinputLibrary, axisValuesLength, xcb_input_button_press_axisvalues_length) &&
            FIND(xinputLibrary, xiQueryDevice, xcb_input_xi_query_device) &&
            FIND(xinputLibrary, xiQueryDeviceReply, xcb_input_xi_query_device_reply) &&
-           FIND(xinputLibrary, deviceInfos, xcb_input_xi_query_device_infos_iterator) &&
-           FIND(xinputLibrary, deviceInfoNext, xcb_input_xi_device_info_next) &&
-           FIND(xinputLibrary, deviceClasses, xcb_input_xi_device_info_classes_iterator) &&
-           FIND(xinputLibrary, deviceClassNext, xcb_input_device_class_next) &&
            FIND(xinputLibrary, xiUngrabDevice, xcb_input_xi_ungrab_device) &&
-           FIND(xinputLibrary, deviceName, xcb_input_xi_device_info_name) &&
-           FIND(xinputLibrary, deviceNameLength, xcb_input_xi_device_info_name_length) &&
            FIND(xinputLibrary, listInputDevices, xcb_input_list_input_devices) &&
            FIND(xinputLibrary, listInputDevicesReply, xcb_input_list_input_devices_reply) &&
            FIND(xinputLibrary, inputDevices, xcb_input_list_input_devices_devices) &&

@@ -12,6 +12,7 @@
 
 #include "allocator.h"
 #include "x11_api.h"
+#include "x11_reply.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -281,7 +282,12 @@ static void Measure(Box* box, const mwinMessageBoxDef* def, xcb_font_t font, int
 static mwinResult Show(Box* box, const mwinMessageBoxDef* def, bool* acceptedOut)
 {
     const mwinX11Api* api = box->api;
-    xcb_screen_t* screen = api->setupRootsIterator(api->getSetup(box->connection)).data;
+    // A setup that does not hold its first screen whole has none to show on.
+    const xcb_screen_t* screen = mwinX11ScreenOf(api, api->getSetup(box->connection), 0);
+    if (screen == nullptr)
+    {
+        return mwin_errorPlatform;
+    }
     const xcb_font_t font = api->generateId(box->connection);
     xcb_void_cookie_t opened = api->openFontChecked(box->connection, font, 5, "fixed");
     xcb_generic_error_t* error = api->requestCheck(box->connection, opened);

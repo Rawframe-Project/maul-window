@@ -490,6 +490,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         maul_add_test(x11_touch WHITEBOX)
         # The scale of Xft.dpi.
         maul_add_test(x11_resources WHITEBOX)
+        # The X server's replies and events read within their bytes, on
+        # replies built by hand and libxcb's accessors, with no server.
+        maul_add_test(x11_reply WHITEBOX)
+        target_include_directories(test_x11_reply SYSTEM PRIVATE ${MWIN_XCB_INCLUDE_DIRS})
+        # hygiene: exit 77 is a machine without the XCB libraries, which CI's image has
+        set_tests_properties(x11_reply PROPERTIES SKIP_RETURN_CODE 77)
         # The tests that move the X server's focus or pointer, own its
         # selections or cover others' windows take turns.
         set_tests_properties(x11 x11_input x11_clipboard x11_clipboard_data

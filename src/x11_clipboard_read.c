@@ -6,6 +6,7 @@
 #include "allocator.h"
 #include "monotonic.h"
 #include "x11_clipboard.h"
+#include "x11_reply.h"
 
 #include <stdckdint.h>
 #include <string.h>
@@ -197,11 +198,12 @@ static xcb_get_property_reply_t* TakeProperty(const mwinX11Platform* platform)
     const mwinX11Api* api = &platform->api;
     const mwinX11Clipboard* clipboard = &platform->clipboard;
     uint32_t room = platform->context->limits.clipboardBytes - clipboard->used;
-    return api->getPropertyReply(platform->connection,
-                                 api->getProperty(platform->connection, 1, clipboard->window,
-                                                  clipboard->readProperty,
-                                                  XCB_GET_PROPERTY_TYPE_ANY, 0, room / 4 + 1),
-                                 nullptr);
+    return mwinX11CheckProperty(
+        api, api->getPropertyReply(platform->connection,
+                                   api->getProperty(platform->connection, 1, clipboard->window,
+                                                    clipboard->readProperty,
+                                                    XCB_GET_PROPERTY_TYPE_ANY, 0, room / 4 + 1),
+                                   nullptr));
 }
 
 // The owner's answer, or a piece of its bytes: takes the property.

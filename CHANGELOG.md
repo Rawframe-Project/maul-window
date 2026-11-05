@@ -5,6 +5,46 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.13.0](https://github.com/Rawframe-Project/maul-window/compare/v0.12.0...v0.13.0) (2026-11-05)
+
+The iOS device check, that a window shows no flash against the launch
+screen before its first frame, is waived by the owner for this
+release, which ships on the iOS simulator suite: its iOS changes leave
+the launch and the first frame alone.
+
+### Changed
+
+- **Breaking:** on macOS, iOS and Android, a drop with a text item
+  after the first is now marked truncated; before, that text was
+  passed over and the drop was not marked. On macOS, the drop is read
+  item by item: an item that carries a file URL gives a file, the
+  first other item that carries a string gives the drop's text, and
+  any other item, such as an image or a promised file, is left out and
+  marks the drop truncated, as does a file URL that is not a file's or
+  whose path is not UTF-8. An item that carries a file URL no longer
+  gives the drop text as well. A drag's contents follow the same
+  reading. On Android, a drop whose text found no room for its UTF-8
+  copy is marked truncated too. The web is unchanged
+  ([#461](https://github.com/Rawframe-Project/maul-window/pull/461)).
+- **Breaking:** on Android, a drag that enters the window while the
+  last drop's documents are still copied supersedes that copy. The
+  last drop is posted at once, with the documents already whole and
+  marked truncated, and the new drag's records follow. Before, the
+  window refused every drag while a copy went on, and did not report
+  it: a document whose provider keeps sending a few bytes now and then
+  held its drop, and the window took no other drag until the program
+  destroyed the window. A drag elsewhere on the device leaves the copy
+  alone
+  ([#458](https://github.com/Rawframe-Project/maul-window/pull/458)).
+
+### Fixed
+
+- `MWIN_NODISCARD` gives `[[nodiscard]]` in C under GCC 14, whose C23
+  mode reports `__STDC_VERSION__` as `202000L`. Before, it expanded to
+  nothing there, so no GCC build warned when a program dropped a
+  status a function returns
+  ([#465](https://github.com/Rawframe-Project/maul-window/pull/465)).
+
 ## [0.12.0](https://github.com/Rawframe-Project/maul-window/compare/v0.11.0...v0.12.0) (2026-11-04)
 
 The iOS device check, that a window shows no flash against the launch

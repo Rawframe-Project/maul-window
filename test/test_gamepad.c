@@ -131,7 +131,7 @@ static void Rumble(mwinContext* context)
     float low = 0.0f;
     float high = 0.0f;
     uint32_t duration = 0;
-    uint32_t count = 0;
+    size_t count = 0;
     CHECK(mwinGamepad_SetRumble(context, s_pads[0], 0.25f, 1.0f, 300) == mwin_success &&
               mwinGamepad_SetRumble(context, s_pads[0], 1.0f, 0.5f, 100) == mwin_success &&
               mwinGamepad_GetTestRumble(context, s_pads[0], &low, &high, &duration, &count) ==

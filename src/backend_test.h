@@ -51,7 +51,7 @@ typedef struct mwinTestRumble
     float low;
     float high;
     uint32_t durationMs;
-    uint32_t count;
+    size_t count;
 } mwinTestRumble;
 
 // What a gamepad was given: its motors' last rumble, its triggers'

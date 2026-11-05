@@ -54,7 +54,7 @@ static bool Ran(const char* expected)
     return length > 0 && name != nullptr && strcmp(name + 1, expected) == 0;
 }
 
-static mwinMessageBoxDef Def(mwinMessageKind kind, mwinMessageButtons buttons)
+static mwinMessageBoxDef Def(mwinMessageKind kind, mwinMessageChoice buttons)
 {
     mwinMessageBoxDef def = mwinDefaultMessageBoxDef();
     def.title = "Maul";
@@ -62,18 +62,18 @@ static mwinMessageBoxDef Def(mwinMessageKind kind, mwinMessageButtons buttons)
     def.message = "It's $HOME; \xC3\xA9";
     def.messageLength = 14;
     def.kind = kind;
-    def.buttons = buttons;
+    def.choice = buttons;
     return def;
 }
 
 static void CheckZenity(void)
 {
     bool accepted = false;
-    mwinMessageBoxDef info = Def(mwin_messageWarning, mwin_buttonsOk);
+    mwinMessageBoxDef info = Def(mwin_messageWarning, mwin_choiceOk);
     CHECK(mwinShowMessageBox(&info, &accepted) == mwin_success && accepted &&
               Ran("zenity\n--warning\n--title=Maul\n--text=It's $HOME; \xC3\xA9\n--no-markup\n"),
           "zenity with the text as it is, and OK");
-    mwinMessageBoxDef question = Def(mwin_messageInfo, mwin_buttonsYesNo);
+    mwinMessageBoxDef question = Def(mwin_messageInfo, mwin_choiceYesNo);
     setenv("MWIN_EXIT", "1", 1);
     CHECK(mwinShowMessageBox(&question, &accepted) == mwin_success && !accepted &&
               Ran("zenity\n--question\n--title=Maul\n--text=It's $HOME; \xC3\xA9\n--no-markup\n"
@@ -93,7 +93,7 @@ static void CheckKdialog(void)
     (void)remove(path);
     StandIn("kdialog");
     bool accepted = false;
-    mwinMessageBoxDef error = Def(mwin_messageError, mwin_buttonsOk);
+    mwinMessageBoxDef error = Def(mwin_messageError, mwin_choiceOk);
     CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && accepted &&
               Ran("kdialog\n--title\nMaul\n--error\nIt's $HOME; \xC3\xA9\n"),
           "kdialog where zenity is missing");
@@ -106,7 +106,7 @@ static void CheckKdialog(void)
                    "kdialog\n--title\n%s\n--error\nIt's $HOME; \xC3\xA9\n", longest);
     CHECK(mwinShowMessageBox(&error, &accepted) == mwin_success && Ran(expected),
           "the longest title whole");
-    mwinMessageBoxDef question = Def(mwin_messageInfo, mwin_buttonsOkCancel);
+    mwinMessageBoxDef question = Def(mwin_messageInfo, mwin_choiceOkCancel);
     setenv("MWIN_EXIT", "2", 1);
     CHECK(mwinShowMessageBox(&question, &accepted) == mwin_success && !accepted &&
               Ran("kdialog\n--title\nMaul\n--yesno\nIt's $HOME; \xC3\xA9\n--yes-label\nOK\n"
@@ -122,7 +122,7 @@ static void CheckKdialog(void)
 
 static void CheckRefused(void)
 {
-    mwinMessageBoxDef def = Def(mwin_messageInfo, mwin_buttonsOk);
+    mwinMessageBoxDef def = Def(mwin_messageInfo, mwin_choiceOk);
     mwinMessageBoxDef wrong = def;
     wrong.cookie = 0;
     mwinMessageBoxDef kind = def;

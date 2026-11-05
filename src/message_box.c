@@ -27,7 +27,7 @@ mwinResult mwinShowMessageBox(const mwinMessageBoxDef* def, bool* acceptedOut)
         return mwin_errorVersion;
     }
     if (def == nullptr || def->cookie != MWIN_MESSAGE_BOX_DEF_COOKIE ||
-        (uint32_t)def->kind > mwin_messageError || (uint32_t)def->buttons > mwin_buttonsYesNo)
+        (uint32_t)def->kind > mwin_messageError || (uint32_t)def->choice > mwin_choiceYesNo)
     {
         return mwin_errorInvalid;
     }

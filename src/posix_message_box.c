@@ -58,15 +58,15 @@ static int Zenity(const mwinMessageBoxDef* def)
                                     "--cancel-label=No"};
     char title[MWIN_MAX_MESSAGE_TITLE_BYTES + 16];
     char text[MWIN_MAX_MESSAGE_BYTES + 16];
-    bool question = def->buttons != mwin_buttonsOk;
+    bool question = def->choice != mwin_choiceOk;
     char* arguments[] = {
         "zenity",
         question ? "--question" : kinds[def->kind],
         Argument(title, sizeof(title), "--title=", def->title, def->titleLength),
         Argument(text, sizeof(text), "--text=", def->message, def->messageLength),
         "--no-markup",
-        question ? accepts[def->buttons] : nullptr,
-        question ? refuses[def->buttons] : nullptr,
+        question ? accepts[def->choice] : nullptr,
+        question ? refuses[def->choice] : nullptr,
         nullptr,
     };
     return Run(arguments);
@@ -79,7 +79,7 @@ static int Kdialog(const mwinMessageBoxDef* def)
     static char* const refuses[] = {"Cancel", "Cancel", "No"};
     char title[MWIN_MAX_MESSAGE_TITLE_BYTES + 1];
     char text[MWIN_MAX_MESSAGE_BYTES + 1];
-    bool question = def->buttons != mwin_buttonsOk;
+    bool question = def->choice != mwin_choiceOk;
     char* arguments[] = {
         "kdialog",
         "--title",
@@ -87,9 +87,9 @@ static int Kdialog(const mwinMessageBoxDef* def)
         question ? "--yesno" : kinds[def->kind],
         Argument(text, sizeof(text), "", def->message, def->messageLength),
         question ? "--yes-label" : nullptr,
-        accepts[def->buttons],
+        accepts[def->choice],
         "--no-label",
-        refuses[def->buttons],
+        refuses[def->choice],
         nullptr,
     };
     return Run(arguments);

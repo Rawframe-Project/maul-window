@@ -123,7 +123,8 @@ static void SetProgram(const mwinAndroidPlatform* platform, mwinAndroidPlatform*
 }
 
 // Whether the activity is finishing, not merely being made anew.
-static bool IsFinishing(const mwinAndroidPlatform* platform, ANativeActivity* activity)
+MWIN_NODISCARD static bool IsFinishing(const mwinAndroidPlatform* platform,
+                                       ANativeActivity* activity)
 {
     JNIEnv* env = platform->java.env;
     jclass type = (*env)->GetObjectClass(env, activity->clazz);
@@ -241,7 +242,7 @@ static void PostLifecycle(mwinContext* context, mwinEventKind type)
 
 // The application stopped or runs again: the program hears of it at
 // once, in a frame of its own, which may stop it. False once it stopped.
-static bool Lifecycle(mwinAndroidPlatform* platform, bool running)
+MWIN_NODISCARD static bool Lifecycle(mwinAndroidPlatform* platform, bool running)
 {
     mwinContext* context = platform->context;
     platform->suspended = !running;
@@ -428,7 +429,7 @@ static void OnConfigurationChanged(ANativeActivity* activity)
 // joins, as its own end would (its surface told gone first), so that its
 // later callbacks, its stop among them, find no program. False when the
 // program stopped meanwhile and has ended.
-static bool EndOld(mwinAndroidPlatform* platform)
+MWIN_NODISCARD static bool EndOld(mwinAndroidPlatform* platform)
 {
     MWIN_ASSERT(platform->activity != nullptr);
     mwinContext* context = platform->context;

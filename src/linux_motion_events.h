@@ -21,6 +21,8 @@
 
 #include "linux_evdev_drop.h"
 
+#include "maul-window/base.h"
+
 #include <stdint.h>
 
 // The motion device's axes: acceleration on ABS_X, ABS_Y and ABS_Z,
@@ -76,7 +78,8 @@ typedef struct mwinLinuxMotionSample
 // Whether two devices are parts of one controller: the same unique id
 // where both have one (Bluetooth pads share the adapter's path), else
 // the same path.
-bool mwinLinuxSameController(const mwinLinuxPadIdentity* a, const mwinLinuxPadIdentity* b);
+MWIN_NODISCARD bool mwinLinuxSameController(const mwinLinuxPadIdentity* a,
+                                            const mwinLinuxPadIdentity* b);
 
 // Starts a reading for a pad's motion device, its axes turned as the
 // pad's vendor needs.
@@ -84,8 +87,8 @@ void mwinLinuxMotionStart(mwinLinuxMotionEvents* events, const mwinLinuxPadIdent
 
 // Sets an axis (0 to 5, in the order of raw) from its current value and
 // its resolution: false when the resolution says nothing.
-bool mwinLinuxMotionAxis(mwinLinuxMotionEvents* events, unsigned axis, int32_t value,
-                         int32_t resolution);
+MWIN_NODISCARD bool mwinLinuxMotionAxis(mwinLinuxMotionEvents* events, unsigned axis, int32_t value,
+                                        int32_t resolution);
 
 // Takes an event at its time, with the report's sample where it ends one.
 mwinLinuxMotionStep mwinLinuxMotionEvent(mwinLinuxMotionEvents* events, uint16_t type,

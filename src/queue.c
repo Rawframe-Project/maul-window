@@ -142,12 +142,12 @@ static void RemoveAt(mwinRing* ring, uint32_t index)
     ring->count -= 1;
 }
 
-static bool SameWindow(mwinWindowId a, mwinWindowId b)
+MWIN_NODISCARD static bool SameWindow(mwinWindowId a, mwinWindowId b)
 {
     return a.index1 == b.index1 && a.generation == b.generation;
 }
 
-static bool SameGamepad(mwinGamepadId a, mwinGamepadId b)
+MWIN_NODISCARD static bool SameGamepad(mwinGamepadId a, mwinGamepadId b)
 {
     return a.index1 == b.index1 && a.generation == b.generation;
 }
@@ -155,7 +155,7 @@ static bool SameGamepad(mwinGamepadId a, mwinGamepadId b)
 // Whether a waiting notification is about the same thing as a new one of
 // its class: the same window, for a monitor's change the same monitor,
 // and for a gamepad's change or reset the same gamepad.
-static bool SameSubject(const mwinEvent* a, const mwinEvent* b)
+MWIN_NODISCARD static bool SameSubject(const mwinEvent* a, const mwinEvent* b)
 {
     bool gamepad = a->kind == mwin_eventGamepadChanged ||
                    (a->kind == mwin_eventInputStateReset && a->window.index1 == 0);
@@ -167,7 +167,7 @@ static bool SameSubject(const mwinEvent* a, const mwinEvent* b)
 }
 
 // Appends a record; false when the ring is full.
-static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
+MWIN_NODISCARD static bool Append(mwinContext* context, mwinRing* ring, const mwinEvent* event)
 {
     int coalesce = CoalesceClass(event->kind);
     for (uint32_t i = 0; coalesce != 0 && i < ring->count; i++)
@@ -254,7 +254,7 @@ static void Apply(mwinWindowState* state, const mwinEvent* event)
 }
 
 // Whether two input records are of one kind, so one can absorb the other.
-static bool SameKind(const mwinEvent* a, const mwinEvent* b)
+MWIN_NODISCARD static bool SameKind(const mwinEvent* a, const mwinEvent* b)
 {
     const mwinGamepadAxisEvent* axis = &a->data.gamepadAxis;
     return a->kind == b->kind &&
@@ -266,7 +266,7 @@ static bool SameKind(const mwinEvent* a, const mwinEvent* b)
 
 // Merges a record into the newest waiting one of its kind: the newer
 // position wins, deltas and wheel turns add up. False when there is none.
-static bool Merge(mwinRing* ring, const mwinEvent* event)
+MWIN_NODISCARD static bool Merge(mwinRing* ring, const mwinEvent* event)
 {
     for (uint32_t i = ring->count; i > 0; i--)
     {
@@ -313,7 +313,7 @@ static void PostReset(mwinContext* context, uint32_t slot, uint64_t timeNs)
 // Whether a composition's segments can be read: at most
 // MWIN_MAX_PREEDIT_SEGMENTS, and somewhere when there are any. Its
 // offsets are fitted to its text afterwards (preedit_fit.h).
-static bool AreSegmentsReadable(const mwinPreeditEvent* preedit)
+MWIN_NODISCARD static bool AreSegmentsReadable(const mwinPreeditEvent* preedit)
 {
     return preedit->segmentCount <= MWIN_MAX_PREEDIT_SEGMENTS &&
            (preedit->segments != nullptr || preedit->segmentCount == 0);
@@ -324,7 +324,7 @@ static bool AreSegmentsReadable(const mwinPreeditEvent* preedit)
 // or a browser may hand; false when the record is lost, or is text with
 // nothing left. The text is validated here once more, though
 // backends repair what they receive.
-static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
+MWIN_NODISCARD static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 {
     const char* text = record->data.text.text;
     size_t length = record->data.text.length;
@@ -381,7 +381,7 @@ static bool TakeText(mwinContext* context, uint32_t slot, mwinEvent* record)
 
 // Whether a key record goes, because a composition consumes its key: a
 // character key that goes down while one runs, and its release.
-static bool Consumed(mwinWindow* window, const mwinEvent* record)
+MWIN_NODISCARD static bool Consumed(mwinWindow* window, const mwinEvent* record)
 {
     if ((record->kind != mwin_eventKeyDown && record->kind != mwin_eventKeyUp) ||
         (uint32_t)record->data.key.code >= 8 * sizeof(window->consumedKeys))
@@ -433,7 +433,7 @@ static void PostTap(mwinContext* context, uint32_t slot, uint64_t timeNs, mwinKe
 // method that commits them means them; false when it holds none, or is
 // not well formed, for TakeText to refuse. Keys never type them: the
 // backends drop control characters from what a key types.
-static bool PostTyped(mwinContext* context, uint32_t slot, const mwinEvent* record)
+MWIN_NODISCARD static bool PostTyped(mwinContext* context, uint32_t slot, const mwinEvent* record)
 {
     const char* text = record->data.text.text;
     size_t length = record->data.text.length;

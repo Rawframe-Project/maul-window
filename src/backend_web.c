@@ -166,7 +166,7 @@ static void StopLoop(mwinContext* context)
 // A frame the page's loop may not run for a while, or may never run
 // again, where the program can save what must survive. False when the
 // frame stopped the program, which is over and its context freed.
-static bool RunCriticalFrame(mwinContext* context)
+MWIN_NODISCARD static bool RunCriticalFrame(mwinContext* context)
 {
     mwinRunCriticalFrame(context);
     if (!context->stopping || !context->running)
@@ -361,7 +361,7 @@ static void Pump(mwinContext* context)
 
 // A frame of the browser's: the program's frame, or its end. False once
 // the program has ended and its context is freed.
-static bool Step(mwinContext* context)
+MWIN_NODISCARD static bool Step(mwinContext* context)
 {
     if (mwinStepProgram(context, Pump))
     {

@@ -77,7 +77,8 @@ static int8_t IndexOf(const mwinAndroidPadLayout* layout, int32_t axis)
 }
 
 // Two axes as a pair when the layout has both.
-static bool Pair(const mwinAndroidPadLayout* layout, int32_t first, int32_t second, int8_t* out)
+MWIN_NODISCARD static bool Pair(const mwinAndroidPadLayout* layout, int32_t first, int32_t second,
+                                int8_t* out)
 {
     int8_t a = IndexOf(layout, first);
     int8_t b = IndexOf(layout, second);

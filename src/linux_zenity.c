@@ -180,7 +180,7 @@ int mwinZenityStart(mwinZenity* zenity, const mwinContext* context, const mwinDi
 // could write (its paths, a separator's two bytes more than a path's
 // end for each, the last line's end) and one byte more, held to what
 // the capacity counts.
-static bool Grow(mwinZenity* zenity, const mwinContext* context)
+MWIN_NODISCARD static bool Grow(mwinZenity* zenity, const mwinContext* context)
 {
     uint64_t most =
         (uint64_t)context->limits.dialogBytes + 2u * (uint64_t)context->limits.dialogFiles + 1;

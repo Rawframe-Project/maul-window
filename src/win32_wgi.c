@@ -234,7 +234,7 @@ static const IID s_iidRawController2 = {
 static const IID s_iidBatteryInfo = {
     0xdcecc681, 0x3963, 0x4da6, {0x95, 0x5d, 0x55, 0x3f, 0x3b, 0x6f, 0x61, 0x61}};
 
-static bool Same(REFIID a, const IID* b)
+MWIN_NODISCARD static bool Same(REFIID a, const IID* b)
 {
     return memcmp(a, b, sizeof(IID)) == 0;
 }
@@ -279,7 +279,7 @@ static const HandlerVtbl s_handler = {HandlerQuery, HandlerAddRef, HandlerReleas
 
 // A function of combase.dll, its bytes copied: a FARPROC is no function
 // of the right type to cast.
-static bool Load(HMODULE library, const char* name, void* function, size_t size)
+MWIN_NODISCARD static bool Load(HMODULE library, const char* name, void* function, size_t size)
 {
     FARPROC found = GetProcAddress(library, name);
     memcpy(function, (const void*)&found, size);
@@ -337,7 +337,7 @@ static void Release(void* self, void* pad)
 
 // A reading in the contract's terms: View is select and Menu start;
 // sticks' y turned so down is positive.
-static bool Read(void* self, void* pad, mwinPadReading* reading)
+MWIN_NODISCARD static bool Read(void* self, void* pad, mwinPadReading* reading)
 {
     (void)self;
     Gamepad* gamepad = pad;
@@ -361,7 +361,7 @@ static bool Read(void* self, void* pad, mwinPadReading* reading)
 }
 
 // The grips' motors and the triggers'.
-static bool Vibrate(void* self, void* pad, const float motors[4])
+MWIN_NODISCARD static bool Vibrate(void* self, void* pad, const float motors[4])
 {
     (void)self;
     Gamepad* gamepad = pad;
@@ -372,7 +372,7 @@ static bool Vibrate(void* self, void* pad, const float motors[4])
 // Whether a pad has motors in its triggers: Microsoft's from the Xbox
 // One on; the Xbox 360's and other makers' pads have none, and the
 // runtime would fold the triggers' strengths into the grips'.
-static bool HasTriggerMotors(uint16_t vendor, uint16_t product)
+MWIN_NODISCARD static bool HasTriggerMotors(uint16_t vendor, uint16_t product)
 {
     static const uint16_t xbox360[] = {0x028E, 0x028F, 0x0291, 0x02A0, 0x02A1, 0x0719};
     bool found = vendor == 0x045E;
@@ -385,7 +385,7 @@ static bool HasTriggerMotors(uint16_t vendor, uint16_t product)
 
 // The name the controller gives, as UTF-8 cut to the whole characters
 // that fit.
-static bool NameOf(const mwinWgi* wgi, RawController* raw, mwinGamepadInfo* info)
+MWIN_NODISCARD static bool NameOf(const mwinWgi* wgi, RawController* raw, mwinGamepadInfo* info)
 {
     RawController2* named = nullptr;
     void* string = nullptr;
@@ -442,7 +442,7 @@ static void Describe(void* self, void* pad, mwinGamepadInfo* info)
 }
 
 // An int the report may leave out.
-static bool IntOf(IntReference* reference, INT32* value)
+MWIN_NODISCARD static bool IntOf(IntReference* reference, INT32* value)
 {
     if (reference == nullptr)
     {
@@ -488,7 +488,7 @@ static int8_t Battery(void* self, void* pad)
     return (int8_t)(percent > 100 ? 100 : percent);
 }
 
-static bool Changed(void* self)
+MWIN_NODISCARD static bool Changed(void* self)
 {
     mwinWgiHandler* handler = ((mwinWgi*)self)->handler;
     return handler != nullptr && InterlockedExchange(&handler->changed, 0) != 0;
@@ -513,7 +513,7 @@ static void Listen(mwinWgi* wgi)
     wgi->tokens[1] = token.value;
 }
 
-static bool LoadRuntime(mwinWgi* wgi)
+MWIN_NODISCARD static bool LoadRuntime(mwinWgi* wgi)
 {
     wgi->combase = LoadLibraryW(L"combase.dll");
     return wgi->combase != nullptr &&

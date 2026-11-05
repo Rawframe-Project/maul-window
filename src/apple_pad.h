@@ -36,9 +36,9 @@ void mwinApplePumpPads(mwinApplePads* pads, uint64_t nowNs);
 // them (heavy, light, left trigger, right trigger), each from 0 to 1, 0
 // stopping one; lets go of the motors of controllers not kept, or of
 // all with nil (apple_rumble.m).
-bool mwinAppleCanRumble(id controller);
-bool mwinAppleCanRumbleTriggers(id controller);
-bool mwinAppleRumble(mwinApplePads* pads, id controller, const float motors[4]);
+MWIN_NODISCARD bool mwinAppleCanRumble(id controller);
+MWIN_NODISCARD bool mwinAppleCanRumbleTriggers(id controller);
+MWIN_NODISCARD bool mwinAppleRumble(mwinApplePads* pads, id controller, const float motors[4]);
 void mwinAppleForgetRumbles(mwinApplePads* pads, NSArray* kept);
 
 // Turns the motion sensors of the pad in a core slot on, each sample

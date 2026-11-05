@@ -14,7 +14,8 @@
 
 // Answers WM_GETOBJECT: true with the result in *result when the root
 // was handed over.
-bool mwinWin32AnswerObject(mwinWin32Window* window, WPARAM wParam, LPARAM lParam, LRESULT* result);
+MWIN_NODISCARD bool mwinWin32AnswerObject(mwinWin32Window* window, WPARAM wParam, LPARAM lParam,
+                                          LRESULT* result);
 
 // Lets UI Automation go of what it kept of a window that answered.
 void mwinWin32ForgetObject(const mwinWin32Window* window);

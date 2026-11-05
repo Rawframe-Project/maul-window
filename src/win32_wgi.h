@@ -49,7 +49,7 @@ typedef struct mwinWgi
 
 // Finds the runtime and fills the tracker's table with it; false, with
 // nothing held, where there is none.
-bool mwinWgiStart(mwinWgi* wgi, mwinPadRuntime* runtime);
+MWIN_NODISCARD bool mwinWgiStart(mwinWgi* wgi, mwinPadRuntime* runtime);
 void mwinWgiStop(mwinWgi* wgi);
 
 #endif // MAUL_WINDOW_SRC_WIN32_WGI_H

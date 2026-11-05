@@ -142,8 +142,8 @@ static void Finish(mwinX11Platform* platform, mwinOutcome outcome, bool whole)
 
 // Adds bytes to the read's: false, with the outcome, when they pass the
 // limit or the allocator has no room.
-static bool Append(mwinX11Platform* platform, const char* bytes, uint32_t length,
-                   mwinOutcome* outcomeOut)
+MWIN_NODISCARD static bool Append(mwinX11Platform* platform, const char* bytes, uint32_t length,
+                                  mwinOutcome* outcomeOut)
 {
     mwinX11Clipboard* clipboard = &platform->clipboard;
     const mwinContext* context = platform->context;

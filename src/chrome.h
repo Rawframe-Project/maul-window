@@ -14,7 +14,7 @@
 mwinHitKind mwinHitAt(const mwinWindow* window, float x, float y);
 
 // Whether a kind starts a move or a resize through the platform.
-static inline bool mwinHitMoves(mwinHitKind kind)
+MWIN_NODISCARD static inline bool mwinHitMoves(mwinHitKind kind)
 {
     return kind >= mwin_hitCaption && kind <= mwin_hitBottomRight;
 }

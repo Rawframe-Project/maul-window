@@ -121,7 +121,7 @@ static size_t PlatformBytes(const mwinContext* context)
 }
 
 // Interns every atom, the requests sent together before any reply.
-static bool InternAtoms(mwinX11Platform* platform)
+MWIN_NODISCARD static bool InternAtoms(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
     xcb_intern_atom_cookie_t cookies[MWIN_X11_ATOMS];
@@ -185,7 +185,7 @@ static xcb_window_t CheckWindow(const mwinX11Platform* platform, xcb_window_t wi
 // Whether an EWMH window manager runs: the root names its check window,
 // which names itself. A window manager that quit leaves the root's
 // property behind, naming a window gone.
-static bool HasWindowManager(const mwinX11Platform* platform)
+MWIN_NODISCARD static bool HasWindowManager(const mwinX11Platform* platform)
 {
     xcb_window_t check = CheckWindow(platform, platform->screen->root);
     return check != 0 && CheckWindow(platform, check) == check;

@@ -37,12 +37,12 @@ typedef struct Bits
     unsigned long effects[LONGS(FF_CNT)];
 } Bits;
 
-static bool Has(const unsigned long* bits, unsigned bit)
+MWIN_NODISCARD static bool Has(const unsigned long* bits, unsigned bit)
 {
     return ((bits[bit / LONG_BITS] >> (bit % LONG_BITS)) & 1u) != 0;
 }
 
-static bool HasAny(const unsigned long* bits, unsigned first, unsigned count)
+MWIN_NODISCARD static bool HasAny(const unsigned long* bits, unsigned first, unsigned count)
 {
     for (unsigned i = first; i < first + count; i++)
     {
@@ -65,7 +65,7 @@ static void ReadBits(int fd, Bits* bits)
 
 // A gamepad or joystick, not a keyboard, mouse, tablet or a pad's
 // motion sensors.
-static bool IsGamepad(const Bits* bits)
+MWIN_NODISCARD static bool IsGamepad(const Bits* bits)
 {
     bool controls = Has(bits->keys, BTN_GAMEPAD) ||
                     HasAny(bits->keys, BTN_JOYSTICK, BTN_GAMEPAD - BTN_JOYSTICK) ||
@@ -207,7 +207,7 @@ static void OnKey(mwinLinuxPad* pad, unsigned code, int32_t value)
 
 // Reads the device's whole state, as after events were dropped: false,
 // changing nothing, when its buttons cannot be read.
-static bool Resync(mwinLinuxPad* pad)
+MWIN_NODISCARD static bool Resync(mwinLinuxPad* pad)
 {
     unsigned long keys[MWIN_EVDEV_KEY_LONGS] = {0};
     bool read = ioctl(pad->fd, EVIOCGKEY(sizeof(keys)), keys) >= 0;
@@ -356,7 +356,7 @@ static int NodeOf(const char* name)
 }
 
 // Reads a device's events: false when it is gone.
-static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
+MWIN_NODISCARD static bool Read(mwinLinuxPads* pads, mwinLinuxPad* pad)
 {
     struct input_event events[32];
     for (;;)
@@ -446,7 +446,7 @@ static void Scan(mwinLinuxPads* pads)
 
 // Whether a gamepad that comes now can be added: a free pad and a free
 // slot of the core's.
-static bool HasRoom(const mwinLinuxPads* pads)
+MWIN_NODISCARD static bool HasRoom(const mwinLinuxPads* pads)
 {
     bool pad = false;
     bool slot = false;

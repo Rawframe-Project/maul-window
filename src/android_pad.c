@@ -141,8 +141,8 @@ static mwinGamepadCapabilities CapabilitiesOf(const mwinAndroidPlatform* platfor
 
 // Reads what a gamepad is into its layout and facts: false when it is
 // gone.
-static bool Describe(const mwinAndroidPlatform* platform, int32_t device,
-                     mwinAndroidPadLayout* layout, mwinGamepadInfo* info)
+MWIN_NODISCARD static bool Describe(const mwinAndroidPlatform* platform, int32_t device,
+                                    mwinAndroidPadLayout* layout, mwinGamepadInfo* info)
 {
     JNIEnv* env = platform->java.env;
     const mwinAndroidPads* pads = &platform->pads;
@@ -220,7 +220,7 @@ static void Add(mwinAndroidPlatform* platform, int32_t device, uint64_t nowNs)
 }
 
 // Turns a device's sensors on or off: false when Java failed.
-static bool Sense(const mwinAndroidPlatform* platform, int32_t device, bool on)
+MWIN_NODISCARD static bool Sense(const mwinAndroidPlatform* platform, int32_t device, bool on)
 {
     JNIEnv* env = platform->java.env;
     jboolean done = (*env)->CallStaticBooleanMethod(env, platform->pads.type, platform->pads.motion,
@@ -231,8 +231,8 @@ static bool Sense(const mwinAndroidPlatform* platform, int32_t device, bool on)
 }
 
 // Runs a device's motors: false when it has none or Java failed.
-static bool Vibrate(const mwinAndroidPlatform* platform, int32_t device, float low, float high,
-                    uint32_t durationMs)
+MWIN_NODISCARD static bool Vibrate(const mwinAndroidPlatform* platform, int32_t device, float low,
+                                   float high, uint32_t durationMs)
 {
     JNIEnv* env = platform->java.env;
     // As values: floats through the variadic call would become doubles.
@@ -265,7 +265,7 @@ static void Remove(mwinAndroidPlatform* platform, uint32_t index, uint64_t nowNs
     pads->pads[index] = pads->pads[pads->count];
 }
 
-static bool Listed(const jint* ids, jsize count, int32_t device)
+MWIN_NODISCARD static bool Listed(const jint* ids, jsize count, int32_t device)
 {
     for (jsize i = 0; i < count; i++)
     {
@@ -335,7 +335,7 @@ void mwinAndroidPumpPads(mwinAndroidPlatform* platform, uint64_t nowNs)
     }
 }
 
-static bool FromPad(int32_t source)
+MWIN_NODISCARD static bool FromPad(int32_t source)
 {
     return (source & AINPUT_SOURCE_GAMEPAD) == AINPUT_SOURCE_GAMEPAD ||
            (source & AINPUT_SOURCE_JOYSTICK) == AINPUT_SOURCE_JOYSTICK;

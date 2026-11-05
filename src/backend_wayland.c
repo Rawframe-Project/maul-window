@@ -116,8 +116,8 @@ static void* Bind(mwinWaylandPlatform* platform, uint32_t name,
 
 // Binds a protocol extension the backend uses: false for another
 // interface.
-static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name, const char* interface,
-                          uint32_t version)
+MWIN_NODISCARD static bool BindExtension(mwinWaylandPlatform* platform, uint32_t name,
+                                         const char* interface, uint32_t version)
 {
     if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
     {

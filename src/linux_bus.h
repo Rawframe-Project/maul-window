@@ -40,7 +40,7 @@ typedef struct mwinBusCall
 } mwinBusCall;
 
 // The connection, made now if it was never tried; false with none.
-bool mwinBusConnect(mwinLinuxBus* bus);
+MWIN_NODISCARD bool mwinBusConnect(mwinLinuxBus* bus);
 
 // A method call to fill in; NULL when there is no bus or memory.
 DBusMessage* mwinBusMethod(mwinLinuxBus* bus, const char* destination, const char* path,
@@ -49,7 +49,8 @@ DBusMessage* mwinBusMethod(mwinLinuxBus* bus, const char* destination, const cha
 // Sends a method call and lets it go: false when it was not sent. The
 // bus is pumped after, which dispatches what came: never from inside a
 // filter, or between taking an answer and using what it set.
-bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uint64_t nowNs);
+MWIN_NODISCARD bool mwinBusSend(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call,
+                                uint64_t nowNs);
 
 // Sends a method call whose answer does not matter, and lets it go; the
 // bus is pumped after, as by mwinBusSend.
@@ -58,7 +59,8 @@ void mwinBusTell(mwinLinuxBus* bus, DBusMessage* message);
 // mwinBusSend and mwinBusTell without the pump: the call is queued, and
 // the next pump writes it. Nothing is dispatched, so a module's state
 // stays as it was.
-bool mwinBusQueue(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call, uint64_t nowNs);
+MWIN_NODISCARD bool mwinBusQueue(mwinLinuxBus* bus, DBusMessage* message, mwinBusCall* call,
+                                 uint64_t nowNs);
 void mwinBusQueueTell(mwinLinuxBus* bus, DBusMessage* message);
 
 // Reads and writes what the connection can, waiting up to waitMs for
@@ -78,8 +80,8 @@ void mwinBusDrop(mwinLinuxBus* bus, mwinBusCall* call);
 // before reading it. False for an entry of another key or none: a reply
 // or a signal is whatever the bus name's owner sent, and libdbus ends the
 // process on a read of the wrong type.
-bool mwinBusEntry(const mwinDBusApi* api, mwinDBusIter* entries, const char** keyOut,
-                  mwinDBusIter* valueOut);
+MWIN_NODISCARD bool mwinBusEntry(const mwinDBusApi* api, mwinDBusIter* entries, const char** keyOut,
+                                 mwinDBusIter* valueOut);
 
 // Closes the connection, which lets the calls on it go, and the library.
 void mwinBusClose(mwinLinuxBus* bus);
@@ -111,11 +113,12 @@ void mwinBusFollow(mwinLinuxBus* bus, mwinBusOwner* owner, const char* name, uin
 // Whether message is the bus saying the name changed owner, which it
 // takes in place of an answer to GetNameOwner, as it is newer. It sends
 // nothing, so a filter may call it.
-bool mwinBusOwnerChanged(mwinLinuxBus* bus, mwinBusOwner* owner, DBusMessage* message);
+MWIN_NODISCARD bool mwinBusOwnerChanged(mwinLinuxBus* bus, mwinBusOwner* owner,
+                                        DBusMessage* message);
 
 // Whether the name's owner sent message, taking GetNameOwner's answer
 // first if it came. It sends nothing, so a filter may call it.
-bool mwinBusFromOwner(mwinLinuxBus* bus, mwinBusOwner* owner, DBusMessage* message);
+MWIN_NODISCARD bool mwinBusFromOwner(mwinLinuxBus* bus, mwinBusOwner* owner, DBusMessage* message);
 
 // Stops following: lets GetNameOwner go.
 void mwinBusUnfollow(mwinLinuxBus* bus, mwinBusOwner* owner);

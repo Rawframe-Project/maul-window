@@ -290,10 +290,10 @@ typedef struct mwinAndroidKey
 // the input queue, posted to the window: whether the program took it,
 // else Android acts on it; a key, from either; what a key means; the input forgotten when the
 // application suspends.
-bool mwinAndroidFindInput(mwinAndroidPlatform* platform);
+MWIN_NODISCARD bool mwinAndroidFindInput(mwinAndroidPlatform* platform);
 void mwinAndroidLoseInput(mwinAndroidPlatform* platform);
-bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event);
-bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* key);
+MWIN_NODISCARD bool mwinAndroidInput(mwinAndroidPlatform* platform, const AInputEvent* event);
+MWIN_NODISCARD bool mwinAndroidKeyEvent(mwinAndroidPlatform* platform, const mwinAndroidKey* key);
 mwinKey mwinAndroidMapKeyCode(const mwinAndroidPlatform* platform, mwinKeyCode code);
 void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
 
@@ -302,9 +302,9 @@ void mwinAndroidForgetInput(mwinAndroidPlatform* platform);
 // one not followed; an event of a gamepad followed, true when it was
 // one; the motors run; the motion sensors turned on or off; everything
 // let go, the motors and sensors stopped.
-bool mwinAndroidFindPads(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindPads(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidPumpPads(mwinAndroidPlatform* platform, uint64_t nowNs);
-bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event);
+MWIN_NODISCARD bool mwinAndroidPadInput(mwinAndroidPlatform* platform, const AInputEvent* event);
 mwinResult mwinAndroidRumble(mwinAndroidPlatform* platform, uint32_t slot, float low, float high,
                              uint32_t durationMs);
 mwinResult mwinAndroidSetMotion(mwinAndroidPlatform* platform, uint32_t slot, bool enabled);
@@ -316,7 +316,8 @@ void mwinAndroidStopPads(mwinAndroidPlatform* platform);
 // core cancels its request); a dialog asked for (-1 while it waits for
 // the picker, else its outcome); its documents copied a step further
 // between frames, within a budget of bytes.
-bool mwinAndroidFindDialogs(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindDialogs(mwinAndroidPlatform* platform,
+                                           ANativeActivity* activity);
 void mwinAndroidStopDialogs(mwinAndroidPlatform* platform);
 void mwinAndroidEndDialogCopy(mwinAndroidPlatform* platform);
 int mwinAndroidAskDialog(mwinAndroidPlatform* platform, uint32_t slot, uint32_t request);
@@ -327,7 +328,7 @@ void mwinAndroidPumpDialogs(mwinAndroidPlatform* platform, uint32_t* budget);
 // stop, and when the window goes, its drop told to no window; a drop's
 // documents copied a step further between frames, within a budget of
 // bytes.
-bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopDrops(mwinAndroidPlatform* platform);
 void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget);
 
@@ -336,19 +337,20 @@ void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget);
 // starts and let go when it leaves; the root let go with the window; the
 // root set (the request's outcome); a touch exploration hover taken for
 // the root's tree, true when it was.
-bool mwinAndroidFindAccessibility(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindAccessibility(mwinAndroidPlatform* platform,
+                                                 ANativeActivity* activity);
 void mwinAndroidStopAccessibility(mwinAndroidPlatform* platform);
 void mwinAndroidJoinAccessibility(mwinAndroidPlatform* platform);
 void mwinAndroidLeaveAccessibility(mwinAndroidPlatform* platform);
 void mwinAndroidForgetAccessibility(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidSetAccessibilityRoot(mwinAndroidPlatform* platform, void* root);
-bool mwinAndroidExplore(mwinAndroidPlatform* platform, const AInputEvent* event);
+MWIN_NODISCARD bool mwinAndroidExplore(mwinAndroidPlatform* platform, const AInputEvent* event);
 
 // The system's facts and locales (android_system.c): the Java helper
 // found at the start and let go at the stop; everything read (when an
 // activity starts or changes its configuration); the power read every
 // two seconds.
-bool mwinAndroidFindFacts(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindFacts(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopFacts(mwinAndroidPlatform* platform);
 void mwinAndroidReadSystem(mwinAndroidPlatform* platform);
 void mwinAndroidPumpFacts(mwinAndroidPlatform* platform, uint64_t nowNs);
@@ -356,7 +358,8 @@ void mwinAndroidPumpFacts(mwinAndroidPlatform* platform, uint64_t nowNs);
 // The clipboard and services (android_services.c): the Java helper
 // found at the start and let go at the stop; the clipboard written and
 // read, an address opened, the display kept awake or not.
-bool mwinAndroidFindServices(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindServices(mwinAndroidPlatform* platform,
+                                            ANativeActivity* activity);
 void mwinAndroidStopServices(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidWriteClipboard(const mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidReadClipboard(const mwinAndroidPlatform* platform);
@@ -366,7 +369,7 @@ void mwinAndroidApplyAwake(const mwinAndroidPlatform* platform, bool awake);
 // The mouse pointer's icon over the view (android_cursor.c): the Java
 // activity's methods found at the start; the icon shown again for a new
 // activity; the shape and image requests; the backend's releaseCursor.
-bool mwinAndroidFindCursors(mwinAndroidPlatform* platform);
+MWIN_NODISCARD bool mwinAndroidFindCursors(mwinAndroidPlatform* platform);
 void mwinAndroidApplyCursor(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidSetCursorShape(mwinAndroidPlatform* platform, mwinCursorShape shape);
 mwinOutcome mwinAndroidSetCursorImage(mwinAndroidPlatform* platform, mwinCursorId cursor);
@@ -376,7 +379,7 @@ void mwinAndroidReleaseCursor(mwinContext* context, uint32_t slot);
 // activity's native methods registered and its methods found, at the
 // start; the insets posted as they change and when the window is made;
 // the text input and keyboard requests.
-bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activity);
 // A Java string as UTF-8 in a block from the allocator, which the caller
 // releases with its size; null for an empty one or no memory. The
 // UTF-16 offsets given are turned into byte offsets.
@@ -393,7 +396,7 @@ mwinOutcome mwinAndroidSetKeyboard(mwinAndroidPlatform* platform, bool visible,
 // the display read when an activity starts and its configuration
 // changes, and every two seconds after, as its HDR/SDR ratio changes
 // with what it shows; the window told its monitor once it is made.
-bool mwinAndroidFindScreen(mwinAndroidPlatform* platform, ANativeActivity* activity);
+MWIN_NODISCARD bool mwinAndroidFindScreen(mwinAndroidPlatform* platform, ANativeActivity* activity);
 void mwinAndroidStopScreen(mwinAndroidPlatform* platform);
 void mwinAndroidReadScreen(mwinAndroidPlatform* platform);
 void mwinAndroidPumpScreen(mwinAndroidPlatform* platform, uint64_t nowNs);

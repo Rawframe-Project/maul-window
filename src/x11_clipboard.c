@@ -58,7 +58,7 @@ void mwinX11StopClipboard(mwinX11Platform* platform)
 
 // Interns the atoms of the data written's types, sent together before
 // any reply; false when the X server answered none for one.
-static bool InternTypes(mwinX11Platform* platform)
+MWIN_NODISCARD static bool InternTypes(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
     const mwinClipboardCopy* copy = platform->context->clipboardData;
@@ -129,7 +129,7 @@ static int OwnedSelection(const mwinX11Platform* platform, xcb_atom_t atom)
 }
 
 // Whether a selection offers text: the primary selection always.
-static bool OffersText(const mwinContext* context, int selection)
+MWIN_NODISCARD static bool OffersText(const mwinContext* context, int selection)
 {
     return selection == mwin_x11Primary || mwinOffersClipboardText(context);
 }
@@ -174,8 +174,10 @@ static void Notify(const mwinX11Platform* platform, const xcb_selection_request_
 }
 
 // Starts sending bytes in pieces: false when every place is taken.
-static bool SendInPieces(mwinX11Platform* platform, const xcb_selection_request_event_t* request,
-                         xcb_atom_t property, int selection, int item, uint32_t length)
+MWIN_NODISCARD static bool SendInPieces(mwinX11Platform* platform,
+                                        const xcb_selection_request_event_t* request,
+                                        xcb_atom_t property, int selection, int item,
+                                        uint32_t length)
 {
     mwinX11Clipboard* clipboard = &platform->clipboard;
     const mwinX11Api* api = &platform->api;
@@ -290,7 +292,8 @@ static xcb_atom_t Serve(mwinX11Platform* platform, const xcb_selection_request_e
 
 // A reader took the last piece: sends the next, or the empty one that
 // ends them.
-static bool SendPiece(mwinX11Platform* platform, const xcb_property_notify_event_t* event)
+MWIN_NODISCARD static bool SendPiece(mwinX11Platform* platform,
+                                     const xcb_property_notify_event_t* event)
 {
     mwinX11Clipboard* clipboard = &platform->clipboard;
     for (int i = 0; i < MWIN_X11_SENDS; i++)

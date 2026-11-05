@@ -191,7 +191,7 @@ static inline uint32_t mwinWebCount(float value)
 }
 
 // Whether a float of the page's is a whole number from 1 to most.
-static inline bool mwinWebWhole(float value, uint32_t most)
+MWIN_NODISCARD static inline bool mwinWebWhole(float value, uint32_t most)
 {
     return value >= 1.0f && value <= (float)most && value == floorf(value);
 }

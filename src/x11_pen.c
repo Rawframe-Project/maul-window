@@ -14,7 +14,7 @@ static double Value(xcb_input_fp3232_t value)
 }
 
 // Whether a name holds "eraser", in any case.
-static bool NamesEraser(const char* name, size_t length)
+MWIN_NODISCARD static bool NamesEraser(const char* name, size_t length)
 {
     static const char eraser[] = "eraser";
     size_t size = sizeof(eraser) - 1;

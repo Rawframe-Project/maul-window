@@ -61,7 +61,8 @@ void mwinTestReleaseClipboard(const mwinContext* context, mwinTestPlatform* plat
 }
 
 // Puts bytes on the platform's clipboard; false when there is no room.
-static bool SetClipboard(const mwinContext* context, const void* data, size_t bytes, bool utf16)
+MWIN_NODISCARD static bool SetClipboard(const mwinContext* context, const void* data, size_t bytes,
+                                        bool utf16)
 {
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     void* copy = bytes > 0 ? mwinAllocate(&context->allocator, bytes, alignof(uint16_t)) : nullptr;
@@ -82,7 +83,7 @@ static bool SetClipboard(const mwinContext* context, const void* data, size_t by
 
 // Puts a copy of a data block on the platform's clipboard, or none;
 // false when there is no room.
-static bool SetData(const mwinContext* context, const mwinClipboardCopy* data)
+MWIN_NODISCARD static bool SetData(const mwinContext* context, const mwinClipboardCopy* data)
 {
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     mwinClipboardCopy* copy =
@@ -101,7 +102,7 @@ static bool SetData(const mwinContext* context, const mwinClipboardCopy* data)
     return true;
 }
 
-static bool SetPrimary(const mwinContext* context, const char* bytes, size_t length)
+MWIN_NODISCARD static bool SetPrimary(const mwinContext* context, const char* bytes, size_t length)
 {
     mwinTestPlatform* platform = mwinTestPlatformOf(context);
     char* copy = length > 0 ? mwinAllocate(&context->allocator, length, 1) : nullptr;

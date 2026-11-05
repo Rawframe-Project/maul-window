@@ -21,6 +21,6 @@ void mwinWin32AttachDrop(mwinWin32Window* window);
 void mwinWin32DetachDrop(mwinWin32Window* window);
 
 // Handles WM_DROPFILES: true when it was.
-bool mwinWin32HandleDropFiles(mwinWin32Window* window, UINT message, WPARAM wParam);
+MWIN_NODISCARD bool mwinWin32HandleDropFiles(mwinWin32Window* window, UINT message, WPARAM wParam);
 
 #endif // MAUL_WINDOW_SRC_WIN32_DROP_H

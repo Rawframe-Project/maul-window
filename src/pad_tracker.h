@@ -84,7 +84,7 @@ void mwinPadTrackerPump(mwinPadTracker* tracker, uint64_t nowNs);
 
 // The rumble of the pad in a core slot: false when the tracker does not
 // have it.
-bool mwinPadTrackerOwns(const mwinPadTracker* tracker, uint32_t slot);
+MWIN_NODISCARD bool mwinPadTrackerOwns(const mwinPadTracker* tracker, uint32_t slot);
 mwinResult mwinPadTrackerRumble(mwinPadTracker* tracker, uint32_t slot, float low, float high,
                                 uint32_t durationMs, uint64_t nowNs);
 // The trigger rumble of the pad in a core slot.

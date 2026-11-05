@@ -10,7 +10,7 @@
 
 // A function of the library by name, or NULL. The pointer comes back as
 // data from dlsym and is copied, not cast, into the function pointer.
-static bool Find(void* library, const char* name, void* function, size_t size)
+MWIN_NODISCARD static bool Find(void* library, const char* name, void* function, size_t size)
 {
     void* symbol = dlsym(library, name);
     if (symbol == nullptr)

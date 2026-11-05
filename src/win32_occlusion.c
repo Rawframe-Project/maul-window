@@ -41,7 +41,7 @@ typedef struct SessionInfo
 // WM_WTSSESSION_CHANGE it heard. Where Windows does not say, what was
 // known stays (unlocked before anything was heard), so a failed query
 // never undoes a lock the message told.
-static bool SessionLocked(bool known)
+MWIN_NODISCARD static bool SessionLocked(bool known)
 {
     WCHAR* buffer = nullptr;
     DWORD bytes = 0;
@@ -88,7 +88,7 @@ static void UpdateAll(mwinWin32Platform* platform)
     }
 }
 
-static bool Cloaked(HWND hwnd)
+MWIN_NODISCARD static bool Cloaked(HWND hwnd)
 {
     DWORD cloaked = 0;
     return SUCCEEDED(DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) &&

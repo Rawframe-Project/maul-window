@@ -102,12 +102,14 @@ labels_for() {
 }
 
 source_checks() {
-    step "source, module, length, documentation, snippet and test hygiene rules"
+    step "source, module, length, documentation, snippet, nodiscard and test hygiene rules"
     python3 tools/check_source.py
     python3 tools/check_modules.py
     python3 tools/check_lengths.py
     python3 tools/check_docs.py
     python3 tools/check_guide.py
+    python3 tools/check_nodiscard.py --self-test
+    python3 tools/check_nodiscard.py
     python3 tools/check_test_hygiene.py --self-test
     python3 tools/check_test_hygiene.py
     if [ -f "$org/scripts/docs_check.py" ]; then

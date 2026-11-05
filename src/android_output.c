@@ -177,7 +177,7 @@ void mwinAndroidReadScreen(mwinAndroidPlatform* platform)
 // starts turned can have its window before Android has turned the
 // display's facts too (seen on Android 11), so until it fits they are
 // read again every tenth of a second rather than every two seconds.
-static bool Fits(const mwinAndroidPlatform* platform)
+MWIN_NODISCARD static bool Fits(const mwinAndroidPlatform* platform)
 {
     int32_t monitor = platform->screen.monitor;
     if (platform->slot < 0 || monitor < 0)

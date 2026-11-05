@@ -34,7 +34,7 @@
 // addition, a change, a reset and its removal.
 #define GAMEPAD_RECORDS 4
 
-static bool IsDefValid(const mwinAppDef* def)
+MWIN_NODISCARD static bool IsDefValid(const mwinAppDef* def)
 {
     const mwinContextDef* context = &def->context;
     const mwinLimits* limits = &context->limits;
@@ -141,7 +141,7 @@ static void Plan(mwinLayout* layout, const mwinLimits* limits, unsigned char* bl
 
 #if defined(MAUL_WINDOW_WAYLAND) || defined(MAUL_WINDOW_X11)
 // Whether an environment variable names something.
-static bool IsSet(const char* name)
+MWIN_NODISCARD static bool IsSet(const char* name)
 {
     const char* value = getenv(name);
     return value != nullptr && value[0] != '\0';

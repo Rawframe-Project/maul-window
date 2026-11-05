@@ -86,7 +86,7 @@ mwinResult mwinGamepad_GetState(const mwinContext* context, mwinGamepadId gamepa
     return mwin_success;
 }
 
-static bool IsStrength(float value)
+MWIN_NODISCARD static bool IsStrength(float value)
 {
     return isfinite(value) && value >= 0.0f && value <= 1.0f;
 }

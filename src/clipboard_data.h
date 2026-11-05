@@ -45,17 +45,17 @@ const mwinClipboardDataItem* mwinFindClipboardItem(const mwinContext* context, c
 
 // Whether a type is text/plain, with parameters or none; whether two
 // types are the same, ASCII case aside.
-bool mwinIsPlainText(const char* mime, size_t length);
-bool mwinSameMime(const char* a, size_t aLength, const char* b, size_t bLength);
+MWIN_NODISCARD bool mwinIsPlainText(const char* mime, size_t length);
+MWIN_NODISCARD bool mwinSameMime(const char* a, size_t aLength, const char* b, size_t bLength);
 
 // Whether the clipboard offers text: a write gave it text, or gave it no
 // data. An empty text beside data is not offered.
-bool mwinOffersClipboardText(const mwinContext* context);
+MWIN_NODISCARD bool mwinOffersClipboardText(const mwinContext* context);
 
 // Whether a request is a window's last read of a kind (mwin_foundText
 // and kin) answered done, and the payload that answered it is still the
 // last of its kind; never during the run's teardown.
-bool mwinIsFoundBy(const mwinContext* context, mwinRequestId request, uint32_t kind);
+MWIN_NODISCARD bool mwinIsFoundBy(const mwinContext* context, mwinRequestId request, uint32_t kind);
 
 // Copies out a read's payload for the getters: mwin_errorStale unless
 // mwinIsFoundBy, as the text calls document.

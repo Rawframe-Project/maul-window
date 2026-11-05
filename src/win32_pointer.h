@@ -13,6 +13,6 @@
 #include "win32.h"
 
 // Handles a touch or pen message of a window: true when handled.
-bool mwinWin32HandlePointer(mwinWin32Window* window, UINT message, WPARAM wParam);
+MWIN_NODISCARD bool mwinWin32HandlePointer(mwinWin32Window* window, UINT message, WPARAM wParam);
 
 #endif // MAUL_WINDOW_SRC_WIN32_POINTER_H

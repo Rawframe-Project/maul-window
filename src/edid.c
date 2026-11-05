@@ -18,7 +18,7 @@
 #define EOTF_ST2084_BIT 0x04u
 #define EOTF_HLG_BIT    0x08u
 
-static bool IsBlockWhole(const uint8_t* block)
+MWIN_NODISCARD static bool IsBlockWhole(const uint8_t* block)
 {
     uint8_t sum = 0;
     for (size_t i = 0; i < BLOCK_BYTES; i++)
@@ -54,7 +54,7 @@ static void ReadHdr(const uint8_t* payload, size_t length, mwinEdidHdr* hdrOut)
 }
 
 // Looks for the block in a CTA-861 extension's data block collection.
-static bool FindInExtension(const uint8_t* block, mwinEdidHdr* hdrOut)
+MWIN_NODISCARD static bool FindInExtension(const uint8_t* block, mwinEdidHdr* hdrOut)
 {
     // Byte 2 is where the detailed timings start; the data blocks lie
     // from byte 4 to there.
@@ -84,7 +84,7 @@ static bool FindInExtension(const uint8_t* block, mwinEdidHdr* hdrOut)
 }
 
 // Whether the bytes begin with a base block: its header and checksum.
-static bool IsEdid(const uint8_t* bytes, size_t length)
+MWIN_NODISCARD static bool IsEdid(const uint8_t* bytes, size_t length)
 {
     static const uint8_t header[8] = {0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00};
     return bytes != nullptr && length >= BLOCK_BYTES &&
@@ -114,7 +114,7 @@ bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut)
 }
 
 // Whether a size in millimeters is within a fifth of one in centimeters.
-static bool Agrees(uint32_t millimeters, uint32_t centimeters)
+MWIN_NODISCARD static bool Agrees(uint32_t millimeters, uint32_t centimeters)
 {
     uint32_t base = centimeters * 10;
     uint32_t apart = millimeters > base ? millimeters - base : base - millimeters;

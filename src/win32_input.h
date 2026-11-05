@@ -19,8 +19,8 @@
 
 // Handles an input message of a window: true when handled, with the
 // result in *result.
-bool mwinWin32HandleInput(mwinWin32Window* window, UINT message, WPARAM wParam, LPARAM lParam,
-                          LRESULT* result);
+MWIN_NODISCARD bool mwinWin32HandleInput(mwinWin32Window* window, UINT message, WPARAM wParam,
+                                         LPARAM lParam, LRESULT* result);
 
 // Carries out a cursor mode or shape request of the window in a slot.
 mwinOutcome mwinWin32SetCursorMode(mwinWin32Window* window, mwinCursorMode mode);

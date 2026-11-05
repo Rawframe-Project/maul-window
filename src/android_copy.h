@@ -51,8 +51,8 @@ typedef struct mwinAndroidCopy
 
 // Names a kind of job's folder under the activity's cache, removing what
 // earlier runs left there: false when the cache has no path.
-bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env, ANativeActivity* activity,
-                           const char* name);
+MWIN_NODISCARD bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env,
+                                          ANativeActivity* activity, const char* name);
 
 // Starts a job: takes the documents' descriptors (Java's, -1 for one
 // that could not be opened) and names, and makes the copies' folders and
@@ -60,14 +60,14 @@ bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env, ANativeActivity* 
 // be made, is left out. False when there is no room for the job; the
 // descriptors are the job's either way, and mwinAndroidEndCopy closes
 // them.
-bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* env,
-                          jintArray descriptors, jobjectArray names, uint64_t nowNs);
+MWIN_NODISCARD bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* env,
+                                         jintArray descriptors, jobjectArray names, uint64_t nowNs);
 
 // Copies a job a step further at a time, taking from the budget the
 // bytes it copied; a document that cannot be read or written, or whose
 // provider sent nothing for MWIN_ANDROID_STALL_NS, is left out. True
 // once every document is copied or left out.
-bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget, uint64_t nowNs);
+MWIN_NODISCARD bool mwinAndroidStepCopy(mwinAndroidCopy* copy, uint32_t* budget, uint64_t nowNs);
 
 // Ends a job with what it has: every document not yet whole is left out.
 void mwinAndroidCutCopy(mwinAndroidCopy* copy);

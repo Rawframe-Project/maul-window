@@ -64,8 +64,8 @@ mwinResult mwinRunLoop(mwinContext* context, void (*pump)(mwinContext* context))
 // Step pumps and runs a frame: false once the program stops; a step
 // taken while init, a frame or quit runs does nothing. End calls quit
 // and returns init's status.
-bool mwinStartProgram(mwinContext* context);
-bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context));
+MWIN_NODISCARD bool mwinStartProgram(mwinContext* context);
+MWIN_NODISCARD bool mwinStepProgram(mwinContext* context, void (*pump)(mwinContext* context));
 mwinResult mwinEndProgram(mwinContext* context);
 
 // Runs a program as mwinRun does, for a platform that begins the run

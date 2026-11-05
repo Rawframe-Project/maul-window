@@ -11,7 +11,7 @@
 
 #include "maul-window/input.h"
 
-static inline bool mwinKeyPrints(mwinKeyCode code)
+MWIN_NODISCARD static inline bool mwinKeyPrints(mwinKeyCode code)
 {
     return (code >= 0x04 && code <= 0x27) || (code >= 0x2C && code <= 0x38) ||
            (code >= 0x54 && code <= 0x57) || (code >= 0x59 && code <= 0x64) || code == 0x67;

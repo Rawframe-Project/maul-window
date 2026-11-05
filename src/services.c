@@ -17,7 +17,7 @@ static mwinResult CheckText(const char* text, size_t length)
 }
 
 // Whether text begins with a prefix, in any case.
-static bool Begins(const char* text, size_t length, const char* prefix)
+MWIN_NODISCARD static bool Begins(const char* text, size_t length, const char* prefix)
 {
     size_t size = strlen(prefix);
     if (length < size)
@@ -64,7 +64,7 @@ static mwinResult CheckAddress(const char* url, size_t length)
 }
 
 // An absolute path on the platform built for.
-static bool IsAbsolute(const char* path, size_t length)
+MWIN_NODISCARD static bool IsAbsolute(const char* path, size_t length)
 {
 #ifdef _WIN32
     bool drive = length >= 3 &&

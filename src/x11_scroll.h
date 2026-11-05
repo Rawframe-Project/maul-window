@@ -10,6 +10,8 @@
 #ifndef MAUL_WINDOW_SRC_X11_SCROLL_H
 #define MAUL_WINDOW_SRC_X11_SCROLL_H
 
+#include "maul-window/base.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <xcb/xinput.h>
@@ -44,7 +46,8 @@ void mwinX11RestartScroll(mwinX11Scroll* scroll);
 // The wheel movement in the valuators a device's event carries (mask of
 // words 32-bit words, and one value for each bit set): in clicks, x to
 // the right and y up. False when the event carries no scroll valuator.
-bool mwinX11Scrolled(mwinX11Scroll* scroll, uint16_t device, const uint32_t* mask, int words,
-                     const xcb_input_fp3232_t* values, int count, float* x, float* y);
+MWIN_NODISCARD bool mwinX11Scrolled(mwinX11Scroll* scroll, uint16_t device, const uint32_t* mask,
+                                    int words, const xcb_input_fp3232_t* values, int count,
+                                    float* x, float* y);
 
 #endif // MAUL_WINDOW_SRC_X11_SCROLL_H

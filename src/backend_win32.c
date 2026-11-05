@@ -149,7 +149,7 @@ static void DestroyProgramIcons(mwinWin32Platform* platform)
 
 // Registers the window class, or finds it registered by an earlier
 // context of the process, whose icons it keeps.
-static bool RegisterWindowClass(mwinWin32Platform* platform)
+MWIN_NODISCARD static bool RegisterWindowClass(mwinWin32Platform* platform)
 {
     WNDCLASSEXW windowClass = {0};
     windowClass.cbSize = sizeof(windowClass);

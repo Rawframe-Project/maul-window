@@ -352,7 +352,8 @@ static void Event(uint8_t op)
         break;
     }
     }
-    mwinX11HandleClipboardEvent(&s_platform, &event);
+    // Any event goes in; whether the clipboard took it is not checked here.
+    (void)mwinX11HandleClipboardEvent(&s_platform, &event);
 }
 
 // A request of a window, from the input: the kind, the data's type, and

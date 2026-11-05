@@ -50,7 +50,7 @@ static mwinResult CheckExtensions(const char* text, size_t length)
     return mwin_success;
 }
 
-static bool IsAbsolute(const char* path, size_t length)
+MWIN_NODISCARD static bool IsAbsolute(const char* path, size_t length)
 {
 #ifdef _WIN32
     bool drive = length >= 3 && path[1] == ':' && (path[2] == '\\' || path[2] == '/');

@@ -351,7 +351,7 @@ void mwinChangeMonitor(mwinContext* context, uint32_t slot, const mwinMonitorInf
 
 // Whether two reads of a monitor tell the same facts, so a backend
 // reports a change only when one is.
-bool mwinSameMonitorInfo(const mwinMonitorInfo* a, const mwinMonitorInfo* b);
+MWIN_NODISCARD bool mwinSameMonitorInfo(const mwinMonitorInfo* a, const mwinMonitorInfo* b);
 
 // A monitor was disconnected; its slot is free once the record is
 // drained.
@@ -364,7 +364,8 @@ void mwinSetSystemFacts(mwinContext* context, const mwinSystemFacts* facts, uint
 // The preferred locales as the platform reports them, a list past the
 // localeBytes limit cut to its leading tags that fit; false for a list
 // that is not UTF-8.
-bool mwinSetLocales(mwinContext* context, const char* locales, size_t length, uint64_t timeNs);
+MWIN_NODISCARD bool mwinSetLocales(mwinContext* context, const char* locales, size_t length,
+                                   uint64_t timeNs);
 
 // Gamepads as the backend reports them: a new one's slot (-1 when every
 // slot is taken), a change of its facts, its removal; its buttons and
@@ -545,7 +546,7 @@ static inline mwinResult mwinGiveBytes(const void* bytes, size_t length, void* b
 
 // Whether the context is inside the program's allocator, where a call
 // that changes it is refused through mwinBusy.
-static inline bool mwinIsBusy(const mwinContext* context)
+MWIN_NODISCARD static inline bool mwinIsBusy(const mwinContext* context)
 {
     return context != nullptr && context->hosting > 0;
 }
@@ -576,7 +577,7 @@ mwinRequestId mwinRequestIdOf(const mwinContext* context, uint32_t slot, uint32_
 // Whether some window asked to keep the display awake and shows: live,
 // visible and not minimized. Backends keep the display awake while it
 // holds.
-bool mwinWantsAwake(const mwinContext* context);
+MWIN_NODISCARD bool mwinWantsAwake(const mwinContext* context);
 
 // Frees the drops' files and text; the context's end calls it.
 void mwinReleaseDrops(mwinContext* context);

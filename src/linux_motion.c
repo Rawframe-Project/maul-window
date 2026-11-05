@@ -18,7 +18,7 @@
 #define LONG_BITS   (sizeof(unsigned long) * CHAR_BIT)
 #define LONGS(bits) (((bits) + LONG_BITS - 1) / LONG_BITS)
 
-static bool Has(const unsigned long* bits, unsigned bit)
+MWIN_NODISCARD static bool Has(const unsigned long* bits, unsigned bit)
 {
     return ((bits[bit / LONG_BITS] >> (bit % LONG_BITS)) & 1u) != 0;
 }
@@ -35,7 +35,7 @@ void mwinLinuxIdentityOf(int fd, mwinLinuxPadIdentity* identity)
 
 // The axes' current values, and their factors from their resolutions:
 // false where one is missing or says nothing.
-static bool ReadAxes(int fd, mwinLinuxMotionEvents* events)
+MWIN_NODISCARD static bool ReadAxes(int fd, mwinLinuxMotionEvents* events)
 {
     for (unsigned i = 0; i < MWIN_LINUX_MOTION_AXES; i++)
     {

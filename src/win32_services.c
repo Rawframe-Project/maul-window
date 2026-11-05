@@ -13,7 +13,7 @@
 
 // The request's text as UTF-16 and a terminator; paths take Windows'
 // separator, which the shell's parsing needs.
-static bool Wide(const mwinRequest* request, WCHAR* units, bool path)
+MWIN_NODISCARD static bool Wide(const mwinRequest* request, WCHAR* units, bool path)
 {
     size_t count = 0;
     muniTextResult result = muniConvertUtf8ToUtf16(

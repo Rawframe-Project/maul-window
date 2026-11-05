@@ -68,7 +68,7 @@ void mwinX11StopCursors(mwinX11Platform* platform)
     *cursors = (mwinX11Cursors){0};
 }
 
-static bool IsHidden(mwinCursorMode mode)
+MWIN_NODISCARD static bool IsHidden(mwinCursorMode mode)
 {
     return mode == mwin_cursorHidden || mode == mwin_cursorConfinedHidden ||
            mode == mwin_cursorCaptured;
@@ -96,7 +96,7 @@ static xcb_cursor_t ShapeCursor(mwinX11Platform* platform, mwinCursorShape shape
 }
 
 // Whether a picture format is 32-bit ARGB, 8 bits a channel.
-static bool IsArgb(const xcb_render_pictforminfo_t* info)
+MWIN_NODISCARD static bool IsArgb(const xcb_render_pictforminfo_t* info)
 {
     const xcb_render_directformat_t* direct = &info->direct;
     return info->type == XCB_RENDER_PICT_TYPE_DIRECT && info->depth == 32 &&
@@ -243,7 +243,7 @@ static void Confine(mwinX11Platform* platform, mwinX11Window* window, bool confi
     mwinReleaseSystemMemory(reply);
 }
 
-static bool IsConfined(mwinCursorMode mode)
+MWIN_NODISCARD static bool IsConfined(mwinCursorMode mode)
 {
     return mode == mwin_cursorConfined || mode == mwin_cursorConfinedHidden ||
            mode == mwin_cursorCaptured;

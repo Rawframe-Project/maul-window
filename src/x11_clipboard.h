@@ -26,7 +26,8 @@ int mwinX11WriteSelection(mwinX11Platform* platform, mwinRequestKind kind);
 int mwinX11ReadSelection(mwinX11Platform* platform, const mwinRequest* request);
 
 // Handles an event when it is the clipboard's: true when it was.
-bool mwinX11HandleClipboardEvent(mwinX11Platform* platform, const xcb_generic_event_t* event);
+MWIN_NODISCARD bool mwinX11HandleClipboardEvent(mwinX11Platform* platform,
+                                                const xcb_generic_event_t* event);
 
 // Fails a read past its deadline, and drops readers that stopped.
 void mwinX11CheckClipboard(mwinX11Platform* platform, uint64_t nowNs);
@@ -35,7 +36,7 @@ void mwinX11CheckClipboard(mwinX11Platform* platform, uint64_t nowNs);
 // server refused); the atom of a selection; ends a read, its bytes given
 // back; and the read's part of the events, the owner's answer and a
 // property of the hidden window (x11_clipboard_read.c).
-bool mwinX11EnsureClipboardWindow(mwinX11Platform* platform);
+MWIN_NODISCARD bool mwinX11EnsureClipboardWindow(mwinX11Platform* platform);
 xcb_atom_t mwinX11SelectionAtom(const mwinX11Platform* platform, int selection);
 void mwinX11EndRead(mwinX11Platform* platform);
 void mwinX11OnReadNotify(mwinX11Platform* platform, const xcb_selection_notify_event_t* notify);

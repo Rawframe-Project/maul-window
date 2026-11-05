@@ -16,6 +16,8 @@
 #ifndef MAUL_WINDOW_SRC_LINUX_EVDEV_DROP_H
 #define MAUL_WINDOW_SRC_LINUX_EVDEV_DROP_H
 
+#include "maul-window/base.h"
+
 #include <limits.h>
 #include <linux/input.h>
 #include <stdint.h>
@@ -40,7 +42,8 @@ mwinEvdevStep mwinEvdevDropStep(bool* dropping, uint16_t type, uint16_t code);
 
 // Sets buttons from a resync's key state, each from the bit of its key
 // code: false, setting nothing, when the state could not be read.
-bool mwinEvdevResyncButtons(const unsigned long keys[MWIN_EVDEV_KEY_LONGS], bool read,
-                            const uint16_t* codes, uint8_t count, bool* buttons);
+MWIN_NODISCARD bool mwinEvdevResyncButtons(const unsigned long keys[MWIN_EVDEV_KEY_LONGS],
+                                           bool read, const uint16_t* codes, uint8_t count,
+                                           bool* buttons);
 
 #endif // MAUL_WINDOW_SRC_LINUX_EVDEV_DROP_H

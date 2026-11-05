@@ -154,7 +154,7 @@ static void OnSize(mwinWin32Window* window, WPARAM kind, LPARAM size)
     }
 }
 
-static bool IsPopup(const mwinWin32Window* window)
+MWIN_NODISCARD static bool IsPopup(const mwinWin32Window* window)
 {
     return CoreOf(window)->def.kind != mwin_windowNormal;
 }
@@ -306,7 +306,8 @@ static void ExtendFrame(const mwinWin32Window* window)
 // Custom chrome's client area is the whole window; maximized, Windows
 // puts the frame it would have drawn past the monitor's edges, which the
 // client area leaves out.
-static bool OnCalcSize(const mwinWin32Window* window, WPARAM whole, NCCALCSIZE_PARAMS* params)
+MWIN_NODISCARD static bool OnCalcSize(const mwinWin32Window* window, WPARAM whole,
+                                      NCCALCSIZE_PARAMS* params)
 {
     if (!window->customChrome || !whole || window->fullscreen)
     {
@@ -352,8 +353,8 @@ static LRESULT HitTest(const mwinWin32Window* window, LPARAM place)
 
 // The messages about the window as a whole: true when handled, with
 // the result in *result.
-static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wParam, LPARAM lParam,
-                                LRESULT* result)
+MWIN_NODISCARD static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wParam,
+                                               LPARAM lParam, LRESULT* result)
 {
     *result = 0;
     switch (message)
@@ -420,7 +421,7 @@ static bool HandleWindowMessage(mwinWin32Window* window, UINT message, WPARAM wP
 
 // Windows runs a loop of its own while the user moves or sizes a
 // window; frames go on from a timer in it.
-static bool HandleSizeMove(mwinWin32Window* window, UINT message, WPARAM wParam)
+MWIN_NODISCARD static bool HandleSizeMove(mwinWin32Window* window, UINT message, WPARAM wParam)
 {
     mwinWin32Platform* platform = window->platform;
     switch (message)

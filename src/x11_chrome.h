@@ -19,7 +19,8 @@ void mwinX11SendToRoot(const mwinX11Platform* platform, xcb_window_t window, xcb
 // A left press at a point of a window's client area, in logical units,
 // and its click count: true when a hit region gave it to the window
 // manager, and the program is not told of it.
-bool mwinX11PressChrome(const mwinX11Platform* platform, uint32_t slot,
-                        const xcb_button_press_event_t* event, mwinPosition at, uint8_t clicks);
+MWIN_NODISCARD bool mwinX11PressChrome(const mwinX11Platform* platform, uint32_t slot,
+                                       const xcb_button_press_event_t* event, mwinPosition at,
+                                       uint8_t clicks);
 
 #endif // MAUL_WINDOW_SRC_X11_CHROME_H

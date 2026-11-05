@@ -204,7 +204,7 @@ static void OnMouseMove(mwinWin32Window* window, LPARAM place, bool frame)
 
 // A point of the desktop in the client area's pixels, as a message
 // carries it, or false outside the client area.
-static bool ClientPlace(const mwinWin32Window* window, POINT point, LPARAM* place)
+MWIN_NODISCARD static bool ClientPlace(const mwinWin32Window* window, POINT point, LPARAM* place)
 {
     RECT client;
     GetClientRect(window->hwnd, &client);
@@ -289,7 +289,8 @@ static void OnButton(mwinWin32Window* window, UINT message, WPARAM wParam, LPARA
 // A press or release over a maximize button in the client area, which
 // Windows sends as the frame's: the program's, as any of the client
 // area. Windows' own handling would maximize the window.
-static bool OnFrameButton(mwinWin32Window* window, UINT message, WPARAM hit, LPARAM screen)
+MWIN_NODISCARD static bool OnFrameButton(mwinWin32Window* window, UINT message, WPARAM hit,
+                                         LPARAM screen)
 {
     LPARAM place = 0;
     if (hit != HTMAXBUTTON || !ClientPlace(window, PointOf(screen), &place))
@@ -315,7 +316,7 @@ static void OnWheel(mwinWin32Window* window, UINT message, WPARAM wParam)
     Post(window, &event);
 }
 
-static bool IsHidden(mwinCursorMode mode)
+MWIN_NODISCARD static bool IsHidden(mwinCursorMode mode)
 {
     return mode == mwin_cursorHidden || mode == mwin_cursorConfinedHidden ||
            mode == mwin_cursorCaptured;
@@ -343,8 +344,8 @@ static void OnRawInput(mwinWin32Window* window, LPARAM handle)
 }
 
 // The keyboard's messages.
-static bool HandleKeyboard(mwinWin32Window* window, UINT message, WPARAM wParam, LPARAM lParam,
-                           LRESULT* result)
+MWIN_NODISCARD static bool HandleKeyboard(mwinWin32Window* window, UINT message, WPARAM wParam,
+                                          LPARAM lParam, LRESULT* result)
 {
     switch (message)
     {

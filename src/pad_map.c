@@ -5,7 +5,7 @@
 
 #include "pad_map.h"
 
-static bool IsPressed(const mwinPadControls* pad, mwinPadSource source)
+MWIN_NODISCARD static bool IsPressed(const mwinPadControls* pad, mwinPadSource source)
 {
     uint8_t index = mwinPadSourceIndex(source);
     switch (mwinPadSourceKind(source))

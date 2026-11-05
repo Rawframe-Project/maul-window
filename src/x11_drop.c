@@ -174,7 +174,7 @@ static void OnLeave(mwinX11Platform* platform, const xcb_client_message_event_t*
 // Asks the source for the drop in a type, into the next read property
 // of the window not resting, deleted first: false with every one
 // resting, rather than share one with a late answer.
-static bool Convert(mwinX11Platform* platform, xcb_atom_t type)
+MWIN_NODISCARD static bool Convert(mwinX11Platform* platform, xcb_atom_t type)
 {
     mwinX11Drag* drag = &platform->drag;
     mwinX11DropProperties* properties = &platform->dropProperties;
@@ -260,7 +260,7 @@ static void OnDrop(mwinX11Platform* platform, const xcb_client_message_event_t* 
 // not all there. An answer in pieces is not taken, and its property
 // rests, since its source goes on writing to it; one too large is
 // deleted.
-static bool Take(mwinX11Platform* platform)
+MWIN_NODISCARD static bool Take(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
     mwinX11Drag* drag = &platform->drag;

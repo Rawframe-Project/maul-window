@@ -16,7 +16,8 @@
 
 // Handles an XDND client message, or the answer to a drop's conversion:
 // true when it was one.
-bool mwinX11HandleDropEvent(mwinX11Platform* platform, const xcb_generic_event_t* event);
+MWIN_NODISCARD bool mwinX11HandleDropEvent(mwinX11Platform* platform,
+                                           const xcb_generic_event_t* event);
 
 // Ends a drop past its deadline.
 void mwinX11CheckDrop(mwinX11Platform* platform, uint64_t nowNs);

@@ -14,7 +14,7 @@
 #define XKB_OFFSET 8
 
 // Reads the keymap and state of the keyboard device anew.
-static bool ReadKeymap(mwinX11Platform* platform)
+MWIN_NODISCARD static bool ReadKeymap(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
     mwinX11Keyboard* keyboard = &platform->keyboard;

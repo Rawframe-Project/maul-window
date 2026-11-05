@@ -14,7 +14,7 @@
 #include <stdbool.h>
 
 // Whether an allocator is usable: both functions set, or neither.
-bool mwinIsAllocatorValid(const mwinAllocator* allocator);
+MWIN_NODISCARD bool mwinIsAllocatorValid(const mwinAllocator* allocator);
 
 // size bytes aligned to alignment, a power of two, or NULL.
 void* mwinAllocate(const mwinAllocator* allocator, size_t size, size_t alignment);

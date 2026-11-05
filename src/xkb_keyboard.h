@@ -28,7 +28,7 @@ typedef struct mwinXkbKeyboard
 
 // Makes the xkb context and the locale's compose state (LC_ALL,
 // LC_CTYPE, LANG); false without the context.
-bool mwinXkbStart(mwinXkbKeyboard* keyboard, const mwinXkbApi* api);
+MWIN_NODISCARD bool mwinXkbStart(mwinXkbKeyboard* keyboard, const mwinXkbApi* api);
 
 // Frees everything.
 void mwinXkbStop(mwinXkbKeyboard* keyboard);
@@ -40,9 +40,9 @@ void mwinXkbSetKeymap(mwinXkbKeyboard* keyboard, struct xkb_keymap* keymap,
 
 // Takes the window system's modifier and group state; true when the
 // layout group changed.
-bool mwinXkbUpdateState(mwinXkbKeyboard* keyboard, uint32_t depressed, uint32_t latched,
-                        uint32_t locked, uint32_t depressedGroup, uint32_t latchedGroup,
-                        uint32_t lockedGroup);
+MWIN_NODISCARD bool mwinXkbUpdateState(mwinXkbKeyboard* keyboard, uint32_t depressed,
+                                       uint32_t latched, uint32_t locked, uint32_t depressedGroup,
+                                       uint32_t latchedGroup, uint32_t lockedGroup);
 
 // What a key by its evdev code types with no modifier in the current
 // layout: its code point, or MWIN_KEY_NAMED with its code.
@@ -59,7 +59,7 @@ int32_t mwinXkbType(mwinXkbKeyboard* keyboard, uint32_t evdev, bool compose, cha
                     uint32_t capacity);
 
 // Whether a key repeats while held, and ends a compose sequence.
-bool mwinXkbRepeats(const mwinXkbKeyboard* keyboard, uint32_t evdev);
+MWIN_NODISCARD bool mwinXkbRepeats(const mwinXkbKeyboard* keyboard, uint32_t evdev);
 void mwinXkbResetCompose(mwinXkbKeyboard* keyboard);
 
 // The current layout's name, as mwinContext_GetKeyboardLayout reports it.

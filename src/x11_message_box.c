@@ -213,7 +213,7 @@ static int AnswerOf(const Box* box, const xcb_generic_event_t* event, xcb_atom_t
 }
 
 // Waits for an answer: true to accept.
-static bool Answer(const Box* box, xcb_atom_t deleteWindow)
+MWIN_NODISCARD static bool Answer(const Box* box, xcb_atom_t deleteWindow)
 {
     for (;;)
     {

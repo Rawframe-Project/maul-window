@@ -17,7 +17,8 @@
 #define GNOME       "org.gnome.desktop.interface"
 #define KDE         "org.kde.kdeglobals.KDE"
 
-static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
+MWIN_NODISCARD static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const char* text)
 {
     return api->appendBasic(iter, mwin_dbusTypeString, (const void*)&text);
 }

@@ -48,7 +48,7 @@ mwinWindow* mwinFindWindow(const mwinContext* context, mwinWindowId window)
                : nullptr;
 }
 
-static bool IsPositive(mwinSize size)
+MWIN_NODISCARD static bool IsPositive(mwinSize size)
 {
     return isfinite(size.width) && isfinite(size.height) && size.width > 0.0f && size.height > 0.0f;
 }

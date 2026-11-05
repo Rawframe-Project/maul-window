@@ -15,7 +15,8 @@
 // composition committed when the keyboard, or another purpose, is asked
 // for, which starts the input method anew;
 // each purpose's input type, nothing corrected or completed. Insets told
-// again alike change neither the safe area nor the keyboard.
+// again alike change neither the safe area nor the keyboard. The keyboard
+// shown after it is asked for another purpose is test_android_ime_purpose.c's.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -37,12 +38,11 @@
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define RECORDS     64
-#define LAST_PHASE  15
+#define LAST_PHASE  14
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
 #define TYPE_CLASS_NUMBER             0x2
-#define TYPE_TEXT_VARIATION_EMAIL     0x20
 #define TYPE_TEXT_FLAG_NO_SUGGESTIONS 0x80000
 #define KEYCODE_DEL                   67
 
@@ -306,19 +306,16 @@ static bool Ready(const Program* program, mwinContext* context)
     case 1:
         return state.virtualKeyboard.height > 0.0f;
     case 7:
-    case 10:
-    case 11:
+    case 13:
+    case 14:
         return program->completions >= 1;
-    // The keyboard for an address up before it is hidden: hidden sooner,
-    // Android's report of it showing could come after phase 13.
-    case 12:
-        return program->completions >= 1 && state.virtualKeyboard.height > 0.0f;
     case 8:
         return state.virtualKeyboard.height == 0.0f;
-    // Android's own insets settled, half a second without a change.
-    case 13:
+    // Android's own insets settled, half a second without a change: the
+    // keyboard was seen shown and then hidden, so no report of it is due.
+    case 9:
         return state.virtualKeyboard.height == 0.0f && NowNs() - program->insetsNs > 500000000u;
-    case 14:
+    case 10:
         return program->safeAreas >= 1 && program->keyboards >= 1;
     default:
         return true;
@@ -507,13 +504,31 @@ static void Advance(Program* program, mwinContext* context)
     case 8:
         CHECK(count == 1 && IsText(&records[0], "zz"),
               "no composition told while not accepting text, its text committed");
+        break;
+    case 9:
+        TellInsets(program, activity);
+        break;
+    case 10:
+        CHECK(program->safeAreas == 1 && program->keyboards == 1,
+              "insets told: one change of each");
+        // Again, alike, in a frame of its own: the queue merges a frame's
+        // changes of one kind.
+        TellInsets(program, activity);
+        break;
+    case 11:
+        if (program->safeAreas != 0 || program->keyboards != 0)
+        {
+            printf("changes: %d of the safe area, %d of the keyboard\n", program->safeAreas,
+                   program->keyboards);
+        }
+        CHECK(program->safeAreas == 0 && program->keyboards == 0, "insets told alike: no change");
         // Composing from hardware keys, the keyboard hidden.
         CHECK(mwinWindow_RequestTextInput(context, program->window, true, nullptr) == mwin_success,
               "text input asked for again");
         Text(env, connection, "setComposingText", "kn");
         program->composing = (*env)->NewGlobalRef(env, connection);
         break;
-    case 9:
+    case 12:
         CHECK(count == 1 && IsPreedit(&records[0], "kn", 2), "composing, the keyboard hidden");
         program->completions = 0;
         // For the purpose it had: only the keyboard is new.
@@ -525,7 +540,7 @@ static void Advance(Program* program, mwinContext* context)
         Finish(env, program->composing);
         (*env)->DeleteGlobalRef(env, program->composing);
         break;
-    case 10:
+    case 13:
         CheckCommitted(program, context, "kn",
                        "the composition committed when the keyboard is asked for, and ended");
         Text(env, connection, "setComposingText", "pq");
@@ -537,40 +552,10 @@ static void Advance(Program* program, mwinContext* context)
         // old connection, which finishes the composition.
         Finish(env, connection);
         break;
-    case 11:
+    case 14:
         CheckCommitted(program, context, "pq",
                        "the composition committed when another purpose is asked for, and ended");
         CheckType(program, context, 0x3002, "a number, signed and decimal");
-        program->completions = 0;
-        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true, mwin_purposeEmail,
-                                                nullptr) == mwin_success,
-              "a keyboard for an address");
-        break;
-    case 12:
-        CheckType(program, context,
-                  TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_EMAIL | TYPE_TEXT_FLAG_NO_SUGGESTIONS,
-                  "an address");
-        CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false, mwin_purposeText,
-                                                nullptr) == mwin_success,
-              "the keyboard hidden again");
-        break;
-    case 13:
-        TellInsets(program, activity);
-        break;
-    case 14:
-        CHECK(program->safeAreas == 1 && program->keyboards == 1,
-              "insets told: one change of each");
-        // Again, alike, in a frame of its own: the queue merges a frame's
-        // changes of one kind.
-        TellInsets(program, activity);
-        break;
-    case 15:
-        if (program->safeAreas != 0 || program->keyboards != 0)
-        {
-            printf("changes: %d of the safe area, %d of the keyboard\n", program->safeAreas,
-                   program->keyboards);
-        }
-        CHECK(program->safeAreas == 0 && program->keyboards == 0, "insets told alike: no change");
         break;
     default:
         break;

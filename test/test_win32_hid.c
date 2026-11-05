@@ -24,6 +24,8 @@
 // - reports of no size read nothing, however many there are;
 // - a removed device is gone, and its reports read nothing; the pad's
 //   file is closed once named; started for real, Windows' parser loads;
+// - a button box's buttons read with more of them down than the library
+//   numbers, which Windows' parser lists only given room for all;
 // - with room for one gamepad, a gamepad turned away is found again and
 //   added once the one there is unplugged and its removal read.
 
@@ -44,13 +46,16 @@
 #define WHEEL    ((HANDLE)0x66)
 #define EMPTY    ((HANDLE)0x77)
 #define LARGE    ((HANDLE)0x88)
+#define BOX      ((HANDLE)0x99)
 
 // A report of the stand-in's: the Button page's usages down, as bits
-// from usage 1, and each Generic Desktop value by usage from X.
+// from usage 1 and then from usage 65, and each Generic Desktop value by
+// usage from X.
 typedef struct Report
 {
     uint64_t down;
     ULONG values[10];
+    uint64_t more;
 } Report;
 
 typedef struct Device
@@ -63,7 +68,7 @@ typedef struct Device
     DWORD product;
 } Device;
 
-#define DEVICES 8
+#define DEVICES 9
 
 static const Device s_devices[DEVICES] = {
     {PAD, L"\\\\?\\HID#VID_054C&PID_05C4#pad", HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_GAMEPAD,
@@ -84,6 +89,9 @@ static const Device s_devices[DEVICES] = {
     // The pad's buttons, in a report too long for a raw input read.
     {LARGE, L"\\\\?\\HID#VID_BBBB&PID_CCCC#large", HID_USAGE_PAGE_GENERIC,
      HID_USAGE_GENERIC_GAMEPAD, 0xBBBB, 0xCCCC},
+    // A stick of 128 buttons.
+    {BOX, L"\\\\?\\HID#VID_DDDD&PID_EEEE#box", HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_JOYSTICK,
+     0xDDDD, 0xEEEE},
 };
 
 static mwinWin32Hid s_hid;
@@ -207,7 +215,7 @@ static HIDP_BUTTON_CAPS Buttons(USAGE first, USAGE last)
 // Z and Rz, the hat, Rx and Ry, and one more vendor's; the stick's buttons 3,
 // then 1 and 2, and a signed X and Y; the wheel's X, Rz, a slider, a
 // dial of one value and a hat of the widest range, no buttons; none for
-// the empty one; the stick's values for the large one.
+// the empty one; the stick's values for the large one and the box.
 static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 {
     if (owner == EMPTY)
@@ -255,9 +263,14 @@ static USHORT ValueCaps(HANDLE owner, HIDP_VALUE_CAPS* caps)
 }
 
 // The pad's: a vendor's, then 1 to 14, then each of those again; the
-// large one's 1 to 14; the stick's 3, then 1 and 2.
+// large one's 1 to 14; the box's 1 to 128; the stick's 3, then 1 and 2.
 static USHORT ButtonCapsOf(HANDLE owner, HIDP_BUTTON_CAPS* caps)
 {
+    if (owner == BOX)
+    {
+        caps[0] = Buttons(1, 128);
+        return 1;
+    }
     if (owner == LARGE)
     {
         caps[0] = Buttons(1, 14);
@@ -364,15 +377,23 @@ static NTSTATUS NTAPI Usages(HIDP_REPORT_TYPE type, USAGE page, USHORT link, PUS
     Report read = {0};
     memcpy(&read, report, reportLength < sizeof(read) ? reportLength : sizeof(read));
     ULONG count = 0;
-    for (USAGE usage = 1; page == HID_USAGE_PAGE_BUTTON && usage <= 64; usage++)
+    for (USAGE usage = 1; page == HID_USAGE_PAGE_BUTTON && usage <= 128; usage++)
     {
-        if ((read.down >> (usage - 1) & 1u) != 0 && count < *length)
+        uint64_t bits = usage <= 64 ? read.down : read.more;
+        if ((bits >> ((usage - 1) % 64) & 1u) != 0)
         {
-            list[count++] = usage;
+            if (count < *length)
+            {
+                list[count] = usage;
+            }
+            count++;
         }
     }
+    // As Windows' parser does: too small a list filled and said, and, as
+    // Wine's does, every usage down counted.
+    ULONG room = *length;
     *length = count;
-    return HIDP_STATUS_SUCCESS;
+    return count > room ? HIDP_STATUS_BUFFER_TOO_SMALL : HIDP_STATUS_SUCCESS;
 }
 
 static NTSTATUS NTAPI UsageValue(HIDP_REPORT_TYPE type, USAGE page, USHORT link, USAGE usage,
@@ -448,19 +469,27 @@ static bool Near(float a, float b)
     return a - b < 1e-4f && b - a < 1e-4f;
 }
 
-static void Send(HANDLE device, uint64_t down, const ULONG values[10])
+// A report of buttons 1 to 64 and then 65 to 128 down, and the values.
+static void SendWide(HANDLE device, uint64_t down, uint64_t more, const ULONG values[10])
 {
     s_sender = device;
     s_report.down = down;
+    s_report.more = more;
     memcpy(s_report.values, values, sizeof(s_report.values));
     mwinWin32HidInput(&s_hid, (HRAWINPUT)0x99, 2);
 }
 
-// The gamepads added: the pad's, the stick's and the wheel's ids.
-static void Ids(const Program* program, mwinGamepadId ids[3])
+static void Send(HANDLE device, uint64_t down, const ULONG values[10])
+{
+    SendWide(device, down, 0, values);
+}
+
+// The gamepads added: the pad's, the stick's, the wheel's and the box's
+// ids.
+static void Ids(const Program* program, mwinGamepadId ids[4])
 {
     int found = 0;
-    for (int i = 0; i < program->eventCount && found < 3; i++)
+    for (int i = 0; i < program->eventCount && found < 4; i++)
     {
         if (program->events[i].kind == mwin_eventGamepadAdded)
         {
@@ -469,16 +498,21 @@ static void Ids(const Program* program, mwinGamepadId ids[3])
     }
 }
 
-static void CheckFound(const mwinContext* context, const mwinGamepadId ids[3], int added)
+static void CheckFound(const mwinContext* context, const mwinGamepadId ids[4], int added)
 {
     mwinGamepadInfo pad;
     mwinGamepadInfo stick;
     mwinGamepadInfo wheel;
-    CHECK(added == 3 && mwinGamepad_GetInfo(context, ids[0], &pad) == mwin_success &&
+    mwinGamepadInfo box;
+    CHECK(added == 4 && mwinGamepad_GetInfo(context, ids[0], &pad) == mwin_success &&
               mwinGamepad_GetInfo(context, ids[1], &stick) == mwin_success &&
-              mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success,
-          "of the devices, the pad, the stick and the wheel, whose report fills a raw input read, "
-          "gamepads, once, and not the one whose report a raw input read cannot hold");
+              mwinGamepad_GetInfo(context, ids[2], &wheel) == mwin_success &&
+              mwinGamepad_GetInfo(context, ids[3], &box) == mwin_success,
+          "of the devices, the pad, the stick, the wheel, whose report fills a raw input read, "
+          "and the box gamepads, once, and not the one whose report a raw input read cannot "
+          "hold");
+    CHECK(!box.mapped && box.rawButtonCount == MWIN_GAMEPAD_RAW_BUTTONS && box.rawAxisCount == 4,
+          "the box raw, as many buttons as a raw gamepad has");
     CHECK(!wheel.mapped && wheel.rawButtonCount == 0 && wheel.rawAxisCount == 6,
           "the wheel raw: four axes and a hat, no buttons");
     CHECK(s_opened >= 1 && s_closed == s_opened, "the pad's file closed once named");
@@ -529,9 +563,18 @@ static void CheckWheel(const mwinContext* context, mwinGamepadId id)
           "a hat whose range spans 32 bits read in the right step");
 }
 
+// Buttons 1 and 3 down, and all of 65 to 128: more than the library
+// numbers.
+static void CheckBox(const mwinContext* context, mwinGamepadId id)
+{
+    mwinGamepadState state;
+    CHECK(mwinGamepad_GetState(context, id, &state) == mwin_success && state.buttons == 0x5u,
+          "the box's buttons read with 66 of them down");
+}
+
 static void Step(Program* program, mwinContext* context, int step)
 {
-    static mwinGamepadId ids[3];
+    static mwinGamepadId ids[4];
     Drain(program, context);
     int added = 0;
     for (int i = 0; i < program->eventCount; i++)
@@ -559,11 +602,13 @@ static void Step(Program* program, mwinContext* context, int step)
         Send(STICK, 1u << 0 | 1u << 2, (const ULONG[10]){0x80, 0x7F, 0, 0, 0, 0, 0, 0, 0, 8});
         // X right, Rz left, the slider full, the dial at its one value.
         Send(WHEEL, 0, (const ULONG[10]){255, 0, 0, 0, 0, 0, 255, 5, 0, 0});
+        SendWide(BOX, 1u << 0 | 1u << 2, UINT64_MAX, (const ULONG[10]){0x80, 0x80});
         break;
     case 2:
         CheckPad(context, ids[0]);
         CheckStick(context, ids[1]);
         CheckWheel(context, ids[2]);
+        CheckBox(context, ids[3]);
         mwinWin32HidRemove(&s_hid, STICK, 3);
         mwinWin32HidRemove(&s_hid, KEYBOARD, 3);
         Send(STICK, 0, (const ULONG[10]){0});

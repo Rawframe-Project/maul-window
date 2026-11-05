@@ -321,17 +321,16 @@ void mwinWin32HidRemove(mwinWin32Hid* hid, HANDLE device, uint64_t timeNs)
 }
 
 // One input report: the buttons down, and each axis's and hat's value.
-static void Parse(const mwinWin32Hid* hid, mwinHidPad* pad, BYTE* report, ULONG length)
+static void Parse(mwinWin32Hid* hid, mwinHidPad* pad, BYTE* report, ULONG length)
 {
     const mwinHidApi* api = &hid->api;
     const mwinPadControls* controls = &pad->hid.controls;
-    USAGE down[MWIN_PAD_NUMBERED_BUTTONS];
-    ULONG count = MWIN_PAD_NUMBERED_BUTTONS;
-    if (api->usages(HidP_Input, HID_USAGE_PAGE_BUTTON, 0, down, &count, pad->preparsed,
+    ULONG count = MWIN_WIN32_HID_DOWN;
+    if (api->usages(HidP_Input, HID_USAGE_PAGE_BUTTON, 0, hid->down, &count, pad->preparsed,
                     (PCHAR)report, length) == HIDP_STATUS_SUCCESS)
     {
-        mwinHidSetButtons(&pad->hid, down,
-                          count < MWIN_PAD_NUMBERED_BUTTONS ? count : MWIN_PAD_NUMBERED_BUTTONS);
+        mwinHidSetButtons(&pad->hid, hid->down,
+                          count < MWIN_WIN32_HID_DOWN ? count : MWIN_WIN32_HID_DOWN);
     }
     for (uint32_t i = 0; i < (uint32_t)controls->axisCount + controls->hatCount; i++)
     {

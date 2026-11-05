@@ -36,6 +36,10 @@
 // A device whose input report does not fit beside the header is turned
 // away, since none of its reports could be read.
 #define MWIN_WIN32_HID_INPUT_BYTES 1024
+// The Button page's usages a report can have down: one for each of its
+// bits, as a report fits in a raw input read. Windows' parser refuses a
+// list with less room than all of those down.
+#define MWIN_WIN32_HID_DOWN (MWIN_WIN32_HID_INPUT_BYTES * 8)
 // The Generic Desktop usage of a multi-axis controller, which MinGW's
 // headers do not name.
 #define MWIN_HID_MULTI_AXIS 0x08
@@ -85,6 +89,8 @@ typedef struct mwinWin32Hid
     // A gamepad was turned away for want of room: the devices are found
     // again once there is room.
     bool refused;
+    // A report's buttons down, as the parser lists them.
+    USAGE down[MWIN_WIN32_HID_DOWN];
 } mwinWin32Hid;
 
 // Loads the HID parser and finds the devices present; without it there

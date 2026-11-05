@@ -178,7 +178,8 @@ static void Post(mwinWebPads* pads, const mwinWebPad* pad, const PadState* state
 }
 
 // Tells the core of a pad found at an index; false when it has no room.
-static bool Found(mwinWebPads* pads, uint32_t index, const PadState* state, uint64_t nowNs)
+MWIN_NODISCARD static bool Found(mwinWebPads* pads, uint32_t index, const PadState* state,
+                                 uint64_t nowNs)
 {
     char name[MWIN_GAMEPAD_NAME_BYTES + 1];
     uint32_t ids[2] = {0, 0};

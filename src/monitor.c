@@ -76,12 +76,12 @@ void mwinChangeMonitor(mwinContext* context, uint32_t slot, const mwinMonitorInf
     PostMonitor(context, slot, mwin_eventMonitorChanged, timeNs);
 }
 
-static bool SameRect(mwinPixelRect a, mwinPixelRect b)
+MWIN_NODISCARD static bool SameRect(mwinPixelRect a, mwinPixelRect b)
 {
     return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
 }
 
-static bool SameHdr(mwinHdrFacts a, mwinHdrFacts b)
+MWIN_NODISCARD static bool SameHdr(mwinHdrFacts a, mwinHdrFacts b)
 {
     return a.known == b.known && a.active == b.active && a.peakNits == b.peakNits &&
            a.fullFrameNits == b.fullFrameNits && a.sdrWhiteNits == b.sdrWhiteNits &&

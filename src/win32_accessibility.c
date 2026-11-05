@@ -12,7 +12,7 @@
 #define ROOT_OBJECT_ID (-25)
 
 // UiaReturnRawElementProvider, loaded from uiautomationcore.dll.
-static bool Load(mwinWin32Platform* platform)
+MWIN_NODISCARD static bool Load(mwinWin32Platform* platform)
 {
     if (platform->uiaReturn == nullptr && !platform->uiaTried)
     {

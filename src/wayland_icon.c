@@ -49,8 +49,8 @@ static void Apply(mwinWaylandWindow* window, struct xdg_toplevel_icon_v1* icon)
 }
 
 // A buffer of each image, in one pool, added to the icon.
-static bool AddBuffers(mwinWaylandPlatform* platform, const mwinIconCopy* copy,
-                       struct xdg_toplevel_icon_v1* icon, struct wl_buffer** buffers)
+MWIN_NODISCARD static bool AddBuffers(mwinWaylandPlatform* platform, const mwinIconCopy* copy,
+                                      struct xdg_toplevel_icon_v1* icon, struct wl_buffer** buffers)
 {
     const mwinWaylandApi* api = &platform->api;
     size_t bytes = 0;

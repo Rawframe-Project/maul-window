@@ -7,7 +7,7 @@
 #include "preedit_fit.h"
 
 // Whether a byte continues a character of UTF-8.
-static bool Continues(const char* text, size_t at)
+MWIN_NODISCARD static bool Continues(const char* text, size_t at)
 {
     return ((unsigned char)text[at] & 0xC0u) == 0x80u;
 }

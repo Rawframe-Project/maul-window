@@ -16,12 +16,12 @@
 // the variant.
 #define TAG_BYTES 32
 
-static bool IsLetter(char c)
+MWIN_NODISCARD static bool IsLetter(char c)
 {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-static bool IsDigit(char c)
+MWIN_NODISCARD static bool IsDigit(char c)
 {
     return c >= '0' && c <= '9';
 }
@@ -38,7 +38,7 @@ static char Upper(char c)
 
 // Whether a part of a name, of length count, is all letters or all
 // digits as asked, and between two and three long.
-static bool IsPart(const char* part, size_t count, bool digits)
+MWIN_NODISCARD static bool IsPart(const char* part, size_t count, bool digits)
 {
     bool fits = count >= 2 && count <= 3;
     for (size_t i = 0; i < count && fits; i++)
@@ -94,7 +94,7 @@ static size_t TagOf(const char* name, size_t length, char tag[TAG_BYTES])
 }
 
 // Whether the list already has the tag.
-static bool Has(const char* list, size_t length, const char* tag, size_t tagLength)
+MWIN_NODISCARD static bool Has(const char* list, size_t length, const char* tag, size_t tagLength)
 {
     for (size_t at = 0; at + tagLength <= length;)
     {
@@ -172,7 +172,7 @@ static size_t LineOf(const char* text, size_t length, size_t at, size_t* nextOut
     return end > at && text[end - 1] == '\r' ? end - 1 - at : end - at;
 }
 
-static bool IsBlank(char c)
+MWIN_NODISCARD static bool IsBlank(char c)
 {
     return c == ' ' || c == '\t';
 }

@@ -8,7 +8,7 @@
 #include <math.h>
 #include <string.h>
 
-static bool IsRegion(const mwinHitRegion* region)
+MWIN_NODISCARD static bool IsRegion(const mwinHitRegion* region)
 {
     const mwinRect* rect = &region->rect;
     return isfinite(rect->x) && isfinite(rect->y) && isfinite(rect->width) &&

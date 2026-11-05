@@ -10,6 +10,8 @@
 #ifndef MAUL_WINDOW_SRC_PAD_DB_H
 #define MAUL_WINDOW_SRC_PAD_DB_H
 
+#include "maul-window/base.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -43,7 +45,7 @@ static inline int mwinPadSourceHalf(mwinPadSource source)
     return (source >> 8) & 3;
 }
 
-static inline bool mwinPadSourceInverted(mwinPadSource source)
+MWIN_NODISCARD static inline bool mwinPadSourceInverted(mwinPadSource source)
 {
     return (source & 0x0400u) != 0;
 }

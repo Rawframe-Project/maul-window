@@ -35,13 +35,14 @@ static void ProgramName(char* name, size_t size)
     (void)snprintf(name + length, size - length, "%s", length > 0 ? "" : "maul-window");
 }
 
-static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
+MWIN_NODISCARD static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const char* text)
 {
     return api->appendBasic(iter, mwin_dbusTypeString, (const void*)&text);
 }
 
 // The portal's options: the reason, as a string variant.
-static bool AppendOptions(const mwinDBusApi* api, mwinDBusIter* arguments)
+MWIN_NODISCARD static bool AppendOptions(const mwinDBusApi* api, mwinDBusIter* arguments)
 {
     mwinDBusIter options;
     mwinDBusIter entry;
@@ -54,7 +55,8 @@ static bool AppendOptions(const mwinDBusApi* api, mwinDBusIter* arguments)
            api->closeContainer(&options, &entry) && api->closeContainer(arguments, &options);
 }
 
-static bool Ask(mwinLinuxBus* bus, mwinLinuxInhibit* inhibit, mwinInhibitBy by, uint64_t nowNs)
+MWIN_NODISCARD static bool Ask(mwinLinuxBus* bus, mwinLinuxInhibit* inhibit, mwinInhibitBy by,
+                               uint64_t nowNs)
 {
     const mwinDBusApi* api = &bus->api;
     bool screenSaver = by == mwin_inhibitScreenSaver;
@@ -93,7 +95,8 @@ static bool Ask(mwinLinuxBus* bus, mwinLinuxInhibit* inhibit, mwinInhibitBy by, 
 
 // Takes who holds the display from an answer; false for one without
 // what it should carry.
-static bool Held(const mwinDBusApi* api, mwinLinuxInhibit* inhibit, DBusMessage* reply)
+MWIN_NODISCARD static bool Held(const mwinDBusApi* api, mwinLinuxInhibit* inhibit,
+                                DBusMessage* reply)
 {
     mwinDBusIter iter;
     int type = api->iterInit(reply, &iter) ? api->argType(&iter) : 0;
@@ -117,7 +120,7 @@ static bool Held(const mwinDBusApi* api, mwinLinuxInhibit* inhibit, DBusMessage*
 }
 
 // Reads the answer to a call: false while it waits.
-static bool Answered(mwinLinuxBus* bus, mwinLinuxInhibit* inhibit, uint64_t nowNs)
+MWIN_NODISCARD static bool Answered(mwinLinuxBus* bus, mwinLinuxInhibit* inhibit, uint64_t nowNs)
 {
     bool failed = false;
     DBusMessage* reply = mwinBusAnswer(bus, &inhibit->call, nowNs, &failed);

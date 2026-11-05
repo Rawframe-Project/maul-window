@@ -25,34 +25,37 @@ void mwinDialogsStart(mwinLinuxDialogs* dialogs, mwinContext* context, mwinLinux
     }
 }
 
-static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
+MWIN_NODISCARD static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const char* text)
 {
     return api->appendBasic(iter, mwin_dbusTypeString, (const void*)&text);
 }
 
 // An option of a{sv}: its entry and the variant within, to fill in.
-static bool OpenOption(const mwinDBusApi* api, mwinDBusIter* options, const char* key,
-                       const char* signature, mwinDBusIter entry[2])
+MWIN_NODISCARD static bool OpenOption(const mwinDBusApi* api, mwinDBusIter* options,
+                                      const char* key, const char* signature, mwinDBusIter entry[2])
 {
     return api->openContainer(options, mwin_dbusTypeDictEntry, nullptr, &entry[0]) &&
            AppendString(api, &entry[0], key) &&
            api->openContainer(&entry[0], mwin_dbusTypeVariant, signature, &entry[1]);
 }
 
-static bool CloseOption(const mwinDBusApi* api, mwinDBusIter* options, mwinDBusIter entry[2])
+MWIN_NODISCARD static bool CloseOption(const mwinDBusApi* api, mwinDBusIter* options,
+                                       mwinDBusIter entry[2])
 {
     return api->closeContainer(&entry[0], &entry[1]) && api->closeContainer(options, &entry[0]);
 }
 
-static bool StringOption(const mwinDBusApi* api, mwinDBusIter* options, const char* key,
-                         const char* text)
+MWIN_NODISCARD static bool StringOption(const mwinDBusApi* api, mwinDBusIter* options,
+                                        const char* key, const char* text)
 {
     mwinDBusIter entry[2];
     return OpenOption(api, options, key, "s", entry) && AppendString(api, &entry[1], text) &&
            CloseOption(api, options, entry);
 }
 
-static bool TrueOption(const mwinDBusApi* api, mwinDBusIter* options, const char* key)
+MWIN_NODISCARD static bool TrueOption(const mwinDBusApi* api, mwinDBusIter* options,
+                                      const char* key)
 {
     mwinDBusIter entry[2];
     mwinDBusBool yes = 1;
@@ -62,8 +65,8 @@ static bool TrueOption(const mwinDBusApi* api, mwinDBusIter* options, const char
 }
 
 // A path as the portal takes it: bytes, with their NUL.
-static bool BytesOption(const mwinDBusApi* api, mwinDBusIter* options, const char* key,
-                        const char* bytes, size_t length)
+MWIN_NODISCARD static bool BytesOption(const mwinDBusApi* api, mwinDBusIter* options,
+                                       const char* key, const char* bytes, size_t length)
 {
     mwinDBusIter entry[2];
     mwinDBusIter array;
@@ -74,7 +77,8 @@ static bool BytesOption(const mwinDBusApi* api, mwinDBusIter* options, const cha
 }
 
 // A filter, (sa(us)): its name and a glob (0) an extension.
-static bool AppendFilter(const mwinDBusApi* api, mwinDBusIter* iter, const mwinDialogFilter* filter)
+MWIN_NODISCARD static bool AppendFilter(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const mwinDialogFilter* filter)
 {
     mwinDBusIter entry;
     mwinDBusIter patterns;
@@ -98,7 +102,8 @@ static bool AppendFilter(const mwinDBusApi* api, mwinDBusIter* iter, const mwinD
 }
 
 // The filters, the first chosen at first.
-static bool FilterOptions(const mwinDBusApi* api, mwinDBusIter* options, const mwinDialogCopy* copy)
+MWIN_NODISCARD static bool FilterOptions(const mwinDBusApi* api, mwinDBusIter* options,
+                                         const mwinDialogCopy* copy)
 {
     mwinDBusIter entry[2];
     mwinDBusIter array;
@@ -113,8 +118,8 @@ static bool FilterOptions(const mwinDBusApi* api, mwinDBusIter* options, const m
            AppendFilter(api, &entry[1], &copy->filters[0]) && CloseOption(api, options, entry);
 }
 
-static bool Options(const mwinDBusApi* api, mwinDBusIter* arguments, const mwinDialogCopy* copy,
-                    const char* token)
+MWIN_NODISCARD static bool Options(const mwinDBusApi* api, mwinDBusIter* arguments,
+                                   const mwinDialogCopy* copy, const char* token)
 {
     mwinDBusIter options;
     bool built = api->openContainer(arguments, mwin_dbusTypeArray, "{sv}", &options) &&
@@ -146,8 +151,8 @@ static void Handle(const mwinLinuxBus* bus, const char* token, char* handle)
 }
 
 // Asks the portal for the dialog: false when the call could not go.
-static bool Call(mwinLinuxDialogs* dialogs, mwinLinuxDialog* dialog, const mwinDialogCopy* copy,
-                 const char* parent)
+MWIN_NODISCARD static bool Call(mwinLinuxDialogs* dialogs, mwinLinuxDialog* dialog,
+                                const mwinDialogCopy* copy, const char* parent)
 {
     mwinLinuxBus* bus = dialogs->bus;
     const mwinDBusApi* api = &bus->api;
@@ -313,8 +318,8 @@ static void Listen(mwinLinuxDialogs* dialogs)
 }
 
 // Starts zenity in the portal's stead: false when it ended at once.
-static bool Fallback(mwinLinuxDialogs* dialogs, mwinLinuxDialog* dialog, const mwinDialogCopy* copy,
-                     int* outcome)
+MWIN_NODISCARD static bool Fallback(mwinLinuxDialogs* dialogs, mwinLinuxDialog* dialog,
+                                    const mwinDialogCopy* copy, int* outcome)
 {
     *outcome = mwinZenityStart(&dialog->zenity, dialogs->context, copy);
     return *outcome < 0;

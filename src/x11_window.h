@@ -19,7 +19,8 @@ void mwinX11DestroyWindow(mwinContext* context, uint32_t slot);
 void mwinX11Submit(mwinContext* context, uint32_t slot, uint32_t request);
 
 // Handles an event about a window: false for one of another kind.
-bool mwinX11HandleWindowEvent(mwinX11Platform* platform, const xcb_generic_event_t* event);
+MWIN_NODISCARD bool mwinX11HandleWindowEvent(mwinX11Platform* platform,
+                                             const xcb_generic_event_t* event);
 
 // Answers the mode requests the window manager left unanswered past
 // their deadline.

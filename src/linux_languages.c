@@ -24,7 +24,8 @@
 #define PLASMA        "plasma-localerc"
 #define BUS           "org.freedesktop.DBus"
 
-static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
+MWIN_NODISCARD static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const char* text)
 {
     return api->appendBasic(iter, mwin_dbusTypeString, (const void*)&text);
 }
@@ -59,8 +60,9 @@ static void Heard(mwinLinuxLanguages* languages, mwinLinuxLanguageWord* word, co
 // a language, else its Language, with *namedOut set where the one taken
 // names one, even if none fits. False where neither is there in the
 // shape expected (as, s): nothing said.
-static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* api,
-                        mwinDBusIter* properties, char* out, size_t* lengthOut, bool* namedOut)
+MWIN_NODISCARD static bool UserLocales(const mwinLinuxLanguages* languages, const mwinDBusApi* api,
+                                       mwinDBusIter* properties, char* out, size_t* lengthOut,
+                                       bool* namedOut)
 {
     char* single = languages->single;
     size_t fromList = 0;

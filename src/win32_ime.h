@@ -25,8 +25,8 @@ void mwinWin32ShapePreedit(uint32_t count, const BYTE* attributes, LONG attribut
 
 // Handles an input method message of a window: true when handled, with
 // the result in *result.
-bool mwinWin32HandleIme(mwinWin32Window* window, UINT message, WPARAM wParam, LPARAM lParam,
-                        LRESULT* result);
+MWIN_NODISCARD bool mwinWin32HandleIme(mwinWin32Window* window, UINT message, WPARAM wParam,
+                                       LPARAM lParam, LRESULT* result);
 
 // Carry out a text input request and a caret request of a window.
 mwinOutcome mwinWin32SetTextInput(mwinWin32Window* window, bool enabled);

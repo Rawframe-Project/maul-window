@@ -59,7 +59,7 @@ static const IID s_iidUnknown = {0x00000000, 0x0000, 0x0000, {0xC0, 0, 0, 0, 0, 
 
 // A library's function, its bytes copied: a FARPROC is no function of
 // the right type to cast.
-static bool Load(HMODULE library, const char* name, void* function, size_t size)
+MWIN_NODISCARD static bool Load(HMODULE library, const char* name, void* function, size_t size)
 {
     FARPROC found = library != nullptr ? GetProcAddress(library, name) : nullptr;
     memcpy(function, (const void*)&found, size);

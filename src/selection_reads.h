@@ -25,7 +25,7 @@ typedef struct mwinSelectionRead
 
 // Whether a request reads the primary selection rather than the
 // clipboard.
-bool mwinReadsPrimary(const mwinRequest* request);
+MWIN_NODISCARD bool mwinReadsPrimary(const mwinRequest* request);
 
 // Keeps what a read for a request is of.
 void mwinBeginSelectionRead(mwinSelectionRead* read, const mwinRequest* request);

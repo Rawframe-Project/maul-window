@@ -19,7 +19,8 @@
 #define UPOWER_PATH "/org/freedesktop/UPower"
 #define BATTERY     "OnBattery"
 
-static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter, const char* text)
+MWIN_NODISCARD static bool AppendString(const mwinDBusApi* api, mwinDBusIter* iter,
+                                        const char* text)
 {
     return api->appendBasic(iter, mwin_dbusTypeString, (const void*)&text);
 }
@@ -108,9 +109,9 @@ static mwinDBusHandled Filter(DBusConnection* connection, DBusMessage* message, 
 // Listens for an interface's PropertiesChanged on a bus, follows the
 // owner of the service's name, and asks for one of its properties: false
 // when the bus is not there.
-static bool Ask(mwinLinuxPower* power, mwinLinuxBus* bus, mwinBusOwner* owner,
-                const char* destination, const char* path, const char* interface, const char* name,
-                mwinBusCall* call, uint64_t nowNs)
+MWIN_NODISCARD static bool Ask(mwinLinuxPower* power, mwinLinuxBus* bus, mwinBusOwner* owner,
+                               const char* destination, const char* path, const char* interface,
+                               const char* name, mwinBusCall* call, uint64_t nowNs)
 {
     if (!mwinBusConnect(bus) || !bus->api.addFilter(bus->connection, Filter, power, nullptr))
     {

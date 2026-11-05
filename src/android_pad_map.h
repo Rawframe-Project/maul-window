@@ -62,7 +62,7 @@ typedef struct mwinAndroidPadLayout
 void mwinAndroidPadLayoutOf(mwinAndroidPadLayout* layout, mwinGamepadInfo* info);
 
 // Whether a key is a gamepad's (one of mwinAndroidPadKeys).
-bool mwinAndroidIsPadKey(int32_t keyCode);
+MWIN_NODISCARD bool mwinAndroidIsPadKey(int32_t keyCode);
 
 // A key of the gamepad in a core slot pressed or let go.
 void mwinAndroidPadKey(mwinContext* context, uint32_t slot, const mwinAndroidPadLayout* layout,

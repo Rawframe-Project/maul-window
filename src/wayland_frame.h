@@ -32,8 +32,8 @@ void mwinWaylandUpdateFrame(mwinWaylandPlatform* platform, uint32_t slot);
 void mwinWaylandDestroyFrame(mwinWaylandPlatform* platform, uint32_t slot);
 
 // The pointer on a frame part: false for a surface that is none.
-bool mwinWaylandFrameEnter(mwinWaylandPlatform* platform, struct wl_surface* surface,
-                           mwinPosition position);
+MWIN_NODISCARD bool mwinWaylandFrameEnter(mwinWaylandPlatform* platform, struct wl_surface* surface,
+                                          mwinPosition position);
 void mwinWaylandFrameMotion(mwinWaylandPlatform* platform, mwinPosition position);
 void mwinWaylandFrameButton(mwinWaylandPlatform* platform, uint32_t serial, uint32_t button,
                             bool pressed, uint64_t timeNs);
@@ -45,7 +45,8 @@ void mwinWaylandFrameLeave(mwinWaylandPlatform* platform);
 // button moves the window, or maximizes or restores it on a second
 // click, and the right button opens the window menu; on an edge, the
 // left button resizes it.
-bool mwinWaylandPressChrome(mwinWaylandPlatform* platform, uint32_t slot, uint32_t serial,
-                            uint32_t button, mwinPosition at, uint8_t clicks);
+MWIN_NODISCARD bool mwinWaylandPressChrome(mwinWaylandPlatform* platform, uint32_t slot,
+                                           uint32_t serial, uint32_t button, mwinPosition at,
+                                           uint8_t clicks);
 
 #endif // MAUL_WINDOW_SRC_WAYLAND_FRAME_H

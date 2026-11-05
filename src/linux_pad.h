@@ -72,7 +72,7 @@ typedef struct mwinLinuxPads
 
 // Finds the gamepads connected and starts watching for more; false only
 // when the memory for them could not be had.
-bool mwinLinuxPadsStart(mwinLinuxPads* pads, mwinContext* context);
+MWIN_NODISCARD bool mwinLinuxPadsStart(mwinLinuxPads* pads, mwinContext* context);
 void mwinLinuxPadsStop(mwinLinuxPads* pads);
 
 // Reads what the devices and /dev/input say, without waiting.

@@ -10,7 +10,7 @@
 
 // A symbol of a library by name. A function comes back as data from
 // dlsym and is copied, not cast, into its pointer.
-static bool Find(void* library, const char* name, void* target, size_t size)
+MWIN_NODISCARD static bool Find(void* library, const char* name, void* target, size_t size)
 {
     void* symbol = dlsym(library, name);
     if (symbol == nullptr)
@@ -23,7 +23,7 @@ static bool Find(void* library, const char* name, void* target, size_t size)
 
 #define FIND(library, field, name) Find(api->library, #name, (void*)&api->field, sizeof(api->field))
 
-static bool FindCore(mwinX11Api* api)
+MWIN_NODISCARD static bool FindCore(mwinX11Api* api)
 {
     return FIND(library, connect, xcb_connect) && FIND(library, disconnect, xcb_disconnect) &&
            FIND(library, connectionHasError, xcb_connection_has_error) &&
@@ -78,7 +78,7 @@ static bool FindCore(mwinX11Api* api)
            FIND(library, polyRectangle, xcb_poly_rectangle);
 }
 
-static bool FindRandr(mwinX11Api* api)
+MWIN_NODISCARD static bool FindRandr(mwinX11Api* api)
 {
     // The extension's id is data, not a function.
     api->randrId = dlsym(api->randrLibrary, "xcb_randr_id");
@@ -109,7 +109,7 @@ static bool FindRandr(mwinX11Api* api)
            FIND(randrLibrary, randrGetCrtcInfoReply, xcb_randr_get_crtc_info_reply);
 }
 
-static bool FindKeyboard(mwinX11Api* api)
+MWIN_NODISCARD static bool FindKeyboard(mwinX11Api* api)
 {
     return FIND(xkbX11Library, xkbSetupExtension, xkb_x11_setup_xkb_extension) &&
            FIND(xkbX11Library, xkbCoreDevice, xkb_x11_get_core_keyboard_device_id) &&
@@ -120,14 +120,14 @@ static bool FindKeyboard(mwinX11Api* api)
            FIND(xcbXkbLibrary, xkbPerClientFlagsReply, xcb_xkb_per_client_flags_reply);
 }
 
-static bool FindCursors(mwinX11Api* api)
+MWIN_NODISCARD static bool FindCursors(mwinX11Api* api)
 {
     return FIND(cursorLibrary, cursorContextNew, xcb_cursor_context_new) &&
            FIND(cursorLibrary, cursorLoad, xcb_cursor_load_cursor) &&
            FIND(cursorLibrary, cursorContextFree, xcb_cursor_context_free);
 }
 
-static bool FindRender(mwinX11Api* api)
+MWIN_NODISCARD static bool FindRender(mwinX11Api* api)
 {
     // The extension's id is data, not a function.
     api->renderId = dlsym(api->renderLibrary, "xcb_render_id");
@@ -141,7 +141,7 @@ static bool FindRender(mwinX11Api* api)
            FIND(renderLibrary, renderCreateCursor, xcb_render_create_cursor);
 }
 
-static bool FindXinput(mwinX11Api* api)
+MWIN_NODISCARD static bool FindXinput(mwinX11Api* api)
 {
     // The extension's id is data, not a function.
     api->xinputId = dlsym(api->xinputLibrary, "xcb_input_id");

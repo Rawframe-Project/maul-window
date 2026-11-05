@@ -166,7 +166,7 @@ typedef struct Preedit
 
 // Adds a part of a composition with its style: false when it does not
 // fit or is not UTF-8.
-static bool AddPart(Preedit* preedit, const char* bytes, mwinPreeditStyle style)
+MWIN_NODISCARD static bool AddPart(Preedit* preedit, const char* bytes, mwinPreeditStyle style)
 {
     size_t length = bytes != nullptr ? strlen(bytes) : 0;
     if (length > preedit->capacity - preedit->length ||
@@ -260,8 +260,8 @@ static void TakeFcitxPreedit(mwinLinuxIme* ime, DBusMessage* message)
 // Enters a variant holding a struct named name, IBus's serialized
 // objects: (s name, a{sv} attachments, ...), leaving fields at the
 // first field after the attachments; false for another.
-static bool EnterObject(const mwinDBusApi* api, mwinDBusIter* iter, const char* name,
-                        mwinDBusIter* fields)
+MWIN_NODISCARD static bool EnterObject(const mwinDBusApi* api, mwinDBusIter* iter, const char* name,
+                                       mwinDBusIter* fields)
 {
     mwinDBusIter inside;
     const char* found = nullptr;
@@ -463,7 +463,7 @@ static void Listen(mwinLinuxIme* ime)
 
 // Asks the next framework not tried for an input context: false when
 // every one was.
-static bool Create(mwinLinuxIme* ime, uint64_t nowNs)
+MWIN_NODISCARD static bool Create(mwinLinuxIme* ime, uint64_t nowNs)
 {
     const char* modifiers = getenv("XMODIFIERS");
     bool fcitxFirst = modifiers != nullptr && strstr(modifiers, "@im=fcitx") != nullptr;

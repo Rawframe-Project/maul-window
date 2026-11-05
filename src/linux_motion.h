@@ -28,14 +28,16 @@ void mwinLinuxIdentityOf(int fd, mwinLinuxPadIdentity* identity);
 
 // Opens /dev/input/eventN as a pad's motion device: false when it is
 // not one, or not that pad's.
-bool mwinLinuxOpenMotion(mwinLinuxMotion* motion, int node, const mwinLinuxPadIdentity* pad);
+MWIN_NODISCARD bool mwinLinuxOpenMotion(mwinLinuxMotion* motion, int node,
+                                        const mwinLinuxPadIdentity* pad);
 
 // Looks through /dev/input for a pad's motion device.
-bool mwinLinuxFindMotion(mwinLinuxMotion* motion, const mwinLinuxPadIdentity* pad);
+MWIN_NODISCARD bool mwinLinuxFindMotion(mwinLinuxMotion* motion, const mwinLinuxPadIdentity* pad);
 
 // Reads the device's events, posting a sample at each report to the
 // gamepad in a slot: false when the device is gone.
-bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context, uint32_t slot);
+MWIN_NODISCARD bool mwinLinuxReadMotion(mwinLinuxMotion* motion, mwinContext* context,
+                                        uint32_t slot);
 
 void mwinLinuxCloseMotion(mwinLinuxMotion* motion);
 

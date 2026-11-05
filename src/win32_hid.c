@@ -26,7 +26,7 @@ static void Load(HMODULE library, const char* name, void* function, size_t size)
 
 #define LOAD(field, name) Load(library, name, (void*)&api->field, sizeof(api->field))
 
-static bool LoadParser(mwinHidApi* api)
+MWIN_NODISCARD static bool LoadParser(mwinHidApi* api)
 {
     HMODULE library = LoadLibraryW(L"hid.dll");
     *api = (mwinHidApi){.library = library,
@@ -134,7 +134,7 @@ static void ReadValues(const mwinWin32Hid* hid, mwinHidPad* pad, USHORT count)
 
 // The device's controls, in the numbering; false for a device with none,
 // or whose input report a raw input read cannot hold.
-static bool ReadControls(const mwinWin32Hid* hid, mwinHidPad* pad)
+MWIN_NODISCARD static bool ReadControls(const mwinWin32Hid* hid, mwinHidPad* pad)
 {
     HIDP_CAPS caps;
     if (hid->api.getCaps(pad->preparsed, &caps) != HIDP_STATUS_SUCCESS ||
@@ -177,8 +177,8 @@ static void NameOf(const mwinWin32Hid* hid, const wchar_t* path, mwinGamepadInfo
 
 // The device's path, and whether it is one the backend reads: a
 // joystick, gamepad or multi-axis controller that XInput does not.
-static bool IsPad(const mwinWin32Hid* hid, HANDLE device, RID_DEVICE_INFO* info,
-                  wchar_t path[PATH_UNITS])
+MWIN_NODISCARD static bool IsPad(const mwinWin32Hid* hid, HANDLE device, RID_DEVICE_INFO* info,
+                                 wchar_t path[PATH_UNITS])
 {
     UINT size = sizeof(*info);
     info->cbSize = sizeof(*info);
@@ -208,7 +208,7 @@ static void Release(mwinWin32Hid* hid, mwinHidPad* pad)
 }
 
 // Keeps the device's HID parser data: false where it gives none.
-static bool KeepParserData(mwinWin32Hid* hid, mwinHidPad* pad)
+MWIN_NODISCARD static bool KeepParserData(mwinWin32Hid* hid, mwinHidPad* pad)
 {
     UINT bytes = 0;
     if (hid->api.deviceInfo(pad->device, RIDI_PREPARSEDDATA, nullptr, &bytes) != 0 || bytes == 0)

@@ -9,6 +9,8 @@
 #ifndef MAUL_WINDOW_SRC_LINUX_LOCALE_H
 #define MAUL_WINDOW_SRC_LINUX_LOCALE_H
 
+#include "maul-window/base.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -35,7 +37,7 @@ size_t mwinLinuxAddLocales(const char* names, size_t namesLength, char* out, siz
 // *fullOut. False for a text with a NUL in it, which is no
 // configuration; *lengthOut is 0 where the key is missing, no name in it
 // is a language's, or its first tag does not fit.
-bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out, size_t capacity,
-                            size_t* lengthOut, bool* fullOut);
+MWIN_NODISCARD bool mwinLinuxPlasmaLocales(const char* text, size_t length, char* out,
+                                           size_t capacity, size_t* lengthOut, bool* fullOut);
 
 #endif // MAUL_WINDOW_SRC_LINUX_LOCALE_H

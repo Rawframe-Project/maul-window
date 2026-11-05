@@ -35,7 +35,8 @@ int mwinWaylandOpenPipe(mwinWaylandPipe* pipe)
 
 // Room for another piece: false when the bytes pass the limit or the
 // allocator has none, with the outcome.
-static bool Grow(mwinWaylandPipe* pipe, const mwinContext* context, uint32_t limit, int* outcomeOut)
+MWIN_NODISCARD static bool Grow(mwinWaylandPipe* pipe, const mwinContext* context, uint32_t limit,
+                                int* outcomeOut)
 {
     if (pipe->length > limit)
     {

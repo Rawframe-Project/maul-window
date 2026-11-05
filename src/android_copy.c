@@ -93,8 +93,8 @@ static void NameOf(JNIEnv* env, jstring given, char* name)
 }
 
 // Keeps a copy's path after the others: false when there is no room.
-static bool KeepPath(const mwinAllocator* allocator, mwinAndroidCopy* copy, const char* path,
-                     size_t length)
+MWIN_NODISCARD static bool KeepPath(const mwinAllocator* allocator, mwinAndroidCopy* copy,
+                                    const char* path, size_t length)
 {
     if (copy->pathsLength + length + 1 > copy->pathsCapacity)
     {
@@ -119,8 +119,8 @@ static bool KeepPath(const mwinAllocator* allocator, mwinAndroidCopy* copy, cons
 
 // Makes a document's copy: its folder, its file opened to write, its
 // path written to path. False when it could not be made.
-static bool MakeCopy(mwinAndroidCopy* copy, JNIEnv* env, jstring given, uint32_t index,
-                     char path[PATH_MAX])
+MWIN_NODISCARD static bool MakeCopy(mwinAndroidCopy* copy, JNIEnv* env, jstring given,
+                                    uint32_t index, char path[PATH_MAX])
 {
     char name[MWIN_ANDROID_NAME_BYTES + 1];
     NameOf(env, given, name);

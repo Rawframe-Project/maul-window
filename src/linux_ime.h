@@ -89,9 +89,9 @@ void mwinImeFocus(mwinLinuxIme* ime, int32_t slot, mwinRect caret);
 // later, a lost text's reset after it; false when the backend posts it
 // now. The keysym, the X keycode and the X modifier state go to the
 // input method.
-bool mwinImeOffer(mwinLinuxIme* ime, uint32_t slot, uint32_t keysym, uint32_t keycode,
-                  uint32_t state, const mwinEvent* key, const char* text, int32_t length,
-                  uint64_t nowNs);
+MWIN_NODISCARD bool mwinImeOffer(mwinLinuxIme* ime, uint32_t slot, uint32_t keysym,
+                                 uint32_t keycode, uint32_t state, const mwinEvent* key,
+                                 const char* text, int32_t length, uint64_t nowNs);
 
 // Posts or drops the keys whose answers came; after the bus's pump.
 void mwinImePump(mwinLinuxIme* ime, uint64_t nowNs);

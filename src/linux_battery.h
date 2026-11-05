@@ -10,6 +10,8 @@
 #ifndef MAUL_WINDOW_SRC_LINUX_BATTERY_H
 #define MAUL_WINDOW_SRC_LINUX_BATTERY_H
 
+#include "maul-window/base.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -26,7 +28,7 @@ typedef struct mwinLinuxBattery
 // Finds the battery of the input device eventN under a sysfs root
 // ("/sys", or a test's own tree): false, with an empty path, when it
 // has none.
-bool mwinLinuxFindBattery(const char* root, int node, mwinLinuxBattery* batteryOut);
+MWIN_NODISCARD bool mwinLinuxFindBattery(const char* root, int node, mwinLinuxBattery* batteryOut);
 
 // The battery's charge in percent, or -1 when it has none or the file
 // says no number from 0 to 100.

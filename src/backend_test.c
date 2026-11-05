@@ -95,7 +95,7 @@ static uint64_t Now(const mwinContext* context)
 }
 
 // Whether a waiting request is still the one it was queued as.
-static bool IsCurrent(const mwinContext* context, const mwinTestPending* pending)
+MWIN_NODISCARD static bool IsCurrent(const mwinContext* context, const mwinTestPending* pending)
 {
     const mwinWindow* window = &context->windows[pending->slot];
     const mwinRequest* request = &window->requests[pending->request];
@@ -326,13 +326,13 @@ static mwinOutcome CarryOut(mwinContext* context, uint32_t slot, const mwinReque
     return mwin_outcomeDone;
 }
 
-static bool IsLifecycle(mwinEventKind type)
+MWIN_NODISCARD static bool IsLifecycle(mwinEventKind type)
 {
     return type >= mwin_eventSuspending && type <= mwin_eventResumed;
 }
 
 // Reports about the application rather than a window.
-static bool IsGlobal(mwinEventKind type)
+MWIN_NODISCARD static bool IsGlobal(mwinEventKind type)
 {
     return IsLifecycle(type) || type == mwin_eventKeyboardLayoutChanged;
 }
@@ -557,7 +557,7 @@ mwinResult mwinContext_IsTestHoldEnabled(const mwinContext* context, bool* enabl
 
 // Whether a record type is one a test may report: not the core's own,
 // and not what the test platform's setters report.
-static bool IsReportable(mwinEventKind type)
+MWIN_NODISCARD static bool IsReportable(mwinEventKind type)
 {
     return type != mwin_eventNone && type != mwin_eventWindowCreated &&
            type != mwin_eventWindowDestroyed && type != mwin_eventRequestCompleted &&
@@ -568,7 +568,7 @@ static bool IsReportable(mwinEventKind type)
            !(type >= mwin_eventThemeChanged && type <= mwin_eventLocaleChanged);
 }
 
-static bool HasText(mwinEventKind type)
+MWIN_NODISCARD static bool HasText(mwinEventKind type)
 {
     return type == mwin_eventTextInput || type == mwin_eventImePreedit;
 }

@@ -32,7 +32,8 @@ void mwinX11SelectPointer(const mwinX11Platform* platform, xcb_window_t window);
 
 // Handles a keyboard, pointer, XKB or XInput event: false for another
 // kind.
-bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_t* event);
+MWIN_NODISCARD bool mwinX11HandleInputEvent(mwinX11Platform* platform,
+                                            const xcb_generic_event_t* event);
 
 // A window lost focus: the keys held are forgotten.
 void mwinX11ForgetKeys(mwinX11Platform* platform);

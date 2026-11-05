@@ -33,6 +33,6 @@ void mwinWin32PowerFacts(const SYSTEM_POWER_STATUS* power, mwinSystemFacts* fact
 uint32_t mwinWin32JoinLocales(WCHAR* units, ULONG count);
 
 // Whether a message of a window's announces a change of the facts.
-bool mwinWin32IsSystemChange(UINT message, WPARAM wParam);
+MWIN_NODISCARD bool mwinWin32IsSystemChange(UINT message, WPARAM wParam);
 
 #endif // MAUL_WINDOW_SRC_WIN32_SYSTEM_H

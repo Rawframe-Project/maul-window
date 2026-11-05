@@ -135,7 +135,7 @@ static void SetNormalHints(const mwinX11Platform* platform, const mwinX11Window*
 // Asks the window manager for decorations or none.
 // The window manager decorates a decorated window, and none of custom
 // chrome, whose frame the program draws.
-static bool IsDecorated(mwinWindowStyle style)
+MWIN_NODISCARD static bool IsDecorated(mwinWindowStyle style)
 {
     return (style & mwin_styleDecorated) != 0 && (style & mwin_styleCustomChrome) == 0;
 }
@@ -176,7 +176,7 @@ static uint32_t StateAtoms(const mwinX11Platform* platform, mwinWindowMode mode,
     return count;
 }
 
-static bool IsPopup(const mwinX11Platform* platform, uint32_t slot)
+MWIN_NODISCARD static bool IsPopup(const mwinX11Platform* platform, uint32_t slot)
 {
     return platform->context->windows[slot].def.kind != mwin_windowNormal;
 }

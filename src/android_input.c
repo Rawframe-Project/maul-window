@@ -206,7 +206,7 @@ static void Motion(mwinAndroidPlatform* platform, const AInputEvent* event)
 
 // The keys Android keeps for itself, as KeyEvent.isSystemKey lists them,
 // but Back, which is the window's close request.
-static bool IsSystemKey(int32_t keyCode)
+MWIN_NODISCARD static bool IsSystemKey(int32_t keyCode)
 {
     switch (keyCode)
     {
@@ -280,7 +280,7 @@ static uint32_t Combined(const mwinAndroidPlatform* platform, int32_t accent, ui
     return combined > 0 ? (uint32_t)combined : typed;
 }
 
-static bool IsPrinting(uint32_t typed)
+MWIN_NODISCARD static bool IsPrinting(uint32_t typed)
 {
     return typed >= 0x20 && typed != 0x7F && (typed & COMBINING_ACCENT) == 0;
 }

@@ -11,7 +11,7 @@
 #include "web_js.h"
 
 // Whether there is a page (not a worker, not Node).
-bool mwinWebHasPage(void);
+MWIN_NODISCARD bool mwinWebHasPage(void);
 
 // What the page calls, with 0 when it goes away and 1 when it comes
 // back, from inside the browser's event.
@@ -22,7 +22,8 @@ MWIN_WEB_IMPORT(mwinWebAttach) void mwinWebAttach(mwinContext* context, mwinWebL
 MWIN_WEB_IMPORT(mwinWebDetach) void mwinWebDetach(const mwinContext* context);
 
 // Takes the next record the page reported: false when there is none.
-MWIN_WEB_IMPORT(mwinWebNext) bool mwinWebNext(const mwinContext* context, mwinWebRecord* out);
+MWIN_NODISCARD bool mwinWebNext(const mwinContext* context, mwinWebRecord* out)
+    MWIN_WEB_IMPORT(mwinWebNext);
 
 // Finds the canvas a selector names, or makes one of a CSS size, and
 // watches it. Writes its selector and its box (CSS width and height,
@@ -45,7 +46,8 @@ void mwinWebSetVisible(const mwinContext* context, uint32_t slot, bool visible);
 MWIN_WEB_IMPORT(mwinWebSetOpacity)
 void mwinWebSetOpacity(const mwinContext* context, uint32_t slot, float opacity);
 // Focuses a canvas: false when the page did not let it.
-MWIN_WEB_IMPORT(mwinWebFocus) bool mwinWebFocus(const mwinContext* context, uint32_t slot);
+MWIN_NODISCARD bool mwinWebFocus(const mwinContext* context, uint32_t slot)
+    MWIN_WEB_IMPORT(mwinWebFocus);
 // Asks for fullscreen or out of it: 1 when the canvas is so already, 0
 // when a record will say, -1 when the browser has no fullscreen.
 MWIN_WEB_IMPORT(mwinWebSetFullscreen)
@@ -59,11 +61,11 @@ MWIN_WEB_IMPORT(mwinWebScreen) void mwinWebScreen(float* out);
 MWIN_WEB_IMPORT(mwinWebCheckScale) void mwinWebCheckScale(const mwinContext* context);
 
 // Whether the screen and browser show HDR (dynamic-range: high).
-MWIN_WEB_IMPORT(mwinWebHighDynamicRange) bool mwinWebHighDynamicRange(void);
+MWIN_NODISCARD bool mwinWebHighDynamicRange(void) MWIN_WEB_IMPORT(mwinWebHighDynamicRange);
 
 // The preferred color scheme (an mwinTheme) and reduced motion.
 MWIN_WEB_IMPORT(mwinWebTheme) int mwinWebTheme(void);
-MWIN_WEB_IMPORT(mwinWebReducedMotion) bool mwinWebReducedMotion(void);
+MWIN_NODISCARD bool mwinWebReducedMotion(void) MWIN_WEB_IMPORT(mwinWebReducedMotion);
 // Whether the device runs on its battery (an mwinTristate), as the
 // Battery Status API last told; unknown where it does not.
 MWIN_WEB_IMPORT(mwinWebOnBattery) int mwinWebOnBattery(const mwinContext* context);

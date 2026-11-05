@@ -39,7 +39,7 @@ static const struct
     {WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_PROGRESS, "progress", "left_ptr_watch"},
 };
 
-static bool IsHidden(mwinCursorMode mode)
+MWIN_NODISCARD static bool IsHidden(mwinCursorMode mode)
 {
     return mode == mwin_cursorHidden || mode == mwin_cursorCaptured ||
            mode == mwin_cursorConfinedHidden;
@@ -96,7 +96,7 @@ static void SetCursor(mwinWaylandPlatform* platform, const CursorTarget* target,
 }
 
 // Loads the theme at a scale, unless it is loaded at that scale.
-static bool LoadTheme(mwinWaylandPlatform* platform, int32_t scale)
+MWIN_NODISCARD static bool LoadTheme(mwinWaylandPlatform* platform, int32_t scale)
 {
     const mwinWaylandApi* api = &platform->api;
     mwinWaylandCursorTheme* theme = &platform->cursorTheme;
@@ -115,8 +115,9 @@ static bool LoadTheme(mwinWaylandPlatform* platform, int32_t scale)
 }
 
 // Shows a shape from the cursor theme: false where the theme has none.
-static bool ShowThemeCursor(mwinWaylandPlatform* platform, const CursorTarget* target,
-                            const mwinWaylandWindow* window, mwinCursorShape shape)
+MWIN_NODISCARD static bool ShowThemeCursor(mwinWaylandPlatform* platform,
+                                           const CursorTarget* target,
+                                           const mwinWaylandWindow* window, mwinCursorShape shape)
 {
     const mwinWaylandApi* api = &platform->api;
     mwinWaylandCursorTheme* theme = &platform->cursorTheme;
@@ -214,7 +215,7 @@ static int32_t BufferScaleOf(const mwinCursor* cursor, uint32_t image)
 // the image surface, sized to the first image in logical units by the
 // viewport, or by a buffer scale without one. False when it cannot be
 // shown.
-static bool ShowImage(mwinWaylandPlatform* platform, const mwinWaylandWindow* window)
+MWIN_NODISCARD static bool ShowImage(mwinWaylandPlatform* platform, const mwinWaylandWindow* window)
 {
     const mwinWaylandApi* api = &platform->api;
     mwinWaylandImageCursor* shown = &platform->imageCursor;

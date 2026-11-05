@@ -15,7 +15,7 @@
 
 #define OPEN_TRIES 5
 
-static bool Open(HWND hwnd)
+MWIN_NODISCARD static bool Open(HWND hwnd)
 {
     for (int i = 0; i < OPEN_TRIES; i++)
     {
@@ -91,7 +91,7 @@ static HGLOBAL Copy(const uint8_t* bytes, size_t length)
 
 // Sets memory as a format of the clipboard, which owns it once set:
 // false, the memory freed, when it is not.
-static bool Set(UINT format, HGLOBAL memory)
+MWIN_NODISCARD static bool Set(UINT format, HGLOBAL memory)
 {
     bool set = format != 0 && memory != nullptr && SetClipboardData(format, memory) != nullptr;
     if (!set && memory != nullptr)

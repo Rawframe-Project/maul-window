@@ -107,7 +107,8 @@ static void FileUri(const char* path, uint32_t length, char* uri)
 }
 
 // Asks the file manager to show the path: false when it could not ask.
-static bool ShowItem(mwinLinuxServices* services, const mwinRequest* entry, mwinLinuxReveal* reveal)
+MWIN_NODISCARD static bool ShowItem(mwinLinuxServices* services, const mwinRequest* entry,
+                                    mwinLinuxReveal* reveal)
 {
     mwinLinuxBus* bus = &services->bus;
     DBusMessage* message =

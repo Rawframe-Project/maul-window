@@ -94,7 +94,7 @@ static void Forget(mwinPadTracker* tracker, void* const* listed, int32_t count, 
     tracker->count = kept;
 }
 
-static bool Tracked(const mwinPadTracker* tracker, const void* pad)
+MWIN_NODISCARD static bool Tracked(const mwinPadTracker* tracker, const void* pad)
 {
     for (uint32_t i = 0; i < tracker->count; i++)
     {

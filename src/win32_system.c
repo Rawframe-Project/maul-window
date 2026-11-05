@@ -18,7 +18,7 @@
 #define DARK_MODE_ATTRIBUTE 20
 
 // A DWORD of the user's registry; false where it is not set.
-static bool ReadDword(LPCWSTR key, LPCWSTR name, DWORD* value)
+MWIN_NODISCARD static bool ReadDword(LPCWSTR key, LPCWSTR name, DWORD* value)
 {
     DWORD size = sizeof(*value);
     return RegGetValueW(HKEY_CURRENT_USER, key, name, RRF_RT_REG_DWORD, nullptr, value, &size) ==
@@ -116,7 +116,7 @@ static void ReadLocales(mwinWin32Platform* platform)
 // Windows 11, whose builds start at 22000, shows snap layouts over a
 // maximize button. RtlGetVersion tells the version GetVersionEx hides
 // from programs without a manifest naming it.
-static bool HasSnapLayouts(void)
+MWIN_NODISCARD static bool HasSnapLayouts(void)
 {
     LONG(WINAPI * get)(OSVERSIONINFOW*) = nullptr;
     HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");

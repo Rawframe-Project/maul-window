@@ -12,6 +12,8 @@
 #ifndef MAUL_WINDOW_SRC_EDID_H
 #define MAUL_WINDOW_SRC_EDID_H
 
+#include "maul-window/base.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -29,13 +31,13 @@ typedef struct mwinEdidHdr
 
 // Reads the HDR static metadata of an EDID: false when the bytes are
 // no EDID or carry no such block.
-bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut);
+MWIN_NODISCARD bool mwinEdidHdrOf(const uint8_t* bytes, size_t length, mwinEdidHdr* hdrOut);
 
 // Reads the image's size in millimeters: the preferred timing's, unless
 // it strays more than a fifth from the size in centimeters the base
 // block gives (some monitors put centimeters there), else that one;
 // false, the size 0, where the EDID gives neither.
-bool mwinEdidSizeOf(const uint8_t* bytes, size_t length, uint32_t* widthMmOut,
-                    uint32_t* heightMmOut);
+MWIN_NODISCARD bool mwinEdidSizeOf(const uint8_t* bytes, size_t length, uint32_t* widthMmOut,
+                                   uint32_t* heightMmOut);
 
 #endif // MAUL_WINDOW_SRC_EDID_H

@@ -180,7 +180,7 @@ void mwinMacForgetCursors(mwinMacPlatform* platform);
 
 // Posts a pen's event as pen records: true when the event was a pen's
 // (macos_pen.m). Notes which end of the pen came near the tablet.
-bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+MWIN_NODISCARD bool mwinMacTakePen(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
 void mwinMacPenProximity(mwinMacPlatform* platform, NSEvent* event);
 
 // The clipboard's text written from the context and read into it; an
@@ -200,7 +200,7 @@ NSDragOperation mwinMacDragEntered(mwinMacPlatform* platform, uint32_t slot,
 NSDragOperation mwinMacDragUpdated(mwinMacPlatform* platform, uint32_t slot,
                                    id<NSDraggingInfo> drag);
 void mwinMacDragExited(mwinMacPlatform* platform, uint32_t slot);
-bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> drag);
+MWIN_NODISCARD bool mwinMacDrop(mwinMacPlatform* platform, uint32_t slot, id<NSDraggingInfo> drag);
 
 // Shows a window's file dialog request, answered when the user is done:
 // -1. Cancels the panels whose requests went, at each pump; closes a
@@ -228,7 +228,7 @@ NSWindow* mwinMacMakeWindow(const mwinMacPlatform* platform, uint32_t slot, NSRe
 void mwinMacPlaceNew(mwinMacPlatform* platform, uint32_t slot);
 void mwinMacShow(mwinMacPlatform* platform, uint32_t slot, bool visible);
 void mwinMacForgetOwner(mwinMacPlatform* platform, uint32_t slot);
-bool mwinMacIsMenu(const mwinMacPlatform* platform, uint32_t slot);
+MWIN_NODISCARD bool mwinMacIsMenu(const mwinMacPlatform* platform, uint32_t slot);
 
 // Moves a window's content to a place: from the top left of the primary
 // screen, or of its owner's content for a popup (macos_window.m).
@@ -248,9 +248,9 @@ NSBitmapImageRep* mwinMacImageRep(const struct mwinIconCopyImage* image, NSSize 
 // aspect ratio or an opacity request's outcome.
 NSWindowStyleMask mwinMacStyleMaskOf(mwinWindowStyle style);
 void mwinMacApplyStyle(NSWindow* window, mwinWindowStyle style);
-bool mwinMacPressChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
-bool mwinMacDragChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
-bool mwinMacReleaseChrome(mwinMacPlatform* platform, uint32_t slot);
+MWIN_NODISCARD bool mwinMacPressChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+MWIN_NODISCARD bool mwinMacDragChrome(mwinMacPlatform* platform, uint32_t slot, NSEvent* event);
+MWIN_NODISCARD bool mwinMacReleaseChrome(mwinMacPlatform* platform, uint32_t slot);
 mwinOutcome mwinMacSetLimits(mwinMacPlatform* platform, uint32_t slot, mwinSize minimum,
                              mwinSize maximum);
 mwinOutcome mwinMacSetAspect(mwinMacPlatform* platform, uint32_t slot, uint32_t width,

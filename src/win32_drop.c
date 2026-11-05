@@ -43,7 +43,7 @@ static ULONG STDMETHODCALLTYPE AddRef(IDropTarget* target)
     return 1;
 }
 
-static bool Has(IDataObject* data, CLIPFORMAT format)
+MWIN_NODISCARD static bool Has(IDataObject* data, CLIPFORMAT format)
 {
     FORMATETC wanted = {format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
     return data->lpVtbl->QueryGetData(data, &wanted) == S_OK;

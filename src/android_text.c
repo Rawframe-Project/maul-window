@@ -175,12 +175,12 @@ static void JNICALL Key(JNIEnv* env, jclass type, jlong program, jint action, ji
     }
 }
 
-static bool SameInsets(mwinInsets a, mwinInsets b)
+MWIN_NODISCARD static bool SameInsets(mwinInsets a, mwinInsets b)
 {
     return a.top == b.top && a.right == b.right && a.bottom == b.bottom && a.left == b.left;
 }
 
-static bool SameRect(mwinRect a, mwinRect b)
+MWIN_NODISCARD static bool SameRect(mwinRect a, mwinRect b)
 {
     return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
 }

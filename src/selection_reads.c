@@ -77,7 +77,7 @@ mwinOutcome mwinMissedSelectionRead(mwinContext* context, const mwinSelectionRea
 
 // Whether a read answers a request: one of its kind, and for data of
 // its type.
-static bool Answers(const mwinSelectionRead* read, const mwinRequest* request)
+MWIN_NODISCARD static bool Answers(const mwinSelectionRead* read, const mwinRequest* request)
 {
     return request->kind == read->kind &&
            (request->kind != mwin_requestClipboardReadData ||

@@ -5,6 +5,20 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.13.0](https://github.com/Rawframe-Project/maul-window/compare/v0.12.0...v0.13.0) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **drop:** on macOS, iOS and Android, a drop with a text item after the first, or on macOS with a pasteboard item that is neither a file nor text, is now marked truncated. On Android, so is a drop whose text found no room for its copy. On macOS, an item that carries a file URL no longer gives the drop text as well.
+* **android:** on Android, a drag that enters the window while the last drop's documents are still copied supersedes that copy. The last drop is posted first, with the documents already whole and marked truncated, and the new drag's records follow. Such a drag was refused and not reported.
+
+### Fixed
+
+* **android:** let a drag that enters supersede a drop still copying ([#458](https://github.com/Rawframe-Project/maul-window/issues/458)) ([5c9e369](https://github.com/Rawframe-Project/maul-window/commit/5c9e369380bbad629b1a38e58580bf70a3f3ff07)), closes [#453](https://github.com/Rawframe-Project/maul-window/issues/453)
+* **core:** give MWIN_NODISCARD its attribute under GCC 14's C23 ([#465](https://github.com/Rawframe-Project/maul-window/issues/465)) ([8c9eeef](https://github.com/Rawframe-Project/maul-window/commit/8c9eeef718c444a789a6616cef5619f89330eee7)), closes [#464](https://github.com/Rawframe-Project/maul-window/issues/464)
+* **drop:** mark a drop truncated for every item it leaves out ([#461](https://github.com/Rawframe-Project/maul-window/issues/461)) ([c4e99bc](https://github.com/Rawframe-Project/maul-window/commit/c4e99bca169eb63b8d7cae8df49a02235eed2a3a)), closes [#455](https://github.com/Rawframe-Project/maul-window/issues/455)
+
 ## [0.12.0](https://github.com/Rawframe-Project/maul-window/compare/v0.11.0...v0.12.0) (2026-11-04)
 
 The iOS device check, that a window shows no flash against the launch

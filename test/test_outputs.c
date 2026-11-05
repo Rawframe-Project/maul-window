@@ -116,12 +116,13 @@ typedef struct Created
     mwinRequestId request;
 } Created;
 
+// A rumble's 32-bit outputs; its count, a size_t, is checked on its
+// own, as it would leave padding beside them.
 typedef struct Rumble
 {
     float low;
     float high;
     uint32_t durationMs;
-    uint32_t count;
 } Rumble;
 
 typedef struct Shown
@@ -130,7 +131,7 @@ typedef struct Shown
     uint32_t image;
 } Shown;
 
-static_assert(sizeof(Created) == 4 * sizeof(uint32_t) && sizeof(Rumble) == 16 &&
+static_assert(sizeof(Created) == 4 * sizeof(uint32_t) && sizeof(Rumble) == 3 * sizeof(uint32_t) &&
                   sizeof(Shown) == 3 * sizeof(uint32_t),
               "no padding the calls would not clear");
 
@@ -215,10 +216,15 @@ static void Gamepad(mwinContext* context, mwinGamepadId gamepad, mwinResult stat
     mwinGamepadMotion motion;
     EXPECT(status, motion, mwinGamepad_TakeMotion, context, gamepad, &motion);
     Rumble rumble;
+    size_t count;
+    Fill(&count, sizeof count);
     EXPECT(status, rumble, mwinGamepad_GetTestRumble, context, gamepad, &rumble.low, &rumble.high,
-           &rumble.durationMs, &rumble.count);
+           &rumble.durationMs, &count);
+    Expect("mwinGamepad_GetTestRumble's count", status, status, &count, sizeof count);
+    Fill(&count, sizeof count);
     EXPECT(status, rumble, mwinGamepad_GetTestTriggerRumble, context, gamepad, &rumble.low,
-           &rumble.high, &rumble.durationMs, &rumble.count);
+           &rumble.high, &rumble.durationMs, &count);
+    Expect("mwinGamepad_GetTestTriggerRumble's count", status, status, &count, sizeof count);
     EXPECT(status, enabled, mwinGamepad_IsTestMotionEnabled, context, gamepad, &enabled);
 #else
     (void)context;

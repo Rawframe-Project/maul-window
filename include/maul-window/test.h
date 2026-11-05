@@ -300,7 +300,7 @@ extern "C"
                                                                  mwinGamepadId gamepad,
                                                                  float* lowOut, float* highOut,
                                                                  uint32_t* durationMsOut,
-                                                                 uint32_t* countOut);
+                                                                 size_t* countOut);
 
     /// Reads the last trigger rumble a gamepad of the test platform was
     /// given.
@@ -319,7 +319,7 @@ extern "C"
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_GetTestTriggerRumble(
         const mwinContext* context, mwinGamepadId gamepad, float* leftOut, float* rightOut,
-        uint32_t* durationMsOut, uint32_t* countOut);
+        uint32_t* durationMsOut, size_t* countOut);
 
     /// Reads whether the test platform was told to turn a gamepad's motion
     /// sensors on.

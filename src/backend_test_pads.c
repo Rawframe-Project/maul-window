@@ -133,7 +133,7 @@ mwinResult mwinGamepad_SetTestAxis(mwinContext* context, mwinGamepadId gamepad,
 // Reads one of a test gamepad's rumbles: its motors' or its triggers'.
 static mwinResult GetRumble(const mwinContext* context, mwinGamepadId gamepad, bool triggers,
                             float* lowOut, float* highOut, uint32_t* durationMsOut,
-                            uint32_t* countOut)
+                            size_t* countOut)
 {
     mwinClearOut(lowOut, sizeof *lowOut);
     mwinClearOut(highOut, sizeof *highOut);
@@ -159,14 +159,14 @@ static mwinResult GetRumble(const mwinContext* context, mwinGamepadId gamepad, b
 
 mwinResult mwinGamepad_GetTestRumble(const mwinContext* context, mwinGamepadId gamepad,
                                      float* lowOut, float* highOut, uint32_t* durationMsOut,
-                                     uint32_t* countOut)
+                                     size_t* countOut)
 {
     return GetRumble(context, gamepad, false, lowOut, highOut, durationMsOut, countOut);
 }
 
 mwinResult mwinGamepad_GetTestTriggerRumble(const mwinContext* context, mwinGamepadId gamepad,
                                             float* leftOut, float* rightOut,
-                                            uint32_t* durationMsOut, uint32_t* countOut)
+                                            uint32_t* durationMsOut, size_t* countOut)
 {
     return GetRumble(context, gamepad, true, leftOut, rightOut, durationMsOut, countOut);
 }

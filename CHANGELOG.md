@@ -7,17 +7,43 @@ may change the API, the ABI and the behavior.
 
 ## [0.15.0](https://github.com/Rawframe-Project/maul-window/compare/v0.14.0...v0.15.0) (2026-11-05)
 
+The iOS device check, that a window shows no flash against the launch
+screen before its first frame, is waived by the owner for this
+release, which ships on the iOS simulator suite: its iOS changes leave
+the launch and the first frame alone.
 
-### ⚠ BREAKING CHANGES
+### Changed
 
-* **test-backend:** `mwinGamepad_GetTestRumble` and `mwinGamepad_GetTestTriggerRumble` take `size_t* countOut` instead of `uint32_t* countOut`.
-* **services:** `mwinMessageButtons` is now `mwinMessageChoice`, its constants `mwin_buttonsOk`, `mwin_buttonsOkCancel` and `mwin_buttonsYesNo` are now `mwin_choiceOk`, `mwin_choiceOkCancel` and `mwin_choiceYesNo`, and `mwinMessageBoxDef.buttons` is now `mwinMessageBoxDef.choice`.
+- **Breaking:** `mwinMessageButtons` is now `mwinMessageChoice`, its
+  constants `mwin_buttonsOk`, `mwin_buttonsOkCancel` and
+  `mwin_buttonsYesNo` are now `mwin_choiceOk`, `mwin_choiceOkCancel`
+  and `mwin_choiceYesNo`, and `mwinMessageBoxDef.buttons` is now
+  `mwinMessageBoxDef.choice`. The type is a choice of one, but its
+  plural name read as a set of flags, as every other plural type in
+  the API is
+  ([#489](https://github.com/Rawframe-Project/maul-window/pull/489)).
+- **Breaking:** the test platform's `mwinGamepad_GetTestRumble` and
+  `mwinGamepad_GetTestTriggerRumble` take `size_t* countOut` instead
+  of `uint32_t* countOut`, as every other count the API reports is a
+  `size_t`
+  ([#490](https://github.com/Rawframe-Project/maul-window/pull/490)).
+- Maul Window builds against Maul Unicode 1.2.0, which gives the
+  results 1.1.2 gave, so nothing a program gets from Maul Window
+  changes. The installed CMake config and pkg-config file ask for
+  Maul Unicode 1.2.0, and a build on a machine with only Maul Unicode
+  1.1.2 installed fetches 1.2.0 instead of using it
+  ([#493](https://github.com/Rawframe-Project/maul-window/pull/493)).
 
 ### Fixed
 
-* **services:** name the message box's buttons a choice, not a set ([#489](https://github.com/Rawframe-Project/maul-window/issues/489)) ([c1ba373](https://github.com/Rawframe-Project/maul-window/commit/c1ba3738b720afab44b2a64cf6798c311ceddf9d)), closes [#487](https://github.com/Rawframe-Project/maul-window/issues/487)
-* **test-backend:** report the test rumble counts in size_t ([#490](https://github.com/Rawframe-Project/maul-window/issues/490)) ([8d02e25](https://github.com/Rawframe-Project/maul-window/commit/8d02e258c051f11d60d139574a31ea794e24a2dd)), closes [#488](https://github.com/Rawframe-Project/maul-window/issues/488)
-* **win32:** read a HID pad's buttons with more than 64 of them down ([#495](https://github.com/Rawframe-Project/maul-window/issues/495)) ([fadae88](https://github.com/Rawframe-Project/maul-window/commit/fadae88d7ef704fd9bb7ad28dfdb7f52fd5db518)), closes [#494](https://github.com/Rawframe-Project/maul-window/issues/494)
+- On Windows, a generic HID gamepad with more than 64 buttons down at
+  once, such as a stick or button box of 128 whose toggle switches
+  stay down, reads its buttons. Before, the library asked Windows'
+  parser for the buttons down with room for 64, the parser refused,
+  and the report's buttons were dropped: each button kept the state of
+  the last report that listed 64 or fewer, and a press or a release in
+  between was lost
+  ([#495](https://github.com/Rawframe-Project/maul-window/pull/495)).
 
 ## [0.14.0](https://github.com/Rawframe-Project/maul-window/compare/v0.13.0...v0.14.0) (2026-11-05)
 

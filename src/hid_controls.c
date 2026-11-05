@@ -101,9 +101,25 @@ void mwinHidSetButtons(mwinHidControls* hid, const uint16_t* down, size_t count)
     memset(controls->buttons, 0, sizeof(controls->buttons));
     for (size_t i = 0; i < count; i++)
     {
-        for (uint8_t b = 0; b < controls->buttonCount; b++)
+        // The numbering keeps the usages in order: a report can list
+        // thousands down.
+        uint8_t low = 0;
+        uint8_t high = controls->buttonCount;
+        while (low < high)
         {
-            controls->buttons[b] = controls->buttons[b] || hid->buttons[b] == down[i];
+            uint8_t middle = (uint8_t)((low + high) / 2);
+            if (hid->buttons[middle] < down[i])
+            {
+                low = (uint8_t)(middle + 1);
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+        if (low < controls->buttonCount && hid->buttons[low] == down[i])
+        {
+            controls->buttons[low] = true;
         }
     }
 }

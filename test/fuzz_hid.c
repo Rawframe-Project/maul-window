@@ -8,9 +8,10 @@
 // then a script of reports: the buttons down, values of any bits for any
 // control index, and raw inputs of any size and report count. The
 // numbering must stay within its limits with each button once and in
-// order; every axis must read between -1 and 1, every hat one of its
-// eight steps or centred; a raw input's reports must fit in its bytes
-// and its count.
+// order; a report's buttons must be down exactly where their usage is
+// among those down; every axis must read between -1 and 1, every hat one
+// of its eight steps or centred; a raw input's reports must fit in its
+// bytes and its count.
 
 #include "hid_controls.h"
 
@@ -130,13 +131,23 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         {
         case 0:
         {
-            uint16_t down[MWIN_PAD_NUMBERED_BUTTONS];
-            size_t count = Byte() % (MWIN_PAD_NUMBERED_BUTTONS + 1);
+            // More down than the numbering holds, as a report can list.
+            uint16_t down[UINT8_MAX];
+            size_t count = Byte();
             for (size_t i = 0; i < count; i++)
             {
                 down[i] = (op & 0x80) != 0 ? Word() : (uint16_t)(Byte() % 72);
             }
             mwinHidSetButtons(&hid, down, count);
+            for (uint8_t b = 0; b < hid.controls.buttonCount; b++)
+            {
+                bool listed = false;
+                for (size_t i = 0; i < count; i++)
+                {
+                    listed = listed || down[i] == hid.buttons[b];
+                }
+                Expect(hid.controls.buttons[b] == listed);
+            }
             break;
         }
         case 1:

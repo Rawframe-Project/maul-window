@@ -5,6 +5,18 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.14.0](https://github.com/Rawframe-Project/maul-window/compare/v0.13.0...v0.14.0) (2026-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **input:** the constants of `mwinMouseButton` are renamed: `mwin_buttonLeft`, `mwin_buttonRight`, `mwin_buttonMiddle`, `mwin_buttonBack` and `mwin_buttonForward` are now `mwin_mouseButtonLeft`, `mwin_mouseButtonRight`, `mwin_mouseButtonMiddle`, `mwin_mouseButtonBack` and `mwin_mouseButtonForward`, with the same values.
+
+### Fixed
+
+* **family:** mark every internal bool nodiscard, from .github v0.0.54 ([#479](https://github.com/Rawframe-Project/maul-window/issues/479)) ([86a9db5](https://github.com/Rawframe-Project/maul-window/commit/86a9db5ef7888f518dcaa053f951541fa71a7240)), closes [#478](https://github.com/Rawframe-Project/maul-window/issues/478)
+* **input:** give mouse button kinds names apart from held-button flags ([#485](https://github.com/Rawframe-Project/maul-window/issues/485)) ([de76552](https://github.com/Rawframe-Project/maul-window/commit/de765527b4d1cff33fbe5122beeea1a1d4d20379)), closes [#483](https://github.com/Rawframe-Project/maul-window/issues/483)
+
 ## [0.13.0](https://github.com/Rawframe-Project/maul-window/compare/v0.12.0...v0.13.0) (2026-11-05)
 
 The iOS device check, that a window shows no flash against the launch

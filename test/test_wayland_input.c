@@ -581,7 +581,7 @@ static void AdvancePointer(Program* program, mwinContext* context)
                 program->records[i].kind == mwin_eventButtonDown ? &program->records[i] : second;
         }
         const mwinEvent* first = First(program, mwin_eventButtonDown);
-        CHECK(first != nullptr && first->data.pointer.button == mwin_buttonLeft &&
+        CHECK(first != nullptr && first->data.pointer.button == mwin_mouseButtonLeft &&
                   first->data.pointer.clickCount == 1 && first->data.pointer.buttons == 1 &&
                   second != first && second->data.pointer.clickCount == 2,
               "a quick second click is a double click");

@@ -203,19 +203,20 @@ extern "C"
         mwin_keyReachNever = 3,
     };
 
-    // A mouse button.
+    // A mouse button, which a button record names.
     typedef int32_t mwinMouseButton;
 
     enum
     {
-        mwin_buttonLeft = 1,
-        mwin_buttonRight = 2,
-        mwin_buttonMiddle = 3,
-        mwin_buttonBack = 4,
-        mwin_buttonForward = 5,
+        mwin_mouseButtonLeft = 1,
+        mwin_mouseButtonRight = 2,
+        mwin_mouseButtonMiddle = 3,
+        mwin_mouseButtonBack = 4,
+        mwin_mouseButtonForward = 5,
     };
 
-    // The mouse buttons held: bit b - 1 for button b.
+    // The mouse buttons held: bit b - 1 for button b, so mwin_mouseMiddle
+    // (4) is mwin_mouseButtonMiddle (3) held.
     typedef uint32_t mwinMouseButtons;
 
     enum

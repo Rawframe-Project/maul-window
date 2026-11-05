@@ -216,8 +216,8 @@ static void Turn(mwinX11Platform* platform, uint32_t slot, uint8_t button, uint6
 static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* event, bool pressed)
 {
     static const mwinMouseButton buttons[10] = {
-        0, mwin_buttonLeft, mwin_buttonMiddle, mwin_buttonRight, 0, 0, 0,
-        0, mwin_buttonBack, mwin_buttonForward};
+        0, mwin_mouseButtonLeft, mwin_mouseButtonMiddle, mwin_mouseButtonRight, 0, 0, 0,
+        0, mwin_mouseButtonBack, mwin_mouseButtonForward};
     mwinX11Pointer* pointer = &platform->pointer;
     int32_t slot = mwinX11SlotOf(platform, event->event);
     if (slot < 0 || event->detail >= 10)
@@ -244,7 +244,7 @@ static void OnButton(mwinX11Platform* platform, const xcb_button_press_event_t* 
     if (pressed)
     {
         uint8_t clicks = mwinCountClick(&pointer->clickCounter, button, pointer->position, timeNs);
-        if (button == mwin_buttonLeft &&
+        if (button == mwin_mouseButtonLeft &&
             mwinX11PressChrome(platform, (uint32_t)slot, event, pointer->position, clicks))
         {
             return;

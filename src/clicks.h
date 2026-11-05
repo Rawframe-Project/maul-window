@@ -18,7 +18,7 @@
 #define MWIN_DOUBLE_CLICK_NS       500000000u
 #define MWIN_DOUBLE_CLICK_DISTANCE 4.0f
 
-static_assert(mwin_buttonForward <= (int)(sizeof(mwinMouseButtons) * CHAR_BIT),
+static_assert(mwin_mouseButtonForward <= (int)(sizeof(mwinMouseButtons) * CHAR_BIT),
               "every mouse button has a bit of mwinMouseButtons");
 
 // A button's bit in a set of held buttons: bit b - 1 for button b, one

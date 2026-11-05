@@ -27,17 +27,17 @@ static mwinMouseButton ButtonOf(uint32_t evdev)
     switch (evdev)
     {
     case BTN_LEFT:
-        return mwin_buttonLeft;
+        return mwin_mouseButtonLeft;
     case BTN_RIGHT:
-        return mwin_buttonRight;
+        return mwin_mouseButtonRight;
     case BTN_MIDDLE:
-        return mwin_buttonMiddle;
+        return mwin_mouseButtonMiddle;
     case BTN_SIDE:
     case BTN_BACK:
-        return mwin_buttonBack;
+        return mwin_mouseButtonBack;
     case BTN_EXTRA:
     case BTN_FORWARD:
-        return mwin_buttonForward;
+        return mwin_mouseButtonForward;
     default:
         return 0;
     }

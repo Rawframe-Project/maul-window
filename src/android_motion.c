@@ -205,15 +205,15 @@ static mwinMouseButton ButtonOf(uint32_t button)
     switch (button)
     {
     case mwin_androidPrimary:
-        return mwin_buttonLeft;
+        return mwin_mouseButtonLeft;
     case mwin_androidSecondary:
-        return mwin_buttonRight;
+        return mwin_mouseButtonRight;
     case mwin_androidTertiary:
-        return mwin_buttonMiddle;
+        return mwin_mouseButtonMiddle;
     case mwin_androidBack:
-        return mwin_buttonBack;
+        return mwin_mouseButtonBack;
     case mwin_androidForward:
-        return mwin_buttonForward;
+        return mwin_mouseButtonForward;
     default:
         return 0;
     }
@@ -257,7 +257,7 @@ static void Release(mwinContext* context, uint32_t slot, mwinAndroidPointers* po
 static void ReleaseAll(mwinContext* context, uint32_t slot, mwinAndroidPointers* pointers,
                        const mwinAndroidMotion* motion)
 {
-    for (uint32_t button = mwin_buttonLeft; button <= mwin_buttonForward; button++)
+    for (uint32_t button = mwin_mouseButtonLeft; button <= mwin_mouseButtonForward; button++)
     {
         Release(context, slot, pointers, motion, (mwinMouseButton)button);
     }
@@ -318,7 +318,7 @@ static void Cursor(mwinContext* context, uint32_t slot, mwinAndroidPointers* poi
     case mwin_androidDown:
         if (motion->buttons == 0)
         {
-            Press(context, slot, pointers, motion, mwin_buttonLeft);
+            Press(context, slot, pointers, motion, mwin_mouseButtonLeft);
         }
         break;
     case mwin_androidUp:

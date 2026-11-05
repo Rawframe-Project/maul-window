@@ -130,7 +130,7 @@ static void OnPointer(mwinIOSPlatform* platform, uint32_t slot, UITouch* touch, 
     {
         PostPointer(platform, slot, mwin_eventCursorMoved, position, flags, 0, 0);
     }
-    for (mwinMouseButton button = mwin_buttonLeft; button <= mwin_buttonForward; button++)
+    for (mwinMouseButton button = mwin_mouseButtonLeft; button <= mwin_mouseButtonForward; button++)
     {
         mwinMouseButtons bit = mwinMouseBit(button);
         if ((held & bit) == (window->buttons & bit))

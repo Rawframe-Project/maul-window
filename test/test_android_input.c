@@ -273,7 +273,7 @@ static void CheckSwipe(const Program* program)
 static void CheckClick(const Program* program)
 {
     const mwinEvent* down = Find(program, mwin_eventButtonDown);
-    CHECK(down != nullptr && down->data.pointer.button == mwin_buttonLeft &&
+    CHECK(down != nullptr && down->data.pointer.button == mwin_mouseButtonLeft &&
               down->data.pointer.clickCount >= 1 && down->data.pointer.buttons == 1 &&
               Find(program, mwin_eventTouchDown) == nullptr,
           "a mouse's tap: the left button, not a touch");

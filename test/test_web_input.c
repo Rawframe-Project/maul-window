@@ -255,7 +255,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
     case phaseClicks:
         CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.clickCount == 1 &&
                   Find(program, mwin_eventButtonDown, 1)->data.pointer.clickCount == 2 &&
-                  Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonLeft &&
+                  Find(program, mwin_eventButtonDown, 0)->data.pointer.button ==
+                      mwin_mouseButtonLeft &&
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons == 1 &&
                   Find(program, mwin_eventButtonUp, 1)->data.pointer.buttons == 0,
               "a quick second click is a double click");
@@ -271,10 +272,10 @@ static void AdvancePointer(Program* program, mwinContext* context)
         const mwinEvent* second = Find(program, mwin_eventButtonDown, 1);
         const mwinEvent* letGo = Find(program, mwin_eventButtonUp, 0);
         const mwinEvent* last = Find(program, mwin_eventButtonUp, 1);
-        CHECK(first->data.pointer.button == mwin_buttonLeft && second != nullptr &&
-                  second->data.pointer.button == mwin_buttonRight && first < second &&
-                  second < letGo && letGo->data.pointer.button == mwin_buttonRight &&
-                  last->data.pointer.button == mwin_buttonLeft,
+        CHECK(first->data.pointer.button == mwin_mouseButtonLeft && second != nullptr &&
+                  second->data.pointer.button == mwin_mouseButtonRight && first < second &&
+                  second < letGo && letGo->data.pointer.button == mwin_mouseButtonRight &&
+                  last->data.pointer.button == mwin_mouseButtonLeft,
               "a chord: right pressed and let go while left is held");
         // The protocol's deltas are in device pixels: 200 at the runner's
         // ratio of 2 is 100 CSS pixels, a detent.

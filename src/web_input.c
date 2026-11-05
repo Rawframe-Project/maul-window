@@ -285,7 +285,7 @@ static void OnMouse(mwinWebPlatform* platform, uint32_t slot, const mwinWebRecor
     mwinWebWindow* window = &platform->windows[slot];
     mwinPosition position = {record->x, record->y};
     mwinMouseButton button =
-        mwinWebWhole(record->z, mwin_buttonForward) ? (mwinMouseButton)record->z : 0;
+        mwinWebWhole(record->z, mwin_mouseButtonForward) ? (mwinMouseButton)record->z : 0;
     bool pressed = record->code == mwin_webPressed;
     bool released = record->code == mwin_webReleased;
     if ((!pressed && !released) || button == 0)

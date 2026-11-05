@@ -243,15 +243,16 @@ static mwinMouseButton ButtonOf(UINT message, WPARAM wParam)
     {
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
-        return mwin_buttonLeft;
+        return mwin_mouseButtonLeft;
     case WM_RBUTTONDOWN:
     case WM_RBUTTONUP:
-        return mwin_buttonRight;
+        return mwin_mouseButtonRight;
     case WM_MBUTTONDOWN:
     case WM_MBUTTONUP:
-        return mwin_buttonMiddle;
+        return mwin_mouseButtonMiddle;
     default:
-        return GET_XBUTTON_WPARAM(wParam) == XBUTTON1 ? mwin_buttonBack : mwin_buttonForward;
+        return GET_XBUTTON_WPARAM(wParam) == XBUTTON1 ? mwin_mouseButtonBack
+                                                      : mwin_mouseButtonForward;
     }
 }
 

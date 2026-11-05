@@ -138,7 +138,7 @@ static bool Right(const mwinEvent* event)
     case mwin_eventButtonDown:
     case mwin_eventButtonUp:
         return Finite(event->data.pointer.position) &&
-               event->data.pointer.button <= mwin_buttonForward;
+               event->data.pointer.button <= mwin_mouseButtonForward;
     case mwin_eventDragEntered:
     case mwin_eventDragMoved:
     case mwin_eventDragLeft:

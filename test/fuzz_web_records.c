@@ -557,8 +557,8 @@ static void Drain(mwinContext* context)
         case mwin_eventCursorLeft:
         case mwin_eventButtonDown:
         case mwin_eventButtonUp:
-            Expect(Finite(data->pointer.position) && data->pointer.button <= mwin_buttonForward &&
-                   data->pointer.buttons < 32 &&
+            Expect(Finite(data->pointer.position) &&
+                   data->pointer.button <= mwin_mouseButtonForward && data->pointer.buttons < 32 &&
                    (data->pointer.modifiers & ~MWIN_WEB_MODIFIERS) == 0);
             break;
         case mwin_eventWheel:

@@ -79,21 +79,21 @@ static mwinMouseButton ButtonOf(NSEvent* event)
     {
     case NSEventTypeLeftMouseDown:
     case NSEventTypeLeftMouseUp:
-        return mwin_buttonLeft;
+        return mwin_mouseButtonLeft;
     case NSEventTypeRightMouseDown:
     case NSEventTypeRightMouseUp:
-        return mwin_buttonRight;
+        return mwin_mouseButtonRight;
     default:
         break;
     }
     switch (event.buttonNumber)
     {
     case 2:
-        return mwin_buttonMiddle;
+        return mwin_mouseButtonMiddle;
     case 3:
-        return mwin_buttonBack;
+        return mwin_mouseButtonBack;
     case 4:
-        return mwin_buttonForward;
+        return mwin_mouseButtonForward;
     default:
         return 0;
     }

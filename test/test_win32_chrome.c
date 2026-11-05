@@ -141,7 +141,7 @@ static void CheckButton(mwinContext* context, Program* program, HWND hwnd)
     SendMessageW(hwnd, WM_NCLBUTTONDOWN, HTMAXBUTTON, Screen(hwnd, 355.0f, 15.0f));
     (void)Outcome(context, program);
     bool pressed = (program->seen & (1ull << mwin_eventButtonDown)) != 0 &&
-                   program->pointer.button == mwin_buttonLeft;
+                   program->pointer.button == mwin_mouseButtonLeft;
     SendMessageW(hwnd, WM_LBUTTONUP, 0, MAKELPARAM(10, 10));
     (void)Outcome(context, program);
     program->seen = 0;

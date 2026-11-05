@@ -353,13 +353,14 @@ static void CheckPointer(const Program* program)
     int at = 0;
     const mwinEvent* left = Next(program, &at, mwin_eventButtonDown);
     const mwinEvent* right = Next(program, &at, mwin_eventButtonDown);
-    CHECK(PointerIs(left, mwin_buttonLeft, 1, 2) && left->data.pointer.position.x == 200.0f,
+    CHECK(PointerIs(left, mwin_mouseButtonLeft, 1, 2) && left->data.pointer.position.x == 200.0f,
           "a double click's left press with Shift");
-    CHECK(PointerIs(right, mwin_buttonRight, 3, 2) && right->data.pointer.position.x == 220.0f,
+    CHECK(PointerIs(right, mwin_mouseButtonRight, 3, 2) && right->data.pointer.position.x == 220.0f,
           "the right pressed too, where the pointer moved");
     const mwinEvent* first = Next(program, &at, mwin_eventButtonUp);
     const mwinEvent* second = Next(program, &at, mwin_eventButtonUp);
-    CHECK(PointerIs(first, mwin_buttonLeft, 2, 0) && PointerIs(second, mwin_buttonRight, 0, 0),
+    CHECK(PointerIs(first, mwin_mouseButtonLeft, 2, 0) &&
+              PointerIs(second, mwin_mouseButtonRight, 0, 0),
           "both released");
     at = 0;
     CHECK(Next(program, &at, mwin_eventCursorEntered) != nullptr &&

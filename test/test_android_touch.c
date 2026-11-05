@@ -548,8 +548,8 @@ static void CheckMouse(const Program* program)
               program->records[placed].data.pointer.position.y ==
                   program->records[down].data.pointer.position.y,
           "the mouse moved the cursor, then pressed where it was");
-    CHECK(down >= 0 && program->records[down].data.pointer.button == mwin_buttonLeft && up > down &&
-              program->records[up].data.pointer.button == mwin_buttonLeft,
+    CHECK(down >= 0 && program->records[down].data.pointer.button == mwin_mouseButtonLeft &&
+              up > down && program->records[up].data.pointer.button == mwin_mouseButtonLeft,
           "its left button down and up");
     CHECK(Find(program, mwin_eventTouchDown) < 0 && Find(program, mwin_eventPenDown) < 0,
           "a mouse is no touch and no pen");

@@ -157,17 +157,17 @@ static void CheckCursor(Program* program, mwinContext* context)
         return;
     }
     const mwinEvent* events = program->events;
-    CHECK(events[2].data.pointer.button == mwin_buttonLeft &&
+    CHECK(events[2].data.pointer.button == mwin_mouseButtonLeft &&
               events[2].data.pointer.clickCount == 1 && events[2].data.pointer.buttons == 1 &&
               events[3].data.pointer.buttons == 1,
           "the left button held, one click");
-    CHECK(events[5].data.pointer.button == mwin_buttonLeft &&
+    CHECK(events[5].data.pointer.button == mwin_mouseButtonLeft &&
               events[5].data.pointer.clickCount == 2 &&
-              events[6].data.pointer.button == mwin_buttonRight &&
+              events[6].data.pointer.button == mwin_mouseButtonRight &&
               events[6].data.pointer.buttons == 3,
           "a second click within the double tap's time; both buttons");
-    CHECK(events[7].data.pointer.button == mwin_buttonLeft &&
-              events[8].data.pointer.button == mwin_buttonRight &&
+    CHECK(events[7].data.pointer.button == mwin_mouseButtonLeft &&
+              events[8].data.pointer.button == mwin_mouseButtonRight &&
               events[8].data.pointer.buttons == 0,
           "the left released by the state, the right by the pointer going up");
     // An injected press: no button state.
@@ -184,7 +184,8 @@ static void CheckCursor(Program* program, mwinContext* context)
     Drain(program, context);
     static const mwinEventKind later[] = {mwin_eventButtonDown, mwin_eventButtonUp,
                                           mwin_eventWheel};
-    CHECK(Types(program, later, 3) && program->events[0].data.pointer.button == mwin_buttonLeft &&
+    CHECK(Types(program, later, 3) &&
+              program->events[0].data.pointer.button == mwin_mouseButtonLeft &&
               program->events[0].data.pointer.clickCount == 1 &&
               program->events[2].data.wheel.x == -0.5f && program->events[2].data.wheel.y == 1.0f,
           "a press without a state the left button; a late one a single click; the wheel");
@@ -202,11 +203,11 @@ static void CheckSideButtons(Program* program, mwinContext* context)
     static const mwinEventKind types[] = {mwin_eventButtonDown, mwin_eventButtonDown,
                                           mwin_eventButtonUp, mwin_eventButtonUp};
     const mwinEvent* events = program->events;
-    CHECK(Types(program, types, 4) && events[0].data.pointer.button == mwin_buttonBack &&
-              events[1].data.pointer.button == mwin_buttonForward &&
+    CHECK(Types(program, types, 4) && events[0].data.pointer.button == mwin_mouseButtonBack &&
+              events[1].data.pointer.button == mwin_mouseButtonForward &&
               events[1].data.pointer.buttons == 0x18 &&
-              events[2].data.pointer.button == mwin_buttonBack &&
-              events[3].data.pointer.button == mwin_buttonForward &&
+              events[2].data.pointer.button == mwin_mouseButtonBack &&
+              events[3].data.pointer.button == mwin_mouseButtonForward &&
               events[3].data.pointer.buttons == 0,
           "Back and Forward pressed; Back released by the state, Forward by the pointer up");
 }

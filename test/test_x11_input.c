@@ -360,7 +360,8 @@ static void AdvancePointer(Program* program, mwinContext* context)
     case phaseClicks:
         CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.clickCount == 1 &&
                   Find(program, mwin_eventButtonDown, 1)->data.pointer.clickCount == 2 &&
-                  Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonLeft,
+                  Find(program, mwin_eventButtonDown, 0)->data.pointer.button ==
+                      mwin_mouseButtonLeft,
               "a quick second click is a double click");
         CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons == 1 &&
                   Find(program, mwin_eventButtonUp, 0)->data.pointer.buttons == 0,
@@ -395,9 +396,9 @@ static void AdvancePointer(Program* program, mwinContext* context)
         break;
     }
     case phaseBack:
-        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_buttonBack &&
+        CHECK(Find(program, mwin_eventButtonDown, 0)->data.pointer.button == mwin_mouseButtonBack &&
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.buttons ==
-                      1u << (mwin_buttonBack - 1) &&
+                      1u << (mwin_mouseButtonBack - 1) &&
                   Find(program, mwin_eventButtonDown, 1) == nullptr,
               "button 8 the back button, and button 0 and the tenth left out");
         CHECK(mwinWindow_RequestCursorShape(context, program->window, mwin_shapeText, nullptr) ==

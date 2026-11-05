@@ -303,10 +303,10 @@ static void AdvancePointer(Program* program)
     }
     case phaseClicks:
     {
-        static const ButtonRecord clicks[] = {{mwin_eventButtonDown, mwin_buttonLeft, 0x01},
-                                              {mwin_eventButtonUp, mwin_buttonLeft, 0x00},
-                                              {mwin_eventButtonDown, mwin_buttonLeft, 0x01},
-                                              {mwin_eventButtonUp, mwin_buttonLeft, 0x00}};
+        static const ButtonRecord clicks[] = {{mwin_eventButtonDown, mwin_mouseButtonLeft, 0x01},
+                                              {mwin_eventButtonUp, mwin_mouseButtonLeft, 0x00},
+                                              {mwin_eventButtonDown, mwin_mouseButtonLeft, 0x01},
+                                              {mwin_eventButtonUp, mwin_mouseButtonLeft, 0x00}};
         CHECK(Buttons(program, clicks, 4) &&
                   Find(program, mwin_eventButtonDown, 0)->data.pointer.clickCount == 1 &&
                   Find(program, mwin_eventButtonDown, 1)->data.pointer.clickCount == 2,
@@ -324,10 +324,10 @@ static void AdvancePointer(Program* program)
     }
     case phaseButtons:
     {
-        static const ButtonRecord held[] = {{mwin_eventButtonDown, mwin_buttonRight, 0x02},
-                                            {mwin_eventButtonDown, mwin_buttonForward, 0x12},
-                                            {mwin_eventButtonUp, mwin_buttonForward, 0x02},
-                                            {mwin_eventButtonUp, mwin_buttonRight, 0x00}};
+        static const ButtonRecord held[] = {{mwin_eventButtonDown, mwin_mouseButtonRight, 0x02},
+                                            {mwin_eventButtonDown, mwin_mouseButtonForward, 0x12},
+                                            {mwin_eventButtonUp, mwin_mouseButtonForward, 0x02},
+                                            {mwin_eventButtonUp, mwin_mouseButtonRight, 0x00}};
         CHECK(Buttons(program, held, 4), "buttons held together, each with the ones held");
         const mwinEvent* right = Find(program, mwin_eventButtonDown, 0);
         CHECK(right != nullptr && right->timeNs + 50000000u >= program->sentNs &&

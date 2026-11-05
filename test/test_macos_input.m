@@ -288,7 +288,7 @@ static void CheckMouse(const Program* program)
 {
     size_t at = 0;
     const Record* down = Find(program, &at, mwin_eventButtonDown);
-    CHECK(down != nullptr && down->pointer.button == mwin_buttonLeft &&
+    CHECK(down != nullptr && down->pointer.button == mwin_mouseButtonLeft &&
               down->pointer.clickCount == 1 && down->pointer.buttons == 1 &&
               down->pointer.position.x == 50.0f && down->pointer.position.y == 40.0f,
           "a press at its place, from the top left");
@@ -304,8 +304,8 @@ static void CheckMouse(const Program* program)
     const Record* wheel = Find(program, &wheelAt, mwin_eventWheel);
     CHECK(wheel != nullptr && wheel->wheel.y == 3.0f && wheel->wheel.x == -2.0f,
           "a wheel's lines as detents, away from the user and to the left");
-    static const mwinMouseButton others[] = {mwin_buttonRight, mwin_buttonMiddle, mwin_buttonBack,
-                                             mwin_buttonForward};
+    static const mwinMouseButton others[] = {mwin_mouseButtonRight, mwin_mouseButtonMiddle,
+                                             mwin_mouseButtonBack, mwin_mouseButtonForward};
     for (size_t i = 0; i < sizeof(others) / sizeof(others[0]); i++)
     {
         const Record* pressed = Find(program, &at, mwin_eventButtonDown);

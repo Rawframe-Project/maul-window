@@ -8,7 +8,11 @@
 // or all three in one frame. Each round, once the requests completed, the
 // view gives input methods an address's input type. Whether the keyboard
 // then shows is the input method's: Gboard on Android 11, running behind,
-// can hide it by itself, so the test does not wait for it.
+// can hide it by itself, so the test does not wait for it. Last, a number
+// asked for: the input method service's own history of input starts
+// (dumpsys input_method, written to the test's files through the runner)
+// ends, for this window, with input started anew by the application, for
+// a number's input type.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -21,20 +25,32 @@
 
 #include <android/native_activity.h>
 #include <android/native_window.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define ROUNDS      6
 // The phases of a round, after the keyboard first shown.
 #define ROUND      4
-#define LAST_PHASE (1 + ROUNDS * ROUND)
+#define ROUNDS_END (1 + ROUNDS * ROUND)
+// After the rounds: the number's request completed, then the history.
+#define LAST_PHASE (ROUNDS_END + 2)
+
+// The input method service's history, written whole once dumped.
+#define STARTS_PATH "/data/data/" MWIN_TEST_PACKAGE "/files/starts"
+#define DUMP_STARTS                                                                                \
+    "adb: sh -c 'dumpsys input_method | run-as " MWIN_TEST_PACKAGE                                 \
+    " sh -c \"cat > files/starts.part && mv files/starts.part files/starts\"'\n"
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
 #define TYPE_TEXT_VARIATION_EMAIL     0x20
 #define TYPE_TEXT_FLAG_NO_SUGGESTIONS 0x80000
+#define TYPE_NUMBER                   0x3002
 
 typedef struct Program
 {
@@ -154,6 +170,15 @@ static bool Ready(const Program* program, mwinContext* context)
     {
         return program->completions >= 1 && height > 0.0f;
     }
+    if (program->phase == ROUNDS_END + 1)
+    {
+        return program->completions >= 1;
+    }
+    if (program->phase == ROUNDS_END + 2)
+    {
+        struct stat status;
+        return stat(STARTS_PATH, &status) == 0;
+    }
     switch (StepOf(program))
     {
     case 0:
@@ -173,6 +198,62 @@ static void Ask(Program* program, mwinContext* context, mwinInputPurpose purpose
     CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, true, purpose, nullptr) ==
               mwin_success,
           what);
+}
+
+// The last input start the service's history holds for this window: its
+// reason and its input type, or false when it holds none.
+static bool LastStart(char* reason, size_t capacity, long* type)
+{
+    FILE* file = fopen(STARTS_PATH, "r");
+    if (file == nullptr)
+    {
+        return false;
+    }
+    char line[1024];
+    char entryReason[64] = "";
+    bool inHistory = false;
+    bool ours = false;
+    bool found = false;
+    while (fgets(line, sizeof(line), file) != nullptr)
+    {
+        if (strstr(line, "mStartInputHistory:") != nullptr)
+        {
+            inHistory = true;
+            continue;
+        }
+        if (!inHistory)
+        {
+            continue;
+        }
+        // The history's entries are indented under it; the next section
+        // is not.
+        if (line[0] == ' ' && line[1] == ' ' && line[2] != ' ')
+        {
+            break;
+        }
+        const char* at = nullptr;
+        if (strstr(line, "StartInput #") != nullptr)
+        {
+            ours = false;
+            entryReason[0] = '\0';
+        }
+        else if ((at = strstr(line, "reason=")) != nullptr)
+        {
+            (void)sscanf(at, "reason=%63s", entryReason);
+        }
+        else if (strstr(line, "targetWin=") != nullptr)
+        {
+            ours = strstr(line, "[" MWIN_TEST_PACKAGE "]") != nullptr;
+        }
+        else if (ours && (at = strstr(line, "inputType=")) != nullptr)
+        {
+            *type = strtol(at + strlen("inputType="), nullptr, 0);
+            (void)snprintf(reason, capacity, "%s", entryReason);
+            found = true;
+        }
+    }
+    (void)fclose(file);
+    return found;
 }
 
 // Checks the view gives input methods an address's input type.
@@ -201,13 +282,31 @@ static void Advance(Program* program, mwinContext* context)
         {
             CheckAddress(context, program);
         }
-        if (program->phase < LAST_PHASE)
+        if (program->phase < ROUNDS_END)
         {
             program->completions = 0;
             CHECK(mwinWindow_RequestVirtualKeyboard(context, program->window, false,
                                                     mwin_purposeEmail, nullptr) == mwin_success,
                   "the keyboard hidden");
         }
+        else
+        {
+            Ask(program, context, mwin_purposeNumber, "a keyboard for a number, last");
+        }
+    }
+    else if (program->phase == ROUNDS_END + 1)
+    {
+        (void)unlink(STARTS_PATH);
+        printf("%s", DUMP_STARTS);
+    }
+    else if (program->phase == ROUNDS_END + 2)
+    {
+        char reason[64] = "";
+        long type = 0;
+        bool found = LastStart(reason, sizeof(reason), &type);
+        printf("the last input start: %s, input type 0x%lx\n", found ? reason : "none", type);
+        CHECK(found && strcmp(reason, "APP_CALLED_RESTART_INPUT_API") == 0 && type == TYPE_NUMBER,
+              "input started anew by the application, for a number");
     }
     else if (StepOf(program) == 0)
     {

@@ -26,14 +26,14 @@
 # removes it.
 #
 # adb can lose its connection to the device ("error: closed"). The steps
-# that only read or set the device's state, install, clear or start the
-# application are tried up to three times. The application's data is
-# cleared and its result file removed before it starts, so a result an
-# earlier run left cannot be read as this one's. A command the test asks
-# for is not tried again, and the test fails when adb loses it. The
-# device is put back however the script ends, without changing its
-# status; a setting whose read stayed lost is left as it is, rather than
-# set to nothing.
+# that only read or set the device's state, install or start the
+# application are tried up to three times. An application an earlier
+# run left is removed before the install, and the result file before the
+# start, so a result an earlier run left cannot be read as this one's.
+# A command the test asks for is not tried again, and the test fails
+# when adb loses it. The device is put back however the script ends,
+# without changing its status; a setting whose read stayed lost is left
+# as it is, rather than set to nothing.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -169,27 +169,45 @@ font=$(setting settings get system font_scale)
 saver=$(setting settings get global low_power)
 services=$(setting settings get secure enabled_accessibility_services)
 accessible=$(setting settings get secure accessibility_enabled)
+# Each run starts with the application fresh: one an earlier run left,
+# as when its uninstall was lost, is removed with its data first. The
+# media provider handles a package's removal in its own time, and orphans
+# the documents the package owns then, the ones a test made since among
+# them. So the runner waits, 60 s at most, until the system has delivered
+# its broadcasts, the removal's and the install's, before the test starts.
+# Each answer is read whole first: a lost read ends the run here (set -e),
+# where a pipe would give its last command's status and an empty answer.
+installed=$(ask shell pm list packages "$package")
+if printf '%s\n' "$installed" | tr -d '\r' | grep -qx "package:$package"; then
+    again uninstall "$package" > /dev/null
+fi
 again install -r "$apk" > /dev/null
-# install -r keeps the data, files/out among it, of a run whose
-# uninstall was lost. pm clear can say it failed and still exit 0, so
-# the result file is removed by name too, and the device asked whether
-# it is gone: anything but "absent" (run-as failing among it) fails the
-# test, whose result could be the earlier one.
-again shell pm clear "$package" > /dev/null
+if ! timeout 60 "$adb" shell am wait-for-broadcast-idle > /dev/null; then
+    echo "the system's broadcasts were not seen idle in 60 s"
+fi
+# Should the removal have been lost too, install -r keeps the data,
+# files/out among it. The result file is removed by name, and the device
+# asked whether it is gone: anything but "absent" (run-as failing among
+# it) fails the test, whose result could be the earlier one.
 again shell run-as "$package" rm -f files/out || true
-gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" | tr -d '\r')
+gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'")
+gone=$(printf '%s' "$gone" | tr -d '\r')
 if [ "$gone" != absent ]; then
     echo "an earlier run's result may be left: the device answered '$gone'"
 fi
 began_assets=$(assets)
-server=$(ask shell pidof system_server | tr -d '\r')
+server=$(ask shell pidof system_server)
+server=$(printf '%s' "$server" | tr -d '\r')
 again logcat -b all -c
+# The minute for the result counts from the start, whatever the steps
+# before it took.
+launched=$(date +%s)
 again shell am start -W -n "$package/maul.window.Activity" > /dev/null
 echo "started $package in $(($(date +%s) - start)) s"
 out=$(mktemp)
 done=0
 lost=
-while [ $(($(date +%s) - start)) -lt 60 ]; do
+while [ $(($(date +%s) - launched)) -lt 60 ]; do
     "$adb" shell run-as "$package" cat files/out > "$out" 2> /dev/null || true
     commands=$(grep -E '^(adb|emu): ' "$out" || true)
     count=$(printf '%s' "$commands" | grep -c '' || true)
@@ -212,15 +230,21 @@ while [ $(($(date +%s) - start)) -lt 60 ]; do
     grep -q '^result: ' "$out" && break
     sleep 0.1
 done
-echo "waited until $(($(date +%s) - start)) s"
+echo "waited until $(($(date +%s) - launched)) s after the start"
 grep -v -E '^(adb|emu): ' "$out" || true
 # The system's crash takes the test with it: said as such, once the
 # system is back.
-server_now=$(ask shell pidof system_server | tr -d '\r')
+# A pid that cannot be read, the system down or adb lost, fails the test
+# as a restart would.
+if server_now=$(ask shell pidof system_server); then
+    server_now=$(printf '%s' "$server_now" | tr -d '\r')
+else
+    server_now=
+fi
 restarted=
 if [ "$server_now" != "$server" ]; then
     restarted=1
-    echo "the system restarted during the test: system_server was pid $server, now ${server_now:-gone}"
+    echo "the system restarted during the test: system_server was pid $server, now ${server_now:-not read}"
     "$adb" logcat -d -b crash | grep -E 'Fatal signal|Abort message' | head -6 || true
     began=$(date +%s)
     while [ $(($(date +%s) - began)) -lt 60 ] &&

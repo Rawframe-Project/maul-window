@@ -26,14 +26,13 @@
 # removes it.
 #
 # adb can lose its connection to the device ("error: closed"). The steps
-# that only read or set the device's state, install, clear or start the
-# application are tried up to three times. The application's data is
-# cleared and its result file removed before it starts, so a result an
-# earlier run left cannot be read as this one's. A command the test asks
-# for is not tried again, and the test fails when adb loses it. The
-# device is put back however the script ends, without changing its
-# status; a setting whose read stayed lost is left as it is, rather than
-# set to nothing.
+# that only read or set the device's state, install or start the
+# application are tried up to three times. The application's result file
+# is removed before it starts, so a result an earlier run left cannot be
+# read as this one's. A command the test asks for is not tried again,
+# and the test fails when adb loses it. The device is put back however
+# the script ends, without changing its status; a setting whose read
+# stayed lost is left as it is, rather than set to nothing.
 set -eu
 adb=${ADB:-adb}
 apk=$1
@@ -170,12 +169,18 @@ saver=$(setting settings get global low_power)
 services=$(setting settings get secure enabled_accessibility_services)
 accessible=$(setting settings get secure accessibility_enabled)
 again install -r "$apk" > /dev/null
+# The media provider handles a package's removal or data clearing in its
+# own time, and orphans the documents the package owns then, the ones a
+# test made since among them. So the runner clears no data, and waits,
+# 60 s at most, until the system has delivered its broadcasts, an earlier
+# run's removal among them, before the test starts.
+if ! timeout 60 "$adb" shell am wait-for-broadcast-idle > /dev/null; then
+    echo "the system's broadcasts were not seen idle in 60 s"
+fi
 # install -r keeps the data, files/out among it, of a run whose
-# uninstall was lost. pm clear can say it failed and still exit 0, so
-# the result file is removed by name too, and the device asked whether
-# it is gone: anything but "absent" (run-as failing among it) fails the
-# test, whose result could be the earlier one.
-again shell pm clear "$package" > /dev/null
+# uninstall was lost. The result file is removed by name, and the device
+# asked whether it is gone: anything but "absent" (run-as failing among
+# it) fails the test, whose result could be the earlier one.
 again shell run-as "$package" rm -f files/out || true
 gone=$(ask shell "run-as $package sh -c 'if [ -e files/out ]; then echo present; else echo absent; fi'" | tr -d '\r')
 if [ "$gone" != absent ]; then

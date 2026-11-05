@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "cursor.h"
+#include "x11_reply.h"
 
 // Each shape's names in cursor themes: the CSS name, then the X11 name,
 // which the core cursor font also has.
@@ -121,8 +122,9 @@ static xcb_render_pictformat_t ArgbFormat(mwinX11Platform* platform)
     {
         return 0;
     }
-    xcb_render_query_pict_formats_reply_t* reply = api->renderQueryFormatsReply(
-        platform->connection, api->renderQueryFormats(platform->connection), nullptr);
+    xcb_render_query_pict_formats_reply_t* reply = mwinX11CheckFormats(
+        api, api->renderQueryFormatsReply(platform->connection,
+                                          api->renderQueryFormats(platform->connection), nullptr));
     if (reply != nullptr)
     {
         const xcb_render_pictforminfo_t* formats = api->renderFormats(reply);

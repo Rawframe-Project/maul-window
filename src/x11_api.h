@@ -29,7 +29,6 @@ typedef struct mwinX11Api
     typeof(xcb_connection_has_error)* connectionHasError;
     typeof(xcb_get_setup)* getSetup;
     typeof(xcb_setup_roots_iterator)* setupRootsIterator;
-    typeof(xcb_screen_next)* screenNext;
     typeof(xcb_generate_id)* generateId;
     typeof(xcb_flush)* flush;
     typeof(xcb_poll_for_event)* pollForEvent;
@@ -146,13 +145,7 @@ typedef struct mwinX11Api
     typeof(xcb_input_button_press_axisvalues_length)* axisValuesLength;
     typeof(xcb_input_xi_query_device)* xiQueryDevice;
     typeof(xcb_input_xi_query_device_reply)* xiQueryDeviceReply;
-    typeof(xcb_input_xi_query_device_infos_iterator)* deviceInfos;
-    typeof(xcb_input_xi_device_info_next)* deviceInfoNext;
-    typeof(xcb_input_xi_device_info_classes_iterator)* deviceClasses;
-    typeof(xcb_input_device_class_next)* deviceClassNext;
     typeof(xcb_input_xi_ungrab_device)* xiUngrabDevice;
-    typeof(xcb_input_xi_device_info_name)* deviceName;
-    typeof(xcb_input_xi_device_info_name_length)* deviceNameLength;
     typeof(xcb_input_list_input_devices)* listInputDevices;
     typeof(xcb_input_list_input_devices_reply)* listInputDevicesReply;
     typeof(xcb_input_list_input_devices_devices)* inputDevices;

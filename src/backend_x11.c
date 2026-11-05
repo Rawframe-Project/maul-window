@@ -19,6 +19,7 @@
 #include "x11_drop.h"
 #include "x11_input.h"
 #include "x11_output.h"
+#include "x11_reply.h"
 #include "x11_resources.h"
 #include "x11_window.h"
 
@@ -148,9 +149,11 @@ static xcb_get_property_reply_t* WindowProperty(const mwinX11Platform* platform,
                                                 xcb_atom_t type, uint32_t longs)
 {
     const mwinX11Api* api = &platform->api;
-    return api->getPropertyReply(
-        platform->connection,
-        api->getProperty(platform->connection, 0, window, property, type, 0, longs), nullptr);
+    return mwinX11CheckProperty(
+        api,
+        api->getPropertyReply(
+            platform->connection,
+            api->getProperty(platform->connection, 0, window, property, type, 0, longs), nullptr));
 }
 
 // The scale desktops set through Xft.dpi, 1 where it is not set.
@@ -241,12 +244,10 @@ static mwinResult Connect(mwinX11Platform* platform)
     {
         return mwin_errorPlatform;
     }
-    xcb_screen_iterator_t screens = api->setupRootsIterator(api->getSetup(platform->connection));
-    for (int i = 0; i < screenNumber && screens.rem > 0; i++)
-    {
-        api->screenNext(&screens);
-    }
-    platform->screen = screens.data;
+    // libxcb gives the setup const, and libxcb-cursor takes the screen
+    // without; neither writes it.
+    platform->screen =
+        (xcb_screen_t*)mwinX11ScreenOf(api, api->getSetup(platform->connection), screenNumber);
     if (platform->screen == nullptr || !InternAtoms(platform))
     {
         return mwin_errorPlatform;

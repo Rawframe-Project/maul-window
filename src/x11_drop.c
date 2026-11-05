@@ -8,6 +8,7 @@
 #include "allocator.h"
 #include "monotonic.h"
 #include "uri_list.h"
+#include "x11_reply.h"
 
 #include <string.h>
 
@@ -56,11 +57,12 @@ static void Offer(mwinX11Platform* platform, xcb_atom_t type)
 static void ReadTypeList(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
-    xcb_get_property_reply_t* reply = api->getPropertyReply(
-        platform->connection,
-        api->getProperty(platform->connection, 0, platform->drag.source,
-                         platform->atoms[mwin_atomXdndTypeList], XCB_ATOM_ATOM, 0, MAX_TYPES),
-        nullptr);
+    xcb_get_property_reply_t* reply = mwinX11CheckProperty(
+        api, api->getPropertyReply(platform->connection,
+                                   api->getProperty(platform->connection, 0, platform->drag.source,
+                                                    platform->atoms[mwin_atomXdndTypeList],
+                                                    XCB_ATOM_ATOM, 0, MAX_TYPES),
+                                   nullptr));
     if (reply != nullptr && reply->format == 32)
     {
         const xcb_atom_t* types = api->getPropertyValue(reply);
@@ -265,12 +267,13 @@ MWIN_NODISCARD static bool Take(mwinX11Platform* platform)
     const mwinX11Api* api = &platform->api;
     mwinX11Drag* drag = &platform->drag;
     mwinContext* context = platform->context;
-    xcb_get_property_reply_t* reply = api->getPropertyReply(
-        platform->connection,
-        api->getProperty(platform->connection, 1, platform->windows[drag->slot].window,
-                         drag->property, XCB_GET_PROPERTY_TYPE_ANY, 0,
-                         context->limits.dropBytes / 4 + 1),
-        nullptr);
+    xcb_get_property_reply_t* reply = mwinX11CheckProperty(
+        api, api->getPropertyReply(platform->connection,
+                                   api->getProperty(platform->connection, 1,
+                                                    platform->windows[drag->slot].window,
+                                                    drag->property, XCB_GET_PROPERTY_TYPE_ANY, 0,
+                                                    context->limits.dropBytes / 4 + 1),
+                                   nullptr));
     bool pieces = reply != nullptr && reply->type == platform->atoms[mwin_atomIncr];
     bool whole = reply != nullptr && reply->bytes_after == 0 && reply->format == 8 && !pieces;
     if (pieces)

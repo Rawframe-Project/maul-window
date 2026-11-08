@@ -272,6 +272,8 @@ if(MAUL_WINDOW_BUILD_TESTS)
         set_property(TEST ${ARGN} APPEND PROPERTY LABELS integration)
     endfunction()
     maul_add_test(base)
+    # The touches ios_touch takes from its taps, checked on every platform.
+    maul_add_test(tap_touches)
     # A program reads the Maul Unicode version from an installed package
     # and from a Maul Window it builds from source. Run where the build can
     # run CMake itself: not when cross-compiling.
@@ -750,6 +752,10 @@ if(MAUL_WINDOW_BUILD_TESTS)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
                                  FIXTURES_REQUIRED ios_simulator LABELS "${name};integration")
         endforeach()
+        # Intermittent in the simulator: a tap through idb coming after the
+        # test's deadline, or not at all, until it passes 14 nights (issue
+        # #500).
+        maul_quarantine(ios_touch)
         # A device's first install and launch of a test application, paid
         # before the tests so that their time is their own.
         add_test(NAME ios_warm_up COMMAND ${PROJECT_SOURCE_DIR}/tools/warm_ios_simulator.sh

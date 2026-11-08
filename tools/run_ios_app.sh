@@ -9,7 +9,10 @@
 # <arguments>", so that the test drives what only the system can do
 # (another application in front of it, and its own brought back). A line
 # "idb: <arguments>" is run once as "idb <arguments> --udid <device>", for
-# what only idb can do: a touch through the simulator's own input. Passes
+# what only idb can do: a touch through the simulator's own input. Each
+# is timed, and once it returns the runner writes how many of the test's
+# lines it has run to the file MWIN_TEST_RAN names, so that the test can
+# tell a command still running from one done. Passes
 # when the line says 0 failures; otherwise shows the application's
 # errors, and where it is stuck or why it ended. A launch simctl refuses,
 # or answers without a process, fails the run at once with simctl's
@@ -39,6 +42,7 @@ id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist")
 out=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-out.XXXXXX")
 err=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-err.XXXXXX")
 said=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-launch.XXXXXX")
+ranfile=$(mktemp "${TMPDIR:-/tmp}/mwin-ios-ran.XXXXXX")
 start=$(date +%s)
 # Installs the bundle and launches it: pid is the application's, empty
 # when simctl failed or named none, and said holds what simctl wrote.
@@ -49,8 +53,9 @@ launch() {
     xcrun simctl install "$device" "$app"
     echo "installed $id in $(($(date +%s) - start)) s"
     pid=
-    if SIMCTL_CHILD_MWIN_TEST_OUT="$out" xcrun simctl launch --terminate-running-process \
-        --stderr="$err" "$device" "$id" >"$said" 2>&1; then
+    if SIMCTL_CHILD_MWIN_TEST_OUT="$out" SIMCTL_CHILD_MWIN_TEST_RAN="$ranfile" \
+        xcrun simctl launch --terminate-running-process --stderr="$err" "$device" "$id" \
+        >"$said" 2>&1; then
         pid=$(sed -n 's/^.*: \([0-9][0-9]*\)$/\1/p' "$said" | tail -1)
     fi
 }
@@ -67,7 +72,7 @@ fi
 if [ -z "$pid" ]; then
     cat "$said"
     echo "the launch failed after $(($(date +%s) - start)) s, before the test ran"
-    rm -f "$out" "$err" "$said"
+    rm -f "$out" "$err" "$said" "$ranfile"
     exit 1
 fi
 echo "launched as $pid in $(($(date +%s) - start)) s"
@@ -107,9 +112,12 @@ while ! grep -q '^result: ' "$out"; do
         ran=$((ran + 1))
         line=$(printf '%s\n' "$commands" | sed -n "${ran}p")
         echo "running: $line"
+        began=$(date +%s)
         if [ "${line#idb: }" != "$line" ]; then
             # shellcheck disable=SC2086 # its arguments, as written
             idb ${line#idb: } --udid "$(udid)" >/dev/null || echo "idb failed"
+            echo "  took $(($(date +%s) - began)) s, done at $(($(date +%s) - launched)) s"
+            echo "$ran" >"$ranfile.part" && mv "$ranfile.part" "$ranfile"
             continue
         fi
         # shellcheck disable=SC2086 # the verb and its arguments, as written
@@ -123,6 +131,8 @@ while ! grep -q '^result: ' "$out"; do
         if [ "$verb $*" = "launch $id" ]; then
             back=$(date +%s)
         fi
+        echo "  took $(($(date +%s) - began)) s, done at $(($(date +%s) - launched)) s"
+        echo "$ran" >"$ranfile.part" && mv "$ranfile.part" "$ranfile"
     done
     sleep 0.2
 done
@@ -147,5 +157,5 @@ else
     fi
 fi
 xcrun simctl terminate "$device" "$id" >/dev/null 2>&1 || true
-rm -f "$out" "$err" "$said"
+rm -f "$out" "$err" "$said" "$ranfile"
 exit $status

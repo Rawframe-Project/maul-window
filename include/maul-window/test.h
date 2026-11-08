@@ -324,15 +324,16 @@ extern "C"
     /// Reads whether the test platform was told to turn a gamepad's motion
     /// sensors on.
     ///
-    /// @param context  A context of the test backend.
-    /// @param gamepad  The gamepad.
-    /// @param onOut    Receives true while they are on. False on failure.
+    /// @param context     A context of the test backend.
+    /// @param gamepad     The gamepad.
+    /// @param enabledOut  Receives true while they are on. False on
+    ///                    failure.
     /// @return As mwinGamepad_SetTestInfo.
     /// @par Thread safety
     /// Main thread only.
     MWIN_NODISCARD MWIN_API mwinResult mwinGamepad_IsTestMotionEnabled(const mwinContext* context,
                                                                        mwinGamepadId gamepad,
-                                                                       bool* onOut);
+                                                                       bool* enabledOut);
 
     /// Gives a gamepad's motion sensors a sample, at once, as the platform
     /// would; kept only while they are on.

@@ -172,10 +172,10 @@ mwinResult mwinGamepad_GetTestTriggerRumble(const mwinContext* context, mwinGame
 }
 
 mwinResult mwinGamepad_IsTestMotionEnabled(const mwinContext* context, mwinGamepadId gamepad,
-                                           bool* onOut)
+                                           bool* enabledOut)
 {
-    mwinClearOut(onOut, sizeof *onOut);
-    if (onOut == nullptr)
+    mwinClearOut(enabledOut, sizeof *enabledOut);
+    if (enabledOut == nullptr)
     {
         return mwinMisuse(context);
     }
@@ -183,7 +183,7 @@ mwinResult mwinGamepad_IsTestMotionEnabled(const mwinContext* context, mwinGamep
     mwinResult status = FindTestGamepad(context, gamepad, &slot);
     if (status == mwin_success)
     {
-        *onOut = mwinTestPlatformOf(context)->pads[slot].motion;
+        *enabledOut = mwinTestPlatformOf(context)->pads[slot].motion;
     }
     return status;
 }

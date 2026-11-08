@@ -6,7 +6,8 @@
 # pass with that many sent again, 3 fail with the runner's line saying
 # so, and an application that never ends is ended by the runner's limit.
 # An application that asks for a touch gets it from idb, given the
-# booted device's UDID. A launch FrontBoard refuses once is installed and
+# booted device's UDID, and reads that the runner has done it in the file
+# MWIN_TEST_RAN names; the runner tells how long it took. A launch FrontBoard refuses once is installed and
 # launched again; refused twice, or refused for another reason, or
 # answered without a pid, the run fails at once.
 # Run by tools/check.sh and CI's checks job, in seconds, so that a slip
@@ -66,7 +67,8 @@ case "$verb $last" in
             "(\"Application \"org.test.app\" is unknown to FrontBoard\")." >&2
         exit 1
     else
-        MWIN_TEST_OUT=$SIMCTL_CHILD_MWIN_TEST_OUT sh "$FAKE_APP" </dev/null >/dev/null 2>&1 &
+        MWIN_TEST_OUT=$SIMCTL_CHILD_MWIN_TEST_OUT MWIN_TEST_RAN=$SIMCTL_CHILD_MWIN_TEST_RAN \
+            sh "$FAKE_APP" </dev/null >/dev/null 2>&1 &
         echo $! >"$state/pid"
         echo "org.test.app: $!"
     fi
@@ -91,7 +93,7 @@ echo "active at 0.10 s" >>"$out"
 [ "$FAKE_DROPS" = never ] && exec sleep 100000
 if [ "$FAKE_DROPS" = touch ]; then
     echo "idb: ui tap 10 20" >>"$out"
-    until [ -f "$FAKE_STATE/idb" ]; do sleep 1; done
+    until [ "$(cat "$MWIN_TEST_RAN" 2>/dev/null)" = 1 ]; do sleep 1; done
     failures=1
     [ "$(cat "$FAKE_STATE/idb")" = "ui tap 10 20 --udid 0A1B2C3D-0000-4000-8000-00000000ABCD" ] &&
         failures=0
@@ -164,7 +166,8 @@ check 2 0 "waited until [0-9]+ s, the launch back sent again: 2" "result: 0 fail
 check 3 1 "waited until [0-9]+ s, the launch back sent again: 2" \
     "still in the background 20 s after the launch back was sent again twice"
 check never 1 "ended by the runner's 180 s limit, before the test's closing line"
-check touch 0 "running: idb: ui tap 10 20" "result: 0 failures"
+check touch 0 "running: idb: ui tap 10 20" "  took [0-9]+ s, done at [0-9]+ s" \
+    "result: 0 failures"
 refuse=1
 check 0 0 "the launch was refused, the application unknown to FrontBoard: installing it again" \
     "launched as [0-9]+ in [0-9]+ s" "result: 0 failures" "installs: 2"

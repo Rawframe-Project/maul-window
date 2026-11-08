@@ -741,6 +741,9 @@ if(MAUL_WINDOW_BUILD_TESTS)
             set_tests_properties(${name} PROPERTIES TIMEOUT 240 RESOURCE_LOCK simulator
                                  FIXTURES_REQUIRED ios_simulator LABELS "${name};integration")
         endforeach()
+        # Intermittent in the simulator: a tap through idb coming after the
+        # test's deadline, or not at all (issue #499).
+        maul_quarantine(ios_touch)
         # A device's first install and launch of a test application, paid
         # before the tests so that their time is their own.
         add_test(NAME ios_warm_up COMMAND ${PROJECT_SOURCE_DIR}/tools/warm_ios_simulator.sh

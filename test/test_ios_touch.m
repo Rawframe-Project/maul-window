@@ -14,6 +14,7 @@
 // three taps at most, each told with when idb did it, so that a run
 // shows whether a touch came late or never.
 
+#include "tap_touches.h"
 #include "test_harness.h"
 
 #include "maul-window/event.h"
@@ -76,16 +77,23 @@ static void Collect(Program* program, mwinContext* context)
         {
             program->shownNs = NowNs();
         }
+        // The first finger's down and up are kept.
         if (event.kind == mwin_eventTouchDown)
         {
+            if (program->downs == 0)
+            {
+                program->downId = event.data.touch.id;
+                program->down = event.data.touch.position;
+            }
             program->downs += 1;
-            program->downId = event.data.touch.id;
-            program->down = event.data.touch.position;
         }
         if (event.kind == mwin_eventTouchUp)
         {
+            if (program->ups == 0)
+            {
+                program->upId = event.data.touch.id;
+            }
             program->ups += 1;
-            program->upId = event.data.touch.id;
         }
     }
 }
@@ -166,8 +174,10 @@ static void Advance(Program* program)
     {
         printf("touched after %d tap%s: %d down, %d up\n", program->taps,
                program->taps == 1 ? "" : "s", program->downs, program->ups);
-        CHECK(program->downs >= 1 && program->ups >= 1 && program->downId == program->upId,
-              "a finger down and up, through the system");
+        // One finger per tap sent at most: two from a single tap fail.
+        CHECK(TapTouches(program->taps, program->downs, program->ups) &&
+                  program->downId == program->upId,
+              "a finger down and up for a tap, through the system");
         CGPoint inView = [program->view convertPoint:program->tapped fromView:nil];
         CHECK(fabs((CGFloat)program->down.x - inView.x) < 2.0 &&
                   fabs((CGFloat)program->down.y - inView.y) < 2.0,

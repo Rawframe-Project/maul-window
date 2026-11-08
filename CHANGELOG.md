@@ -5,6 +5,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.15.1](https://github.com/Rawframe-Project/maul-window/compare/v0.15.0...v0.15.1) (2026-11-08)
+
+
+### Fixed
+
+* **x11:** read the server's replies only within their bytes ([#497](https://github.com/Rawframe-Project/maul-window/issues/497)) ([fd7fe66](https://github.com/Rawframe-Project/maul-window/commit/fd7fe66ed4aa843f3b21493bdb698a9b995c2f95)), closes [#496](https://github.com/Rawframe-Project/maul-window/issues/496)
+
 ## [0.15.0](https://github.com/Rawframe-Project/maul-window/compare/v0.14.0...v0.15.0) (2026-11-05)
 
 The iOS device check, that a window shows no flash against the launch

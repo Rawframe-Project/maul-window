@@ -13,6 +13,7 @@
 #include "x11_icon.h"
 #include "x11_input.h"
 #include "x11_output.h"
+#include "x11_reply.h"
 
 #include <math.h>
 #include <string.h>
@@ -652,21 +653,22 @@ static mwinWindowMode ReadMode(const mwinX11Platform* platform, const mwinX11Win
 {
     const mwinX11Api* api = &platform->api;
     const xcb_atom_t* atoms = platform->atoms;
-    xcb_get_property_reply_t* reply =
+    xcb_get_property_reply_t* reply = mwinX11CheckProperty(
+        api,
         api->getPropertyReply(platform->connection,
                               api->getProperty(platform->connection, 0, window->window,
                                                atoms[mwin_atomNetWmState], XCB_ATOM_ATOM, 0, 64),
-                              nullptr);
+                              nullptr));
     if (reply == nullptr)
     {
         return mwin_modeWindowed;
     }
     const xcb_atom_t* states = api->getPropertyValue(reply);
-    int count = api->getPropertyValueLength(reply) / (int)sizeof(xcb_atom_t);
+    size_t count = mwinX11PropertyBytes(reply) / sizeof(xcb_atom_t);
     bool fullscreen = false;
     bool hidden = false;
     int maximized = 0;
-    for (int i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++)
     {
         fullscreen |= states[i] == atoms[mwin_atomNetWmStateFullscreen];
         hidden |= states[i] == atoms[mwin_atomNetWmStateHidden];

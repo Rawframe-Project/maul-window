@@ -8,6 +8,7 @@
 #include "allocator.h"
 #include "evdev.h"
 #include "x11_chrome.h"
+#include "x11_reply.h"
 #include "xkb_keyboard.h"
 
 // X11 key codes are evdev codes plus 8.
@@ -335,11 +336,9 @@ static mwinX11PenAxis PenAxisOf(const mwinX11Platform* platform, xcb_atom_t labe
 static void ReadDevice(mwinX11Platform* platform, const xcb_input_xi_device_info_t* info,
                        xcb_atom_t type)
 {
-    const mwinX11Api* api = &platform->api;
     bool pressure = false;
     bool direct = false;
-    for (xcb_input_device_class_iterator_t item = api->deviceClasses(info); item.rem > 0;
-         api->deviceClassNext(&item))
+    for (mwinX11Classes item = mwinX11ClassesOf(info); item.rem > 0; mwinX11NextClass(&item))
     {
         const xcb_input_scroll_class_t* scroll = (const xcb_input_scroll_class_t*)item.data;
         const xcb_input_valuator_class_t* valuator = (const xcb_input_valuator_class_t*)item.data;
@@ -358,13 +357,13 @@ static void ReadDevice(mwinX11Platform* platform, const xcb_input_xi_device_info
     const mwinX11PenTypes types = {platform->atoms[mwin_atomStylus],
                                    platform->atoms[mwin_atomEraser],
                                    platform->atoms[mwin_atomTablet]};
-    mwinX11PenKind kind = mwinX11PenKindOf(type, types, api->deviceName(info),
-                                           (size_t)api->deviceNameLength(info), pressure);
+    mwinX11PenKind kind =
+        mwinX11PenKindOf(type, types, mwinX11DeviceName(info), info->name_len, pressure);
     mwinX11Pen* pen = kind != mwin_x11NotPen
                           ? mwinX11AddPen(&platform->pens, info->deviceid, kind == mwin_x11Eraser)
                           : nullptr;
-    for (xcb_input_device_class_iterator_t item = api->deviceClasses(info);
-         pen != nullptr && item.rem > 0; api->deviceClassNext(&item))
+    for (mwinX11Classes item = mwinX11ClassesOf(info); pen != nullptr && item.rem > 0;
+         mwinX11NextClass(&item))
     {
         const xcb_input_valuator_class_t* valuator = (const xcb_input_valuator_class_t*)item.data;
         mwinX11PenAxis axis = item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR
@@ -377,8 +376,8 @@ static void ReadDevice(mwinX11Platform* platform, const xcb_input_xi_device_info
     }
     mwinX11TouchDevice* screen =
         direct ? mwinX11AddTouchDevice(&platform->touches, info->deviceid) : nullptr;
-    for (xcb_input_device_class_iterator_t item = api->deviceClasses(info);
-         screen != nullptr && item.rem > 0; api->deviceClassNext(&item))
+    for (mwinX11Classes item = mwinX11ClassesOf(info); screen != nullptr && item.rem > 0;
+         mwinX11NextClass(&item))
     {
         const xcb_input_valuator_class_t* valuator = (const xcb_input_valuator_class_t*)item.data;
         if (item.data->type == XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR &&
@@ -397,13 +396,15 @@ static void ReadDevices(mwinX11Platform* platform)
     platform->scroll = (mwinX11Scroll){0};
     platform->pens = (mwinX11Pens){0};
     mwinX11ClearTouchDevices(&platform->touches);
-    xcb_input_list_input_devices_reply_t* list = api->listInputDevicesReply(
-        platform->connection, api->listInputDevices(platform->connection), nullptr);
-    xcb_input_xi_query_device_reply_t* reply = api->xiQueryDeviceReply(
+    xcb_input_list_input_devices_reply_t* list = mwinX11CheckInputDevices(
+        api, api->listInputDevicesReply(platform->connection,
+                                        api->listInputDevices(platform->connection), nullptr));
+    xcb_input_xi_query_device_reply_t* reply = mwinX11CheckDevices(api->xiQueryDeviceReply(
         platform->connection, api->xiQueryDevice(platform->connection, XCB_INPUT_DEVICE_ALL),
-        nullptr);
-    for (xcb_input_xi_device_info_iterator_t info = api->deviceInfos(reply);
-         reply != nullptr && info.rem > 0; api->deviceInfoNext(&info))
+        nullptr));
+    // No reply, or a malformed one, lists no device.
+    mwinX11Devices info = reply != nullptr ? mwinX11DevicesOf(reply) : (mwinX11Devices){0};
+    for (; info.rem > 0; mwinX11NextDevice(&info))
     {
         if (info.data->type == XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER)
         {
@@ -720,7 +721,9 @@ bool mwinX11HandleInputEvent(mwinX11Platform* platform, const xcb_generic_event_
     if (type == XCB_GE_GENERIC && platform->xinputOpcode != 0)
     {
         const xcb_ge_generic_event_t* generic = (const xcb_ge_generic_event_t*)event;
-        if (generic->extension == platform->xinputOpcode)
+        // An event whose fields or valuators pass its bytes is passed over.
+        if (generic->extension == platform->xinputOpcode &&
+            mwinX11XiEventWhole(&platform->api, generic))
         {
             OnXi(platform, generic);
         }

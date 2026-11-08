@@ -159,11 +159,6 @@ static void* GetPropertyValue(const xcb_get_property_reply_t* reply)
     return (void*)(reply + 1);
 }
 
-static int GetPropertyValueLength(const xcb_get_property_reply_t* reply)
-{
-    return (int)(reply->value_len * (reply->format / 8u));
-}
-
 static xcb_void_cookie_t SetSelectionOwner(xcb_connection_t*, xcb_window_t, xcb_atom_t,
                                            xcb_timestamp_t)
 {
@@ -421,7 +416,6 @@ static mwinResult Init(mwinContext* context, void* user)
     api->getProperty = GetProperty;
     api->getPropertyReply = GetPropertyReply;
     api->getPropertyValue = GetPropertyValue;
-    api->getPropertyValueLength = GetPropertyValueLength;
     api->setSelectionOwner = SetSelectionOwner;
     api->getSelectionOwner = GetSelectionOwner;
     api->getSelectionOwnerReply = GetSelectionOwnerReply;

@@ -7,6 +7,7 @@
 
 #include "allocator.h"
 #include "edid.h"
+#include "x11_reply.h"
 
 #include <string.h>
 
@@ -15,8 +16,9 @@
 static void ReadName(const mwinX11Platform* platform, xcb_atom_t atom, mwinMonitorInfo* info)
 {
     const mwinX11Api* api = &platform->api;
-    xcb_get_atom_name_reply_t* reply = api->getAtomNameReply(
-        platform->connection, api->getAtomName(platform->connection, atom), nullptr);
+    xcb_get_atom_name_reply_t* reply = mwinX11CheckAtomName(
+        api, api->getAtomNameReply(platform->connection,
+                                   api->getAtomName(platform->connection, atom), nullptr));
     if (reply == nullptr)
     {
         return;
@@ -54,11 +56,12 @@ static xcb_randr_get_output_property_reply_t* PropertyOf(const mwinX11Platform* 
                                                          uint32_t longs)
 {
     const mwinX11Api* api = &platform->api;
-    xcb_randr_get_output_property_reply_t* reply = api->randrGetOutputPropertyReply(
-        platform->connection,
-        api->randrGetOutputProperty(platform->connection, output, name, XCB_ATOM_ANY, 0, longs, 0,
-                                    0),
-        nullptr);
+    xcb_randr_get_output_property_reply_t* reply = mwinX11CheckOutputProperty(
+        api, api->randrGetOutputPropertyReply(
+                 platform->connection,
+                 api->randrGetOutputProperty(platform->connection, output, name, XCB_ATOM_ANY, 0,
+                                             longs, 0, 0),
+                 nullptr));
     if (reply != nullptr && reply->type == XCB_ATOM_NONE)
     {
         mwinReleaseSystemMemory(reply);
@@ -128,8 +131,8 @@ static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t 
     mwinEdidHdr hdr = {0};
     if (edid != nullptr && edid->format == 8)
     {
-        (void)mwinEdidHdrOf(api->randrOutputPropertyData(edid),
-                            (size_t)api->randrOutputPropertyDataLength(edid), &hdr);
+        (void)mwinEdidHdrOf(api->randrOutputPropertyData(edid), mwinX11OutputPropertyBytes(edid),
+                            &hdr);
     }
     info->hdr = (mwinHdrFacts){
         .known = true,
@@ -142,7 +145,7 @@ static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t 
         PropertyOf(platform, output, platform->atoms[mwin_atomVrrCapable], 1);
     // A driver without the property does not tell.
     info->variableRefresh = mwin_unknown;
-    if (vrr != nullptr && vrr->format == 32 && api->randrOutputPropertyDataLength(vrr) >= 4)
+    if (vrr != nullptr && vrr->format == 32 && mwinX11OutputPropertyBytes(vrr) >= 4)
     {
         uint32_t capable = 0;
         memcpy(&capable, api->randrOutputPropertyData(vrr), sizeof(capable));
@@ -193,17 +196,19 @@ static void ReportScreen(mwinX11Platform* platform)
 static void ReportRandr(mwinX11Platform* platform)
 {
     const mwinX11Api* api = &platform->api;
-    xcb_randr_get_monitors_reply_t* reply = api->randrGetMonitorsReply(
-        platform->connection,
-        api->randrGetMonitors(platform->connection, platform->screen->root, 1), nullptr);
+    xcb_randr_get_monitors_reply_t* reply = mwinX11CheckMonitors(
+        api, api->randrGetMonitorsReply(
+                 platform->connection,
+                 api->randrGetMonitors(platform->connection, platform->screen->root, 1), nullptr));
     if (reply == nullptr)
     {
         return;
     }
     // The modes, whose timings give the refresh rates.
-    xcb_randr_get_screen_resources_current_reply_t* resources = api->randrGetResourcesReply(
-        platform->connection, api->randrGetResources(platform->connection, platform->screen->root),
-        nullptr);
+    xcb_randr_get_screen_resources_current_reply_t* resources = mwinX11CheckResources(
+        api, api->randrGetResourcesReply(
+                 platform->connection,
+                 api->randrGetResources(platform->connection, platform->screen->root), nullptr));
     // Where RandR names no primary monitor, the first is.
     bool named = false;
     for (xcb_randr_monitor_info_iterator_t it = api->randrMonitorsIterator(reply); it.rem > 0;

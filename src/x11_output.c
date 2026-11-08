@@ -131,8 +131,8 @@ static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t 
     mwinEdidHdr hdr = {0};
     if (edid != nullptr && edid->format == 8)
     {
-        (void)mwinEdidHdrOf(api->randrOutputPropertyData(edid),
-                            (size_t)api->randrOutputPropertyDataLength(edid), &hdr);
+        (void)mwinEdidHdrOf(api->randrOutputPropertyData(edid), mwinX11OutputPropertyBytes(edid),
+                            &hdr);
     }
     info->hdr = (mwinHdrFacts){
         .known = true,
@@ -145,7 +145,7 @@ static void ReadOutputFacts(const mwinX11Platform* platform, xcb_randr_output_t 
         PropertyOf(platform, output, platform->atoms[mwin_atomVrrCapable], 1);
     // A driver without the property does not tell.
     info->variableRefresh = mwin_unknown;
-    if (vrr != nullptr && vrr->format == 32 && api->randrOutputPropertyDataLength(vrr) >= 4)
+    if (vrr != nullptr && vrr->format == 32 && mwinX11OutputPropertyBytes(vrr) >= 4)
     {
         uint32_t capable = 0;
         memcpy(&capable, api->randrOutputPropertyData(vrr), sizeof(capable));

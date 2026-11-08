@@ -47,7 +47,6 @@ typedef struct mwinX11Api
     typeof(xcb_get_property)* getProperty;
     typeof(xcb_get_property_reply)* getPropertyReply;
     typeof(xcb_get_property_value)* getPropertyValue;
-    typeof(xcb_get_property_value_length)* getPropertyValueLength;
     typeof(xcb_get_atom_name)* getAtomName;
     typeof(xcb_get_atom_name_reply)* getAtomNameReply;
     typeof(xcb_get_atom_name_name)* getAtomNameName;
@@ -95,7 +94,6 @@ typedef struct mwinX11Api
     typeof(xcb_randr_get_output_property)* randrGetOutputProperty;
     typeof(xcb_randr_get_output_property_reply)* randrGetOutputPropertyReply;
     typeof(xcb_randr_get_output_property_data)* randrOutputPropertyData;
-    typeof(xcb_randr_get_output_property_data_length)* randrOutputPropertyDataLength;
     typeof(xcb_randr_get_screen_resources_current)* randrGetResources;
     typeof(xcb_randr_get_screen_resources_current_reply)* randrGetResourcesReply;
     typeof(xcb_randr_get_screen_resources_current_modes)* randrResourceModes;

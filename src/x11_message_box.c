@@ -239,8 +239,8 @@ static void Measure(Box* box, const mwinMessageBoxDef* def, xcb_font_t font, int
                     int* heightOut)
 {
     const mwinX11Api* api = box->api;
-    xcb_query_font_reply_t* metrics =
-        api->queryFontReply(box->connection, api->queryFont(box->connection, font), nullptr);
+    xcb_query_font_reply_t* metrics = mwinX11CheckFont(
+        api->queryFontReply(box->connection, api->queryFont(box->connection, font), nullptr));
     box->cell = metrics != nullptr && metrics->max_bounds.character_width > 0
                     ? metrics->max_bounds.character_width
                     : 6;

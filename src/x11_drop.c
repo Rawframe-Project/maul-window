@@ -67,8 +67,8 @@ static void ReadTypeList(mwinX11Platform* platform)
     {
         const xcb_atom_t* types = api->getPropertyValue(reply);
         // The length is in bytes.
-        int count = api->getPropertyValueLength(reply) / (int)sizeof(xcb_atom_t);
-        for (int i = 0; i < count; i++)
+        size_t count = mwinX11PropertyBytes(reply) / sizeof(xcb_atom_t);
+        for (size_t i = 0; i < count; i++)
         {
             Offer(platform, types[i]);
         }
@@ -289,7 +289,7 @@ MWIN_NODISCARD static bool Take(mwinX11Platform* platform)
     {
         // The reply's bytes are the program's to decode in place.
         char* bytes = api->getPropertyValue(reply);
-        size_t length = (size_t)api->getPropertyValueLength(reply);
+        size_t length = mwinX11PropertyBytes(reply);
         if (drag->converting == platform->atoms[mwin_atomUriList])
         {
             mwinGatherUriList(context, bytes, length);

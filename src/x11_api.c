@@ -46,7 +46,6 @@ MWIN_NODISCARD static bool FindCore(mwinX11Api* api)
            FIND(library, getProperty, xcb_get_property) &&
            FIND(library, getPropertyReply, xcb_get_property_reply) &&
            FIND(library, getPropertyValue, xcb_get_property_value) &&
-           FIND(library, getPropertyValueLength, xcb_get_property_value_length) &&
            FIND(library, getAtomName, xcb_get_atom_name) &&
            FIND(library, getAtomNameReply, xcb_get_atom_name_reply) &&
            FIND(library, getAtomNameName, xcb_get_atom_name_name) &&
@@ -94,8 +93,6 @@ MWIN_NODISCARD static bool FindRandr(mwinX11Api* api)
            FIND(randrLibrary, randrGetOutputProperty, xcb_randr_get_output_property) &&
            FIND(randrLibrary, randrGetOutputPropertyReply, xcb_randr_get_output_property_reply) &&
            FIND(randrLibrary, randrOutputPropertyData, xcb_randr_get_output_property_data) &&
-           FIND(randrLibrary, randrOutputPropertyDataLength,
-                xcb_randr_get_output_property_data_length) &&
            FIND(randrLibrary, randrGetResources, xcb_randr_get_screen_resources_current) &&
            FIND(randrLibrary, randrGetResourcesReply,
                 xcb_randr_get_screen_resources_current_reply) &&

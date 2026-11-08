@@ -8,7 +8,11 @@
 //   large it would wrap, for a property, an atom's name, an output
 //   property, the screen resources' modes, the monitors and their
 //   outputs, the picture formats and the input devices; a property of a
-//   format no property has;
+//   format no property has; a property and an output property of 2 GiB
+//   or more, within the bytes a reply claims, which libxcb's int length
+//   cannot give;
+// - a QueryFont reply that ends before the ascent and descent the
+//   message box reads;
 // - XIQueryDevice's infos, names and classes, a class shorter than its
 //   type's fields or than any class, and the walk by the lengths they
 //   give, past a class of a type libxcb does not know;
@@ -42,6 +46,17 @@ static void* Reply(size_t bytes)
     return Built(bytes, 32);
 }
 
+// A short reply whose length field claims 2 GiB past its 32 bytes, as
+// one that held them would: only a check that is not of the bytes held
+// can refuse a count within them.
+static void* Huge(void)
+{
+    uint8_t* reply = Reply(36);
+    uint32_t length = 0x20000000u;
+    memcpy(reply + 4, &length, sizeof(length));
+    return reply;
+}
+
 static void CheckHolds(void)
 {
     // Room past the 16 bytes held, for a part past them.
@@ -61,7 +76,7 @@ static void CheckProperty(void)
     reply->format = 8;
     reply->value_len = 4;
     reply = mwinX11CheckProperty(&s_api, reply);
-    CHECK(reply != nullptr && s_api.getPropertyValueLength(reply) == 4,
+    CHECK(reply != nullptr && mwinX11PropertyBytes(reply) == 4,
           "a property's value within its bytes");
     free(reply);
     reply = Reply(36);
@@ -71,7 +86,14 @@ static void CheckProperty(void)
     reply = Reply(36);
     reply->format = 32;
     reply->value_len = 0x40000001u;
-    CHECK(mwinX11CheckProperty(&s_api, reply) == nullptr, "a property's count past INT_MAX bytes");
+    CHECK(mwinX11CheckProperty(&s_api, reply) == nullptr, "a property's count past its bytes");
+    // 2 GiB of value, within the bytes the reply claims: libxcb's int
+    // length would be negative.
+    reply = Huge();
+    reply->format = 32;
+    reply->value_len = 0x20000000u;
+    CHECK(mwinX11CheckProperty(&s_api, reply) == nullptr,
+          "a property of INT_MAX bytes or more, within its claimed bytes");
     reply = Reply(36);
     reply->format = 7;
     CHECK(mwinX11CheckProperty(&s_api, reply) == nullptr, "a property of a format none has");
@@ -103,6 +125,25 @@ static void CheckOutputProperty(void)
     reply->num_items = 256 * 128;
     CHECK(mwinX11CheckOutputProperty(&s_api, reply) == nullptr,
           "an EDID of 256 blocks in a reply of one");
+    reply = Huge();
+    reply->format = 8;
+    reply->num_items = 0x80000000u;
+    CHECK(mwinX11CheckOutputProperty(&s_api, reply) == nullptr,
+          "an output property of INT_MAX bytes or more, within its claimed bytes");
+}
+
+// A QueryFont reply: the message box reads its ascent and descent, at
+// bytes 52 to 55.
+static void CheckFont(void)
+{
+    xcb_query_font_reply_t* reply = Reply(sizeof(xcb_query_font_reply_t));
+    reply->font_ascent = 12;
+    reply = mwinX11CheckFont(reply);
+    CHECK(reply != nullptr && reply->font_ascent == 12, "a font's metrics within the reply");
+    free(reply);
+    CHECK(mwinX11CheckFont(Reply(32)) == nullptr, "a font reply of no length past its 32 bytes");
+    CHECK(mwinX11CheckFont(Reply(52)) == nullptr, "a font reply that ends before its ascent");
+    CHECK(mwinX11CheckFont(nullptr) == nullptr, "no font reply stays none");
 }
 
 static void CheckResources(void)
@@ -338,6 +379,7 @@ int main(void)
     CheckProperty();
     CheckAtomName();
     CheckOutputProperty();
+    CheckFont();
     CheckResources();
     CheckMonitors();
     CheckFormats();

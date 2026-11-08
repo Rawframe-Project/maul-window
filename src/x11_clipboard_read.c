@@ -220,7 +220,7 @@ static void TakePiece(mwinX11Platform* platform, bool answer)
         return;
     }
     // The length is in bytes, whatever the format.
-    uint32_t length = (uint32_t)api->getPropertyValueLength(reply);
+    uint32_t length = (uint32_t)mwinX11PropertyBytes(reply);
     const char* bytes = api->getPropertyValue(reply);
     mwinOutcome outcome = mwin_outcomeDone;
     if (answer && reply->type == platform->atoms[mwin_atomIncr])

@@ -165,7 +165,7 @@ static float ReadScale(const mwinX11Platform* platform)
     if (reply != nullptr)
     {
         scale = mwinX11ScaleOfResources(platform->api.getPropertyValue(reply),
-                                        (size_t)platform->api.getPropertyValueLength(reply));
+                                        mwinX11PropertyBytes(reply));
         mwinReleaseSystemMemory(reply);
     }
     return scale;
@@ -177,7 +177,7 @@ static xcb_window_t CheckWindow(const mwinX11Platform* platform, xcb_window_t wi
     xcb_get_property_reply_t* reply = WindowProperty(
         platform, window, platform->atoms[mwin_atomNetSupportingWmCheck], XCB_ATOM_WINDOW, 1);
     xcb_window_t check = 0;
-    if (reply != nullptr && platform->api.getPropertyValueLength(reply) == sizeof(check))
+    if (reply != nullptr && mwinX11PropertyBytes(reply) == sizeof(check))
     {
         memcpy(&check, platform->api.getPropertyValue(reply), sizeof(check));
     }

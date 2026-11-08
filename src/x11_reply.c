@@ -7,6 +7,8 @@
 
 #include "allocator.h"
 
+#include <limits.h>
+#include <stdckdint.h>
 #include <string.h>
 
 // A reply's and a generic event's own bytes, the length beside them, and
@@ -76,13 +78,28 @@ MWIN_NODISCARD static bool IsFormat(uint8_t format)
     return format == 0 || format == 8 || format == 16 || format == 32;
 }
 
+// Whether count items of a format come to INT_MAX bytes or fewer:
+// libxcb's length accessors give them as an int.
+MWIN_NODISCARD static bool FitsInt(uint32_t count, uint8_t format)
+{
+    size_t bytes;
+    return !ckd_mul(&bytes, (size_t)count, (size_t)(format / 8u)) && bytes <= INT_MAX;
+}
+
 xcb_get_property_reply_t* mwinX11CheckProperty(const mwinX11Api* api,
                                                xcb_get_property_reply_t* reply)
 {
-    return reply == nullptr ? nullptr
-                            : Kept(reply, IsFormat(reply->format) &&
-                                              InReply(reply, api->getPropertyValue(reply),
-                                                      reply->value_len, reply->format / 8u));
+    return reply == nullptr
+               ? nullptr
+               : Kept(reply, IsFormat(reply->format) && FitsInt(reply->value_len, reply->format) &&
+                                 InReply(reply, api->getPropertyValue(reply), reply->value_len,
+                                         reply->format / 8u));
+}
+
+size_t mwinX11PropertyBytes(const xcb_get_property_reply_t* reply)
+{
+    // A checked reply's count fits: the product is at most INT_MAX.
+    return (size_t)reply->value_len * (reply->format / 8u);
 }
 
 xcb_get_atom_name_reply_t* mwinX11CheckAtomName(const mwinX11Api* api,
@@ -96,10 +113,21 @@ xcb_get_atom_name_reply_t* mwinX11CheckAtomName(const mwinX11Api* api,
 xcb_randr_get_output_property_reply_t*
 mwinX11CheckOutputProperty(const mwinX11Api* api, xcb_randr_get_output_property_reply_t* reply)
 {
-    return reply == nullptr ? nullptr
-                            : Kept(reply, IsFormat(reply->format) &&
-                                              InReply(reply, api->randrOutputPropertyData(reply),
-                                                      reply->num_items, reply->format / 8u));
+    return reply == nullptr
+               ? nullptr
+               : Kept(reply, IsFormat(reply->format) && FitsInt(reply->num_items, reply->format) &&
+                                 InReply(reply, api->randrOutputPropertyData(reply),
+                                         reply->num_items, reply->format / 8u));
+}
+
+size_t mwinX11OutputPropertyBytes(const xcb_randr_get_output_property_reply_t* reply)
+{
+    return (size_t)reply->num_items * (reply->format / 8u);
+}
+
+xcb_query_font_reply_t* mwinX11CheckFont(xcb_query_font_reply_t* reply)
+{
+    return reply == nullptr ? nullptr : Kept(reply, InReply(reply, reply, 1, sizeof(*reply)));
 }
 
 xcb_randr_get_screen_resources_current_reply_t*

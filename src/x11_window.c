@@ -664,11 +664,11 @@ static mwinWindowMode ReadMode(const mwinX11Platform* platform, const mwinX11Win
         return mwin_modeWindowed;
     }
     const xcb_atom_t* states = api->getPropertyValue(reply);
-    int count = api->getPropertyValueLength(reply) / (int)sizeof(xcb_atom_t);
+    size_t count = mwinX11PropertyBytes(reply) / sizeof(xcb_atom_t);
     bool fullscreen = false;
     bool hidden = false;
     int maximized = 0;
-    for (int i = 0; i < count; i++)
+    for (size_t i = 0; i < count; i++)
     {
         fullscreen |= states[i] == atoms[mwin_atomNetWmStateFullscreen];
         hidden |= states[i] == atoms[mwin_atomNetWmStateHidden];

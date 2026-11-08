@@ -122,11 +122,6 @@ static void* GetPropertyValue(const xcb_get_property_reply_t* reply)
     return (void*)(reply + 1);
 }
 
-static int GetPropertyValueLength(const xcb_get_property_reply_t* reply)
-{
-    return (int)(reply->value_len * (reply->format / 8u));
-}
-
 static xcb_translate_coordinates_cookie_t TranslateCoordinates(xcb_connection_t*, xcb_window_t,
                                                                xcb_window_t, int16_t x, int16_t y)
 {
@@ -391,7 +386,6 @@ static mwinResult Init(mwinContext* context, void* user)
     api->getProperty = GetProperty;
     api->getPropertyReply = GetPropertyReply;
     api->getPropertyValue = GetPropertyValue;
-    api->getPropertyValueLength = GetPropertyValueLength;
     api->translateCoordinates = TranslateCoordinates;
     api->translateCoordinatesReply = TranslateCoordinatesReply;
     api->sendEvent = SendEvent;

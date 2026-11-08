@@ -27,8 +27,9 @@ uint64_t mwinX11EventBytes(const xcb_ge_generic_event_t* event);
 uint64_t mwinX11SetupBytes(const xcb_setup_t* setup);
 
 // A reply with every part its accessors give within it, or NULL, the
-// reply released, for one with a part past it or of a format no
-// property has. NULL stays NULL.
+// reply released, for one with a part past it, of a format no property
+// has, or whose value passes INT_MAX bytes, which libxcb's int length
+// accessors cannot carry. NULL stays NULL.
 xcb_get_property_reply_t* mwinX11CheckProperty(const mwinX11Api* api,
                                                xcb_get_property_reply_t* reply);
 xcb_get_atom_name_reply_t* mwinX11CheckAtomName(const mwinX11Api* api,
@@ -43,6 +44,16 @@ xcb_render_query_pict_formats_reply_t*
 mwinX11CheckFormats(const mwinX11Api* api, xcb_render_query_pict_formats_reply_t* reply);
 xcb_input_list_input_devices_reply_t*
 mwinX11CheckInputDevices(const mwinX11Api* api, xcb_input_list_input_devices_reply_t* reply);
+
+// A QueryFont reply that holds its fields up to its list of character
+// infos, or NULL, the reply released.
+xcb_query_font_reply_t* mwinX11CheckFont(xcb_query_font_reply_t* reply);
+
+// The bytes of a checked property's value and of a checked output
+// property's data, in size_t from the counts the reply gives, never
+// through libxcb's int length accessors.
+size_t mwinX11PropertyBytes(const xcb_get_property_reply_t* reply);
+size_t mwinX11OutputPropertyBytes(const xcb_randr_get_output_property_reply_t* reply);
 
 // An XIQueryDevice reply whose device infos, their names and their
 // classes lie within it, each class at least as long as the fields of

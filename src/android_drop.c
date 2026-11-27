@@ -159,12 +159,14 @@ static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jflo
     }
     mwinAndroidDrops* drops = &platform->drops;
     drops->place = PlaceOf(platform, x, y);
-    drops->text = text != nullptr
-                      ? mwinAndroidBytesOf(platform, env, text, &drops->textLength, nullptr, 0)
-                      : nullptr;
-    // A text the allocator had no room for is left out too.
-    drops->leftOut = leftOut || (text != nullptr && drops->text == nullptr &&
-                                 (*env)->GetStringLength(env, text) > 0);
+    // Each unit is at least a byte of UTF-8: a text past the drop's limit
+    // is left out before it is read, and one the allocator had no room
+    // for is left out too.
+    jsize units = text != nullptr ? (*env)->GetStringLength(env, text) : 0;
+    bool fits = (uint64_t)units <= platform->context->limits.dropBytes;
+    drops->text =
+        units > 0 && fits ? mwinAndroidBytesOf(platform, env, text, &drops->textLength) : nullptr;
+    drops->leftOut = leftOut || (units > 0 && drops->text == nullptr);
     // Drops.java opens no more than the program takes; any past them are
     // closed and left out all the same.
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;

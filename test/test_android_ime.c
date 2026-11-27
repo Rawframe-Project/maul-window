@@ -15,7 +15,10 @@
 // composition committed when the keyboard, or another purpose, is asked
 // for, which starts the input method anew;
 // each purpose's input type, nothing corrected or completed. Insets told
-// again alike change neither the safe area nor the keyboard. The keyboard
+// again alike change neither the safe area nor the keyboard. With a
+// limit of 32 bytes of text a window, a commit and then a composition of
+// 33 bytes are told as a reset each, with no text, and nothing is
+// allocated for them. The keyboard
 // shown after it is asked for another purpose is test_android_ime_purpose.c's.
 
 #include "test_android_app.h"
@@ -31,6 +34,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -38,7 +42,10 @@
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
 #define RECORDS     64
-#define LAST_PHASE  14
+#define LAST_PHASE  16
+// The test's limit of text a window, and a text one byte past it.
+#define TEXT_BYTES 32
+#define TOO_LONG   "abcdefghijklmnopqrstuvwxyz0123456"
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
@@ -75,7 +82,31 @@ typedef struct Program
     int safeAreas;
     int keyboards;
     uint64_t insetsNs;
+    // Resets told since the last phase began.
+    int resets;
 } Program;
+
+// Blocks asked of the allocator while counting.
+static bool s_counting;
+static int s_allocations;
+
+static void* Allocate(size_t size, size_t alignment, void* user)
+{
+    (void)user;
+    s_allocations += s_counting;
+    // aligned_alloc takes no alignment under a pointer's.
+    return alignment <= alignof(max_align_t)
+               ? malloc(size)
+               : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
+}
+
+static void Release(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+}
 
 static uint64_t NowNs(void)
 {
@@ -129,6 +160,7 @@ static void Collect(Program* program, mwinContext* context)
         program->completions += event.kind == mwin_eventRequestCompleted;
         program->safeAreas += event.kind == mwin_eventSafeAreaChanged;
         program->keyboards += event.kind == mwin_eventVirtualKeyboardChanged;
+        program->resets += event.kind == mwin_eventInputStateReset;
         if (event.kind == mwin_eventSafeAreaChanged ||
             event.kind == mwin_eventVirtualKeyboardChanged)
         {
@@ -556,6 +588,24 @@ static void Advance(Program* program, mwinContext* context)
         CheckCommitted(program, context, "pq",
                        "the composition committed when another purpose is asked for, and ended");
         CheckType(program, context, 0x3002, "a number, signed and decimal");
+        // A commit past the limit.
+        s_allocations = 0;
+        s_counting = true;
+        Text(env, connection, "commitText", TOO_LONG);
+        s_counting = false;
+        break;
+    case 15:
+        CHECK(count == 0 && program->resets == 1 && s_allocations == 0,
+              "a commit past the limit told as a reset, with no text and nothing allocated");
+        // A composition past the limit.
+        s_allocations = 0;
+        s_counting = true;
+        Text(env, connection, "setComposingText", TOO_LONG);
+        s_counting = false;
+        break;
+    case 16:
+        CHECK(count == 0 && program->resets == 1 && s_allocations == 0,
+              "a composition past the limit told as a reset, with no text and nothing allocated");
         break;
     default:
         break;
@@ -566,6 +616,7 @@ static void Advance(Program* program, mwinContext* context)
     }
     program->phase += 1;
     program->recordCount = 0;
+    program->resets = 0;
     program->startNs = NowNs();
 }
 
@@ -621,5 +672,7 @@ mwinAppDef mwinAndroidMain(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
+    def.context.allocator = (mwinAllocator){Allocate, Release, nullptr};
+    def.context.limits.textBytesPerWindow = TEXT_BYTES;
     return def;
 }

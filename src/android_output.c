@@ -79,7 +79,7 @@ static void ReadName(mwinAndroidPlatform* platform, mwinMonitorInfo* info)
         return;
     }
     size_t size = 0;
-    char* bytes = mwinAndroidBytesOf(platform, env, name, &size, nullptr, 0);
+    char* bytes = mwinAndroidBytesOf(platform, env, name, &size);
     (*env)->DeleteLocalRef(env, name);
     if (bytes == nullptr)
     {

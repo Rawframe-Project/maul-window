@@ -517,6 +517,15 @@ ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_t sav
     }
 }
 
+// The platform's block: the platform, then its input method's text.
+static size_t PlatformBytes(const mwinLimits* limits, size_t* textAt)
+{
+    mwinLayout layout = {0};
+    (void)mwinLayoutAdd(&layout, 1, sizeof(mwinAndroidPlatform), alignof(mwinAndroidPlatform));
+    *textAt = mwinLayoutAdd(&layout, limits->textBytesPerWindow, 1, 1);
+    return layout.overflow ? 0 : layout.size;
+}
+
 static void Stop(mwinContext* context)
 {
     mwinAndroidPlatform* platform = mwinAndroidPlatformOf(context);
@@ -534,7 +543,9 @@ static void Stop(mwinContext* context)
     AConfiguration_delete(platform->configuration);
     (*platform->java.env)->DeleteGlobalRef(platform->java.env, platform->java.activityClass);
     context->backendData = nullptr;
-    mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
+    size_t textAt = 0;
+    mwinRelease(&context->allocator, platform, PlatformBytes(&context->limits, &textAt),
+                alignof(mwinAndroidPlatform));
 }
 
 static mwinResult Start(mwinContext* context)
@@ -552,12 +563,18 @@ static mwinResult Start(mwinContext* context)
     {
         return mwin_errorPlatform;
     }
+    size_t textAt = 0;
+    size_t bytes = PlatformBytes(&context->limits, &textAt);
     mwinAndroidPlatform* platform =
-        mwinAllocate(&context->allocator, sizeof(*platform), alignof(mwinAndroidPlatform));
+        bytes > 0 ? mwinAllocate(&context->allocator, bytes, alignof(mwinAndroidPlatform))
+                  : nullptr;
     AConfiguration* configuration = platform != nullptr ? AConfiguration_new() : nullptr;
     if (configuration == nullptr)
     {
-        mwinRelease(&context->allocator, platform, sizeof(*platform), alignof(mwinAndroidPlatform));
+        if (platform != nullptr)
+        {
+            mwinRelease(&context->allocator, platform, bytes, alignof(mwinAndroidPlatform));
+        }
         (*env)->DeleteLocalRef(env, type);
         return mwin_errorCapacity;
     }
@@ -568,6 +585,7 @@ static mwinResult Start(mwinContext* context)
         .looper = ALooper_forThread(),
         .choreographer = AChoreographer_getInstance(),
         .slot = -1,
+        .imeText = (char*)platform + textAt,
     };
     (*env)->DeleteLocalRef(env, type);
     context->backendData = platform;

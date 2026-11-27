@@ -95,7 +95,7 @@ static void ReadLocales(mwinAndroidPlatform* platform, uint64_t nowNs)
         return;
     }
     size_t size = 0;
-    char* bytes = mwinAndroidBytesOf(platform, env, tags, &size, nullptr, 0);
+    char* bytes = mwinAndroidBytesOf(platform, env, tags, &size);
     (void)mwinSetLocales(platform->context, bytes, bytes != nullptr ? size : 0, nowNs);
     if (bytes != nullptr)
     {

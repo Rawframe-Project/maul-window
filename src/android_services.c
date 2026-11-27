@@ -120,7 +120,7 @@ mwinOutcome mwinAndroidReadClipboard(const mwinAndroidPlatform* platform)
     if ((uint64_t)units <= context->limits.clipboardBytes)
     {
         size_t size = 0;
-        char* bytes = mwinAndroidBytesOf(platform, env, text, &size, nullptr, 0);
+        char* bytes = mwinAndroidBytesOf(platform, env, text, &size);
         outcome = units == 0 || bytes != nullptr ? mwinTakeClipboardText(context, bytes, size)
                                                  : mwin_outcomeFailed;
         if (bytes != nullptr)

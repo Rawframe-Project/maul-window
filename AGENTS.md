@@ -19,10 +19,10 @@ tools/check.sh full             # adds TSan, shared, minimal, Release builds, ui
 cmake --preset linux-clang-20-asan && cmake --build --preset linux-clang-20-asan   # one CI cell
 ctest --preset linux-clang-20-asan -L clipboard     # one suite, by label
 ctest --test-dir out/linux-clang-20-asan -LE integration   # what needs no window system
-python3 /home/rawframe-project/.github/maul/family_sync.py --check maul-window   # shared files
+python3 ../../.github/maul/family_sync.py --check maul-window   # shared files
 ```
 
-Run the `pr` and `full` tiers through the workspace's heavy-job wrapper on the shared machine. Use gcc-14 or clang-20; the machine's default gcc is too old for C23. Every CI cell is a preset in `CMakePresets.json` (configure, build and test of one name, built in `out/<preset>`); add a cell there, never as commands in a workflow. The macOS, iOS, Android, Windows and web cells cannot run on Linux: [docs/operations/test-environments.md](docs/operations/test-environments.md) says how they run.
+Run the `pr` and `full` tiers through the workspace's heavy-job wrapper (on Windows, in the workspace's WSL distribution through its `tools/linux.sh`). Use gcc-14 or clang-20; Ubuntu 24.04's default gcc is too old for C23. Every CI cell is a preset in `CMakePresets.json` (configure, build and test of one name, built in `out/<preset>`); add a cell there, never as commands in a workflow. The macOS, iOS, Android, Windows and web cells cannot run on Linux: [docs/operations/test-environments.md](docs/operations/test-environments.md) says how they run.
 
 ## Ways to hurt yourself
 

@@ -10,17 +10,10 @@
 // handed over as the fuzzer holds it, with nothing after its last byte,
 // so a read past its length is a sanitizer's finding.
 
+#include "fuzz_expect.h"
 #include "linux_battery.h"
 
 #include <stdlib.h>
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static int Expected(const uint8_t* data, size_t size)
 {
@@ -46,6 +39,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
-    Expect(mwinLinuxBatteryPercent((const char*)data, size) == Expected(data, size));
+    ExpectEqual(mwinLinuxBatteryPercent((const char*)data, size), Expected(data, size));
     return 0;
 }

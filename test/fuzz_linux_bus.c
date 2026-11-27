@@ -45,6 +45,7 @@
 // key at most once, in the order offered, and only for the window it
 // was offered for.
 
+#include "fuzz_expect.h"
 #include "linux_dialog.h"
 #include "linux_ime.h"
 #include "linux_inhibit.h"
@@ -85,17 +86,6 @@
 
 static const uint8_t* s_data;
 static size_t s_size;
-
-static void ExpectAt(bool condition, const char* text, int line)
-{
-    if (!condition)
-    {
-        (void)fprintf(stderr, "expected at line %d: %s\n", line, text);
-        abort();
-    }
-}
-
-#define Expect(condition) ExpectAt((condition), #condition, __LINE__)
 
 static uint8_t Byte(void)
 {
@@ -395,7 +385,7 @@ static void CloseConnection(DBusConnection* connection)
 // A bus of libdbus's own whose connection is a stand-in.
 static void Join(mwinLinuxBus* bus, DBusConnection* connection)
 {
-    Expect(mwinLoadDBus(&bus->api) == mwin_success);
+    ExpectEqual(mwinLoadDBus(&bus->api), mwin_success);
     bus->api.sendWithReply = SendWithReply;
     bus->api.send = Send;
     bus->api.completed = Completed;
@@ -1048,7 +1038,7 @@ static void ImeSignal(uint8_t op)
 static void Submit(mwinContext* context, uint32_t slot, uint32_t index)
 {
     context->backend = s_test;
-    Expect(context->windows[slot].requests[index].kind == mwin_requestFileDialog);
+    ExpectEqual(context->windows[slot].requests[index].kind, mwin_requestFileDialog);
     int outcome = mwinDialogsOpen(&s_dialogs, slot, index, "");
     if (outcome >= 0)
     {
@@ -1119,7 +1109,7 @@ static void CheckHold(void)
     s_mayTake = false;
     if (s_inhibit.held == mwin_inhibitNone)
     {
-        Expect(s_hold.by == mwin_inhibitNone);
+        ExpectEqual(s_hold.by, mwin_inhibitNone);
         return;
     }
     if (s_hold.by == mwin_inhibitNone)
@@ -1130,7 +1120,7 @@ static void CheckHold(void)
         s_hold.cookie = s_inhibit.cookie;
         memcpy(s_hold.handle, s_inhibit.handle, sizeof(s_hold.handle));
     }
-    Expect(s_hold.by == s_inhibit.held);
+    ExpectEqual(s_hold.by, s_inhibit.held);
     if (s_hold.by == mwin_inhibitPortal)
     {
         size_t length = strnlen(s_inhibit.handle, sizeof(s_inhibit.handle));
@@ -1139,7 +1129,7 @@ static void CheckHold(void)
     }
     else
     {
-        Expect(s_hold.cookie == s_inhibit.cookie);
+        ExpectEqual(s_hold.cookie, s_inhibit.cookie);
     }
 }
 
@@ -1230,7 +1220,7 @@ static void CheckPreedit(const mwinPreeditEvent* preedit)
 static void CheckFacts(const mwinContext* context)
 {
     mwinSystemFacts facts;
-    Expect(mwinContext_GetSystemFacts(context, &facts) == mwin_success);
+    ExpectEqual(mwinContext_GetSystemFacts(context, &facts), mwin_success);
     Expect(facts.theme <= mwin_themeDark && facts.onBattery <= mwin_yes &&
            facts.lowPower <= mwin_yes);
     // A NaN fails both.
@@ -1255,7 +1245,7 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
         Expect(path > 0 && bytes[at] == '/' && IsUtf8(bytes + at, path));
         at += path + 1;
     }
-    Expect(paths == count);
+    ExpectEqual(paths, count);
 }
 
 static bool IsTagByte(char c)
@@ -1322,7 +1312,7 @@ static void Drain(mwinContext* context)
             {
                 if (memcmp(&s_requests[i].id, &completion->request, sizeof(mwinRequestId)) == 0)
                 {
-                    Expect(s_requests[i].completions == 0);
+                    ExpectEqual(s_requests[i].completions, 0);
                     s_requests[i].completions++;
                     if (completion->outcome == mwin_outcomeDone)
                     {
@@ -1406,7 +1396,7 @@ static void StopInhibit(void)
     s_inInhibit = true;
     mwinInhibitStop(&s_session, &s_inhibit);
     s_inInhibit = false;
-    Expect(s_hold.by == mwin_inhibitNone);
+    ExpectEqual(s_hold.by, mwin_inhibitNone);
 }
 
 static void Stop(mwinContext* context)
@@ -1424,7 +1414,7 @@ static void Stop(mwinContext* context)
     }
     mwinSettingsStop(&s_settings);
     Drain(context);
-    Expect(s_filterCount == 0);
+    ExpectEqual(s_filterCount, 0);
     for (uint32_t i = 0; i < s_callCount; i++)
     {
         Expect(s_calls[i].released);
@@ -1440,7 +1430,7 @@ static mwinResult Init(mwinContext* context, void* user)
     mwinWindowDef def = mwinDefaultWindowDef();
     for (uint32_t i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinCreateWindow(context, &def, &windows[i], nullptr) == mwin_success);
+        ExpectEqual(mwinCreateWindow(context, &def, &windows[i], nullptr), mwin_success);
     }
     // An op makes a few calls at most: the script ends cleanly before the
     // stand-in could run out, whatever the input's length.
@@ -1527,13 +1517,13 @@ static mwinResult Init(mwinContext* context, void* user)
     // the dialogs that showed for them.
     for (uint32_t i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinDestroyWindow(context, windows[i]) == mwin_success);
+        ExpectEqual(mwinDestroyWindow(context, windows[i]), mwin_success);
     }
     Pump(mwinMonotonicNow());
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     Stop(context);
     return mwin_success;
@@ -1603,6 +1593,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.textBytesPerWindow = TEXT_BYTES;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

@@ -14,6 +14,7 @@
 // report, finite and in the contract's frame; a report without a stamp
 // must read at its event time, and a stamped one within 100 ms of it.
 
+#include "fuzz_expect.h"
 #include "linux_motion_events.h"
 
 #include <linux/input.h>
@@ -31,14 +32,6 @@ static size_t s_size;
 // Each axis's last value and factor, kept apart from the reading.
 static int32_t s_raw[MWIN_LINUX_MOTION_AXES];
 static float s_scale[MWIN_LINUX_MOTION_AXES];
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static uint8_t Byte(void)
 {
@@ -91,7 +84,7 @@ static void ReadAxes(mwinLinuxMotionEvents* events)
         int32_t value = (int32_t)Long();
         int32_t resolution = (int32_t)Long();
         bool taken = mwinLinuxMotionAxis(events, axis, value, resolution);
-        Expect(taken == (resolution > 0));
+        ExpectEqual(taken, (resolution > 0));
         if (!taken)
         {
             return;
@@ -131,8 +124,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     memset(s_scale, 0, sizeof(s_scale));
     mwinLinuxPadIdentity pad = NextIdentity();
     mwinLinuxPadIdentity device = NextIdentity();
-    Expect(mwinLinuxSameController(&pad, &device) == mwinLinuxSameController(&device, &pad));
-    Expect(mwinLinuxSameController(&pad, &pad) == (pad.uniq[0] != '\0' || pad.phys[0] != '\0'));
+    ExpectEqual(mwinLinuxSameController(&pad, &device), mwinLinuxSameController(&device, &pad));
+    ExpectEqual(mwinLinuxSameController(&pad, &pad), (pad.uniq[0] != '\0' || pad.phys[0] != '\0'));
     mwinLinuxMotionEvents events;
     mwinLinuxMotionStart(&events, &pad);
     Expect(!mwinLinuxMotionAxis(&events, MWIN_LINUX_MOTION_AXES, 0, 1));
@@ -186,14 +179,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             mwinLinuxMotionEvent(&events, type, code, value, timeNs, &sample);
         if (drop || (dropping && !report))
         {
-            Expect(step == mwin_motionNothing);
+            ExpectEqual(step, mwin_motionNothing);
             dropping = true;
             stamped = false;
             continue;
         }
         if (dropping)
         {
-            Expect(step == mwin_motionResync);
+            ExpectEqual(step, mwin_motionResync);
             dropping = false;
             stamped = false;
             ReadAxes(&events);
@@ -201,7 +194,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         }
         if (!report)
         {
-            Expect(step == mwin_motionNothing);
+            ExpectEqual(step, mwin_motionNothing);
             stamped |= type == EV_MSC && code == MSC_TIMESTAMP;
             if (type == EV_ABS && code <= ABS_Z)
             {
@@ -213,7 +206,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             }
             continue;
         }
-        Expect(step == mwin_motionSample);
+        ExpectEqual(step, mwin_motionSample);
         CheckSample(&sample, pad.vendor == 0x057E);
         if (stamped)
         {
@@ -223,7 +216,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         }
         else
         {
-            Expect(sample.timeNs == timeNs);
+            ExpectEqual(sample.timeNs, timeNs);
         }
         stamped = false;
     }

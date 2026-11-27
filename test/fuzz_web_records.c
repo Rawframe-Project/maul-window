@@ -26,6 +26,7 @@
 // keys mean and the facts are ones there are; and the sanitizers see no read past an array and no
 // conversion of a number that does not fit.
 
+#include "fuzz_expect.h"
 #include "web.h"
 #include "web_page.h"
 
@@ -53,17 +54,6 @@
 
 static const uint8_t* s_data;
 static size_t s_size;
-
-static void ExpectAt(bool condition, const char* text, int line)
-{
-    if (!condition)
-    {
-        (void)fprintf(stderr, "expected at line %d: %s\n", line, text);
-        abort();
-    }
-}
-
-#define Expect(condition) ExpectAt((condition), #condition, __LINE__)
 
 static uint8_t Byte(void)
 {
@@ -255,10 +245,10 @@ void mwinPageClipboardTake(const mwinContext* context, char* out, uint32_t lengt
     (void)context;
     if (out == nullptr)
     {
-        Expect(length == 0);
+        ExpectEqual(length, 0);
         return;
     }
-    Expect(length == s_waiting);
+    ExpectEqual(length, s_waiting);
     for (uint32_t at = 0; at < length;)
     {
         uint32_t made = Bytes(length - at);
@@ -299,7 +289,7 @@ void mwinPageTakeDrop(const mwinContext* context, char* out, uint32_t length)
     (void)context;
     if (out == nullptr)
     {
-        Expect(length == 0);
+        ExpectEqual(length, 0);
         return;
     }
     Expect(s_dropText > 0 && length == (uint32_t)s_dropText);
@@ -517,11 +507,11 @@ static void CheckMonitors(const mwinContext* context)
 {
     mwinMonitorId monitors[4];
     size_t count = 0;
-    Expect(mwinContext_GetMonitors(context, monitors, 4, &count) == mwin_success);
+    ExpectEqual(mwinContext_GetMonitors(context, monitors, 4, &count), mwin_success);
     for (size_t i = 0; i < count && i < 4; i++)
     {
         mwinMonitorInfo info;
-        Expect(mwinMonitor_GetInfo(context, monitors[i], &info) == mwin_success);
+        ExpectEqual(mwinMonitor_GetInfo(context, monitors[i], &info), mwin_success);
         Expect(isfinite(info.scale) && info.scale > 0.0f);
     }
 }
@@ -529,7 +519,7 @@ static void CheckMonitors(const mwinContext* context)
 static void CheckFacts(const mwinContext* context)
 {
     mwinSystemFacts facts;
-    Expect(mwinContext_GetSystemFacts(context, &facts) == mwin_success);
+    ExpectEqual(mwinContext_GetSystemFacts(context, &facts), mwin_success);
     Expect(facts.theme <= mwin_themeDark && facts.onBattery <= mwin_yes &&
            facts.lowPower <= mwin_yes);
 }
@@ -620,7 +610,7 @@ static void Drain(mwinContext* context)
 static void Open(mwinContext* context, uint32_t i)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
-    Expect(mwinCreateWindow(context, &def, &s_ids[i], nullptr) == mwin_success);
+    ExpectEqual(mwinCreateWindow(context, &def, &s_ids[i], nullptr), mwin_success);
     mwinWebWindow* window = &s_windows[s_ids[i].index1 - 1];
     *window = (mwinWebWindow){.selectorLength = 1, .open = true, .scale = s_platform.scale};
     window->selector[0] = '#';
@@ -653,7 +643,7 @@ static mwinResult Init(mwinContext* context, void* user)
         case 6:
             // A window goes while the page may still report on it.
             s_windows[s_ids[i].index1 - 1] = (mwinWebWindow){0};
-            Expect(mwinDestroyWindow(context, s_ids[i]) == mwin_success);
+            ExpectEqual(mwinDestroyWindow(context, s_ids[i]), mwin_success);
             Open(context, i);
             // Its end drained, the old slot is free for the next.
             Drain(context);
@@ -669,12 +659,12 @@ static mwinResult Init(mwinContext* context, void* user)
     // The windows go, and with them the requests the page never answered.
     for (uint32_t i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinDestroyWindow(context, s_ids[i]) == mwin_success);
+        ExpectEqual(mwinDestroyWindow(context, s_ids[i]), mwin_success);
     }
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     return mwin_success;
 }
@@ -701,6 +691,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.droppedFiles = FILES;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

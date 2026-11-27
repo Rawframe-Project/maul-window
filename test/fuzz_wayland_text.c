@@ -22,6 +22,7 @@
 // record may name a destroyed window; and a window's composition ends when it loses the focus or
 // its text input is turned off.
 
+#include "fuzz_expect.h"
 #include "utf8.h"
 #include "wayland_text.h"
 
@@ -97,17 +98,6 @@ static struct
     bool lost;
 } s_preedit, s_commit;
 static int32_t s_focus;
-
-static void ExpectAt(bool condition, const char* text, int line)
-{
-    if (!condition)
-    {
-        (void)fprintf(stderr, "expected at line %d: %s\n", line, text);
-        abort();
-    }
-}
-
-#define Expect(condition) ExpectAt((condition), #condition, __LINE__)
 
 static uint8_t Byte(void)
 {
@@ -370,7 +360,7 @@ static bool OnBoundary(const char* text, size_t length, size_t at)
 
 static void CheckComposition(const mwinPreeditEvent* preedit)
 {
-    Expect(muniValidateUtf8(preedit->text, preedit->length).status == muni_success);
+    ExpectEqual(muniValidateUtf8(preedit->text, preedit->length).status, muni_success);
     Expect(preedit->caret == -1 ||
            (preedit->caret >= 0 &&
             OnBoundary(preedit->text, preedit->length, (size_t)preedit->caret)));
@@ -518,15 +508,15 @@ static void SetTextInput(mwinContext* context, uint8_t op, uint32_t i)
     {
         ExpectEnd(context, slot);
     }
-    Expect(mwinWaylandSetTextInput(&s_platform, slot, enabled) == mwin_outcomeDone);
+    ExpectEqual(mwinWaylandSetTextInput(&s_platform, slot, enabled), mwin_outcomeDone);
 }
 
 static void SetTextCaret(uint8_t op, uint32_t i)
 {
     uint32_t slot = s_ids[i].index1 - 1;
-    Expect(mwinWaylandSetTextCaret(&s_platform, slot,
-                                   (mwinRect){(float)(op >> 4), 1.0f, 2.0f, 3.0f}) ==
-           mwin_outcomeDone);
+    ExpectEqual(
+        mwinWaylandSetTextCaret(&s_platform, slot, (mwinRect){(float)(op >> 4), 1.0f, 2.0f, 3.0f}),
+        mwin_outcomeDone);
 }
 
 // A window goes, as the backend's destroy has it, and another comes.
@@ -537,10 +527,10 @@ static void Replace(mwinContext* context, uint32_t i)
     s_windows[slot].surface = nullptr;
     s_windows[slot].textInput = false;
     s_focus = s_focus == (int32_t)slot ? -1 : s_focus;
-    Expect(mwinDestroyWindow(context, s_ids[i]) == mwin_success);
+    ExpectEqual(mwinDestroyWindow(context, s_ids[i]), mwin_success);
     s_expected[slot] = (typeof(s_expected[slot])){0};
     mwinWindowDef def = mwinDefaultWindowDef();
-    Expect(mwinCreateWindow(context, &def, &s_ids[i], nullptr) == mwin_success);
+    ExpectEqual(mwinCreateWindow(context, &def, &s_ids[i], nullptr), mwin_success);
     s_windows[s_ids[i].index1 - 1].surface = (void*)&s_surfaces[s_ids[i].index1 - 1];
 }
 
@@ -551,7 +541,7 @@ static mwinResult Init(mwinContext* context, void* user)
     mwinWindowDef def = mwinDefaultWindowDef();
     for (uint32_t i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinCreateWindow(context, &def, &s_ids[i], nullptr) == mwin_success);
+        ExpectEqual(mwinCreateWindow(context, &def, &s_ids[i], nullptr), mwin_success);
         s_windows[s_ids[i].index1 - 1].surface = (void*)&s_surfaces[s_ids[i].index1 - 1];
     }
     Drain(context);
@@ -642,6 +632,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.textBytesPerWindow = LIMIT;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

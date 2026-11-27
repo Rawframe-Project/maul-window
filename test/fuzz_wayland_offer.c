@@ -19,6 +19,7 @@
 // destroyed, every offer must be destroyed by the end, and every pipe
 // closed.
 
+#include "fuzz_expect.h"
 #include "wayland_clipboard.h"
 #include "wayland_drop.h"
 
@@ -112,17 +113,6 @@ static struct
 static uint32_t s_made;
 
 // Stops the run where a condition does not hold, saying which.
-static void ExpectAt(bool condition, const char* text, int line)
-{
-    if (!condition)
-    {
-        (void)fprintf(stderr, "expected at line %d: %s\n", line, text);
-        abort();
-    }
-}
-
-#define Expect(condition) ExpectAt((condition), #condition, __LINE__)
-
 static uint8_t Byte(void)
 {
     if (s_size == 0)
@@ -665,7 +655,7 @@ static mwinResult Init(mwinContext* context, void* user)
     mwinWindowDef def = mwinDefaultWindowDef();
     for (uint32_t i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinCreateWindow(context, &def, &windows[i], nullptr) == mwin_success);
+        ExpectEqual(mwinCreateWindow(context, &def, &windows[i], nullptr), mwin_success);
         s_windows[windows[i].index1 - 1].surface = (void*)&s_surfaces[windows[i].index1 - 1];
     }
     // An op makes a few objects at most: the script ends cleanly before the
@@ -721,7 +711,7 @@ static mwinResult Init(mwinContext* context, void* user)
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     for (uint32_t p = 0; p < s_proxyCount; p++)
     {
@@ -774,7 +764,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.init = Init;
     def.frame = Frame;
     int open = OpenDescriptors();
-    Expect(mwinRun(&def) == mwin_success);
-    Expect(OpenDescriptors() == open);
+    ExpectEqual(mwinRun(&def), mwin_success);
+    ExpectEqual(OpenDescriptors(), open);
     return 0;
 }

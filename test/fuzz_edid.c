@@ -8,6 +8,7 @@
 // and nothing at all when it finds none; and a size is whole or none.
 
 #include "edid.h"
+#include "fuzz_expect.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -16,14 +17,6 @@
 
 // An EDID of a base block and up to 255 extensions.
 #define MOST_BYTES (256 * 128)
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
 

@@ -13,6 +13,7 @@
 // request must complete exactly once, and what a read found must be
 // within the clipboard limit, its text UTF-8.
 
+#include "fuzz_expect.h"
 #include "x11_clipboard.h"
 
 #include "maul-unicode/encoding.h"
@@ -63,14 +64,6 @@ static struct
     uint32_t completions;
 } s_requests[TRACKED];
 static uint32_t s_made;
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static uint8_t Byte(void)
 {
@@ -431,7 +424,7 @@ static mwinResult Init(mwinContext* context, void* user)
     mwinWindowDef def = mwinDefaultWindowDef();
     for (int i = 0; i < WINDOWS; i++)
     {
-        Expect(mwinCreateWindow(context, &def, &windows[i], nullptr) == mwin_success);
+        ExpectEqual(mwinCreateWindow(context, &def, &windows[i], nullptr), mwin_success);
     }
     while (s_size > 0)
     {
@@ -470,7 +463,7 @@ static mwinResult Init(mwinContext* context, void* user)
     }
     for (uint32_t i = 0; i < s_made; i++)
     {
-        Expect(s_requests[i].completions == 1);
+        ExpectEqual(s_requests[i].completions, 1);
     }
     Expect(!s_platform.clipboard.reading);
     mwinX11StopClipboard(&s_platform);
@@ -495,6 +488,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.clipboardBytes = LIMIT;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

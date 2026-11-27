@@ -8,19 +8,12 @@
 // hyphens, separated by single commas, none twice; a text with a NUL is
 // refused as plasma-localerc.
 
+#include "fuzz_expect.h"
 #include "linux_locale.h"
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static bool IsTagByte(char c)
 {
@@ -77,7 +70,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     bool full = false;
     bool read =
         mwinLinuxPlasmaLocales((const char*)data + 1, size - 1, out, capacity, &length, &full);
-    Expect(read == (memchr(data + 1, '\0', size - 1) == nullptr));
+    ExpectEqual(read, (memchr(data + 1, '\0', size - 1) == nullptr));
     Expect(!read || length <= capacity);
     if (read)
     {

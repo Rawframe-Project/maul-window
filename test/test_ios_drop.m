@@ -426,8 +426,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     }
     else if (program->phase == 3 && program->count >= 2)
     {
-        printf("phase 3 at %.2f s
-", Since());
+        printf("phase 3 at %.2f s\n", Since());
         CheckMany(program);
         program->phase = 4;
         return mwin_frameStop;

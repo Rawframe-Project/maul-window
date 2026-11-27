@@ -11,7 +11,9 @@
 // suggests, the two that failed left out and the drop marked truncated. The file's extension is one
 // the system does not know, whose provider can also give its address as a string: it is a file
 // still. Then a drop of two strings gives the first as its text, the second left out and the drop
-// marked truncated. The simulator cannot drag itself.
+// marked truncated, and never read. Last, with a limit of two files a drop delivers, a drop of
+// three files gives two, marked truncated, and the third is never loaded. The simulator cannot
+// drag itself.
 
 #include "test_harness.h"
 
@@ -26,6 +28,13 @@
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
+// The most files a drop delivers here, and the files the last drop carries.
+#define MOST_FILES 2
+#define MANY_FILES 3
+
+// How often the second string, and the files of the last drop, were read.
+static int s_secondReads;
+static int s_fileLoads;
 
 @interface FakeSession : NSObject <UIDropSession>
 {
@@ -100,6 +109,7 @@ typedef struct Program
     mwinEvent records[8];
     FakeSession* session;
     FakeSession* texts;
+    FakeSession* many;
     id<UIDropInteractionDelegate> dropper;
 } Program;
 
@@ -199,16 +209,53 @@ static FakeSession* SessionOf(void)
     return session;
 }
 
-// A session carrying two strings.
+// A session carrying two strings, the second counting its reads.
 static FakeSession* TextsOf(void)
 {
     NSItemProvider* first = [[[NSItemProvider alloc] initWithObject:@"dropped text"] autorelease];
-    NSItemProvider* second = [[[NSItemProvider alloc] initWithObject:@"more text"] autorelease];
+    NSItemProvider* second = [[[NSItemProvider alloc] init] autorelease];
+    [second
+        registerDataRepresentationForTypeIdentifier:@"public.utf8-plain-text"
+                                         visibility:NSItemProviderRepresentationVisibilityAll
+                                        loadHandler:^NSProgress*(
+                                            void (^completion)(NSData*, NSError*)) {
+                                          s_secondReads += 1;
+                                          completion(
+                                              [@"more text" dataUsingEncoding:NSUTF8StringEncoding],
+                                              nil);
+                                          return nil;
+                                        }];
     FakeSession* session = [[FakeSession alloc] init];
     session->dragged = [@[
         [[[UIDragItem alloc] initWithItemProvider:first] autorelease],
         [[[UIDragItem alloc] initWithItemProvider:second] autorelease]
     ] retain];
+    return session;
+}
+
+// A session carrying MANY_FILES files, each counting its loads.
+static FakeSession* ManyOf(void)
+{
+    NSString* path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"drop-many.dat"];
+    [@"many" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nullptr];
+    NSURL* address = [NSURL fileURLWithPath:path];
+    NSMutableArray<UIDragItem*>* items = [NSMutableArray array];
+    for (int i = 0; i < MANY_FILES; i++)
+    {
+        NSItemProvider* file = [[[NSItemProvider alloc] init] autorelease];
+        [file registerFileRepresentationForTypeIdentifier:@"public.data"
+                                              fileOptions:0
+                                               visibility:NSItemProviderRepresentationVisibilityAll
+                                              loadHandler:^NSProgress*(
+                                                  void (^completion)(NSURL*, BOOL, NSError*)) {
+                                                s_fileLoads += 1;
+                                                completion(address, NO, nil);
+                                                return nil;
+                                              }];
+        [items addObject:[[[UIDragItem alloc] initWithItemProvider:file] autorelease]];
+    }
+    FakeSession* session = [[FakeSession alloc] init];
+    session->dragged = [items copy];
     return session;
 }
 
@@ -295,6 +342,28 @@ static void CheckTexts(const Program* program, mwinContext* context)
     CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == 12 && memcmp(text, "dropped text", 12) == 0,
           "the first string");
+    CHECK(s_secondReads == 0, "the second string never read");
+}
+
+// Enters with the many files and drops them.
+static void DropMany(Program* program)
+{
+    UIDropInteraction* none = nil;
+    FakeSession* session = program->many;
+    id<UIDropInteractionDelegate> dropper = program->dropper;
+    session->place = CGPointMake(10.0, 10.0);
+    [dropper dropInteraction:none sessionDidEnter:session];
+    [dropper dropInteraction:none performDrop:session];
+}
+
+static void CheckMany(const Program* program)
+{
+    const mwinEvent* r = program->records;
+    const mwinDropEvent* drop = &r[1].data.drop;
+    CHECK(program->count == 2 && r[1].kind == mwin_eventDropped && drop->fileCount == MOST_FILES &&
+              drop->truncated,
+          "a drop of three files gives two, marked truncated");
+    CHECK(s_fileLoads == MOST_FILES, "the file past the limit never loaded");
 }
 
 static mwinResult Init(mwinContext* context, void* user)
@@ -344,7 +413,23 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
     {
         printf("phase 2 at %.2f s\n", Since());
         CheckTexts(program, context);
+        program->count = 0;
+        program->many = ManyOf();
+        if (program->dropper != nil)
+        {
+            @autoreleasepool
+            {
+                DropMany(program);
+            }
+        }
         program->phase = 3;
+    }
+    else if (program->phase == 3 && program->count >= 2)
+    {
+        printf("phase 3 at %.2f s
+", Since());
+        CheckMany(program);
+        program->phase = 4;
         return mwin_frameStop;
     }
     if (NowNs() - program->startNs > DEADLINE_NS)
@@ -361,7 +446,7 @@ static void Quit(mwinContext* context, mwinResult status, void* user)
     (void)context;
     Program* program = user;
     CHECK(status == mwin_success, "init succeeded");
-    CHECK(program->phase == 3, "every phase ran");
+    CHECK(program->phase == 4, "every phase ran");
     printf("result: %d failures\n", s_failures);
 }
 
@@ -381,6 +466,7 @@ int main(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
+    def.context.limits.droppedFiles = MOST_FILES;
     // UIKit keeps the thread: this returns only if the program never ran.
     mwinResult result = mwinRun(&def);
     printf("result: mwinRun returned %d\n", (int)result);

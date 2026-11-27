@@ -164,6 +164,36 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
     window->dragContents = 0;
 }
 
+// Loads the text items from the at-th of texts on, one after another,
+// until one loads: the drop's text is the first that loads, so none after
+// it is read. Leaves the group once one loaded or none is left.
+static void LoadFirstText(NSArray<UIDragItem*>* items, NSArray<NSNumber*>* texts, NSUInteger at,
+                          NSMutableArray* loaded, dispatch_group_t group)
+{
+    if (at == texts.count)
+    {
+        dispatch_group_leave(group);
+        return;
+    }
+    NSUInteger i = texts[at].unsignedIntegerValue;
+    [items[i].itemProvider loadObjectOfClass:[NSString class]
+                           completionHandler:^(id<NSItemProviderReading> text, NSError* error) {
+                             (void)error;
+                             dispatch_async(dispatch_get_main_queue(), ^{
+                               if (text != nil)
+                               {
+                                   loaded[i] = @[ (NSString*)text ];
+                                   dispatch_group_leave(group);
+                               }
+                               else
+                               {
+                                   // A text that did not load is left out, as a file.
+                                   LoadFirstText(items, texts, at + 1, loaded, group);
+                               }
+                             });
+                           }];
+}
+
 - (void)dropInteraction:(UIDropInteraction*)interaction performDrop:(id<UIDropSession>)session
 {
     (void)interaction;
@@ -178,8 +208,14 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
         stringByAppendingPathComponent:[@"maul-window-drops"
                                            stringByAppendingPathComponent:NSUUID.UUID.UUIDString]];
     NSArray<UIDragItem*>* items = session.items;
-    // Per item, its path or text once loaded, in the items' order.
+    // Per item, its path or text once loaded, in the items' order. The
+    // dragging application chooses how many items a drag carries: only as
+    // many files as the program takes are loaded, which copies each, and
+    // the text items one at a time until one loads. The others stay
+    // unloaded and are left out.
     NSMutableArray* loaded = [NSMutableArray arrayWithCapacity:items.count];
+    NSMutableArray<NSNumber*>* texts = [NSMutableArray array];
+    uint32_t files = 0;
     dispatch_group_t group = dispatch_group_create();
     for (NSUInteger i = 0; i < items.count; i++)
     {
@@ -197,16 +233,11 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
         NSString* type = FileTypeOf(provider);
         if (type == nil && IsText(provider))
         {
-            dispatch_group_enter(group);
-            [provider loadObjectOfClass:[NSString class]
-                      completionHandler:^(id<NSItemProviderReading> text, NSError* error) {
-                        (void)error;
-                        // A text that did not load is left out, as a file.
-                        settle(text != nil ? @[ (NSString*)text ] : nil);
-                      }];
+            [texts addObject:@(i)];
         }
-        else if (type != nil)
+        else if (type != nil && files < context->limits.droppedFiles)
         {
+            files += 1;
             dispatch_group_enter(group);
             [provider loadFileRepresentationForTypeIdentifier:type
                                             completionHandler:^(NSURL* file, NSError* error) {
@@ -215,6 +246,11 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
                                               settle(file != nil ? Keep(file, folder, i) : nil);
                                             }];
         }
+    }
+    if (texts.count > 0)
+    {
+        dispatch_group_enter(group);
+        LoadFirstText(items, texts, 0, loaded, group);
     }
     mwinIOSPlatform* platformThen = platform;
     uint32_t slotThen = slot;
@@ -248,8 +284,9 @@ static NSString* Keep(NSURL* loaded, NSString* folder, NSUInteger index)
           }
           else
           {
-              // Text after the first, neither a file nor text, not loaded,
-              // or its file not kept.
+              // Text after the first, neither a file nor text, not loaded
+              // (past the files the program takes, or a text after the one
+              // that loaded), or its file not kept.
               context->dropping.truncated = true;
           }
       }

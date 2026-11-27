@@ -32,7 +32,7 @@ The iOS tests run in a booted simulator: `cmake/ios-simulator.cmake` builds for 
 
 ## The web
 
-The web tests run in headless Chrome through puppeteer (`test/web_runner.cjs`), found through `MWIN_NODE_MODULES`. The runner serves the build, gives each test a page and a canvas, and carries out what the test asks: a device pixel ratio or color scheme, keys, the mouse and wheel through puppeteer, touches, a pen and compositions through the DevTools protocol, a hidden page and the back-forward cache. A wasm32-wasi test is a reactor whose `main` the runner calls, with a minimal WASI and the generated imports.
+The Emscripten build uses Emscripten 7.0.1, the version the CI job pins and the family shares; a move to another version is a pull request of its own, where a new warning shows up as its failure. The web tests run in headless Chrome through puppeteer (`test/web_runner.cjs`), found through `MWIN_NODE_MODULES`. The runner serves the build, gives each test a page and a canvas, and carries out what the test asks: a device pixel ratio or color scheme, keys, the mouse and wheel through puppeteer, touches, a pen and compositions through the DevTools protocol, a hidden page and the back-forward cache. A wasm32-wasi test is a reactor whose `main` the runner calls, with a minimal WASI and the generated imports.
 
 `test/browser/` pins puppeteer and its dependencies in a lockfile:
 

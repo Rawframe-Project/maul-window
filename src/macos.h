@@ -71,6 +71,10 @@ struct mwinMacPlatform
     mwinMacWindow* windows;
     // Per monitor slot, the CGDirectDisplayID of its screen; 0 when free.
     uint32_t* displays;
+    // An input method's commit or composition, as its UTF-16 units and as
+    // UTF-8: limits' textBytesPerWindow of each.
+    uint16_t* imeUnits;
+    char* imeBytes;
     // What calls the program's frames: a display link, or a timer before
     // macOS 14, and the object they call.
     id driver;

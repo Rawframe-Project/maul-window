@@ -9,7 +9,9 @@
 // text; a lone surrogate composed as U+FFFD; shortened by a deletion; part of it replaced, as a
 // correction does, with the caret after the new text; a selection within it set; a range past its
 // end replaced, which accepts the text in its place; dropped when the program stops taking text;
-// and, while it does not, composed without a record, only the text accepted posted.
+// and, while it does not, composed without a record, only the text accepted posted. With a limit
+// of 32 bytes of text a window, a commit and then a composition of 33 bytes come as a reset each,
+// with no text, and nothing is allocated for them.
 
 #include "test_harness.h"
 
@@ -17,12 +19,38 @@
 #include "maul-window/native.h"
 
 #import <UIKit/UIKit.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #define DEADLINE_NS 20000000000ull
-#define LAST_PHASE  16
+#define LAST_PHASE  19
+// The test's limit of text a window, and a text one byte past it.
+#define TEXT_BYTES 32
+#define TOO_LONG   @"abcdefghijklmnopqrstuvwxyz0123456"
+
+// Blocks asked of the allocator while counting.
+static bool s_counting;
+static int s_allocations;
+
+static void* Allocate(size_t size, size_t alignment, void* user)
+{
+    (void)user;
+    s_allocations += s_counting;
+    // aligned_alloc takes no alignment under a pointer's.
+    return alignment <= alignof(max_align_t)
+               ? malloc(size)
+               : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
+}
+
+static void Release(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+}
 
 typedef struct Program
 {
@@ -37,6 +65,7 @@ typedef struct Program
     mwinPreeditSegment segment;
     int texts;
     char text[32];
+    int resets;
 } Program;
 
 // The range kept from a longer composition.
@@ -62,6 +91,7 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.kind == mwin_eventShown;
+        program->resets += event.kind == mwin_eventInputStateReset;
         program->completions += event.kind == mwin_eventRequestCompleted &&
                                 event.data.completion.outcome == mwin_outcomeDone;
         if (event.kind == mwin_eventImePreedit)
@@ -228,9 +258,35 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
         CHECK(view.markedTextRange != nil, "a method still composes");
         [view insertText:@"x"];
         break;
-    default:
+    case 15:
         CHECK(program->preedits == 0 && strcmp(program->text, "x") == 0 && program->texts == 1,
               "no record of it; the text accepted posted");
+        // A commit past the limit.
+        program->texts = 0;
+        program->resets = 0;
+        s_allocations = 0;
+        s_counting = true;
+        [view insertText:TOO_LONG];
+        s_counting = false;
+        break;
+    case 16:
+        CHECK(program->texts == 0 && program->resets == 1 && s_allocations == 0,
+              "a commit past the limit: a reset, no text, nothing allocated");
+        CHECK(mwinWindow_RequestTextInput(context, window, true, nullptr) == mwin_success,
+              "text taken again");
+        return;
+    case 17:
+        // A composition past the limit.
+        program->preedits = 0;
+        program->resets = 0;
+        s_allocations = 0;
+        s_counting = true;
+        Mark(view, TOO_LONG, 33, 0);
+        s_counting = false;
+        break;
+    default:
+        CHECK(program->preedits == 0 && program->resets == 1 && s_allocations == 0,
+              "a composition past the limit: a reset, no composition, nothing allocated");
         break;
     }
     program->phase += 1;
@@ -244,6 +300,7 @@ static bool Ready(const Program* program, UIView* view)
         return program->shown && view != nil && view.isFirstResponder;
     case 1:
     case 14:
+    case 17:
         return program->completions >= 1;
     default:
         return true;
@@ -272,7 +329,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
             Advance(program, context, view);
         }
         // A request's step waits for its answer.
-        if (phase == 0 || phase == 13)
+        if (phase == 0 || phase == 13 || phase == 16)
         {
             program->phase += 1;
             program->completions = 0;
@@ -312,6 +369,8 @@ int main(void)
     def.frame = Frame;
     def.quit = Quit;
     def.user = &program;
+    def.context.allocator = (mwinAllocator){Allocate, Release, nullptr};
+    def.context.limits.textBytesPerWindow = TEXT_BYTES;
     // UIKit keeps the thread: this returns only if the program never ran.
     mwinResult result = mwinRun(&def);
     printf("result: mwinRun returned %d\n", (int)result);

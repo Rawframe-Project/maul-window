@@ -86,6 +86,10 @@ struct mwinIOSPlatform
     // program was last told of it.
     id* screens;
     mwinMonitorInfo* screenInfo;
+    // An input method's commit or composition, as its UTF-16 units and as
+    // UTF-8: limits' textBytesPerWindow of each.
+    uint16_t* imeUnits;
+    char* imeBytes;
     // A scene of the application's role that has no window yet (held),
     // which the next window takes; nil when none waits. The number of the
     // last scene asked for.

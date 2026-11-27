@@ -68,26 +68,22 @@ void mwinAppleSetDroppedText(mwinContext* context, NSString* text)
     }
 }
 
-char* mwinAppleUtf8Of(mwinContext* context, NSString* string, size_t* lengthOut, size_t* sizeOut)
+bool mwinAppleImeText(NSString* string, uint16_t* units, char* bytes, size_t capacity,
+                      size_t* lengthOut)
 {
     *lengthOut = 0;
-    *sizeOut = 0;
-    size_t bytes = 0;
-    uint16_t* units = Units(context, string, &bytes);
-    if (units == nullptr)
+    NSUInteger count = string.length;
+    if (count > capacity)
     {
-        return nullptr;
+        return false;
     }
-    size_t needed = 0;
-    (void)muniConvertUtf16ToUtf8(units, string.length, muni_convertReplace, nullptr, 0, &needed);
-    char* text = needed > 0 ? mwinAllocate(&context->allocator, needed, 1) : nullptr;
-    if (text != nullptr)
+    [string getCharacters:(unichar*)units range:NSMakeRange(0, count)];
+    size_t length = 0;
+    if (muniConvertUtf16ToUtf8(units, count, muni_convertReplace, bytes, capacity, &length)
+            .status != muni_success)
     {
-        (void)muniConvertUtf16ToUtf8(units, string.length, muni_convertReplace, text, needed,
-                                     &needed);
-        *lengthOut = needed;
-        *sizeOut = needed;
+        return false;
     }
-    mwinRelease(&context->allocator, units, bytes, alignof(uint16_t));
-    return text;
+    *lengthOut = length;
+    return true;
 }

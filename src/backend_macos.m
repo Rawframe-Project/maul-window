@@ -29,12 +29,15 @@
 @end
 
 // Where the platform block's parts lie, laid out with checked
-// arithmetic: the platform, its windows and its monitors' displays.
+// arithmetic: the platform, its windows, its monitors' displays and its
+// input method's text.
 typedef struct PlatformParts
 {
     mwinLayout layout;
     size_t windows;
     size_t displays;
+    size_t imeUnits;
+    size_t imeBytes;
 } PlatformParts;
 
 static PlatformParts PartsOf(const mwinLimits* limits)
@@ -45,6 +48,9 @@ static PlatformParts PartsOf(const mwinLimits* limits)
     parts.windows =
         mwinLayoutAdd(layout, limits->windows, sizeof(mwinMacWindow), alignof(mwinMacWindow));
     parts.displays = mwinLayoutAdd(layout, limits->monitors, sizeof(uint32_t), alignof(uint32_t));
+    parts.imeUnits =
+        mwinLayoutAdd(layout, limits->textBytesPerWindow, sizeof(uint16_t), alignof(uint16_t));
+    parts.imeBytes = mwinLayoutAdd(layout, limits->textBytesPerWindow, 1, 1);
     return parts;
 }
 
@@ -180,6 +186,8 @@ static mwinResult Start(mwinContext* context)
     mwinMacPlatform* platform = (mwinMacPlatform*)block;
     platform->windows = (mwinMacWindow*)(block + parts.windows);
     platform->displays = (uint32_t*)(block + parts.displays);
+    platform->imeUnits = (uint16_t*)(void*)(block + parts.imeUnits);
+    platform->imeBytes = (char*)(block + parts.imeBytes);
     platform->context = context;
     context->backendData = platform;
     @autoreleasepool

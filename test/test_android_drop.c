@@ -27,7 +27,11 @@
 // is dropped with the first two and marked truncated, and the third is
 // never copied: the drop's folder in the cache holds two copies. That
 // the third is never opened either is not seen from here; Drops.java
-// opens no more than it copies.
+// opens no more than it copies. A document left out after its copy
+// began leaves no file in the cache: after the stalled drop, and after
+// both trickling drops were superseded, the drops' folder holds the one
+// copy the first drop delivered. A copy that ends with its window is
+// not driven here.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -41,6 +45,7 @@
 #include <android/native_activity.h>
 #include <android/native_window.h>
 #include <dirent.h>
+#include <ftw.h>
 #include <libgen.h>
 #include <math.h>
 #include <stddef.h>
@@ -127,6 +132,8 @@ typedef struct Program
     uint64_t liftedNs;
     uint64_t droppedNs;
     char name[64];
+    // The drops' folder in the cache, from the first drop's copy.
+    char cacheDrops[512];
 } Program;
 
 // While armed, the allocator refuses a block of REFUSED's length, the
@@ -390,7 +397,25 @@ static bool StartDrag(const Program* program, int kind)
     return started && !thrown;
 }
 
-static void CheckDrop(const Program* program, mwinContext* context)
+static int s_files;
+
+static int CountFile(const char* path, const struct stat* status, int flag, struct FTW* walk)
+{
+    (void)path;
+    (void)status;
+    (void)walk;
+    s_files += flag == FTW_F;
+    return 0;
+}
+
+// The files under the drops' folder: the copies the cache still holds.
+static int CopiesKept(const Program* program)
+{
+    s_files = 0;
+    return nftw(program->cacheDrops, CountFile, 16, FTW_PHYS) == 0 ? s_files : -1;
+}
+
+static void CheckDrop(Program* program, mwinContext* context)
 {
     const mwinDropEvent* drop = &program->drop;
     CHECK(program->entered && program->moved && !program->left,
@@ -418,6 +443,11 @@ static void CheckDrop(const Program* program, mwinContext* context)
     }
     CHECK(got == strlen(CONTENT) && memcmp(content, CONTENT, got) == 0,
           "the copy the same as the document");
+    // The copy is at <cache>/maul-drops/<drop>/0/<name>.
+    char folder[sizeof(paths)];
+    (void)snprintf(folder, sizeof(folder), "%s", paths);
+    (void)snprintf(program->cacheDrops, sizeof(program->cacheDrops), "%s",
+                   dirname(dirname(dirname(folder))));
     char text[64] = {0};
     CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
@@ -644,6 +674,8 @@ static void Advance(Program* program, mwinContext* context)
     case 6:
         program->droppedNs = NowNs();
         CheckStalledDrop(program, context);
+        CHECK(CopiesKept(program) == 1,
+              "the stalled document's partial copy removed, the first drop's copy kept");
         // The drop of the trickling document.
         Again(program);
         break;
@@ -700,6 +732,8 @@ static void Advance(Program* program, mwinContext* context)
                   text->textLength == strlen(WORDS) && !text->truncated,
               "a drag dropped on the window superseded the copy: its drop told first, truncated, "
               "then the drag's entering and its own drop, whole");
+        CHECK(CopiesKept(program) == 1,
+              "both superseded documents' partial copies removed, the first drop's copy kept");
         // A drag of two texts.
         Again(program);
         break;

@@ -10,6 +10,7 @@
 
 #include "core.h"
 #include "dialog.h"
+#include "fuzz_expect.h"
 #include "uri_list.h"
 #ifdef MAUL_WINDOW_ZENITY
 #include "linux_zenity.h"
@@ -22,14 +23,6 @@
 
 static const uint8_t* s_data;
 static size_t s_size;
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static bool IsUtf8(const char* text, size_t length)
 {
@@ -132,6 +125,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.backend = mwin_backendTest;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

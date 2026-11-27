@@ -10,6 +10,7 @@
 // within the text, the selection in order, every segment non-empty and
 // inside the text, and fitting again must change nothing.
 
+#include "fuzz_expect.h"
 #include "preedit_fit.h"
 #include "utf8.h"
 
@@ -18,14 +19,6 @@
 #include <string.h>
 
 #define TEXT_BYTES 1024
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 // Takes bytes from the input, or zeros where it ran out.
 static void Take(const uint8_t** data, size_t* size, void* out, size_t bytes)

@@ -14,6 +14,7 @@
 // backend took must finish once with an XdndFinished to its source, and
 // what a drop delivers must be UTF-8 within the limit.
 
+#include "fuzz_expect.h"
 #include "x11_drop.h"
 
 #include "maul-unicode/encoding.h"
@@ -61,14 +62,6 @@ static uint32_t s_nextWindow;
 // reported entered.
 static uint32_t s_finished;
 static bool s_entered[WINDOWS];
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static uint8_t Byte(void)
 {
@@ -361,7 +354,7 @@ static void Drain(mwinContext* context)
 static void Make(mwinContext* context, int i)
 {
     mwinWindowDef def = mwinDefaultWindowDef();
-    Expect(mwinCreateWindow(context, &def, &s_ids[i], nullptr) == mwin_success);
+    ExpectEqual(mwinCreateWindow(context, &def, &s_ids[i], nullptr), mwin_success);
     s_windows[i] = (mwinX11Window){.platform = &s_platform,
                                    .slot = s_ids[i].index1 - 1,
                                    .window = FIRST_WINDOW + s_nextWindow++};
@@ -433,7 +426,7 @@ static mwinResult Init(mwinContext* context, void* user)
             int i = (int)(((op >> 3) & 3) % WINDOWS);
             mwinX11ForgetDrag(&s_platform, s_windows[i].slot);
             bySlot[s_windows[i].slot].window = 0;
-            Expect(mwinDestroyWindow(context, s_ids[i]) == mwin_success);
+            ExpectEqual(mwinDestroyWindow(context, s_ids[i]), mwin_success);
             Make(context, i);
             bySlot[s_windows[i].slot] = s_windows[i];
             break;
@@ -469,6 +462,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.context.limits.droppedFiles = FILES;
     def.init = Init;
     def.frame = Frame;
-    Expect(mwinRun(&def) == mwin_success);
+    ExpectEqual(mwinRun(&def), mwin_success);
     return 0;
 }

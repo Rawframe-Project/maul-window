@@ -895,6 +895,9 @@ if(MAUL_WINDOW_FUZZ)
         target_compile_options(fuzz_${area} PRIVATE -fsanitize=fuzzer,address,undefined
                                                     -fno-sanitize-recover=all)
         target_link_options(fuzz_${area} PRIVATE -fsanitize=fuzzer,address,undefined)
+        # A broken promise's line names its file by the repository's path
+        # (test/fuzz_expect.h), not the machine's.
+        target_compile_options(fuzz_${area} PRIVATE -fmacro-prefix-map=${PROJECT_SOURCE_DIR}/=)
     endforeach()
     if(MAUL_WINDOW_WAYLAND OR MAUL_WINDOW_X11)
         target_compile_definitions(fuzz_payload PRIVATE MAUL_WINDOW_ZENITY)

@@ -13,6 +13,7 @@
 // of its eight steps or centred; a raw input's reports must fit in its
 // bytes and its count.
 
+#include "fuzz_expect.h"
 #include "hid_controls.h"
 
 #include <math.h>
@@ -24,14 +25,6 @@
 
 static const uint8_t* s_data;
 static size_t s_size;
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static uint8_t Byte(void)
 {

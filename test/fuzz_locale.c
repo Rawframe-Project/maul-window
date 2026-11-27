@@ -8,19 +8,12 @@
 // hyphens, separated by single commas, none twice; a text with a NUL is
 // refused as plasma-localerc.
 
+#include "fuzz_expect.h"
 #include "linux_locale.h"
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 static bool IsTagByte(char c)
 {

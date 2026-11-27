@@ -7,20 +7,13 @@
 // The movement must be finite, and an event of no scroll valuator must
 // move nothing.
 
+#include "fuzz_expect.h"
 #include "x11_scroll.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-static void Expect(bool condition)
-{
-    if (!condition)
-    {
-        abort();
-    }
-}
 
 // Takes bytes from the input, or zeros where it ran out.
 static void Take(const uint8_t** data, size_t* size, void* out, size_t bytes)

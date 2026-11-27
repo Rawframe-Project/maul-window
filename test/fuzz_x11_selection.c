@@ -463,7 +463,7 @@ static mwinResult Init(mwinContext* context, void* user)
     }
     for (uint32_t i = 0; i < s_made; i++)
     {
-        Expect(s_requests[i].completions == 1);
+        ExpectEqual(s_requests[i].completions, 1);
     }
     Expect(!s_platform.clipboard.reading);
     mwinX11StopClipboard(&s_platform);

@@ -84,7 +84,7 @@ static void ReadAxes(mwinLinuxMotionEvents* events)
         int32_t value = (int32_t)Long();
         int32_t resolution = (int32_t)Long();
         bool taken = mwinLinuxMotionAxis(events, axis, value, resolution);
-        Expect(taken == (resolution > 0));
+        ExpectEqual(taken, (resolution > 0));
         if (!taken)
         {
             return;
@@ -124,8 +124,8 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     memset(s_scale, 0, sizeof(s_scale));
     mwinLinuxPadIdentity pad = NextIdentity();
     mwinLinuxPadIdentity device = NextIdentity();
-    Expect(mwinLinuxSameController(&pad, &device) == mwinLinuxSameController(&device, &pad));
-    Expect(mwinLinuxSameController(&pad, &pad) == (pad.uniq[0] != '\0' || pad.phys[0] != '\0'));
+    ExpectEqual(mwinLinuxSameController(&pad, &device), mwinLinuxSameController(&device, &pad));
+    ExpectEqual(mwinLinuxSameController(&pad, &pad), (pad.uniq[0] != '\0' || pad.phys[0] != '\0'));
     mwinLinuxMotionEvents events;
     mwinLinuxMotionStart(&events, &pad);
     Expect(!mwinLinuxMotionAxis(&events, MWIN_LINUX_MOTION_AXES, 0, 1));
@@ -216,7 +216,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         }
         else
         {
-            Expect(sample.timeNs == timeNs);
+            ExpectEqual(sample.timeNs, timeNs);
         }
         stamped = false;
     }

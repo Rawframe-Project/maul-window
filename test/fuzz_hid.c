@@ -139,7 +139,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
                 {
                     listed = listed || down[i] == hid.buttons[b];
                 }
-                Expect(hid.controls.buttons[b] == listed);
+                ExpectEqual(hid.controls.buttons[b], listed);
             }
             break;
         }

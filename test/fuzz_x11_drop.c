@@ -150,7 +150,7 @@ static xcb_void_cookie_t SendEvent(xcb_connection_t*, uint8_t, xcb_window_t dest
     }
     else
     {
-        Expect(message->type == s_platform.atoms[mwin_atomXdndStatus]);
+        ExpectEqual(message->type, s_platform.atoms[mwin_atomXdndStatus]);
     }
     return (xcb_void_cookie_t){1};
 }

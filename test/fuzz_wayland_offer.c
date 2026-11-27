@@ -711,7 +711,7 @@ static mwinResult Init(mwinContext* context, void* user)
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     for (uint32_t p = 0; p < s_proxyCount; p++)
     {
@@ -765,6 +765,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     def.frame = Frame;
     int open = OpenDescriptors();
     ExpectEqual(mwinRun(&def), mwin_success);
-    Expect(OpenDescriptors() == open);
+    ExpectEqual(OpenDescriptors(), open);
     return 0;
 }

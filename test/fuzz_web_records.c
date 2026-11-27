@@ -245,10 +245,10 @@ void mwinPageClipboardTake(const mwinContext* context, char* out, uint32_t lengt
     (void)context;
     if (out == nullptr)
     {
-        Expect(length == 0);
+        ExpectEqual(length, 0);
         return;
     }
-    Expect(length == s_waiting);
+    ExpectEqual(length, s_waiting);
     for (uint32_t at = 0; at < length;)
     {
         uint32_t made = Bytes(length - at);
@@ -289,7 +289,7 @@ void mwinPageTakeDrop(const mwinContext* context, char* out, uint32_t length)
     (void)context;
     if (out == nullptr)
     {
-        Expect(length == 0);
+        ExpectEqual(length, 0);
         return;
     }
     Expect(s_dropText > 0 && length == (uint32_t)s_dropText);
@@ -664,7 +664,7 @@ static mwinResult Init(mwinContext* context, void* user)
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     return mwin_success;
 }

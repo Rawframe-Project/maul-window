@@ -360,7 +360,7 @@ static bool OnBoundary(const char* text, size_t length, size_t at)
 
 static void CheckComposition(const mwinPreeditEvent* preedit)
 {
-    Expect(muniValidateUtf8(preedit->text, preedit->length).status == muni_success);
+    ExpectEqual(muniValidateUtf8(preedit->text, preedit->length).status, muni_success);
     Expect(preedit->caret == -1 ||
            (preedit->caret >= 0 &&
             OnBoundary(preedit->text, preedit->length, (size_t)preedit->caret)));
@@ -514,9 +514,9 @@ static void SetTextInput(mwinContext* context, uint8_t op, uint32_t i)
 static void SetTextCaret(uint8_t op, uint32_t i)
 {
     uint32_t slot = s_ids[i].index1 - 1;
-    Expect(mwinWaylandSetTextCaret(&s_platform, slot,
-                                   (mwinRect){(float)(op >> 4), 1.0f, 2.0f, 3.0f}) ==
-           mwin_outcomeDone);
+    ExpectEqual(
+        mwinWaylandSetTextCaret(&s_platform, slot, (mwinRect){(float)(op >> 4), 1.0f, 2.0f, 3.0f}),
+        mwin_outcomeDone);
 }
 
 // A window goes, as the backend's destroy has it, and another comes.

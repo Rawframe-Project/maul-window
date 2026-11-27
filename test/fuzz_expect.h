@@ -35,9 +35,8 @@ static inline void mwinFuzzExpectEqual(long long value, long long expected, cons
 {
     if (value != expected)
     {
-        (void)fprintf(stderr, "%s:%d: expectation failed: %s == %s, %s is %lld, %s is %lld\n",
-                      file, line, valueText, expectedText, valueText, value, expectedText,
-                      expected);
+        (void)fprintf(stderr, "%s:%d: expectation failed: %s == %s, %s is %lld, %s is %lld\n", file,
+                      line, valueText, expectedText, valueText, value, expectedText, expected);
         (void)fflush(stderr);
         abort();
     }

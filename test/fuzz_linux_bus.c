@@ -1120,7 +1120,7 @@ static void CheckHold(void)
         s_hold.cookie = s_inhibit.cookie;
         memcpy(s_hold.handle, s_inhibit.handle, sizeof(s_hold.handle));
     }
-    Expect(s_hold.by == s_inhibit.held);
+    ExpectEqual(s_hold.by, s_inhibit.held);
     if (s_hold.by == mwin_inhibitPortal)
     {
         size_t length = strnlen(s_inhibit.handle, sizeof(s_inhibit.handle));
@@ -1129,7 +1129,7 @@ static void CheckHold(void)
     }
     else
     {
-        Expect(s_hold.cookie == s_inhibit.cookie);
+        ExpectEqual(s_hold.cookie, s_inhibit.cookie);
     }
 }
 
@@ -1245,7 +1245,7 @@ static void CheckFiles(const mwinContext* context, mwinRequestId request)
         Expect(path > 0 && bytes[at] == '/' && IsUtf8(bytes + at, path));
         at += path + 1;
     }
-    Expect(paths == count);
+    ExpectEqual(paths, count);
 }
 
 static bool IsTagByte(char c)
@@ -1312,7 +1312,7 @@ static void Drain(mwinContext* context)
             {
                 if (memcmp(&s_requests[i].id, &completion->request, sizeof(mwinRequestId)) == 0)
                 {
-                    Expect(s_requests[i].completions == 0);
+                    ExpectEqual(s_requests[i].completions, 0);
                     s_requests[i].completions++;
                     if (completion->outcome == mwin_outcomeDone)
                     {
@@ -1414,7 +1414,7 @@ static void Stop(mwinContext* context)
     }
     mwinSettingsStop(&s_settings);
     Drain(context);
-    Expect(s_filterCount == 0);
+    ExpectEqual(s_filterCount, 0);
     for (uint32_t i = 0; i < s_callCount; i++)
     {
         Expect(s_calls[i].released);
@@ -1523,7 +1523,7 @@ static mwinResult Init(mwinContext* context, void* user)
     Drain(context);
     for (uint32_t r = 0; r < s_made; r++)
     {
-        Expect(s_requests[r].completions == 1);
+        ExpectEqual(s_requests[r].completions, 1);
     }
     Stop(context);
     return mwin_success;

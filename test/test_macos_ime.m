@@ -8,8 +8,8 @@
 // two clauses, the thick-underlined one the target, comes as a
 // composition; committing ends it with the text; text typed and composed
 // with a lone surrogate arrives with U+FFFD in its place; turning text
-// input off ends a composition without committing it. With a limit of 32
-// bytes of text a window, a commit and then a composition of 33 bytes
+// input off ends a composition without committing it. With a limit of 64
+// bytes of text a window, a commit and then a composition of 65 bytes
 // come as a reset each, with no text, and nothing is allocated for them.
 // No input method can be driven on the runner, so the test calls the
 // view's text input client as a method would.
@@ -30,8 +30,8 @@
 #define MAX_RECORDS 16
 #define LAST_PHASE  10
 // The test's limit of text a window, and a text one byte past it.
-#define TEXT_BYTES 32
-#define TOO_LONG   @"abcdefghijklmnopqrstuvwxyz0123456"
+#define TEXT_BYTES 64
+#define TOO_LONG   @"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ012"
 
 // Blocks asked of the allocator while counting.
 static bool s_counting;
@@ -282,7 +282,7 @@ static void HandTooLong(NSView<NSTextInputClient>* view, bool marked)
     if (marked)
     {
         [view setMarkedText:TOO_LONG
-               selectedRange:NSMakeRange(33, 0)
+               selectedRange:NSMakeRange(65, 0)
             replacementRange:NSMakeRange(NSNotFound, 0)];
     }
     else

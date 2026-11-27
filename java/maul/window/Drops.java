@@ -16,8 +16,9 @@ import java.util.ArrayList;
  * Drags over the activity's view, for the library's drops: their places
  * and contents go to the library, and a drop's documents as open
  * descriptors with their names, which the library copies into the
- * application's cache, its first text, and whether a text after it was
- * left out. Called on the main thread.
+ * application's cache, its first text, and whether a document past the
+ * most the program takes, or a text after the first, was left out.
+ * Called on the main thread.
  */
 final class Drops implements View.OnDragListener {
     // What a drag carries (mwinDragContents), and how it moves.
@@ -81,15 +82,20 @@ final class Drops implements View.OnDragListener {
         }
         ContentResolver resolver = activity.getContentResolver();
         ClipData clip = event.getClipData();
+        // The dragging application chooses how many documents a drag
+        // carries: only as many as the program takes are opened.
+        int most = nativeMostFiles(program);
         ArrayList<Integer> descriptors = new ArrayList<>();
         ArrayList<String> names = new ArrayList<>();
         String text = null;
         boolean leftOut = false;
         for (int i = 0; clip != null && i < clip.getItemCount(); i++) {
             ClipData.Item item = clip.getItemAt(i);
-            if (item.getUri() != null) {
+            if (item.getUri() != null && descriptors.size() < most) {
                 descriptors.add(Documents.descriptorOf(resolver, item.getUri()));
                 names.add(Documents.nameOf(resolver, item.getUri()));
+            } else if (item.getUri() != null) {
+                leftOut = true;
             } else if (text == null) {
                 CharSequence words = item.coerceToText(activity);
                 text = words != null ? words.toString() : null;
@@ -110,11 +116,14 @@ final class Drops implements View.OnDragListener {
     }
 
     // The library's functions, registered by it at its start: whether the
-    // window takes a drag now; a drag entering, moving or leaving, at a
-    // place in pixels; a drop at a place, with its documents' descriptors
-    // (-1 for one that could not be opened) and names, its text or null,
-    // and whether a text item was left out.
+    // window takes a drag now; the most documents a drop delivers; a drag
+    // entering, moving or leaving, at a place in pixels; a drop at a
+    // place, with its documents' descriptors (-1 for one that could not be
+    // opened) and names, its text or null, and whether a document or a
+    // text item was left out.
     static native boolean nativeTakes(long program);
+
+    static native int nativeMostFiles(long program);
 
     static native void nativeDrag(long program, int how, float x, float y, int contents);
 

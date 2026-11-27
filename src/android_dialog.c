@@ -151,7 +151,7 @@ static void JNICALL Documents(JNIEnv* env, jclass type, jlong program, jint numb
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;
     if (!waited || !chosen || count == 0 || (uint32_t)count > platform->context->limits.dialogFiles)
     {
-        mwinAndroidCloseAll(env, descriptors);
+        mwinAndroidCloseRange(env, descriptors, 0, count);
         if (waited)
         {
             Finish(platform, !chosen      ? mwin_outcomeCancelled
@@ -160,8 +160,8 @@ static void JNICALL Documents(JNIEnv* env, jclass type, jlong program, jint numb
         }
         return;
     }
-    if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors, names,
-                              mwinAndroidNow()))
+    if (!mwinAndroidStartCopy(platform->context, &platform->documents.copy, env, descriptors,
+                              (uint32_t)count, names, mwinAndroidNow()))
     {
         Finish(platform, mwin_outcomeFailed);
     }

@@ -54,14 +54,16 @@ typedef struct mwinAndroidCopy
 MWIN_NODISCARD bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env,
                                           ANativeActivity* activity, const char* name);
 
-// Starts a job: takes the documents' descriptors (Java's, -1 for one
-// that could not be opened) and names, and makes the copies' folders and
-// files; a document that could not be opened, or whose copy could not
-// be made, is left out. False when there is no room for the job; the
-// descriptors are the job's either way, and mwinAndroidEndCopy closes
-// them.
+// Starts a job: takes the first count of the documents' descriptors
+// (Java's, -1 for one that could not be opened), at least one and no
+// more than the array holds, and their names, and makes the copies'
+// folders and files; a document that could not be opened, or whose copy
+// could not be made, is left out. False when there is no room for the
+// job; those descriptors are the job's either way, and
+// mwinAndroidEndCopy closes them. The array's others are the caller's.
 MWIN_NODISCARD bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* env,
-                                         jintArray descriptors, jobjectArray names, uint64_t nowNs);
+                                         jintArray descriptors, uint32_t count, jobjectArray names,
+                                         uint64_t nowNs);
 
 // Copies a job a step further at a time, taking from the budget the
 // bytes it copied; a document that cannot be read or written, or whose
@@ -75,7 +77,8 @@ void mwinAndroidCutCopy(mwinAndroidCopy* copy);
 // Closes what the job still holds and frees its paths.
 void mwinAndroidEndCopy(const mwinAllocator* allocator, mwinAndroidCopy* copy);
 
-// Closes the descriptors Java opened that no job takes.
-void mwinAndroidCloseAll(JNIEnv* env, jintArray descriptors);
+// Closes the descriptors Java opened that no job takes: those from first
+// up to, not including, end, or to the array's end when it holds fewer.
+void mwinAndroidCloseRange(JNIEnv* env, jintArray descriptors, jsize first, jsize end);
 
 #endif // MAUL_WINDOW_SRC_ANDROID_COPY_H

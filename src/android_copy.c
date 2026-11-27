@@ -63,11 +63,12 @@ bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env, ANativeActivity* 
     return named;
 }
 
-void mwinAndroidCloseAll(JNIEnv* env, jintArray descriptors)
+void mwinAndroidCloseRange(JNIEnv* env, jintArray descriptors, jsize first, jsize end)
 {
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;
-    jint* values = count > 0 ? (*env)->GetIntArrayElements(env, descriptors, nullptr) : nullptr;
-    for (jsize i = 0; values != nullptr && i < count; i++)
+    end = end < count ? end : count;
+    jint* values = first < end ? (*env)->GetIntArrayElements(env, descriptors, nullptr) : nullptr;
+    for (jsize i = first; values != nullptr && i < end; i++)
     {
         if (values[i] >= 0)
         {
@@ -174,10 +175,9 @@ static void LeaveOutKept(mwinAndroidCopy* copy, uint32_t index)
 }
 
 bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* env,
-                          jintArray descriptors, jobjectArray names, uint64_t nowNs)
+                          jintArray descriptors, uint32_t count, jobjectArray names, uint64_t nowNs)
 {
     const mwinAllocator* allocator = &context->allocator;
-    uint32_t count = (uint32_t)(*env)->GetArrayLength(env, descriptors);
     int* from = count > 0 ? mwinAllocate(allocator, count * sizeof(int), alignof(int)) : nullptr;
     int* into = count > 0 ? mwinAllocate(allocator, count * sizeof(int), alignof(int)) : nullptr;
     if (from == nullptr || into == nullptr)
@@ -191,7 +191,7 @@ bool mwinAndroidStartCopy(mwinContext* context, mwinAndroidCopy* copy, JNIEnv* e
         {
             mwinRelease(allocator, into, count * sizeof(int), alignof(int));
         }
-        mwinAndroidCloseAll(env, descriptors);
+        mwinAndroidCloseRange(env, descriptors, 0, (jsize)count);
         return false;
     }
     (*env)->GetIntArrayRegion(env, descriptors, 0, (jsize)count, from);

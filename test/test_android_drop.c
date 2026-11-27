@@ -21,8 +21,13 @@
 // and leaving; and, for a second such drop, a drag dropped on the window
 // supersedes it the same way and is dropped after it. Then a drag of two
 // texts is dropped with the first, the second left out and the drop
-// marked truncated. Last, a drag of a text the test's allocator refuses
-// room for is dropped with no text, marked truncated.
+// marked truncated. Then a drag of a text the test's allocator refuses
+// room for is dropped with no text, marked truncated. Last, a drag of
+// three documents, past the test's limit of two files a drop delivers,
+// is dropped with the first two and marked truncated, and the third is
+// never copied: the drop's folder in the cache holds two copies. That
+// the third is never opened either is not seen from here; Drops.java
+// opens no more than it copies.
 
 #include "test_android_app.h"
 #include "test_harness.h"
@@ -35,6 +40,8 @@
 
 #include <android/native_activity.h>
 #include <android/native_window.h>
+#include <dirent.h>
+#include <libgen.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -45,10 +52,14 @@
 
 #define DEADLINE_NS 20000000000ull
 #define OUT_PATH    "/data/data/" MWIN_TEST_PACKAGE "/files/out"
-#define LAST_PHASE  21
+#define LAST_PHASE  23
 #define CONTENT     "the dropped document"
 #define WORDS       "dropped w\xc3\xb6rds"
 #define MOVE_BY     200
+// The most files a drop delivers here, and the documents the last drag
+// carries, past it.
+#define MOST_FILES 2
+#define MANY_FILES 3
 // A text whose UTF-8 copy the allocator refuses, by its length.
 #define REFUSED "a text with no room for its copy"
 
@@ -75,6 +86,8 @@ enum
     DRAG_TEXTS,
     // The text the allocator refuses.
     DRAG_REFUSED,
+    // MANY_FILES documents.
+    DRAG_MANY,
 };
 
 // The most drag records and drops a phase keeps, in order.
@@ -101,6 +114,8 @@ typedef struct Program
     jobject gone;
     jobject stalled;
     jobject trickles;
+    // The document the last drag carries MANY_FILES times.
+    jobject many;
     // Since the last drag began: its records' kinds in order, moves left
     // out, and its drops.
     mwinEventKind order[ORDER];
@@ -301,7 +316,7 @@ static bool StartDrag(const Program* program, int kind)
     jclass items = (*env)->FindClass(env, "android/content/ClipData$Item");
     jobject document = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
-        program->document);
+        kind == DRAG_MANY ? program->many : program->document);
     jobject gone = (*env)->NewObject(
         env, items, (*env)->GetMethodID(env, items, "<init>", "(Landroid/net/Uri;)V"),
         program->gone);
@@ -332,16 +347,20 @@ static bool StartDrag(const Program* program, int kind)
                                               "(Ljava/lang/CharSequence;[Ljava/lang/String;"
                                               "Landroid/content/ClipData$Item;)V"),
                           label, types,
-                          kind == DRAG_DOCUMENTS ? document
-                          : documents            ? stalled
-                                                 : text);
+                          kind == DRAG_DOCUMENTS || kind == DRAG_MANY ? document
+                          : documents                                 ? stalled
+                                                                      : text);
     jmethodID add =
         (*env)->GetMethodID(env, clips, "addItem", "(Landroid/content/ClipData$Item;)V");
     if (kind == DRAG_DOCUMENTS)
     {
         (*env)->CallVoidMethod(env, clip, add, gone);
     }
-    if (documents)
+    for (int i = 1; kind == DRAG_MANY && i < MANY_FILES; i++)
+    {
+        (*env)->CallVoidMethod(env, clip, add, document);
+    }
+    if (documents && kind != DRAG_MANY)
     {
         (*env)->CallVoidMethod(env, clip, add, text);
     }
@@ -433,6 +452,34 @@ static void CheckStalledDrop(const Program* program, mwinContext* context)
     CHECK(mwinDrop_GetText(context, drop->drop, text, sizeof(text), &length) == mwin_success &&
               length == strlen(WORDS) && memcmp(text, WORDS, length) == 0,
           "the text dropped with the stalled document");
+}
+
+// The drag of more documents than a drop delivers: the first copied, the
+// rest left out before their copies were made.
+static void CheckManyDrop(const Program* program, mwinContext* context)
+{
+    const mwinDropEvent* drop = &program->drop;
+    CHECK(drop->fileCount == MOST_FILES && drop->textLength == 0 && drop->truncated,
+          "a drag of three documents dropped with two, marked truncated");
+    char paths[2048] = {0};
+    size_t length = 0;
+    CHECK(mwinDrop_GetFiles(context, drop->drop, paths, sizeof(paths), &length) == mwin_success,
+          "the paths of the many documents copied out");
+    // The first copy is at <cache>/maul-drops/<drop>/0/<name>.
+    char folder[1024] = {0};
+    (void)snprintf(folder, sizeof(folder), "%s", paths);
+    DIR* job = opendir(dirname(dirname(folder)));
+    int copies = 0;
+    for (struct dirent* entry = job != nullptr ? readdir(job) : nullptr; entry != nullptr;
+         entry = readdir(job))
+    {
+        copies += strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0;
+    }
+    if (job != nullptr)
+    {
+        (void)closedir(job);
+    }
+    CHECK(copies == MOST_FILES, "only the documents delivered copied into the cache");
 }
 
 // The flags of a drag, cleared for the next, under a finger put down
@@ -528,7 +575,10 @@ static bool Ready(Program* program, mwinContext* context)
     case 21:
         return program->dropped;
     case 20:
+    case 22:
         return program->touched;
+    case 23:
+        return program->dropped;
     default:
         return true;
     }
@@ -681,6 +731,24 @@ static void Advance(Program* program, mwinContext* context)
         CHECK(program->drop.fileCount == 0 && program->drop.textLength == 0 &&
                   program->drop.truncated,
               "a drag of a text with no room for its copy dropped with no text, marked truncated");
+        // A drag of more documents than a drop delivers.
+        {
+            char manyName[64];
+            (void)snprintf(manyName, sizeof(manyName), "maul-many-%d.txt", (int)getpid());
+            program->many = MakeDocument(program->activity->env, program->activity, manyName);
+            CHECK(program->many != nullptr, "a document made to drag many times");
+        }
+        Again(program);
+        break;
+    case 22:
+        DragInside(program, DRAG_MANY);
+        break;
+    case 23:
+        CheckManyDrop(program, context);
+        if (program->many != nullptr)
+        {
+            DeleteDocument(program->activity->env, program->activity, program->many);
+        }
         break;
     default:
         break;
@@ -768,5 +836,6 @@ mwinAppDef mwinAndroidMain(void)
     def.quit = Quit;
     def.user = &program;
     def.context.allocator = (mwinAllocator){Allocate, Release, nullptr};
+    def.context.limits.droppedFiles = MOST_FILES;
     return def;
 }

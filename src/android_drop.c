@@ -12,8 +12,10 @@
 // - A drop's documents are read under the drag's permissions (another
 //   application's need them) and copied into the application's cache, a
 //   folder per drop (android_copy.h), and its first text item, as text,
-//   is its text. The drop is told once every copy is whole, at the place
-//   it was made, as on iOS; a document that could not be opened or
+//   is its text. Only the first limits.droppedFiles documents are opened
+//   and copied: the dragging application chooses how many a drag carries.
+//   The drop is told once every copy is whole, at the place it was made,
+//   as on iOS; a document past those, one that could not be opened or
 //   copied, a text item after the first, or a text with no room for its
 //   copy, is left out, and the drop marked truncated. A drag that
 //   enters the window while the last drop's documents are still copied
@@ -49,6 +51,16 @@ static mwinPosition PlaceOf(const mwinAndroidPlatform* platform, jfloat x, jfloa
     return (mwinPosition){x / platform->window.scale, y / platform->window.scale};
 }
 
+// The most documents a drop delivers, which Drops.java opens at most:
+// none while the window takes no drag.
+static jint JNICALL MostFiles(JNIEnv* env, jclass type, jlong program)
+{
+    (void)env;
+    (void)type;
+    const mwinAndroidPlatform* platform = Taking(program);
+    return platform != nullptr ? (jint)platform->context->limits.droppedFiles : 0;
+}
+
 // Every drag on the device starts here, so one is taken while the last
 // drop copies too; it supersedes that copy only once it enters (Drag).
 static jboolean JNICALL Takes(JNIEnv* env, jclass type, jlong program)
@@ -79,7 +91,7 @@ static void Finish(mwinAndroidPlatform* platform, bool started)
             at += length + 1;
         }
         context->dropping.truncated =
-            context->dropping.truncated || !started || copy->leftOut > 0 || drops->textLeftOut;
+            context->dropping.truncated || !started || copy->leftOut > 0 || drops->leftOut;
         if (drops->text != nullptr)
         {
             mwinSetDroppedText(context, drops->text, drops->textLength);
@@ -92,7 +104,7 @@ static void Finish(mwinAndroidPlatform* platform, bool started)
         mwinRelease(&context->allocator, drops->text, drops->textLength, 1);
         drops->text = nullptr;
     }
-    drops->textLeftOut = false;
+    drops->leftOut = false;
 }
 
 // Ends the last drop's copy with what it has and tells it, truncated
@@ -128,14 +140,15 @@ static void JNICALL Drag(JNIEnv* env, jclass type, jlong program, jint how, jflo
 }
 
 static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jfloat y,
-                         jintArray descriptors, jobjectArray names, jstring text,
-                         jboolean textLeftOut)
+                         jintArray descriptors, jobjectArray names, jstring text, jboolean leftOut)
 {
     (void)type;
     mwinAndroidPlatform* platform = Taking(program);
     if (platform == nullptr)
     {
-        mwinAndroidCloseAll(env, descriptors);
+        mwinAndroidCloseRange(env, descriptors, 0,
+                              descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors)
+                                                     : 0);
         return;
     }
     // Android tells a drag's entering before its drop; should it not,
@@ -150,16 +163,25 @@ static void JNICALL Drop(JNIEnv* env, jclass type, jlong program, jfloat x, jflo
                       ? mwinAndroidBytesOf(platform, env, text, &drops->textLength, nullptr, 0)
                       : nullptr;
     // A text the allocator had no room for is left out too.
-    drops->textLeftOut = textLeftOut || (text != nullptr && drops->text == nullptr &&
-                                         (*env)->GetStringLength(env, text) > 0);
+    drops->leftOut = leftOut || (text != nullptr && drops->text == nullptr &&
+                                 (*env)->GetStringLength(env, text) > 0);
+    // Drops.java opens no more than the program takes; any past them are
+    // closed and left out all the same.
     jsize count = descriptors != nullptr ? (*env)->GetArrayLength(env, descriptors) : 0;
+    jsize most = (jsize)platform->context->limits.droppedFiles;
+    if (count > most)
+    {
+        mwinAndroidCloseRange(env, descriptors, most, count);
+        drops->leftOut = true;
+        count = most;
+    }
     if (count == 0)
     {
         Finish(platform, true);
         return;
     }
-    if (!mwinAndroidStartCopy(platform->context, &drops->copy, env, descriptors, names,
-                              mwinAndroidNow()))
+    if (!mwinAndroidStartCopy(platform->context, &drops->copy, env, descriptors, (uint32_t)count,
+                              names, mwinAndroidNow()))
     {
         Finish(platform, false);
     }
@@ -169,6 +191,7 @@ bool mwinAndroidFindDrops(mwinAndroidPlatform* platform, ANativeActivity* activi
 {
     static const JNINativeMethod methods[] = {
         {"nativeTakes", "(J)Z", (void*)Takes},
+        {"nativeMostFiles", "(J)I", (void*)MostFiles},
         {"nativeDrag", "(JIFFI)V", (void*)Drag},
         {"nativeDrop", "(JFF[I[Ljava/lang/String;Ljava/lang/String;Z)V", (void*)Drop},
     };
@@ -191,7 +214,7 @@ void mwinAndroidStopDrops(mwinAndroidPlatform* platform)
         mwinRelease(&platform->context->allocator, drops->text, drops->textLength, 1);
         drops->text = nullptr;
     }
-    drops->textLeftOut = false;
+    drops->leftOut = false;
 }
 
 void mwinAndroidPumpDrops(mwinAndroidPlatform* platform, uint32_t* budget)

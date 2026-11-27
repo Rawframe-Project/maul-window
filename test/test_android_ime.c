@@ -16,8 +16,8 @@
 // for, which starts the input method anew;
 // each purpose's input type, nothing corrected or completed. Insets told
 // again alike change neither the safe area nor the keyboard. With a
-// limit of 32 bytes of text a window, a commit and then a composition of
-// 33 bytes are told as a reset each, with no text, and nothing is
+// limit of 256 bytes of text a window, a commit and then a composition of
+// 257 bytes are told as a reset each, with no text, and nothing is
 // allocated for them. The keyboard
 // shown after it is asked for another purpose is test_android_ime_purpose.c's.
 
@@ -44,8 +44,7 @@
 #define RECORDS     64
 #define LAST_PHASE  16
 // The test's limit of text a window, and a text one byte past it.
-#define TEXT_BYTES 32
-#define TOO_LONG   "abcdefghijklmnopqrstuvwxyz0123456"
+#define TEXT_BYTES 256
 
 // Android's input types (android.text.InputType).
 #define TYPE_CLASS_TEXT               0x1
@@ -85,6 +84,14 @@ typedef struct Program
     // Resets told since the last phase began.
     int resets;
 } Program;
+
+// A text one byte past the limit.
+static const char* TooLong(void)
+{
+    static char text[TEXT_BYTES + 2];
+    memset(text, 'a', TEXT_BYTES + 1);
+    return text;
+}
 
 // Blocks asked of the allocator while counting.
 static bool s_counting;
@@ -591,7 +598,7 @@ static void Advance(Program* program, mwinContext* context)
         // A commit past the limit.
         s_allocations = 0;
         s_counting = true;
-        Text(env, connection, "commitText", TOO_LONG);
+        Text(env, connection, "commitText", TooLong());
         s_counting = false;
         break;
     case 15:
@@ -600,7 +607,7 @@ static void Advance(Program* program, mwinContext* context)
         // A composition past the limit.
         s_allocations = 0;
         s_counting = true;
-        Text(env, connection, "setComposingText", TOO_LONG);
+        Text(env, connection, "setComposingText", TooLong());
         s_counting = false;
         break;
     case 16:

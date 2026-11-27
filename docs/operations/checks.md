@@ -12,7 +12,7 @@ What verifies a change, locally and in CI, and the time each may take.
 | `pr` | Every rule on every file, the generated tables against their generators, the iOS runner against a stand-in simulator (`tools/test_run_ios_app.sh`), that the documentation site builds, clang-tidy over the Linux build's sources in a Release build and a Debug build, the whole `linux-clang-20-asan` suite with the display fixture, and 10 seconds of fuzzing per target. | under 10 minutes |
 | `full` | Also the other Linux presets (ThreadSanitizer, shared, minimal, Clang and GCC Release), each with its tests' labels checked, the virtual gamepad tests where `/dev/uinput` can be written, and 60 seconds per fuzz target. | under 20 minutes |
 
-Run `changed` before every push. In the workspace, run `pr` and `full` through the workspace's heavy-job wrapper. The macOS, iOS, Android, Windows and web cells run in CI; [Test environments](test-environments.md) says how to run each by hand.
+Run `changed` before every push; `git config core.hooksPath tools/hooks` makes Git do it, through the heavy-job wrapper inside the workspace and in its WSL distribution on Windows. In the workspace, run `pr` and `full` through the workspace's heavy-job wrapper. The macOS, iOS, Android, Windows and web cells run in CI; [Test environments](test-environments.md) says how to run each by hand.
 
 ## Tests and labels
 

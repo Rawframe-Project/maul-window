@@ -10,7 +10,7 @@
 // correction does, with the caret after the new text; a selection within it set; a range past its
 // end replaced, which accepts the text in its place; dropped when the program stops taking text;
 // and, while it does not, composed without a record, only the text accepted posted. With a limit
-// of 64 bytes of text a window, a commit and then a composition of 65 bytes come as a reset each,
+// of 256 bytes of text a window, a commit and then a composition of 257 bytes come as a reset each,
 // with no text, and nothing is allocated for them.
 
 #include "test_harness.h"
@@ -27,8 +27,9 @@
 #define DEADLINE_NS 20000000000ull
 #define LAST_PHASE  19
 // The test's limit of text a window, and a text one byte past it.
-#define TEXT_BYTES 64
-#define TOO_LONG   @"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+#define TEXT_BYTES 256
+// A text one unit, and so one byte, past the limit.
+#define TOO_LONG [@"" stringByPaddingToLength:TEXT_BYTES + 1 withString:@"a" startingAtIndex:0]
 
 // Blocks asked of the allocator while counting.
 static bool s_counting;
@@ -281,7 +282,7 @@ static void Advance(Program* program, mwinContext* context, UIView<UITextInput>*
         program->resets = 0;
         s_allocations = 0;
         s_counting = true;
-        Mark(view, TOO_LONG, 65, 0);
+        Mark(view, TOO_LONG, TEXT_BYTES + 1, 0);
         s_counting = false;
         break;
     default:

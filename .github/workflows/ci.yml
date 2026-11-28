@@ -594,6 +594,10 @@ jobs:
       - name: Test on an iPad
         if: github.event_name != 'pull_request'
         run: |
+          # The iPad's ctest writes the same LastTest.log: the iPhone's run
+          # before it, at night the quarantined tests', is kept for Test logs.
+          cp out/ios-simulator/Testing/Temporary/LastTest.log \
+            out/ios-simulator/Testing/Temporary/LastTest-iphone.log
           xcrun simctl shutdown "$MWIN_IOS_DEVICE"
           udid=$(tools/ci_simulator.sh iPad)
           xcrun simctl boot "$udid"

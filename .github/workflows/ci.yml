@@ -413,6 +413,7 @@ jobs:
           cmake --preset "$PRESET"
           cmake --build --preset "$PRESET"
       - name: Quarantined tests
+        id: quarantine
         # The test presets' limit, which a run outside a preset does not
         # take, so a hung flake is a warning, not a cancelled job. The
         # virtual pads are the gamepads job's; Windows' build tree holds its
@@ -424,6 +425,15 @@ jobs:
           windows-*) args+=(-C Release) ;;
           esac
           tools/run_quarantine.sh "out/$PRESET" "${args[@]}"
+      - name: Test logs
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-quarantine-${{ matrix.preset }}
+          path: out/${{ matrix.preset }}/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # The Linux gamepads, through virtual pads the test makes with /dev/uinput,
   # every night. A container job gets no input devices, so this one runs the
@@ -456,19 +466,23 @@ jobs:
             echo "::error::a test did not run"; exit 1
           fi
       - name: Quarantined gamepad tests
+        id: quarantine
         # ctest takes one -L, so the virtual pad tests are named with -R.
         env:
           IMAGE: ghcr.io/rawframe-project/ci-cpp:2026.10.7@sha256:08c846597243dc000c83d6c008d078a8c3fabf8633d83963d46c0e6d02c2577e
         run: |
           docker run --rm --device /dev/uinput -v /dev/input:/dev/input \
             --device-cgroup-rule='c 13:* rmw' -v "$PWD:/w" -w /w \
-            -e GITHUB_STEP_SUMMARY=/w/out/quarantine-summary.md "$IMAGE" bash -c '
+            -e GITHUB_STEP_SUMMARY=/w/out/quarantine-summary.md \
+            -e GITHUB_OUTPUT=/w/out/quarantine-output "$IMAGE" bash -c '
               names=$(ctest --test-dir out/linux-clang-20-asan -N -L "^uinput$" |
                 sed -n "s/^ *Test *#[0-9]*: //p" | paste -sd "|" -)
               tools/run_quarantine.sh out/linux-clang-20-asan --timeout 300 -R "^($names)$"'
           cat out/quarantine-summary.md >>"$GITHUB_STEP_SUMMARY"
+          if [ -f out/quarantine-output ]; then cat out/quarantine-output >>"$GITHUB_OUTPUT"; fi
       - name: Test logs
-        if: failure()
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: logs-gamepads
@@ -569,6 +583,7 @@ jobs:
           grep -E 'Testing: |^warm-up: |^installed |^launched as |^active at |^launch back |^waited until |^still in |^ended by |^phase ' \
             out/ios-simulator/Testing/Temporary/LastTest.log || true
       - name: Quarantined tests
+        id: quarantine
         # On the iPhone, among the tests the preset runs but ios_scenes:
         # ctest takes one -L, so they are named with -R.
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -594,7 +609,8 @@ jobs:
           grep -E 'Testing: |^warm-up: |^installed |^launched as |^active at |^launch back |^waited until |^still in |^ended by |^phase ' \
             out/ios-simulator/Testing/Temporary/LastTest.log || true
       - name: Test logs
-        if: failure()
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: logs-ios-simulator
@@ -738,6 +754,7 @@ jobs:
             echo "::error::a test did not run"; exit 1
           fi
       - name: Quarantined tests
+        id: quarantine
         # Tests that failed intermittently run here every night, outside the
         # required check, until their issue is fixed (the quarantine label).
         # A failure is a known flake, reported as a warning; a skip, a test
@@ -745,7 +762,8 @@ jobs:
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: tools/run_quarantine.sh out/android-emulator --timeout 240
       - name: Test logs
-        if: failure()
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: logs-android-emulator-${{ matrix.api }}
@@ -803,12 +821,14 @@ jobs:
             echo "::error::a test did not run"; exit 1
           fi
       - name: Quarantined tests
+        id: quarantine
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" \
             tools/run_quarantine.sh out/web-wasi --timeout 300
       - name: Test logs
-        if: failure()
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: logs-web-wasi
@@ -852,12 +872,14 @@ jobs:
             echo "::error::a test did not run"; exit 1
           fi
       - name: Quarantined tests
+        id: quarantine
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         run: |
           MWIN_NODE_MODULES="$RUNNER_TEMP/browser/node_modules" \
             tools/run_quarantine.sh out/web-emscripten --timeout 300
       - name: Test logs
-        if: failure()
+        # A failed step's, and a quarantined test's that failed.
+        if: failure() || steps.quarantine.outputs.failed == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: logs-web-emscripten

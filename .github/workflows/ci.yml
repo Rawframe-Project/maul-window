@@ -576,6 +576,10 @@ jobs:
           names=$(ctest --test-dir out/ios-simulator -N -L '^(integration|base)$' |
             sed -n -e '/: ios_scenes$/d' -e 's/^ *Test *#[0-9]*: //p' | paste -sd '|' -)
           tools/run_quarantine.sh out/ios-simulator --timeout 240 -R "^($names)$"
+          # Where each application's time went, and each tap ios_touch asked
+          # for, passing runs included: a tap asked for again is a lost touch.
+          grep -E 'Testing: |^warm-up: |^installed |^launched as |^active at |^launch back |^waited until |^still in |^ended by |^phase |^tap [0-9]+ done |^no touch |^touched after ' \
+            out/ios-simulator/Testing/Temporary/LastTest.log || true
       - name: Test on an iPad
         if: github.event_name != 'pull_request'
         run: |

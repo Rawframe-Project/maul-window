@@ -26,6 +26,7 @@
 #include "backend.h"
 #include "key_reach.h"
 
+#include <android/asset_manager_jni.h>
 #include <string.h>
 #include <time.h>
 
@@ -412,12 +413,37 @@ static void OnInputQueueDestroyed(ANativeActivity* activity, AInputQueue* queue)
     }
 }
 
+// The activity's configuration as its resources hold it now. A change
+// the activity takes itself (a program's configChanges) can move them to
+// an asset manager of their own, which the one NativeActivity handed
+// over at the activity's creation, still at the old configuration, does
+// not follow; that one only while the activity's cannot be read.
+static void ReadConfiguration(mwinAndroidPlatform* platform, ANativeActivity* activity)
+{
+    JNIEnv* env = activity->env;
+    jclass type = (*env)->GetObjectClass(env, activity->clazz);
+    jmethodID getAssets =
+        (*env)->GetMethodID(env, type, "getAssets", "()Landroid/content/res/AssetManager;");
+    jobject assets =
+        getAssets != nullptr ? (*env)->CallObjectMethod(env, activity->clazz, getAssets) : nullptr;
+    AAssetManager* current = nullptr;
+    if (assets != nullptr && !(*env)->ExceptionCheck(env))
+    {
+        current = AAssetManager_fromJava(env, assets);
+    }
+    (*env)->ExceptionClear(env);
+    AConfiguration_fromAssetManager(platform->configuration,
+                                    current != nullptr ? current : activity->assetManager);
+    (*env)->DeleteLocalRef(env, assets);
+    (*env)->DeleteLocalRef(env, type);
+}
+
 static void OnConfigurationChanged(ANativeActivity* activity)
 {
     mwinAndroidPlatform* platform = activity->instance;
     if (platform != nullptr)
     {
-        AConfiguration_fromAssetManager(platform->configuration, activity->assetManager);
+        ReadConfiguration(platform, activity);
         mwinAndroidReadSize(platform);
         mwinAndroidReadSystem(platform);
         mwinAndroidReadScreen(platform);

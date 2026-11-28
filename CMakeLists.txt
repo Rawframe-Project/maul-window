@@ -686,7 +686,12 @@ if(MAUL_WINDOW_BUILD_TESTS)
         # without Gradle and run by tools/run_android_app.sh.
         set(MWIN_ANDROID_TESTS android android_input android_cursor android_ime android_ime_purpose
             android_pad android_services android_clipboard android_dialog android_drop
-            android_system android_access android_pad_ds4 android_touch)
+            android_system android_access android_pad_ds4 android_touch android_config)
+        # The one application that declares configChanges, as a program
+        # may: a turn, the night mode and the font scale come to the
+        # library's onConfigurationChanged instead of a new activity.
+        set(MWIN_ANDROID_CHANGES_android_config
+            "orientation|screenSize|screenLayout|smallestScreenSize|uiMode|fontScale")
         foreach(name ${MWIN_ANDROID_TESTS})
             set(package maul.window.tests.${name})
             add_library(test_${name} SHARED test/test_${name}.c)
@@ -700,7 +705,7 @@ if(MAUL_WINDOW_BUILD_TESTS)
                 COMMAND ${CMAKE_COMMAND} -E env ANDROID_HOME=$ENV{ANDROID_HOME}
                         ${PROJECT_SOURCE_DIR}/tools/build_android_app.sh
                         ${PROJECT_BINARY_DIR}/test_${name}.apk $<TARGET_FILE:test_${name}>
-                        ${package} ${ANDROID_ABI}
+                        ${package} ${ANDROID_ABI} ${MWIN_ANDROID_CHANGES_${name}}
                 DEPENDS test_${name} ${MWIN_JAVA_SOURCES}
                         ${PROJECT_SOURCE_DIR}/test/android/AndroidManifest.xml
                         ${PROJECT_SOURCE_DIR}/java/proguard-rules.pro

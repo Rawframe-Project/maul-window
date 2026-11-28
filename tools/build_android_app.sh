@@ -2,7 +2,7 @@
 # Builds a test application for the Android emulator, with
 # the SDK's tools and no Gradle:
 #
-#   tools/build_android_app.sh <out.apk> <libname.so> <package> [abi]
+#   tools/build_android_app.sh <out.apk> <libname.so> <package> [abi] [config-changes]
 #
 # The library's Java activity (java/maul/window) and the tests' Java
 # (test/android/java) compiled with javac and shrunk, optimized and
@@ -10,7 +10,8 @@
 # rules (java/proguard-rules.pro), the tests' (test/android/proguard-rules.pro)
 # and the manifest keep, so every test run checks the library's rules;
 # test/android/AndroidManifest.xml with the package and library filled
-# in, linked by aapt2 as debuggable with the tests' resources
+# in, and the activity's android:configChanges when config-changes names
+# them (as "orientation|uiMode"; none by default), linked by aapt2 as debuggable with the tests' resources
 # (test/android/res), the native library under
 # lib/<abi>/ (x86_64 by default), aligned and signed with a debug key
 # kept beside the output. ANDROID_HOME names the SDK; the newest build
@@ -20,6 +21,7 @@ out=$1
 library=$2
 package=$3
 abi=${4:-x86_64}
+changes=${5:+ android:configChanges=\"$5\"}
 root=$(cd "$(dirname "$0")/.." && pwd)
 tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
 jar=$(ls -d "$ANDROID_HOME"/platforms/android-* | sort -V | tail -1)/android.jar
@@ -27,7 +29,7 @@ name=$(basename "$library" .so)
 name=${name#lib}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-sed -e "s/@PACKAGE@/$package/" -e "s/@LIBRARY@/$name/" \
+sed -e "s/@PACKAGE@/$package/" -e "s/@LIBRARY@/$name/" -e "s/@CONFIG_CHANGES@/$changes/" \
     "$root/test/android/AndroidManifest.xml" > "$work/AndroidManifest.xml"
 mkdir -p "$work/classes" "$work/dex" "$work/lib/$abi"
 # The sources through an argument file, each quoted with its \ and "

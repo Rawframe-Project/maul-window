@@ -240,6 +240,9 @@ struct mwinAndroidPlatform
     mwinAndroidScreen screen;
     // When the facts were last read.
     uint64_t factsReadNs;
+    // An input method's commit or composition as UTF-8, limits'
+    // textBytesPerWindow bytes after the platform in its block.
+    char* imeText;
 };
 
 // The platform of a context whose backend is Android.
@@ -382,10 +385,10 @@ void mwinAndroidReleaseCursor(mwinContext* context, uint32_t slot);
 // the text input and keyboard requests.
 MWIN_NODISCARD bool mwinAndroidFindText(mwinAndroidPlatform* platform, ANativeActivity* activity);
 // A Java string as UTF-8 in a block from the allocator, which the caller
-// releases with its size; null for an empty one or no memory. The
-// UTF-16 offsets given are turned into byte offsets.
+// releases with its size; null for an empty one or no memory. The caller
+// bounds the string's length first when another program chose it.
 char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
-                         size_t* sizeOut, int32_t* offsets, size_t offsetCount);
+                         size_t* sizeOut);
 void mwinAndroidPostInsets(mwinAndroidPlatform* platform);
 mwinOutcome mwinAndroidSetTextInput(mwinAndroidPlatform* platform, bool enabled);
 mwinOutcome mwinAndroidSetTextCaret(mwinAndroidPlatform* platform, mwinRect caret);

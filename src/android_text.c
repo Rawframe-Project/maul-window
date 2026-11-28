@@ -41,7 +41,7 @@ static void PostEvent(mwinAndroidPlatform* platform, mwinEvent* event)
 }
 
 char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
-                         size_t* sizeOut, int32_t* offsets, size_t offsetCount)
+                         size_t* sizeOut)
 {
     const mwinAllocator* allocator = &platform->context->allocator;
     jsize count = (*env)->GetStringLength(env, text);
@@ -57,14 +57,47 @@ char* mwinAndroidBytesOf(const mwinAndroidPlatform* platform, JNIEnv* env, jstri
     {
         (void)muniConvertUtf16ToUtf8(units, (size_t)count, muni_convertReplace, bytes, size,
                                      sizeOut);
-        for (size_t i = 0; i < offsetCount; i++)
-        {
-            size_t taken = offsets[i] < 0 ? 0 : (size_t)offsets[i];
-            offsets[i] = (int32_t)mwinBytesBefore(bytes, size, muni_unitUtf16, taken);
-        }
     }
     (*env)->ReleaseStringChars(env, text, units);
     return bytes;
+}
+
+// An input method's text as UTF-8 in the platform's buffer, the offsets
+// given in its UTF-16 units turned to bytes: false when it does not fit
+// the buffer, and the program is then told to read its text state again,
+// as it cannot follow from the records.
+MWIN_NODISCARD static bool ImeText(mwinAndroidPlatform* platform, JNIEnv* env, jstring text,
+                                   size_t* lengthOut, int32_t* offsets, size_t offsetCount)
+{
+    size_t capacity = platform->context->limits.textBytesPerWindow;
+    jsize count = text != nullptr ? (*env)->GetStringLength(env, text) : 0;
+    *lengthOut = 0;
+    // Each unit is at least a byte of UTF-8: text past the buffer is not
+    // read.
+    const jchar* units = count > 0 && (size_t)count <= capacity
+                             ? (*env)->GetStringChars(env, text, nullptr)
+                             : nullptr;
+    bool fits = count == 0 || units != nullptr;
+    if (units != nullptr)
+    {
+        fits = muniConvertUtf16ToUtf8(units, (size_t)count, muni_convertReplace, platform->imeText,
+                                      capacity, lengthOut)
+                   .status == muni_success;
+        (*env)->ReleaseStringChars(env, text, units);
+    }
+    if (!fits)
+    {
+        *lengthOut = 0;
+        mwinEvent reset = {.kind = mwin_eventInputStateReset};
+        PostEvent(platform, &reset);
+        return false;
+    }
+    for (size_t i = 0; i < offsetCount; i++)
+    {
+        size_t taken = offsets[i] < 0 ? 0 : (size_t)offsets[i];
+        offsets[i] = (int32_t)mwinBytesBefore(platform->imeText, *lengthOut, muni_unitUtf16, taken);
+    }
+    return true;
 }
 
 static void Tap(mwinAndroidPlatform* platform, int32_t keyCode)
@@ -91,12 +124,11 @@ static void JNICALL Commit(JNIEnv* env, jclass type, jlong program, jstring text
     (void)type;
     mwinAndroidPlatform* platform = Accepting(program);
     size_t size = 0;
-    char* bytes =
-        platform != nullptr ? mwinAndroidBytesOf(platform, env, text, &size, nullptr, 0) : nullptr;
-    if (bytes == nullptr)
+    if (platform == nullptr || !ImeText(platform, env, text, &size, nullptr, 0) || size == 0)
     {
         return;
     }
+    const char* bytes = platform->imeText;
     size_t start = 0;
     for (size_t i = 0; i < size; i++)
     {
@@ -112,7 +144,6 @@ static void JNICALL Commit(JNIEnv* env, jclass type, jlong program, jstring text
         }
     }
     PostText(platform, bytes + start, size - start);
-    mwinRelease(&platform->context->allocator, bytes, size, 1);
 }
 
 static void EndPreedit(mwinAndroidPlatform* platform)
@@ -137,8 +168,7 @@ static void JNICALL Compose(JNIEnv* env, jclass type, jlong program, jstring tex
     }
     int32_t offsets[2] = {start, end};
     size_t size = 0;
-    char* bytes = mwinAndroidBytesOf(platform, env, text, &size, offsets, 2);
-    if (bytes == nullptr)
+    if (!ImeText(platform, env, text, &size, offsets, 2) || size == 0)
     {
         EndPreedit(platform);
         return;
@@ -146,7 +176,7 @@ static void JNICALL Compose(JNIEnv* env, jclass type, jlong program, jstring tex
     mwinPreeditSegment segment = {0, (uint32_t)size, mwin_preeditUnderline};
     mwinEvent event = {.kind = mwin_eventImePreedit};
     event.data.preedit = (mwinPreeditEvent){
-        .text = bytes,
+        .text = platform->imeText,
         .length = (uint32_t)size,
         .caret = offsets[1],
         .selectionStart = (uint32_t)offsets[0],
@@ -155,7 +185,6 @@ static void JNICALL Compose(JNIEnv* env, jclass type, jlong program, jstring tex
         .segmentCount = 1,
     };
     PostEvent(platform, &event);
-    mwinRelease(&platform->context->allocator, bytes, size, 1);
 }
 
 static void JNICALL Key(JNIEnv* env, jclass type, jlong program, jint action, jint code, jint meta,

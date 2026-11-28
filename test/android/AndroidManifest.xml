@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A test application (tools/build_android_app.sh): the
      library's activity running the test's native library. No
-     configChanges: a rotation makes the activity anew. The accessibility
+     configChanges but a test's own (@CONFIG_CHANGES@, empty for every
+     test but test_android_config): a rotation makes the activity anew.
+     The accessibility
      client is enabled only by a test that asks the runner to. The
      provider's document stalls mid-way, for test_android_drop. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="@PACKAGE@">
     <application android:label="@LIBRARY@" android:hasCode="true">
-        <activity android:name="maul.window.Activity" android:exported="true">
+        <activity android:name="maul.window.Activity" android:exported="true"@CONFIG_CHANGES@>
             <meta-data android:name="android.app.lib_name" android:value="@LIBRARY@" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

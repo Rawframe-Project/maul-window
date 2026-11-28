@@ -5,6 +5,18 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.15.1](https://github.com/Rawframe-Project/maul-window/compare/v0.15.0...v0.15.1) (2026-11-28)
+
+
+### Fixed
+
+* **android:** keep an input method's and a drop's text within the limits ([#515](https://github.com/Rawframe-Project/maul-window/issues/515)) ([14869ff](https://github.com/Rawframe-Project/maul-window/commit/14869ff3043eef4019fe989e29c02d6c4ecbcf71)), closes [#511](https://github.com/Rawframe-Project/maul-window/issues/511)
+* **android:** open and copy only the documents a drop delivers ([#509](https://github.com/Rawframe-Project/maul-window/issues/509)) ([8caff7a](https://github.com/Rawframe-Project/maul-window/commit/8caff7a62ed495475d7791f96285157ecc63096d)), closes [#498](https://github.com/Rawframe-Project/maul-window/issues/498)
+* **android:** remove a document's partial copy when it is left out ([#512](https://github.com/Rawframe-Project/maul-window/issues/512)) ([9aae31b](https://github.com/Rawframe-Project/maul-window/commit/9aae31bb45876365d55317cb599bb587f9ce535a)), closes [#510](https://github.com/Rawframe-Project/maul-window/issues/510)
+* **ios:** load only the files a drop delivers and the text it keeps ([#518](https://github.com/Rawframe-Project/maul-window/issues/518)) ([3530c29](https://github.com/Rawframe-Project/maul-window/commit/3530c292ef4510aaf0d1b11b160f13c78d9c3783)), closes [#513](https://github.com/Rawframe-Project/maul-window/issues/513)
+* **text:** keep an input method's text in fixed rooms on macOS and iOS ([#516](https://github.com/Rawframe-Project/maul-window/issues/516)) ([205289f](https://github.com/Rawframe-Project/maul-window/commit/205289f56af5dff249e8a6d1eeca377785a589d8)), closes [#514](https://github.com/Rawframe-Project/maul-window/issues/514)
+* **x11:** read the server's replies only within their bytes ([#497](https://github.com/Rawframe-Project/maul-window/issues/497)) ([fd7fe66](https://github.com/Rawframe-Project/maul-window/commit/fd7fe66ed4aa843f3b21493bdb698a9b995c2f95)), closes [#496](https://github.com/Rawframe-Project/maul-window/issues/496)
+
 ## [0.15.0](https://github.com/Rawframe-Project/maul-window/compare/v0.14.0...v0.15.0) (2026-11-05)
 
 The iOS device check, that a window shows no flash against the launch

@@ -5,6 +5,13 @@ Added, Changed, Fixed, Removed and Security. The project uses
 [Semantic Versioning](https://semver.org/). Before 1.0.0, any release
 may change the API, the ABI and the behavior.
 
+## [0.15.2](https://github.com/Rawframe-Project/maul-window/compare/v0.15.1...v0.15.2) (2026-11-28)
+
+
+### Fixed
+
+* **android:** follow a configuration change an activity takes itself ([#526](https://github.com/Rawframe-Project/maul-window/issues/526)) ([ef19777](https://github.com/Rawframe-Project/maul-window/commit/ef19777717abf7ef3a557ca947b4adfa3a7976b5)), closes [#525](https://github.com/Rawframe-Project/maul-window/issues/525) [#251](https://github.com/Rawframe-Project/maul-window/issues/251)
+
 ## [0.15.1](https://github.com/Rawframe-Project/maul-window/compare/v0.15.0...v0.15.1) (2026-11-28)
 
 The iOS device check, that a window shows no flash against the launch

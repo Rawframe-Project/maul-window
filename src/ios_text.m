@@ -114,21 +114,16 @@ void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* te
     {
         return;
     }
-    mwinContext* context = platform->context;
     size_t length = 0;
-    size_t size = 0;
-    char* bytes = mwinAppleUtf8Of(context, text, &length, &size);
-    if (bytes == nullptr || length > UINT32_MAX)
+    if (!mwinAppleImeText(text, platform->imeUnits, platform->imeBytes,
+                          platform->context->limits.textBytesPerWindow, &length))
     {
         // The program's composition cannot follow the input method's.
         mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
-        if (bytes != nullptr)
-        {
-            mwinRelease(&context->allocator, bytes, size, 1);
-        }
         return;
     }
+    const char* bytes = platform->imeBytes;
     mwinPreeditSegment segment = {0, (uint32_t)length, mwin_preeditUnderline};
     mwinEvent event = {.kind = mwin_eventImePreedit};
     mwinPreeditEvent* preedit = &event.data.preedit;
@@ -147,7 +142,6 @@ void mwinIOSSetMarkedText(mwinIOSPlatform* platform, uint32_t slot, NSString* te
     preedit->segments = &segment;
     preedit->segmentCount = 1;
     Post(platform, slot, &event);
-    mwinRelease(&context->allocator, bytes, size, 1);
 }
 
 void mwinIOSEndComposition(mwinIOSPlatform* platform, uint32_t slot, bool accept)

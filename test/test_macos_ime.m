@@ -8,9 +8,11 @@
 // two clauses, the thick-underlined one the target, comes as a
 // composition; committing ends it with the text; text typed and composed
 // with a lone surrogate arrives with U+FFFD in its place; turning text
-// input off ends a composition without committing it. No input method can be
-// driven on the runner, so the test calls the view's text input client
-// as a method would.
+// input off ends a composition without committing it. With a limit of 256
+// bytes of text a window, a commit and then a composition of 257 bytes
+// come as a reset each, with no text, and nothing is allocated for them.
+// No input method can be driven on the runner, so the test calls the
+// view's text input client as a method would.
 
 #include "test_harness.h"
 
@@ -19,11 +21,40 @@
 #include "maul-window/native.h"
 
 #import <AppKit/AppKit.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #define DEADLINE_NS 10000000000ull
 #define MAX_RECORDS 16
+#define LAST_PHASE  10
+// The test's limit of text a window, and a text one byte past it.
+#define TEXT_BYTES 256
+// A text one unit, and so one byte, past the limit.
+#define TOO_LONG [@"" stringByPaddingToLength:TEXT_BYTES + 1 withString:@"a" startingAtIndex:0]
+
+// Blocks asked of the allocator while counting.
+static bool s_counting;
+static int s_allocations;
+
+static void* Allocate(size_t size, size_t alignment, void* user)
+{
+    (void)user;
+    s_allocations += s_counting;
+    // aligned_alloc takes no alignment under a pointer's.
+    return alignment <= alignof(max_align_t)
+               ? malloc(size)
+               : aligned_alloc(alignment, (size + alignment - 1) / alignment * alignment);
+}
+
+static void Release(void* memory, size_t size, size_t alignment, void* user)
+{
+    (void)size;
+    (void)alignment;
+    (void)user;
+    free(memory);
+}
 
 // か, な and を; 仮 and 名.
 #define KA   "\xE3\x81\x8B"
@@ -53,6 +84,8 @@ typedef struct Program
     bool shown;
     Record records[MAX_RECORDS];
     size_t count;
+    // Resets told since the phase began.
+    int resets;
     bool timedOut;
 } Program;
 
@@ -97,6 +130,7 @@ static void Collect(Program* program, mwinContext* context)
     while (mwinContext_NextEvent(context, &event) == mwin_success)
     {
         program->shown |= event.kind == mwin_eventShown;
+        program->resets += event.kind == mwin_eventInputStateReset;
         bool kept = event.kind == mwin_eventTextInput || event.kind == mwin_eventImePreedit ||
                     event.kind == mwin_eventRequestCompleted;
         if (kept && program->count < MAX_RECORDS)
@@ -231,6 +265,34 @@ static void CheckPlain(const Program* program)
           "plain marked text: one clause to convert");
 }
 
+// A text past the limit: a reset in its place, no record of its kind,
+// and nothing allocated while it was handed over.
+static void CheckTooLong(const Program* program, mwinEventKind kind, const char* what)
+{
+    size_t at = 0;
+    const Record* record = Find(program, &at, kind);
+    bool none = record == nullptr || (kind == mwin_eventImePreedit && record->length == 0);
+    CHECK(none && program->resets == 1 && s_allocations == 0, what);
+}
+
+// Hands the view a text past the limit, counting the blocks asked for.
+static void HandTooLong(NSView<NSTextInputClient>* view, bool marked)
+{
+    s_allocations = 0;
+    s_counting = true;
+    if (marked)
+    {
+        [view setMarkedText:TOO_LONG
+               selectedRange:NSMakeRange(TEXT_BYTES + 1, 0)
+            replacementRange:NSMakeRange(NSNotFound, 0)];
+    }
+    else
+    {
+        [view insertText:TOO_LONG replacementRange:NSMakeRange(NSNotFound, 0)];
+    }
+    s_counting = false;
+}
+
 // A composition is state: the end replaces one still waiting, so the
 // plain one was read a frame before.
 static void CheckOff(const Program* program, NSView<NSTextInputClient>* view)
@@ -296,10 +358,26 @@ static void Advance(Program* program, mwinContext* context)
         break;
     case 6:
         CheckPlain(program);
+        HandTooLong(view, false);
+        break;
+    case 7:
+        CheckTooLong(program, mwin_eventTextInput,
+                     "a commit past the limit: a reset, no text, nothing allocated");
+        HandTooLong(view, true);
+        break;
+    case 8:
+        CheckTooLong(program, mwin_eventImePreedit,
+                     "a composition past the limit: a reset, no composition, nothing allocated");
+        [view setMarkedText:@"か"
+               selectedRange:NSMakeRange(1, 0)
+            replacementRange:NSMakeRange(NSNotFound, 0)];
+        break;
+    case 9:
+        CheckPlain(program);
         CHECK(mwinWindow_RequestTextInput(context, program->window, false, nullptr) == mwin_success,
               "text input off");
         break;
-    case 7:
+    case 10:
         CheckOff(program, view);
         break;
     default:
@@ -307,14 +385,15 @@ static void Advance(Program* program, mwinContext* context)
     }
     program->phase += 1;
     program->count = 0;
+    program->resets = 0;
     program->startNs = NowNs();
 }
 
-// Phases 1 and 7 wait for their request's completion.
+// Phases 1 and LAST_PHASE wait for their request's completion.
 static bool Pending(const Program* program)
 {
     size_t at = 0;
-    return (program->phase == 1 || program->phase == 7) &&
+    return (program->phase == 1 || program->phase == LAST_PHASE) &&
            Find(program, &at, mwin_eventRequestCompleted) == nullptr &&
            NowNs() - program->startNs < DEADLINE_NS;
 }
@@ -346,7 +425,7 @@ static mwinFrameResult Frame(mwinContext* context, void* user)
         program->timedOut = true;
         return mwin_frameStop;
     }
-    return program->phase == 8 ? mwin_frameStop : mwin_frameContinue;
+    return program->phase > LAST_PHASE ? mwin_frameStop : mwin_frameContinue;
 }
 
 int main(void)
@@ -357,8 +436,10 @@ int main(void)
     def.init = Init;
     def.frame = Frame;
     def.user = &program;
+    def.context.allocator = (mwinAllocator){Allocate, Release, nullptr};
+    def.context.limits.textBytesPerWindow = TEXT_BYTES;
     CHECK(mwinRun(&def) == mwin_success, "the program runs on macOS");
     CHECK(!program.timedOut, "the window shows in time");
-    CHECK(program.phase == 8, "every phase ran");
+    CHECK(program.phase > LAST_PHASE, "every phase ran");
     return s_failures == 0 ? 0 : 1;
 }

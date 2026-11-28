@@ -21,10 +21,13 @@
 mwinOutcome mwinAppleTakeClipboardText(mwinContext* context, NSString* text);
 void mwinAppleSetDroppedText(mwinContext* context, NSString* text);
 
-// A string as UTF-8, every unit of it, a lone surrogate as U+FFFD, one
-// UTF-16 unit as mwinBytesBefore counts it: *lengthOut bytes in a block
-// of the context's of *sizeOut bytes, which the caller lets go. NULL for
-// an empty string, or with no memory.
-char* mwinAppleUtf8Of(mwinContext* context, NSString* string, size_t* lengthOut, size_t* sizeOut);
+// An input method's string as UTF-8, every unit of it, a lone surrogate
+// as U+FFFD, one UTF-16 unit as mwinBytesBefore counts it: its units
+// copied into units and *lengthOut bytes written to bytes, both rooms of
+// capacity laid out at context creation. False, with nothing read, for a
+// string of more units than capacity, and false for one whose UTF-8 does
+// not fit; the program's text state cannot follow either.
+MWIN_NODISCARD bool mwinAppleImeText(NSString* string, uint16_t* units, char* bytes,
+                                     size_t capacity, size_t* lengthOut);
 
 #endif // MAUL_WINDOW_SRC_APPLE_TEXT_H

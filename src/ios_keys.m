@@ -138,27 +138,21 @@ static void Tap(mwinIOSPlatform* platform, uint32_t slot, mwinKeyCode code)
 }
 
 // Posts the text kept, a lone surrogate in it as U+FFFD; a reset in its
-// place when there is no memory for it.
+// place when it does not fit the platform's room.
 static void PostText(mwinIOSPlatform* platform, uint32_t slot, NSMutableString* kept)
 {
-    mwinContext* context = platform->context;
     size_t length = 0;
-    size_t size = 0;
-    char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
-    if (bytes != nullptr && length <= UINT32_MAX)
-    {
-        mwinEvent event = {.kind = mwin_eventTextInput};
-        event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
-        Post(platform, slot, &event);
-    }
-    else if (kept.length > 0)
+    if (!mwinAppleImeText(kept, platform->imeUnits, platform->imeBytes,
+                          platform->context->limits.textBytesPerWindow, &length))
     {
         mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
     }
-    if (bytes != nullptr)
+    else if (length > 0)
     {
-        mwinRelease(&context->allocator, bytes, size, 1);
+        mwinEvent event = {.kind = mwin_eventTextInput};
+        event.data.text = (mwinTextEvent){platform->imeBytes, (uint32_t)length};
+        Post(platform, slot, &event);
     }
     [kept setString:@""];
 }

@@ -45,7 +45,7 @@ static void EndComposition(mwinMacPlatform* platform, uint32_t slot)
 
 // Typed text without control characters or AppKit's function key
 // characters, which are keys; a lone surrogate as U+FFFD, and a reset in
-// its place when there is no memory for it.
+// its place when it does not fit the platform's room.
 static void PostText(mwinMacPlatform* platform, uint32_t slot, NSString* string)
 {
     NSMutableString* kept = [NSMutableString stringWithCapacity:string.length];
@@ -57,24 +57,18 @@ static void PostText(mwinMacPlatform* platform, uint32_t slot, NSString* string)
             CFStringAppendCharacters((CFMutableStringRef)kept, &unit, 1);
         }
     }
-    mwinContext* context = platform->context;
     size_t length = 0;
-    size_t size = 0;
-    char* bytes = mwinAppleUtf8Of(context, kept, &length, &size);
-    if (bytes != nullptr && length <= UINT32_MAX)
-    {
-        mwinEvent event = {.kind = mwin_eventTextInput};
-        event.data.text = (mwinTextEvent){bytes, (uint32_t)length};
-        Post(platform, slot, &event);
-    }
-    else if (kept.length > 0)
+    if (!mwinAppleImeText(kept, platform->imeUnits, platform->imeBytes,
+                          platform->context->limits.textBytesPerWindow, &length))
     {
         mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
     }
-    if (bytes != nullptr)
+    else if (length > 0)
     {
-        mwinRelease(&context->allocator, bytes, size, 1);
+        mwinEvent event = {.kind = mwin_eventTextInput};
+        event.data.text = (mwinTextEvent){platform->imeBytes, (uint32_t)length};
+        Post(platform, slot, &event);
     }
 }
 
@@ -155,21 +149,16 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     {
         return;
     }
-    mwinContext* context = platform->context;
     size_t length = 0;
-    size_t size = 0;
-    char* bytes = mwinAppleUtf8Of(context, text, &length, &size);
-    if (bytes == nullptr || length > UINT32_MAX)
+    if (!mwinAppleImeText(text, platform->imeUnits, platform->imeBytes,
+                          platform->context->limits.textBytesPerWindow, &length))
     {
         // The program's composition cannot follow the input method's.
         mwinEvent reset = {.kind = mwin_eventInputStateReset};
         Post(platform, slot, &reset);
-        if (bytes != nullptr)
-        {
-            mwinRelease(&context->allocator, bytes, size, 1);
-        }
         return;
     }
+    const char* bytes = platform->imeBytes;
     mwinPreeditSegment segments[MWIN_MAX_PREEDIT_SEGMENTS];
     mwinEvent event = {.kind = mwin_eventImePreedit};
     mwinPreeditEvent* preedit = &event.data.preedit;
@@ -190,7 +179,6 @@ void mwinMacSetMarkedText(mwinMacPlatform* platform, uint32_t slot, id string, N
     preedit->segmentCount = Segment(string, text, segments, preedit);
     preedit->segments = segments;
     Post(platform, slot, &event);
-    mwinRelease(&context->allocator, bytes, size, 1);
 }
 
 void mwinMacInsertText(mwinMacPlatform* platform, uint32_t slot, id string)

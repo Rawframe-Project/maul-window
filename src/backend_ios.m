@@ -53,13 +53,16 @@
 @end
 
 // Where the platform block's parts lie, laid out with checked
-// arithmetic: the platform, its windows and its monitors' screens.
+// arithmetic: the platform, its windows, its monitors' screens and its
+// input method's text.
 typedef struct PlatformParts
 {
     mwinLayout layout;
     size_t windows;
     size_t screens;
     size_t screenInfo;
+    size_t imeUnits;
+    size_t imeBytes;
 } PlatformParts;
 
 static PlatformParts PartsOf(const mwinLimits* limits)
@@ -72,6 +75,9 @@ static PlatformParts PartsOf(const mwinLimits* limits)
     parts.screens = mwinLayoutAdd(layout, limits->monitors, sizeof(id), alignof(id));
     parts.screenInfo =
         mwinLayoutAdd(layout, limits->monitors, sizeof(mwinMonitorInfo), alignof(mwinMonitorInfo));
+    parts.imeUnits =
+        mwinLayoutAdd(layout, limits->textBytesPerWindow, sizeof(uint16_t), alignof(uint16_t));
+    parts.imeBytes = mwinLayoutAdd(layout, limits->textBytesPerWindow, 1, 1);
     return parts;
 }
 
@@ -343,6 +349,8 @@ static mwinResult Start(mwinContext* context)
     platform->windows = (mwinIOSWindow*)(block + parts.windows);
     platform->screens = (id*)(block + parts.screens);
     platform->screenInfo = (mwinMonitorInfo*)(block + parts.screenInfo);
+    platform->imeUnits = (uint16_t*)(void*)(block + parts.imeUnits);
+    platform->imeBytes = (char*)(block + parts.imeBytes);
     platform->context = context;
     context->backendData = platform;
     MwinIOSStepper* stepper = [[MwinIOSStepper alloc] init];

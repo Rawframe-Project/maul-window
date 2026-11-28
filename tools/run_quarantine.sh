@@ -15,8 +15,11 @@
 # Every test labeled quarantine runs. A quarantined test is one that
 # fails now and then without a fault in the code, with an issue that
 # tracks it, so its failure is reported, not fatal: each failed test gets
-# a warning and a line in the job summary, and the script exits 0. A
-# quarantined test that is skipped or not run, or a failure of ctest
+# a warning and a line in the job summary, and the script exits 0. In
+# GitHub Actions it also sets the step's output failed to true, so that
+# the job keeps a flake's logs as it keeps a failed step's.
+#
+# A quarantined test that is skipped or not run, or a failure of ctest
 # itself, still fails the step: neither is a known flake, and each would
 # stop the nightly from counting the green nights a test needs to leave
 # quarantine. So does a sanitizer report or a crash on a bad address: a
@@ -74,4 +77,7 @@ fi
 for test in $failed; do
   echo "::warning::quarantined test $test failed"
 done
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "failed=true" >>"$GITHUB_OUTPUT"
+fi
 exit 0

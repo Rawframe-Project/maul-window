@@ -7,15 +7,52 @@ may change the API, the ABI and the behavior.
 
 ## [0.15.1](https://github.com/Rawframe-Project/maul-window/compare/v0.15.0...v0.15.1) (2026-11-28)
 
+The iOS device check, that a window shows no flash against the launch
+screen before its first frame, is waived by the owner for this
+release, which ships on the iOS simulator suite: its iOS changes (the
+drop's loads and the input method's text) leave the launch and the
+first frame alone.
 
 ### Fixed
 
-* **android:** keep an input method's and a drop's text within the limits ([#515](https://github.com/Rawframe-Project/maul-window/issues/515)) ([14869ff](https://github.com/Rawframe-Project/maul-window/commit/14869ff3043eef4019fe989e29c02d6c4ecbcf71)), closes [#511](https://github.com/Rawframe-Project/maul-window/issues/511)
-* **android:** open and copy only the documents a drop delivers ([#509](https://github.com/Rawframe-Project/maul-window/issues/509)) ([8caff7a](https://github.com/Rawframe-Project/maul-window/commit/8caff7a62ed495475d7791f96285157ecc63096d)), closes [#498](https://github.com/Rawframe-Project/maul-window/issues/498)
-* **android:** remove a document's partial copy when it is left out ([#512](https://github.com/Rawframe-Project/maul-window/issues/512)) ([9aae31b](https://github.com/Rawframe-Project/maul-window/commit/9aae31bb45876365d55317cb599bb587f9ce535a)), closes [#510](https://github.com/Rawframe-Project/maul-window/issues/510)
-* **ios:** load only the files a drop delivers and the text it keeps ([#518](https://github.com/Rawframe-Project/maul-window/issues/518)) ([3530c29](https://github.com/Rawframe-Project/maul-window/commit/3530c292ef4510aaf0d1b11b160f13c78d9c3783)), closes [#513](https://github.com/Rawframe-Project/maul-window/issues/513)
-* **text:** keep an input method's text in fixed rooms on macOS and iOS ([#516](https://github.com/Rawframe-Project/maul-window/issues/516)) ([205289f](https://github.com/Rawframe-Project/maul-window/commit/205289f56af5dff249e8a6d1eeca377785a589d8)), closes [#514](https://github.com/Rawframe-Project/maul-window/issues/514)
-* **x11:** read the server's replies only within their bytes ([#497](https://github.com/Rawframe-Project/maul-window/issues/497)) ([fd7fe66](https://github.com/Rawframe-Project/maul-window/commit/fd7fe66ed4aa843f3b21493bdb698a9b995c2f95)), closes [#496](https://github.com/Rawframe-Project/maul-window/issues/496)
+- On X11, a reply or event from the X server whose lists or strings
+  claim more bytes than it holds is no longer read past its end. This
+  covers properties (the clipboard, a drop, a window's properties and
+  a monitor's EDID), the monitor and output lists, the picture
+  formats, the input device lists and the values of XInput events.
+  Such a reply is taken as a request the server refused, and such an
+  event is passed over. Before, the library read past the end of the
+  buffer that held the reply
+  ([#497](https://github.com/Rawframe-Project/maul-window/pull/497)).
+- On X11, a context no longer crashes when the X server refuses the
+  query for its input devices
+  ([#497](https://github.com/Rawframe-Project/maul-window/pull/497)).
+- On X11, a message box answers `mwin_errorPlatform`, and a context
+  fails to start, when the server's setup does not hold a whole
+  screen, instead of reading past the setup
+  ([#497](https://github.com/Rawframe-Project/maul-window/pull/497)).
+- On Android and iOS, a drop opens and copies, or loads, only the
+  first `droppedFiles` documents a drag carries, and leaves the rest
+  out, the drop marked truncated. iOS also stops loading text items
+  once one has loaded, since only the first becomes the drop's text.
+  Before, every document was copied into the application's storage,
+  however many the dragging application put in the drag, and the
+  program then got only the first `droppedFiles`
+  ([#509](https://github.com/Rawframe-Project/maul-window/pull/509),
+  [#518](https://github.com/Rawframe-Project/maul-window/pull/518)).
+- On Android, a document left out of a drop or a file dialog's choice
+  after its copy began, as when its application stops sending, no
+  longer keeps its partial copy in the application's cache until the
+  program starts again; a copy that ends unfinished removes its folder
+  ([#512](https://github.com/Rawframe-Project/maul-window/pull/512)).
+- On Android, macOS and iOS, an input method's commit or composition
+  is converted into room set aside when the context is created,
+  instead of memory taken at its own size on each keystroke; one past
+  `textBytesPerWindow` comes as `mwin_eventInputStateReset` without
+  being read, as on the other platforms. On Android, a drop's text
+  past `dropBytes` is left out before it is read
+  ([#515](https://github.com/Rawframe-Project/maul-window/pull/515),
+  [#516](https://github.com/Rawframe-Project/maul-window/pull/516)).
 
 ## [0.15.0](https://github.com/Rawframe-Project/maul-window/compare/v0.14.0...v0.15.0) (2026-11-05)
 

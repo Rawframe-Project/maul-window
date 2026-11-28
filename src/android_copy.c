@@ -29,6 +29,12 @@ static int RemoveEntry(const char* path, const struct stat* status, int flag, st
     return 0;
 }
 
+// Removes a folder and what it holds.
+static void RemoveTree(const char* folder)
+{
+    (void)nftw(folder, RemoveEntry, 16, FTW_DEPTH | FTW_PHYS);
+}
+
 bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env, ANativeActivity* activity,
                            const char* name)
 {
@@ -58,7 +64,7 @@ bool mwinAndroidCopyFolder(mwinAndroidCopy* copy, JNIEnv* env, ANativeActivity* 
     bool named = written > 0 && (size_t)written < sizeof(copy->folder);
     if (named)
     {
-        (void)nftw(copy->folder, RemoveEntry, 16, FTW_DEPTH | FTW_PHYS);
+        RemoveTree(copy->folder);
     }
     return named;
 }
@@ -160,7 +166,10 @@ static void LeaveOut(mwinAndroidCopy* copy, uint32_t index)
     copy->leftOut += 1;
 }
 
-// Leaves out a document whose path is kept, and empties its path.
+// Leaves out a document whose path is kept, and empties its path. Its
+// copy, made before its first byte came, is removed with its folder: the
+// program never gets it, and a provider that sends without end would
+// otherwise keep the storage it filled.
 static void LeaveOutKept(mwinAndroidCopy* copy, uint32_t index)
 {
     LeaveOut(copy, index);
@@ -170,6 +179,13 @@ static void LeaveOutKept(mwinAndroidCopy* copy, uint32_t index)
         at += strlen(copy->paths + at) + 1;
     }
     size_t length = strlen(copy->paths + at);
+    char* slash = length > 0 ? strrchr(copy->paths + at, '/') : nullptr;
+    if (slash != nullptr)
+    {
+        (void)remove(copy->paths + at);
+        *slash = '\0';
+        (void)rmdir(copy->paths + at);
+    }
     memmove(copy->paths + at, copy->paths + at + length, copy->pathsLength - at - length);
     copy->pathsLength -= length;
 }
@@ -301,6 +317,18 @@ void mwinAndroidEndCopy(const mwinAllocator* allocator, mwinAndroidCopy* copy)
         if (copy->into != nullptr && copy->into[i] >= 0)
         {
             (void)close(copy->into[i]);
+        }
+    }
+    // A job ended before every document was copied or left out told
+    // nothing, as when its window is destroyed or it had no room to
+    // start: none of its copies reaches the program, so its folder goes.
+    if (copy->next < copy->count)
+    {
+        char folder[PATH_MAX];
+        int length = snprintf(folder, sizeof(folder), "%s/%u", copy->folder, copy->serial);
+        if (length > 0 && (size_t)length < sizeof(folder))
+        {
+            RemoveTree(folder);
         }
     }
     if (copy->from != nullptr)
